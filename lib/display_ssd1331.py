@@ -32,7 +32,7 @@ class SSD1331Display(SSD1331):
         display_bus = displayio.FourWire(
             spi, chip_select=self.oled_cs, command=self.oled_dc, reset=self.oled_res
         )
-
+        
         super(SSD1331Display, self).__init__(display_bus, width=self.screen_width, height=self.screen_height, *args, **kwargs)
    
 

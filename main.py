@@ -2,7 +2,10 @@ from display_ssd1331 import SSD1331Display
 import displayio
 import time
 import math
-import adafruit_framebuf as framebuf
+import board
+import analogio
+
+from adafruit_display_shapes.line import Line
 from fine_tile_grid import FineTileGrid
 
 SCREEN_WIDTH = 96
@@ -10,11 +13,12 @@ SCREEN_HEIGHT = 64
 start_time_ms = 0
 
 def main():
-    display = SSD1331Display()
-    display.auto_brightness = False
+    #temp_sensor = analogio.AnalogIn(board.A4)
+    #conversion_factor = 3.3 / (65535)
+
+    display = SSD1331Display(auto_refresh=False)
     
     palette = make_palette(32)
-    buffer = framebuf.FrameBuffer(bytearray(SCREEN_WIDTH * SCREEN_HEIGHT), SCREEN_WIDTH, SCREEN_HEIGHT)
     bike = displayio.OnDiskBitmap("/bike.bmp")
     loop(display, palette, bike)
     
@@ -28,13 +32,13 @@ def loop(display, palette, bike, speed=1):
     
     # Set up moving lines
     lines = []
-    num_lines = 16
+    num_lines = 18
     half_height = round(SCREEN_HEIGHT / 2) - 10
     
     horiz = displayio.Bitmap(SCREEN_WIDTH, 1, 32)
     horiz.fill(0)
     root.append(FineTileGrid(horiz, pixel_shader=palette, y=half_height))
-    
+    horiz_lines = displayio.Group()
     for i in range(num_lines):
         bitmap = displayio.Bitmap(SCREEN_WIDTH, 1, 32)
         bitmap.fill(i)
@@ -45,22 +49,32 @@ def loop(display, palette, bike, speed=1):
         grid.fine_y = start_y
         
         lines.append(grid)
-        root.append(grid)
+        horiz_lines.append(grid)
+        
         
     # Add bike
     bike.pixel_shader.make_transparent(2)
-    root.append(displayio.TileGrid(bike, pixel_shader=bike.pixel_shader, x=43, y=34))
-  
+    
     # Set starting position for lines
     line_y = SCREEN_HEIGHT
 
     # show root Display group 
-    display.show(root)
+    
     # print(dir(display))
     
+    draw_vert_lines(root, half_height)
+    
+    root.append(horiz_lines)
+    root.append(displayio.TileGrid(bike, pixel_shader=bike.pixel_shader, x=43, y=34))
+  
+    display.show(root)
+        
     # Loop to update position of lines
     while True:        
         draw_horiz_lines(half_height, lines)
+        display.refresh()
+        # vertical lines
+        
                 
         #time.sleep(0.01)
             
@@ -68,7 +82,7 @@ def loop(display, palette, bike, speed=1):
     
 def draw_horiz_lines(half_height, lines):
     global start_time_ms
-    global_speed = 0.325
+    global_speed = 1.437
     
     line_freq = 220
     
@@ -124,6 +138,16 @@ def draw_horiz_lines(half_height, lines):
             lines[i].y = round(lines[i].fine_y)
         
     return
+    
+def draw_vert_lines(root, half_height):
+    lineGroup = displayio.Group()
+
+    spacing = 10
+    for i in range(-16,16):
+        line = Line(round(SCREEN_WIDTH/2) + i, half_height, round(SCREEN_WIDTH/2) + i * spacing, SCREEN_HEIGHT, 0x00FFFF)
+        lineGroup.append(line)
+        
+    root.append(lineGroup)
     
 def make_palette(num_colors):
     # Set up color palette
