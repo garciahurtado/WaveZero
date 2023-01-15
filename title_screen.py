@@ -5,7 +5,7 @@ import time
 def show_title(display, root):
     # "Wave"
     title1_bitmap, title1_palette = adafruit_imageload.load(
-    "/title_wave.bmp", bitmap=displayio.Bitmap, palette=displayio.Palette
+    "/img/title_wave.bmp", bitmap=displayio.Bitmap, palette=displayio.Palette
 )
    
     
@@ -14,7 +14,7 @@ def show_title(display, root):
     for i in range(0, num_colors):
         title1_palette.make_transparent(i)
         
-    title1_grid = displayio.TileGrid(title1_bitmap, pixel_shader=title1_palette, x=0, y=0)
+    title1_grid = displayio.TileGrid(title1_bitmap, pixel_shader=title1_palette, x=7, y=4)
     
     root.append(title1_grid)
     display.show(root)
@@ -23,7 +23,7 @@ def show_title(display, root):
     for i in range(num_colors, -1, -1):  
         title1_palette.make_opaque(i)
         display.refresh()
-        time.sleep(0.15)
+        time.sleep(0.12)
        
     title1_palette.make_transparent(0)
     
@@ -32,19 +32,15 @@ def show_title(display, root):
     for i in range(1, 255):
         white_palette[i] = 0xFFFFFF
         
-    title1_grid.pixel_shader = white_palette
+    # title1_grid.pixel_shader = white_palette
     white_palette.make_transparent(0)
     
-    # just a flash
-    display.refresh()
-    time.sleep(0.01)
     title1_grid.pixel_shader = title1_palette
     display.refresh()
     
-    
     # "Zero"
     title2_bitmap, title2_palette = adafruit_imageload.load(
-    "/title_zero.bmp", bitmap=displayio.Bitmap, palette=displayio.Palette
+    "/img/title_zero.bmp", bitmap=displayio.Bitmap, palette=displayio.Palette
 )
     
     title2_palette.make_transparent(0)
@@ -52,7 +48,7 @@ def show_title(display, root):
     root.append(title2_grid)
     display.refresh()
     
-    for x in range(100, 0, -1):
+    for x in range(100, 15, -1):
         title2_grid.x = x
         display.refresh()
     
@@ -79,7 +75,7 @@ def show_title(display, root):
         title1_palette = new_palette
         display.refresh()
     
-    time.sleep(4)
+    time.sleep(2)
     
     # Clear the screen
     root.remove(title1_grid)
