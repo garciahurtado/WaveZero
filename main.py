@@ -1,23 +1,27 @@
 from display_ssd1331 import SSD1331Display
 from displayio import Group, Bitmap, TileGrid, Palette
 
+import gc
 import time
 import math
 import board
 import analogio
 import adafruit_imageload
-import bitmaptools
-import adafruit_fancyled.adafruit_fancyled as fancy
-
-from title_screen import show_title
-
 from adafruit_display_shapes.line import Line
+import adafruit_fancyled.adafruit_fancyled as fancy
+import bitmaptools
+import ulab.numpy as np
+import bitops
+
 from fine_tile_grid import FineTileGrid
+from title_screen import show_title
 import ui_elements as ui
+
 
 SCREEN_WIDTH = 96
 SCREEN_HEIGHT = 64
 start_time_ms = 0
+line_cache = {}
 
 def main():
     #temp_sensor = analogio.AnalogIn(board.A4) 
@@ -38,7 +42,10 @@ def main():
     root = Group()
     root.scale = 1
     
-    show_title(display, root)
+    #show_title(display, root)
+    gc.collect()
+    print("Free memory at before loop: {} bytes".format(gc.mem_free()) )
+
     loop(display, root, make_palette(8), bike, bike_anim)
 
     
@@ -54,17 +61,21 @@ def loop(display, root, horiz_palette, bike, bike_anim, speed=1):
     draw_sun(root)
     
     
-    horiz_y = 15
+    horiz_y = 16
     
     # Set up vertical lines
     spacing = 25 
-    field_width = 384
-    vert_lines = draw_vert_lines(root, horiz_y, field_width=field_width, spacing=spacing)
+    field_width = 128
+    line_group = Group()
+  
+    #line_layer = draw_vert_lines(line_group, horiz_y, field_width, spacing)
     
+    create_vert_lines(line_group, horiz_y, field_width, spacing)
+    root.append(line_group)
     
     # Set up horizontal road lines
     lines = []
-    num_lines = 18
+    num_lines = 22
     lines = create_horiz_lines(root, num_lines, horiz_y, horiz_palette)
    
     
@@ -84,8 +95,11 @@ def loop(display, root, horiz_palette, bike, bike_anim, speed=1):
     
     last_frame_ms = round(time.monotonic() * 1000)
     
+    
     # Loop to update position of lines
     while True:
+        #gc.collect()
+        #print("Free memory: {} bytes".format(gc.mem_free()) )
         
         # score += 1
         now = time.monotonic() * 1000
@@ -105,22 +119,11 @@ def loop(display, root, horiz_palette, bike, bike_anim, speed=1):
         line_offset = turn_bike(bike, bike_angle)
         bike_angle = math.sin(now / 1000)
         
-        # vertical lines
-        draw_vert_lines_bmp(
-            vert_lines,
-            half_field,
-            horiz_y,
-            spacing,
-            x1_offset=x1_offset,
-            x2_offset=x2_offset)
-        
-        # lines_bmp = Bitmap(field_width, SCREEN_HEIGHT - half_height + 1, 3)
-    
-    
         x1_offset = line_offset * 40       
         x2_offset = -line_offset * 10
         bike.x = math.floor((line_offset * 30)) + round(SCREEN_WIDTH / 2) - 18
                  
+        update_vert_lines(line_group, horiz_y, field_width, spacing, turn_offset=x2_offset)
         draw_horiz_lines(horiz_y, lines, horiz_palette)
         ui.draw_score(score, score_text)
         display.refresh()
@@ -213,51 +216,48 @@ def draw_horiz_lines(horiz_y, lines, palette):
             lines[i].y = round(lines[i].fine_y)
         
     return
+
+def create_vert_lines(line_group, start_y, field_width, spacing):
+    # Create vertical lines as a series of 1px tall sprites, each with a pattern of
+    # dots equally spaced out to simulate one vertical scanline of the vertical
+    # road lines
     
-def draw_vert_lines(root, half_height, field_width, spacing):
-    
-    half_field = round(field_width/2)
-    
-    line_bmp = Bitmap(field_width, SCREEN_HEIGHT - half_height + 1, 3)
-    palette = Palette(3)
+    start_x = -round((field_width - SCREEN_WIDTH) / 2 )
+    palette = Palette(2)
     palette[0] = 0x000000
     palette[1] = 0xff00c1
-    palette[2] = 0x00aaaa
+    #palette.make_transparent(0)
+    min_spacing = 4
+    half_field = field_width / 2
     
-    start_x = round(SCREEN_WIDTH/2) - half_field
-    line_layer = TileGrid(line_bmp, pixel_shader=palette, x=start_x, y=half_height)
-    root.append(line_layer)
-    
-    draw_vert_lines_bmp(line_bmp, half_field, half_height, spacing)
-    
-
-    return line_bmp
-
-def draw_vert_lines_bmp(line_bmp, half_field, half_height, spacing, x1_offset=0, x2_offset=0):
-    bitmaptools.fill_region(line_bmp, 0, 0, line_bmp.width, line_bmp.height, value=0)
-    half_field = int(half_field)
-    max_x = int(half_field/spacing)
-    x1_offset = int(x1_offset)
-    x2_offset = int(x2_offset)
-    
-    top_spacing = 3
-    y2 = SCREEN_HEIGHT - half_height
-    #print(f"{x1_offset} : {x2_offset} - {half_field}")
-    for i in range(-max_x,max_x):
-        x1 = half_field + (i * top_spacing) - x1_offset
-        y1 = 0
-        x2 = half_field + (i * spacing) + x2_offset
+    for y in range(start_y, SCREEN_HEIGHT):
+        rel_y = y - start_y
+        ratio = (rel_y+min_spacing)/(SCREEN_HEIGHT-start_y)
+        scan = Bitmap(field_width, 1, 2)
+        line_spacing = round(spacing * ratio)
         
-        # Color the sidelines of the road
-        if i == 2 or i == -2:
-            color = 2
-            bitmaptools.draw_line(dest_bitmap=line_bmp, x1=x1, y1=y1, x2=x2-2, y2=y2, value=color)
-            bitmaptools.draw_line(dest_bitmap=line_bmp, x1=x1, y1=y1, x2=x2, y2=y2, value=color)
-            bitmaptools.draw_line(dest_bitmap=line_bmp, x1=x1, y1=y1, x2=x2+2, y2=y2, value=color)
-        else:
-            color = 1
-            bitmaptools.draw_line(dest_bitmap=line_bmp, x1=x1, y1=y1, x2=x2, y2=y2, value=color)
-
+        dot_offset = round(field_width / 2) % line_spacing
+        
+        for x in range(0,scan.width,line_spacing):
+            if (x + dot_offset) < scan.width:
+                scan[x + dot_offset,0] = 1
+     
+        x_offset = round(start_x-(spacing*(ratio)/2))
+        scan_layer = TileGrid(scan, pixel_shader=palette, x=x_offset, y=y)
+        line_group.append(scan_layer)
+ 
+def update_vert_lines(line_group, start_y, field_width, max_spacing, turn_offset = 0):
+    start_x = -round((field_width - SCREEN_WIDTH) / 2 )
+    min_spacing = 4
+    half_field = field_width / 2
+    
+    for layer in line_group:
+        rel_y = layer.y - start_y
+        ratio = (rel_y+min_spacing)/(SCREEN_HEIGHT-start_y)
+        dot_offset = round(field_width / 2) % max_spacing
+        x_offset = round(start_x-(max_spacing*(ratio)/2) + (turn_offset*ratio)) 
+        layer.x = x_offset
+    
     
 def make_palette(num_colors):
     # Set up color palette
@@ -285,6 +285,28 @@ def make_palette_from_img():
     
     return palette
 
+def empty_group(dio_group):
+        """Recursive depth first removal of anything in a Group.
+           Intended to be used to clean-up a previous screen
+           which may have elements in the new screen
+           as elements cannot be in two Groups at once since this
+           will cause "ValueError: Layer already in a group".
+           This only deletes Groups, it does not del the non-Group content."""
+        if dio_group is None:
+            return
+
+        ### Go through Group in reverse order
+        
+        
+        for idx in range(len(dio_group) - 1, -1, -1):
+           
+            if dio_group[idx] is None:
+                continue
+            ### Avoiding isinstance here as Label is a sub-class of Group!
+            ### pylint: disable=unidiomatic-typecheck
+            if type(dio_group[idx]) == Group:
+                empty_group(dio_group[idx])
+            del dio_group[idx]
 
 if __name__ == "__main__":
     main()
