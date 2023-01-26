@@ -24,7 +24,7 @@ class SSD1331Display(SSD1331):
         spi = busio.SPI(self.oled_scl, self.oled_sda)
         while not spi.try_lock():
             pass
-        spi.configure(baudrate=6_666_000) # Configure SPI for 80MHz
+        spi.configure(baudrate=24_000_000) # Configure SPI baud rate to 24Mhz
         spi.unlock()
 
         # Initialize OLED display
