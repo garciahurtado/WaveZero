@@ -71,15 +71,18 @@ def loop(display, root, bike, bike_anim, speed=1):
     x2_offset = 0
 
     bike_angle = 0
-    fps_list = []
+    
+    fps_list_max = 30
+    fps_list = np.zeros(fps_list_max, dtype=np.uint16)
+    fps_list_index = 0
     
     last_frame_ms = round(time.monotonic() * 1000)
     
     # Some fake obstacles
 
-    for i in range(5):
-        x = random.randrange(-100, 100)
-        road_sprite = create_road_sprite(x=x, y=0, z=2000, horiz_y=horiz_y)
+    for i in range(10):
+        x = random.randrange(-200, 200)
+        road_sprite = create_road_sprite(x=x, y=0, z=1500, horiz_y=horiz_y)
         root.append(road_sprite)
     
     # Loop to update position of lines
@@ -93,13 +96,14 @@ def loop(display, root, bike, bike_anim, speed=1):
         last_frame_ms = now
         if elapsed_ms:
             fps = 1000 / elapsed_ms
-            fps_list.append(fps)
-            
-        if len(fps_list) > 20:
-            fps_list.pop(0)
-            
+
+            fps_list[fps_list_index] = fps
+            fps_list_index = fps_list_index + 1
+            if fps_list_index >= fps_list_max:
+                fps_list_index = 0
+           
         if len(fps_list):
-            avg_fps = sum(fps_list) / len(fps_list)
+            avg_fps = np.mean(fps_list)
             score = round(avg_fps)
         
         line_offset = turn_bike(bike, bike_angle)
