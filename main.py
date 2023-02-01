@@ -7,18 +7,21 @@ import math
 import random
 import board
 import adafruit_imageload
+from adafruit_datetime import datetime
 from adafruit_display_shapes.rect import Rect
 
 import bitmaptools
 import framebufferio
 import ulab.numpy as np
 import bitops
+import asyncio
 
 from fine_tile_grid import FineTileGrid
 from title_screen import show_title
 import ui_elements as ui
 from road_grid import RoadGrid
 from perspective_sprite import PerspectiveSprite
+from fps_counter import FpsCounter
 
 SCREEN_WIDTH = 96
 SCREEN_HEIGHT = 64
@@ -27,6 +30,9 @@ line_cache = {}
 road_sprites = []
 
 def main():
+    asyncio.run(main_async())
+    
+async def main_async():
     display = SSD1331Display(auto_refresh=False)
     
     bike_anim = 8
@@ -43,11 +49,12 @@ def main():
     #show_title(display, root)
     gc.collect()
     print("Free memory at before loop: {} bytes".format(gc.mem_free()) )
-
-    loop(display, root, bike, bike_anim)
+    
+    fps = FpsCounter()
+    await asyncio.gather(update_loop(display, root, bike, bike_anim, fps=fps), refresh_display(display, fps=fps))
 
     
-def loop(display, root, bike, bike_anim, speed=1):
+async def update_loop(display, root, bike, bike_anim, speed=1, fps=None):
     start_time_ms = round(time.monotonic() * 1000)
     print(f"Start time: {start_time_ms}")
     
@@ -65,7 +72,6 @@ def loop(display, root, bike, bike_anim, speed=1):
     root.append(grid.horiz_lines)
     
     root.append(bike)  
-    display.show(root)
     
     x1_offset = 0
     x2_offset = 0
@@ -78,33 +84,24 @@ def loop(display, root, bike, bike_anim, speed=1):
     
     last_frame_ms = round(time.monotonic() * 1000)
     
-    # Some fake obstacles
-
-    for i in range(10):
-        x = random.randrange(-200, 200)
-        road_sprite = create_road_sprite(x=x, y=0, z=1500, horiz_y=horiz_y)
-        root.append(road_sprite)
+    # Some fake obstacles 
+    bitmap, palette = adafruit_imageload.load("/img/road_wall.bmp")
+    for j in range (0,1):
+        for i in range(100, 0, -10):
+            x = i
+            road_sprite = create_road_sprite(x=20, y=0+(j*30), z=1500+ (i*2), horiz_y=horiz_y, bitmap=bitmap, palette=palette)
+            root.append(road_sprite)
+    
+    display.show(root)
+    
     
     # Loop to update position of lines
     while True:
         #gc.collect()
         #print("Free memory: {} bytes".format(gc.mem_free()) )
-        
-        # score += 1
-        now = time.monotonic() * 1000
-        elapsed_ms = now - last_frame_ms
-        last_frame_ms = now
-        if elapsed_ms:
-            fps = 1000 / elapsed_ms
 
-            fps_list[fps_list_index] = fps
-            fps_list_index = fps_list_index + 1
-            if fps_list_index >= fps_list_max:
-                fps_list_index = 0
-           
-        if len(fps_list):
-            avg_fps = np.mean(fps_list)
-            score = round(avg_fps)
+        now = time.monotonic() * 1000
+        score = round(fps.fps())
         
         line_offset = turn_bike(bike, bike_angle)
         bike_angle = math.sin(now / 1000)
@@ -122,17 +119,25 @@ def loop(display, root, bike, bike_anim, speed=1):
             # print(f"x: {sprite.x} y: {sprite.y} z: {sprite.z}")
         
         ui.draw_score(score, score_text)
-        display.refresh()
         
-        # time.sleep(0.5)
+        await asyncio.sleep(0.0001)
             
     # Wait for next update
 
-        
-def create_road_sprite(x, y, z, horiz_y):
+      
+async def refresh_display(display, fps):
+    while True:
+        display.refresh(target_frames_per_second=20)
+        fps.tick()
+        await asyncio.sleep(0.001)
+    
+    
+def create_road_sprite(x, y, z, horiz_y, bitmap=None, palette=None):
     global road_sprites
 
-    bitmap, palette = adafruit_imageload.load("/img/road_wall.bmp")
+    rand_colors = [0xFF0000, 0x00FF00, 0x0000FF, 0xFFFF00, 0x00FFFF, 0xFF00FF]
+    # palette[1] = rand_colors[random.randrange(len(rand_colors))]
+    
     palette.make_transparent(2)
     grid = TileGrid(bitmap, pixel_shader=palette, x=0, y=0, tile_width=10, tile_height=10)
     grid[0] = 8
@@ -161,7 +166,6 @@ def turn_bike(bike, angle):
     return line_offset
 
 
-    
 def make_palette_from_img():
 
     bitmap, palette = adafruit_imageload.load(

@@ -13,9 +13,7 @@ class PerspectiveSprite():
         self.bitmap = sprite_grid.bitmap
         self.max_height = sprite_grid.bitmap.height
         
-        print(f"max height: {self.max_height }")
         self.num_frames = round(self.bitmap.width/sprite_grid.tile_width) - 1
-        print(f"Loaded {self.num_frames} frames from spritesheet")
         self.horiz_y = horiz_y
         
         # Calculate vanishing point based on the horizon
@@ -46,11 +44,11 @@ class PerspectiveSprite():
         if self._z == 0:
             self._z = self.horiz_z + 1
         
-        self.sprite_grid.x, self.sprite_grid.y = self.to2d(self.x, self.y, self._z)
+        self.sprite_grid.x, self.sprite_grid.y = self.to2d(self.x, self.y + self.max_height, self._z)
         
         # calculate 2D height, in order to pick the right frame in the spritesheet
-        _, y_top = self.to2d(self.x, self.y - self.max_height, self._z)
-        height_px = abs(y_top - self.sprite_grid.y)
+        _, y_top = self.to2d(self.x, self.y, self._z)
+        height_px = y_top - self.sprite_grid.y
         
         if height_px > self.num_frames:
             height_px = self.num_frames
@@ -61,7 +59,7 @@ class PerspectiveSprite():
         self.sprite_grid[0] = height_px
         
     def to2d(self, x, y, z):
-        invert_y = SCREEN_HEIGHT - y
+        invert_y = SCREEN_HEIGHT - y - (self.max_height)
         
         # Here's where the magic happens. We convert the 3D coordinates to x,y in 2D space
         # @link https://math.stackexchange.com/a/2338025
