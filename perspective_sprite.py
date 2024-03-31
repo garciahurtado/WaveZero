@@ -8,25 +8,23 @@ SCREEN_HEIGHT = 64
 class PerspectiveSprite():
     """ Simulates a sprite in a 3D space given a 2D plane and a vanishing point
     """
-    def __init__(self, sprite_grid, x=0, y=0, z=0, horiz_y=0):
+    def __init__(self, sprite_grid, x=0, y=0, z=0, camera=None):
         self.sprite_grid = sprite_grid
         self.bitmap = sprite_grid.bitmap
-        self.max_height = sprite_grid.bitmap.height
+        # self.max_height = sprite_grid.bitmap.height
         
         self.num_frames = round(self.bitmap.width/sprite_grid.tile_width) - 1
-        self.horiz_y = horiz_y
-        
-        # Calculate vanishing point based on the horizon
-        vp_x = round(SCREEN_WIDTH / 2)
-        vp_y = horiz_y
-        self.vanishing = {"x": vp_x, "y": vp_y}
-        self.focal_length = 100 # Distance from the camera to the projection plane in pixels
+        self.camera = camera
+
         self.horiz_z = 2000
         self.min_z = 0
         
         self.x = x
         self.y = y
         self._z = z
+        
+        self.num_lanes = 5
+        self.lane_width = 30
         
     @property
     def z(self):
@@ -36,19 +34,34 @@ class PerspectiveSprite():
     def z(self, value):
         self._z = value
         self.update_sprite()
+        
+    def get_lane(self, offset):
+        """
+        Returns the lane number which this sprite occupies in 3D space
+        """
+        total_width = self.num_lanes * self.lane_width
+        
+        if (self.x + offset) == 0:
+            return 0
+        else:
+            return math.floor( (self.x + offset) / self.lane_width )
+        
 
 
     def update_sprite(self):
-        """ Update the real sprites x,y coordinates based on a projection from the fake 3D sprites x,y,z coords
+        """ Update the 2D sprite's x,y coordinates based on a projection from the fake 3D sprite's x,y,z coords
         """
-        if self._z == 0:
+        
+        # Send it back to the start
+        if self._z < self.camera.min_z:
             self._z = self.horiz_z + 1
         
-        self.sprite_grid.x, self.sprite_grid.y = self.to2d(self.x, self.y + self.max_height, self._z)
+        self.sprite_grid.x, self.sprite_grid.y = self.camera.to2d(self.x, self.y + self.bitmap.height, self._z)
         
         # calculate 2D height, in order to pick the right frame in the spritesheet
-        _, y_top = self.to2d(self.x, self.y, self._z)
+        _, y_top = self.camera.to2d(self.x, self.y, self._z)
         height_px = y_top - self.sprite_grid.y
+        
         
         if height_px > self.num_frames:
             height_px = self.num_frames
@@ -57,18 +70,3 @@ class PerspectiveSprite():
         
         # print(f"Height: {height_px}")
         self.sprite_grid[0] = height_px
-        
-    def to2d(self, x, y, z):
-        invert_y = SCREEN_HEIGHT - y - (self.max_height)
-        
-        # Here's where the magic happens. We convert the 3D coordinates to x,y in 2D space
-        # @link https://math.stackexchange.com/a/2338025
-        new_x = round((x * ( self.focal_length / z)) + self.vanishing['x'])
-        new_y = round((invert_y * ( self.focal_length / z)) + self.vanishing['y'])
-        
-        # invert the y, since y is at the bottom in our 3D space, but at the top of screen space
-        return new_x, new_y
-        
-        
-    
-        
