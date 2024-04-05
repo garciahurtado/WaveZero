@@ -1,2 +1,2 @@
-from main import main
+from main_old import main
 main()

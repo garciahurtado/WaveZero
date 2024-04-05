@@ -1,4 +1,3 @@
-from displayio import Group
 import time
 import math
 
