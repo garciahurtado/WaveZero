@@ -1,18 +1,17 @@
-import ulab.numpy as np
-import time
+import utime
 
 class FpsCounter():
     def __init__(self, list_size=20):
         self.list_size = list_size
-        self.ticks = np.zeros(list_size, dtype=np.uint16)
+        self.ticks = [0] * list_size
         self.index = 0
         
     def tick(self):
         """ Get current timestamp at the time of rendering one frame, to calculate FPS later
         """
-        self.ticks[self.index] = (time.monotonic() * 1000) % (256*256)
+        self.ticks[self.index] = (utime.ticks_ms() * 1000) % (256*256)
         self.index = self.index + 1
-        if self.index >= len(self.ticks):
+        if self.index >= self.list_size:
             self.index = 0
             
     def fps(self):

@@ -1,4 +1,4 @@
-from microbmp import MicroBMP as bmp
+from sprite import load_bmp
 import machine
 from machine import Pin
 import framebuf
@@ -64,16 +64,15 @@ def main():
     # Set up vertical and horizontal 3D lines
     grid = RoadGrid(camera, screen)
 
-    sun = create_sun()
-    sun_image = {'data':sun.rgb565(), 'width': sun.DIB_w, 'height':sun.DIB_h}
-
+    sun_image = load_bmp('/img/sunset.bmp')
+   
     while running:
         # Clear the screen
         screen.fill(BLACK)
         grid.draw_vert_lines()
         grid.draw_horiz_lines()
         grid.update_sway()
-        draw_sun(sun_image, screen)
+        draw_sun(sun_image, screen, x=39, y=5)
         
         # Update the display
         screen.show()
@@ -118,23 +117,12 @@ def draw_test_lines(screen, white):
         # Draw the line
         screen.hline(int(line_pos), int(lines[i][0]), int(line_length), white)
 
-def create_sun():
-    
-    # Load the PNG image
-    # with open('/img/sunset.bmp', 'rb') as f:
-    #     png_data = f.read()
-    filename = '/img/sunset_2.bmp'
 
-    image = bmp().load(filename)
-
-    return image
-
-
-def draw_sun(image, screen):
+def draw_sun(image, screen, x=0, y=0):
     fb = framebuf.FrameBuffer(bytearray(image['data']), image['width'], image['height'], framebuf.RGB565)
 
     # Display the image on the screen
-    screen.blit(fb, 39, 5)
+    screen.blit(fb, x, y)
     return
 
 if __name__ == "__main__":

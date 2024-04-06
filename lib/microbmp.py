@@ -122,7 +122,7 @@ class MicroBMP(object):
     - To get or set a primary colour value of a pixel of a 24-bit image : `img[x, y, c]`
     """
 
-    def __init__(self, width=None, height=None, depth=None, palette=None):
+    def __init__(self, width=None, height=None, depth:int=8, palette=None):
         # BMP Header
         self.BMP_id = b"BM"
         self.BMP_size = None
@@ -144,7 +144,9 @@ class MicroBMP(object):
         self.DIB_extra = None
 
         self.palette = palette
-        self.parray = None  # Pixel array
+
+        # Pixel array
+        self.parray: list[int] = []
 
         self.ppb = None  # Number of pixels per byte for depth <= 8.
         self.pmask = None  # Pixel Mask
@@ -525,12 +527,14 @@ class MicroBMP(object):
     
     def rgb(self):
         """Returns a list of RGB pixels for indexed images (<=8bit)"""
-        pixels = []
-        for index in self.parray:
-            color = self.palette[index]
-            pixels.append([color[0], color[1], color[2]])
+        index = 0
+        while index < len(self.parray):
+            color_idx = self.parray[index]
+            print(f"color index:{color_idx}")
+            color = self.palette[color_idx]
+            yield color[0], color[1], color[2]
+            index = index + 1
 
-        return pixels
     
     def rgb565(self):
         """
@@ -542,8 +546,9 @@ class MicroBMP(object):
         Returns:
             bytes: An RGB565 encoded byte array.
         """
-        rgb565_pixels = []
-        for r, g, b in self.rgb():
+        rgb565_pixels = bytearray()
+        for pixel in self.parray:
+            r,g,b = self.palette[pixel]
             # Convert RGB values to 5-6-5 bit format
             r5 = (r >> 3) & 0b11111
             g6 = (g >> 2) & 0b111111
@@ -553,7 +558,7 @@ class MicroBMP(object):
             rgb565 = (r5 << 11) | (g6 << 5) | b5
             
             # Append the 16-bit integer to the list
-            rgb565_pixels.append(rgb565.to_bytes(2, "big"))
+            rgb565_pixels.extend(rgb565.to_bytes(2, "big"))
         
         # Concatenate the individual 16-bit integers into a single byte array
-        return b''.join(rgb565_pixels)
+        return rgb565_pixels
