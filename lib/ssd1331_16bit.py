@@ -30,6 +30,7 @@
 import framebuf
 import utime
 import gc
+from boolpalette import BoolPalette
 
 # https://github.com/peterhinch/micropython-nano-gui/issues/2
 # The ESP32 does not work reliably in SPI mode 1,1. Waveforms look correct.
@@ -53,6 +54,7 @@ class SSD1331(framebuf.FrameBuffer):
         self._spi_init = init_spi
         mode = framebuf.RGB565
         self.palette = BoolPalette(mode)
+        
         gc.collect()
         self.buffer = bytearray(self.height * self.width * 2) # RGB565 is 2 bytes
         super().__init__(self.buffer, self.width, self.height, mode)
@@ -80,15 +82,3 @@ class SSD1331(framebuf.FrameBuffer):
             self._spi_init(spi)  # Bus may be shared
         self._write(_cmd, 0)
         self._write(self.buffer, 1)
-
-class BoolPalette(framebuf.FrameBuffer):
-
-    def __init__(self, mode):
-        buf = bytearray(4)  # OK for <= 16 bit color
-        super().__init__(buf, 2, 1, mode)
-    
-    def fg(self, color):  # Set foreground color
-        self.pixel(1, 0, color)
-
-    def bg(self, color):
-        self.pixel(0, 0, color)

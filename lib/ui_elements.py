@@ -2,33 +2,62 @@
 # import adafruit_imageload
 # from adafruit_display_text import label
 # from adafruit_bitmap_font import bitmap_font
-import sprite
+from sprite import Sprite
+import framebuf
+import color_old as colors
+import fonts.vtks_blocketo_6
+from font_writer import Writer, CWriter as ColorWriter
 
-def init_score(root):
-    # font = bitmap_font.load_font("fonts/vtksblocketo-7.bdf", Bitmap)
-    # score_text = label.Label(font, text="000000000", color=0x00FFFF)
-    # score_text.x = 60
-    # score_text.y = 2
-    # root.append(score_text)
-    # return score_text
-    return None
+class ui():
+    display:framebuf.FrameBuffer
+    lives_sprite:Sprite
+    score = 0
+    score_text = None
+    sprites = []
 
-def draw_lives(root):
-    # life_bitmap, life_palette = adafruit_imageload.load("/img/life.bmp")
-    life_img = sprite.load_bmp("/img/life.bmp")
-    # life_palette.make_transparent(1)
-    lives = 3
-    # group = Group()
-    for i in range(lives):
-        # grid = TileGrid(life_bitmap, pixel_shader=life_palette, x=i*12, y=0, tile_width=12, tile_height=7)
-        # group.append(grid)
+    def __init__(self, display) -> None:
+        self.display = display
+        self.lives_sprite = Sprite("/img/life.bmp")
         pass
+
+    def add(self, sprite):
+        self.sprites.append(sprite)
+
+    def init_score(self):
         
-    # root.append(group)
+        CYAN = self.display.rgb(0,255,255)
+        BLACK = self.display.rgb(0,0,0)
+        
+        self.score_text = ColorWriter(self.display, fonts.vtks_blocketo_6, verbose=True)
+        self.score_text.setcolor(CYAN, BLACK)
+        Writer.set_textpos(self.display, 0, 60) 
+                
+        return self.score_text
     
-def draw_score(score, score_text):
-    #score_text.text = f"{score:09}"
-    pass
+    def draw_score(self, score):
+        Writer.set_textpos(self.display, 0, 60)
+        self.score_text.printstring(f"{score:09}")
+
+    def draw_lives(self, num_lives=3):
+        # life_palette.make_transparent(1)
+        bg_index = 0 # Color index to be used as transparent
+        bg_color = self.lives_sprite.palette[bg_index]
+        bg_color = colors.rgb_to_565(bg_color)
+
+        for i in range(0, num_lives):
+
+            x, y = i*12, 0
+            self.display.blit(
+                self.lives_sprite.pixels,
+                x, y,
+                bg_color
+                )
+            pass
+
+
+    def draw_sprites(self):
+        for my_sprite in self.sprites:
+            my_sprite.show(self.display)
     
 
 

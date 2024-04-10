@@ -521,8 +521,8 @@ def rgb2hex(rgb, force_long=False):
     hx = ''.join(["%02x" % int(c * 255 + 0.5 - FLOAT_ERROR)
                   for c in rgb])
 
-    if not force_long and hx[0::2] == hx[1::2]:
-        hx = ''.join(hx[0::2])
+    # if not force_long and hx[0::2] == hx[1::2]:
+    #     hx = ''.join(hx[0::2])
 
     return "#%s" % hx
 
@@ -673,7 +673,7 @@ def web2hex(web, force_long=False):
 
     ## convert dec to hex:
 
-    return rgb2hex([float(int(v)) / 255 for v in COLOR_NAME_TO_RGB[web]],
+    return rgb2hex([int(v) / 255 for v in COLOR_NAME_TO_RGB[web]],
                    force_long)
 
 
@@ -982,7 +982,10 @@ class Color(object):
         if isinstance(color, Color):
             self.web = color.web
         else:
-            self.web = color if color is not None else 'black'
+            if color:
+                self.web = color
+            else:
+                self.web = 'black'
 
         self.equality = RGB_equivalence
 

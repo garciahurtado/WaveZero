@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-r"""A small Python module for BMP image processing.
+"""A small Python module for BMP image processing.
 
 - Author: Quan Lin
 - License: MIT
@@ -53,7 +52,7 @@ bytearray(b'L')
 >>> print(new_img_1b_3x2)
 BMP image, indexed, 1-bit, 3x2 pixels, 70 bytes
 """
-
+import array
 from struct import pack, unpack
 
 # Project Version
@@ -546,9 +545,16 @@ class MicroBMP(object):
         Returns:
             bytes: An RGB565 encoded byte array.
         """
-        rgb565_pixels = bytearray()
-        for pixel in self.parray:
-            r,g,b = self.palette[pixel]
+        num_pixels = len(self.parray)
+        array_size = num_pixels * 2
+        # print(f"Array size: {array_size} / palette size: {len(self.palette)}")
+        rgb565_buffer = bytearray(array_size)  # Pre-allocate the buffer
+        
+        index = 0
+        while index < len(self.parray):
+            color_idx = self.parray[index]
+            (r, g, b) = self.palette[color_idx]
+            
             # Convert RGB values to 5-6-5 bit format
             r5 = (r >> 3) & 0b11111
             g6 = (g >> 2) & 0b111111
@@ -557,8 +563,10 @@ class MicroBMP(object):
             # Pack the 5-6-5 bit values into a 16-bit integer
             rgb565 = (r5 << 11) | (g6 << 5) | b5
             
-            # Append the 16-bit integer to the list
-            rgb565_pixels.extend(rgb565.to_bytes(2, "big"))
+            # Write the 16-bit integer to the buffer
+            rgb565_buffer[index*2] = (rgb565 >> 8) & 0xFF
+            rgb565_buffer[index*2 + 1] = rgb565 & 0xFF
+            
+            index += 1
         
-        # Concatenate the individual 16-bit integers into a single byte array
-        return rgb565_pixels
+        return rgb565_buffer

@@ -1,7 +1,6 @@
 import math
 import utime
 import color_old as colors
-from color_lib import Color
 
 class RoadGrid:
  
@@ -9,7 +8,6 @@ class RoadGrid:
         self.width = camera.width
         self.height = camera.height
         self.last_horiz_line_ts = 0
-        self.vert_lines = []
         self.vert_points = []
         self.display = display
 
@@ -17,6 +15,7 @@ class RoadGrid:
         self.sway_dir = 1
         self.sway_max = 20
 
+        self.camera = camera
         self.horiz_y = camera.vp['y'] # 16
         print(f"Horizon Y: {self.horiz_y}")
 
@@ -28,7 +27,7 @@ class RoadGrid:
         self.vert_line_start_x = -round((self.field_width - self.width) / 2 )
     
         self.last_horiz_line_ts = round(utime.ticks_ms())
-        self.max_z = 3000
+        self.max_z = 4000
         
         num_horiz_lines = 100
         print(f"Creating {num_horiz_lines} hlines")
@@ -38,34 +37,36 @@ class RoadGrid:
         # cyan = Color('#42f2f5')
         # blue = Color('#1450ff')
 
-        red = colors.make_color([255,0,0])
-        mag = colors.make_color([255,0,100])
-        cyan = colors.make_color([66, 242, 245])
-        blue = colors.make_color([20,80,255])
+        red = [100,0,0]
+        mag = [255,0,50]
+        cyan = [0,255,255]
+        blue = [20,80,255]
+        horiz_far = [82, 0, 20]
+        horiz_near = [0, 238, 255]
 
-        self.num_horiz_colors = 32
-        # self.horiz_palette = colors.make_palette(self.num_horiz_colors, mag, cyan)
+        self.num_horiz_colors = 48
+        self.color_default = colors.rgb_to_565((0,255,255))
+        self.horiz_palette = colors.make_palette(horiz_far, horiz_near, self.num_horiz_colors)
+        #self.horiz_palette.insert(0, [0,0,0])
 
-        self.horiz_palette = list(blue.range_to(cyan, self.num_horiz_colors))
+        #self.horiz_palette = list(blue.range_to(cyan, self.num_horiz_colors))
 
-        self.horiz_palette.insert(0, Color([0,0,0]))
         self.horiz_lines_data = []
         self.create_horiz_lines(num_horiz_lines)
 
         points1, points2 = self.create_vert_points()
-        num_vert_colors = math.ceil(len(points1)/2)
+        num_vert_colors = int(len(points1)/2)
+        print(f"Making a vertical palette of {num_vert_colors}")
         
-        # palette_1 = colors.make_palette(num_vert_colors, red, blue)
-        # palette_2 = colors.make_palette(num_vert_colors, blue, red)
-        palette_1 = list(red.range_to(mag, num_vert_colors))
-        palette_2 = list(mag.range_to(red, num_vert_colors))
-
+        palette_1 = colors.make_palette(red, cyan, num_vert_colors)
+        palette_2 = palette_1[::-1]
+        
         self.vert_palette = palette_1 + palette_2
 
             
     def create_horiz_lines(self, num_lines):
         max_z = self.max_z
-        line_separation = max_z / num_lines
+        line_separation = (max_z) / num_lines
         
         for i in range(num_lines):
             #grid = FineTileGrid(bitmap, pixel_shader=palette,  y=math.ceil(self.start_y + i*i))
@@ -75,45 +76,47 @@ class RoadGrid:
             self.horiz_lines_data.append(line)
 
     def draw_horiz_lines(self):
-        global_speed = 10
-        #line_freq =100
+        global_speed = 8
         elapsed_ms = round(utime.ticks_ms() - self.last_horiz_line_ts)
         max_z = self.max_z
-        min_z = 10
+        min_z = 1
+        last_y = 0
        
-        # Time to spawn a new line in the horizon
-        # if elapsed_ms > line_freq:
-        #     self.last_horiz_line_ts = utime.ticks_ms() # reset timer
-            
-        # for line in self.horiz_lines_data:
-        #     # find a line which is not active
-        #     if line['z'] < min_z:
-        #         line['z'] = max_z # this activates the line
-        #         break
-             
-        for my_line in self.horiz_lines_data:
+        for i, my_line in enumerate(self.horiz_lines_data):
+           
+
             # The lines at the very start are in "standby" until its their time to move
-            if my_line['z'] < min_z:
-                my_line['z'] = max_z
-            else:
-                y = self.calculate_screen_y(my_line['z'])
-                #print(f"For Z: {my_line['z']}, Calculated y as {y}")
-
-                #Pick the color
-                max_y = self.height
-                total_dist = self.height - self.horiz_y
-                rel_y = y - self.horiz_y
-                step = total_dist / self.num_horiz_colors
-                my_color_index = int(y/step)
-
-                if my_color_index >= self.num_horiz_colors:
-                    my_color_index = self.num_horiz_colors - 1
-
-                # color_red = self.display.rgb(255,0,0)
-                rgb565 = self.horiz_palette[my_color_index]
-                self.display.hline(0, y, self.width, rgb565)
-
             my_line['z'] = my_line['z'] - global_speed
+            y = self.calculate_screen_y(my_line['z'])
+            
+            # Reached the bottom of the screen, send the line back up to the horizon
+            if y > self.display.height:
+                my_line['z'] = max_z
+                continue
+ 
+            # Avoid writing a line on the same Y coordinate as the last one we draw
+            if y == last_y:
+                continue
+            
+            #print(f"For Z: {my_line['z']}, Calculated y as {y}")
+
+            if y != self.horiz_y:
+                rel_y = (y - self.horiz_y) / (self.display.height - self.horiz_y)
+                rel_y = max(0.0, min(1.0, rel_y))  # Clamp rel_y between 0 and 1
+            else:
+                rel_y = 1.0 
+            
+            my_color_index = int(rel_y * len(self.horiz_palette))
+            # print(f"my_color_index: {my_color_index}")
+
+            if my_color_index >= len(self.horiz_palette):
+                my_color_index = len(self.horiz_palette) - 1
+
+            # color_red = self.display.rgb(255,0,0)
+            rgb565 = self.horiz_palette[my_color_index]
+            self.display.hline(0, y, self.width, rgb565)
+            last_y = y
+
 
         return
 
@@ -128,19 +131,44 @@ class RoadGrid:
         # Calculate maximum X of the bottom points, to center both sets of points
         max_x_top = num_lines * self.min_spacing
         max_x_bottom = num_lines * self.max_spacing
-        x_offset_top = int((max_x_top / 2) - (self.width/2))
-        x_offset_bottom = int((max_x_bottom / 2) - (self.width/2))
+        x_offset_top = int((max_x_top / 2) - (self.width/2) + (self.min_spacing))
+        x_offset_bottom = int((max_x_bottom / 2) - (self.width/2) - (self.max_spacing/2))
 
-        top_points =    [[(i * self.min_spacing) - x_offset_top, self.horiz_y] for i in range(num_lines)]
-        bottom_points = [[(i * self.max_spacing) - x_offset_bottom, self.height] for i in range(num_lines)]
+        points_start = []
+        # [[(i * self.min_spacing) - x_offset_top, self.horiz_y] for i in range(num_lines)]
+        points_end = []
+        #[[(i * self.max_spacing) - x_offset_bottom, self.height] for i in range(num_lines)]
+        
+        for i in range(num_lines):
+            start_x = (i * self.min_spacing) - x_offset_top
+            end_x = (i * self.max_spacing) - x_offset_bottom
+            points_start.append([start_x, self.horiz_y])
+            points_end.append([end_x, self.height])
+            
 
-        self.vert_points = [top_points, bottom_points]
+        self.vert_points = [points_start, points_end]
         return self.vert_points
     
     def draw_vert_lines(self):
         top_points, bottom_points = self.vert_points
+        start_x = 0
+        rel_y = 0
+        start_x_offset = int(self.camera.vp['x']*1.7) - 7
+        end_x_offset = self.camera.vp['x']
+
         for index, (start, end) in enumerate(zip(top_points, bottom_points)):
-            self.display.line(start[0], start[1], int(end[0] + self.sway), end[1], self.vert_palette[index])
+
+            ratio_start = (rel_y+self.min_spacing)/(self.height - self.horiz_y)
+            ratio_end = (rel_y+self.min_spacing)/(self.height)
+            
+            x_offset_start = round(start_x-(self.max_spacing*(ratio_start)/2)) # Apply 3d perspective to x offset of each 1px slice
+            x_offset_end = round(start_x-(self.max_spacing*(ratio_end)/2))
+            x_offset_start = self.vert_line_start_x
+            
+            start_x = start[0] - start_x_offset
+            end_x = end[0] - end_x_offset
+            
+            self.display.line(start_x, start[1], end_x, end[1], self.vert_palette[index])
 
     def update_sway(self):
         self.sway = self.sway + (1 * self.sway_dir)
@@ -193,6 +221,13 @@ class RoadGrid:
 
             scan_layer = TileGrid(scan, pixel_shader=palette, x=x_offset, y=y)
             self.vert_lines.append(scan_layer)
+            
+    def get_x_offset(self, turn_offset=0):
+        min_spacing = 4
+        ratio = (self.horiz_y + min_spacing) / self.height
+        x_offset = round(self.vert_line_start_x - (self.max_spacing * ratio) / 2 - (turn_offset * ratio))
+        self.vert_line_start_x = x_offset
+        return x_offset
             
     def update_vert_lines(self, turn_offset = 0):
         start_x = self.vert_line_start_x

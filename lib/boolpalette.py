@@ -4,8 +4,7 @@
 
 # Copyright (c) Peter Hinch 2021
 # Released under the MIT license see LICENSE
-
-import adafruit_framebuf as framebuf
+import framebuf
 
 class BoolPalette(framebuf.FrameBuffer):
 

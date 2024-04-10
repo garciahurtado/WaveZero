@@ -9,7 +9,7 @@ class FpsCounter():
     def tick(self):
         """ Get current timestamp at the time of rendering one frame, to calculate FPS later
         """
-        self.ticks[self.index] = (utime.ticks_ms() * 1000) % (256*256)
+        self.ticks[self.index] = (utime.ticks_ms()) % (256*256)
         self.index = self.index + 1
         if self.index >= self.list_size:
             self.index = 0
