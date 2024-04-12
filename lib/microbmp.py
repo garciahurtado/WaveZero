@@ -539,9 +539,7 @@ class MicroBMP(object):
         """
         Converts a list of RGB pixels into an RGB565 encoded byte array.
         
-        Args:
-            rgb_pixels (list): A list of RGB pixels, where each pixel is a tuple of (R, G, B) values.
-        
+
         Returns:
             bytes: An RGB565 encoded byte array.
         """

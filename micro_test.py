@@ -59,7 +59,7 @@ def main():
 
     # Camera
     horiz_y = 16
-    camera = PerspectiveCamera(width, height, vp_x=round(width / 2), vp_y=horiz_y)
+    camera = PerspectiveCamera(width, height, pos_x=round(width / 2), pos_y=horiz_y)
 
     # Set up vertical and horizontal 3D lines
     grid = RoadGrid(camera, screen)

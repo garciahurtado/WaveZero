@@ -12,7 +12,7 @@ class PerspectiveSprite():
         self.bitmap = sprite_grid.bitmap
         # self.max_height = sprite_grid.bitmap.height
         
-        self.num_frames = round(self.bitmap.width/sprite_grid.tile_width) - 1
+        self.num_frames = round(self.bitmap.screen_width / sprite_grid.tile_width) - 1
         self.camera = camera
 
         self.horiz_z = 2000
@@ -55,7 +55,7 @@ class PerspectiveSprite():
         if self._z < self.camera.min_z:
             self._z = self.horiz_z + 1
         
-        self.sprite_grid.x, self.sprite_grid.y = self.camera.to2d(self.x, self.y + self.bitmap.height, self._z)
+        self.sprite_grid.x, self.sprite_grid.y = self.camera.to2d(self.x, self.y + self.bitmap.screen_height, self._z)
         
         # calculate 2D height, in order to pick the right frame in the spritesheet
         _, y_top = self.camera.to2d(self.x, self.y, self._z)

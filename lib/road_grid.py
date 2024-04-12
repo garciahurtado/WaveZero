@@ -5,8 +5,8 @@ import color_old as colors
 class RoadGrid:
  
     def __init__(self, camera, display):
-        self.width = camera.width
-        self.height = camera.height
+        self.width = camera.screen_width
+        self.height = camera.screen_height
         self.last_horiz_line_ts = 0
         self.vert_points = []
         self.display = display
@@ -148,12 +148,12 @@ class RoadGrid:
 
         self.vert_points = [points_start, points_end]
         return self.vert_points
-    
+
     def draw_vert_lines(self):
         top_points, bottom_points = self.vert_points
         start_x = 0
         rel_y = 0
-        start_x_offset = int(self.camera.vp['x']*1.7) - 7
+        start_x_offset = int(self.camera.vp['x'] * 1.5) - 7
         end_x_offset = self.camera.vp['x']
 
         for index, (start, end) in enumerate(zip(top_points, bottom_points)):
@@ -164,7 +164,7 @@ class RoadGrid:
             x_offset_start = round(start_x-(self.max_spacing*(ratio_start)/2)) # Apply 3d perspective to x offset of each 1px slice
             x_offset_end = round(start_x-(self.max_spacing*(ratio_end)/2))
             x_offset_start = self.vert_line_start_x
-            
+
             start_x = start[0] - start_x_offset
             end_x = end[0] - end_x_offset
             
@@ -255,7 +255,7 @@ class RoadGrid:
 
         focal_length = 150
         if z <= 0:
-            raise ValueError("Z coordinate must be greater than 0")
+            z = 0.5
 
         vertical_offset = (self.height / 2 - horiz_y) * focal_length / z
 

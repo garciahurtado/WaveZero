@@ -10,8 +10,8 @@ def create_particles(bitmap, root):
     root.append(grid)
 
     # Get the center of the bitmap
-    center_x = bitmap.width // 2
-    center_y = bitmap.height // 2
+    center_x = bitmap.screen_width // 2
+    center_y = bitmap.screen_height // 2
 
     # Create a list to store particle data
     particles = []
