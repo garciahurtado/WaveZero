@@ -54,7 +54,6 @@ class Sprite:
 
         self.width = image.width
         self.height = image.height
-        self.ratio = self.width / self.height
         self.palette = image.palette
         self.pixels = image.pixels
 
@@ -115,9 +114,9 @@ class Sprite:
         (if 3D with perspective camera)
         """
         if self.camera:
-            x, y = self.camera.to2d2(self.x, self.y, self.z)
-            x = int(x - (self.width_2d / 2))
+            x, y = self.camera.to_2d(self.x, self.y, self.z)
             y = int(y - self.height_2d) # set the object on the "floor", since it starts being drawn from the top
+            x = int(x - self.width_2d) # Draw the object so that it is horizontally centered
 
             return x, y
         else:
@@ -130,6 +129,7 @@ class Spritesheet(Sprite):
     frame_width = 0
     frame_height = 0
     scale_one_dist = 0
+    ratio = 0
 
     def __init__(self, filename=None, frame_width=None, frame_height=None, *args, **kwargs):
         super().__init__(filename, *args, **kwargs)
@@ -137,6 +137,9 @@ class Spritesheet(Sprite):
         if frame_width and frame_height:
             self.frame_width = frame_width
             self.frame_height = frame_height
+
+            self.ratio = self.frame_width / self.frame_height
+            print(f"Ratio : {self.ratio}")
 
             num_frames = self.width // frame_width
             print(f"Spritesheet with {num_frames} frames")
@@ -174,10 +177,11 @@ class Spritesheet(Sprite):
         scale = (scale_one_dist / 2) / ((self.z - self.camera.pos['z']) / 2)
         frame_idx = int(scale * len(self.frames))
 
-        print(f"Scale: {scale:.3} / Frame: {frame_idx}")
+        #print(f"Scale: {scale:.3} / Frame: {frame_idx}")
         self.height_2d = scale * self.height
-        self.width_2d = int(self.ratio * self.height_2d)
-        self.height_2d = int(self.height_2d)
+        self.width_2d = self.ratio * self.height_2d
+
+        print(f"Height2d: {self.height_2d} / Width2d: {self.width_2d} (r: {self.ratio}")
 
         if frame_idx < 0:
             frame_idx = 0
