@@ -4,7 +4,7 @@
 # from adafruit_bitmap_font import bitmap_font
 from sprite import Sprite
 import framebuf
-import color_old as colors
+import color_util as colors
 import fonts.vtks_blocketo_6
 from font_writer import Writer, CWriter as ColorWriter
 
@@ -41,8 +41,8 @@ class ui():
     def draw_lives(self, num_lives=3):
         # life_palette.make_transparent(1)
         bg_index = 0 # Color index to be used as transparent
-        bg_color = self.lives_sprite.palette[bg_index]
-        bg_color = colors.rgb_to_565(bg_color)
+        bg_color = self.lives_sprite.palette.get_color(bg_index)
+        #bg_color = colors.rgb_to_565(bg_color)
 
         for i in range(0, num_lives):
 
@@ -54,10 +54,13 @@ class ui():
                 )
             pass
 
+    def refresh(self):
+        self.draw_sprites()
+        self.display.re
 
     def draw_sprites(self):
         for my_sprite in self.sprites:
             my_sprite.show(self.display)
-    
+
 
 

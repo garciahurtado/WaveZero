@@ -6,6 +6,8 @@ import math
 # import bitops
 import uasyncio as asyncio
 
+import color_util
+from screen import Screen
 # from fine_tile_grid import FineTileGrid
 # from title_screen import show_title
 from ui_elements import ui
@@ -16,9 +18,7 @@ from fps_counter import FpsCounter
 # import death_effect as death
 from encoder import Encoder
 from sprite import Sprite, Spritesheet, ImageLoader
-import machine
-from machine import Pin
-from lib.ssd1331_16bit import SSD1331 as SSD
+from title_screen import TitleScreen
 
 SCREEN_WIDTH = 96
 SCREEN_HEIGHT = 64
@@ -32,10 +32,11 @@ current_lane = 2
 target_lane = 2
 
 
-class GameScreen():
+class GameScreen(Screen):
     display: None
 
     def __init__(self):
+        super().__init__()
         print(f"Free memory __init__: {gc.mem_free():,} bytes")
 
         self.preload_images()
@@ -49,16 +50,13 @@ class GameScreen():
     async def main_async(self):
         self.preload_images()
 
-        display = self.setup_display()
-        screen = ui(self.display)
-
         bike_anim = 8
         bike = Spritesheet("/img/bike_sprite.bmp", 37, 22)
         bike.set_alpha()
         bike.set_frame(8)  # middle frame
         bike.x = 25
         bike.y = 42
-        screen.add(bike)
+        self.screen.add(bike)
 
         # bike_img = None
 
@@ -78,32 +76,12 @@ class GameScreen():
         encoder = Encoder(27, 26)
         last_pos = {'pos': 0}
 
-        fps = FpsCounter()
         await asyncio.gather(
-            self.update_loop(screen, bike, sun_img, sun_x_start, last_pos, fps=fps),
-            self.refresh_display(display, fps=fps),
+            self.update_loop(self.screen, bike, sun_img, sun_x_start, last_pos),
+            self.refresh_display(),
             self.get_input(encoder, last_pos))
 
 
-    def setup_display(self):
-        # Pin layout for SSD1331 64x48 OLED display on Raspberry Pi Pico (SPI0)
-        # GPIO1 (SPI0 CS)       CS
-        # GPIO2 (SPI0 SCK)      SCL
-        # GPIO3 (SPI0 TX)       SDA
-        # GPIO4 (or any)        RES
-        # GPIO5 (or any)        DC
-
-        pin_cs = Pin(1, Pin.OUT)
-        pin_sck = Pin(2, Pin.OUT)
-        pin_sda = Pin(3, Pin.OUT)
-        pin_rst = Pin(4, Pin.OUT, value=0)
-        pin_dc = Pin(5, Pin.OUT, value=0)
-
-        spi = machine.SPI(0, baudrate=24_000_000, sck=pin_sck, mosi=pin_sda, miso=None)
-        ssd = SSD(spi, pin_cs, pin_dc, pin_rst, height=64, width=96)  # Create a display instance
-
-        self.display = ssd
-        return ssd
 
 
     async def get_input(self, encoder, last_pos):
@@ -188,7 +166,7 @@ class GameScreen():
         # bitmap, palette = adafruit_imageload.load("/img/road_wall.bmp")
         obstacle = Sprite("/img/road_wall.bmp")
         road_sprites = []
-        num_obstacles = 6
+        num_obstacles = 9
 
         obstacle = Spritesheet("/img/road_wall.bmp", 10, 20)
         obstacle.camera = camera
@@ -198,14 +176,24 @@ class GameScreen():
         obstacle.z = sprite_max_z
         obstacle.set_frame(0)
 
+        all_colors = [0x00f6ff, 0x00dff9, 0x00c8f1, 0x00b1e8, 0x009add, 0x0083cf, 0x006cbf, 0x0055ac, 0x003e96,
+                      0x00267d]
+        all_colors = color_util.make_palette(all_colors)
+        print(f"Palette: {all_colors}")
+
         # Create a number of road obstacles by cloning
         for i in range(num_obstacles):
             new_obs = obstacle.clone()
             new_obs.z = 500 + (i * 50)
+            #new_obs.palette.set_color(0, all_colors[i])
 
-            road_sprites.insert(0, new_obs) # prepend, so they will be drawn in the right order
+            # print(f"New obs palette: {new_obs.palette}")
 
-            # all_colors = [0x00f6ff,0x00dff9,0x00c8f1,0x00b1e8,0x009add,0x0083cf,0x006cbf,0x0055ac,0x003e96,0x00267d]
+            #new_obs.palette.pixel(0, 0, all_colors[i])
+
+            #new_obs.set_palette()
+
+            # print(f"New mod. palette: {new_obs.palette}")
 
             # clone the base palette
             #          palette_colors = [color for color in palette]
@@ -216,12 +204,13 @@ class GameScreen():
             # Unique color to this sprite
             # new_palette[1] = all_colors[i - 1]
 
+            road_sprites.insert(0, new_obs) # prepend, so they will be drawn in the right order
+
+
         for one_sprite in road_sprites:
             screen.add(one_sprite)
 
-        vp_x = camera.vp["x"]
         bike_angle = 0
-        x_offset_3d = -27  # correct perspective manually to make sure center position is simetrical
         turn_incr = 0.3  # turning speed
 
         # Draw loop - will run until program exit
@@ -231,14 +220,10 @@ class GameScreen():
             self.display.fill(BLACK)
 
             now = time.ticks_ms()
-            # score = round(fps.fps())
+            score = round(self.fps.fps())
 
             # Turn the bike automatically
             # bike_angle = math.sin(now / 1000) # (-1,1)
-
-            screen.draw_lives()
-            grid.draw_horiz_lines()
-            grid.draw_vert_lines()
 
             # Handle bike swerving
             target_angle = (target_lane * (2 / 4)) - 1
@@ -260,8 +245,13 @@ class GameScreen():
             bike.x = math.floor((line_offset * 30)) + round(SCREEN_WIDTH / 2) - 18
 
             # REFACTOR
-            camera.vp["x"] = round(bike_angle * 12)  # So that 3D sprites will follow the movement of the road
-            camera.pos["x"] = round(bike_angle * 30)
+            camera.vp["x"] = int(bike_angle * 10)  # So that 3D sprites will follow the movement of the road
+            camera.pos["x"] = int(bike_angle * 5)
+            sun_image.x = sun_x_start - int(camera.pos["x"] * 1)
+
+            screen.draw_lives()
+            grid.draw_horiz_lines()
+            grid.draw_vert_lines()
 
             # Move the road sprites
             for sprite in road_sprites:
@@ -282,20 +272,14 @@ class GameScreen():
                 #     death.anim_particles(particles, display, grid)
 
             # Show the FPS in the score label
-            screen.draw_score(int(fps.fps()))
+            screen.draw_score(int(self.fps.fps()))
             screen.draw_sprites()
-            sun_image.x = sun_x_start - int(camera.pos["x"] * 1)
+
 
             await asyncio.sleep(1 / 60)
 
+
         # Wait for next update
-
-
-    async def refresh_display(self, display, fps):
-        while True:
-            display.show()
-            fps.tick()
-            await asyncio.sleep(0.001)
 
 
     def create_road_sprite(self, x, y, z, bitmap=None, palette=None, camera=None, i=0):
@@ -330,5 +314,6 @@ class GameScreen():
         return palette
 
 if __name__ == "__main__":
-    scr = GameScreen()
+    #scr = GameScreen()
+    scr = TitleScreen()
     scr.run()

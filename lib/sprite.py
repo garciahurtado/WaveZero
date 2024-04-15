@@ -3,7 +3,8 @@ from ucollections import namedtuple
 from microbmp import MicroBMP as bmp
 import framebuf
 import os
-import color_old as colors
+import color_util as colors
+from color_util import FramebufferPalette
 import math
 from camera3d import Point3D
 
@@ -12,6 +13,7 @@ class Sprite:
     """ Represents a sprite which is loaded from disk in BMP format, and stored in memory as an RGB565 framebuffer"""
     pixels = None
     palette = []
+    num_colors = 0
     width = 0
     height = 0
     width_2d = 0
@@ -28,6 +30,7 @@ class Sprite:
 
     has_alpha = False
     alpha_color = None
+    alpha_index = 0
     camera = None  # to simulate 3D
     point: Point3D
 
@@ -54,29 +57,55 @@ class Sprite:
 
         self.width = image.width
         self.height = image.height
+        #self.set_palette(image.palette)
         self.palette = image.palette
+        self.num_colors = image.num_colors
         self.pixels = image.pixels
+        #print(self.pixels)
 
     def set_alpha(self, alpha_index=0):
         """Sets the index of the color to be used as an alpha channel (transparent), when drawing the sprite
         into the display framebuffer """
 
         self.has_alpha = True
-        self.alpha_color = self.palette[alpha_index]
-        self.alpha_color = colors.rgb_to_565(self.alpha_color)
-        # alpha_color = alpha_color[2],alpha_color[1],alpha_color[0] # RGB to BGR
-        # self.alpha_color = colors.rgb_to_565(alpha_color)
-        print(f"Alpha color: {colors.rgb565_to_rgb(self.alpha_color)}")
+        self.alpha_index = alpha_index
+
+    def set_palette(self, palette):
+        """ Convert a list of colors to a palette Framebuffer ready to use with display.blit(). Useful in changing
+        the color palette of an already loaded image"""
+        self.num_colors = len(palette)
+
+        new_palette = framebuf.FrameBuffer(bytearray(self.num_colors*2), self.num_colors, 1, framebuf.RGB565)
+        for i, new_color in enumerate(palette):
+            # new_color = colors.hex_to_rgb(new_color)
+            # new_color = colors.int_to_bytes(new_color)
+            new_color = colors.byte3_to_byte2(new_color)
+            new_color = colors.bytearray_to_int(new_color)
+            new_palette.pixel(i, 0, new_color)
+
+        self.palette = new_palette
+        #self.palette = color_bytes
 
     def show(self, display: framebuf.FrameBuffer):
         x, y = self.pos()
         if x > (display.width * 2):
             x = display.width * 2
 
+        #print(f"Pixels: {self.pixels} / palette: {self.palette}")
+        # for i in range(self.height):
+        #     for j in range(self.width):
+        #         value = self.pixels.pixel(j,i)
+        #         print(f"{value:02x}-", end="")
+
+        # print("PALETTE")
+        # for i in range(self.num_colors):
+        #     value = self.palette.pixel(i,0)
+        #     print(f"c:{value}-", end="")
+
         if self.has_alpha:
-            display.blit(self.pixels, x, y, self.alpha_color)
+            display.blit(self.pixels, x, y, self.alpha_index, self.palette)
         else:
-            display.blit(self.pixels, x, y)
+            display.blit(self.pixels, x, y, -1, self.palette)
 
     def clone(self):
         copy = self.__class__()
@@ -86,6 +115,7 @@ class Sprite:
         copy.z = self.z
 
         copy.pixels = self.pixels
+        copy.palette = self.palette
         copy.width = self.width
         copy.height = self.height
         copy.horiz_z = self.horiz_z
@@ -116,7 +146,7 @@ class Sprite:
         if self.camera:
             x, y = self.camera.to_2d(self.x, self.y, self.z)
             y = int(y - self.height_2d) # set the object on the "floor", since it starts being drawn from the top
-            x = int(x - self.width_2d) # Draw the object so that it is horizontally centered
+            x = int(x - (self.width_2d/2)) # Draw the object so that it is horizontally centered
 
             return x, y
         else:
@@ -128,7 +158,6 @@ class Spritesheet(Sprite):
     current_frame = 0
     frame_width = 0
     frame_height = 0
-    scale_one_dist = 0
     ratio = 0
 
     def __init__(self, filename=None, frame_width=None, frame_height=None, *args, **kwargs):
@@ -181,8 +210,6 @@ class Spritesheet(Sprite):
         self.height_2d = scale * self.height
         self.width_2d = self.ratio * self.height_2d
 
-        print(f"Height2d: {self.height_2d} / Width2d: {self.width_2d} (r: {self.ratio}")
-
         if frame_idx < 0:
             frame_idx = 0
         if frame_idx >= len(self.frames):
@@ -197,6 +224,9 @@ class Spritesheet(Sprite):
         copy.current_frame = self.current_frame
         copy.frame_width = self.frame_width
         copy.frame_height = self.frame_height
+        copy.ratio = self.ratio
+        copy.palette = self.palette.clone()
+
 
         return copy
 
@@ -226,17 +256,35 @@ class ImageLoader():
         width = bmp_image.DIB_w
         height = bmp_image.DIB_h
         palette = bmp_image.palette
+        num_colors = len(palette)
 
-        print("Creating framebuffer...")
+        #palette = [colors.bytearray_to_int(colors.byte3_to_byte2(color)) for color in palette]
+        palette = FramebufferPalette(palette)
+        bytearray_pixels = bytearray(len(bmp_image.parray))
+
+        #bytearray_pixels = [byte for color in bmp_image.parray for byte in colors.int_to_bytes(color)]
+        for i, pixel_index in enumerate(bmp_image.parray):
+            #pixel_index = bytearray(pixel_index)
+            #pixel_index = int.from_bytes(pixel_index[0] + pixel_index[1], 'big')
+            #print(f"Pixel index: {pixel_index}")
+            color = palette.get_color(pixel_index)
+
+            #print(f"Color: {color:02x}")
+            bytearray_pixels[i] = pixel_index
+
+        #bytearray_pixels = bytearray(bmp_image.parray)
+
+        image_buffer = framebuf.FrameBuffer(
+                bytearray(bytearray_pixels),
+                width,
+                height,
+                framebuf.GS8)
 
         image = Image(
             width,
             height,
-            framebuf.FrameBuffer(
-                bmp_image.rgb565(),
-                width,
-                height,
-                framebuf.RGB565),
+            image_buffer,
+            num_colors,
             palette)
 
         return image
@@ -246,5 +294,6 @@ Image = namedtuple("Image",
                    ("width",
                     "height",
                     "pixels",
+                    "num_colors",
                     "palette",)
                    )

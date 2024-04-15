@@ -1,6 +1,7 @@
 import math
 import utime
-import color_old as colors
+import color_util as colors
+from ssd1331_16bit import SSD1331
 
 
 class RoadGrid():
@@ -52,7 +53,7 @@ class RoadGrid():
 
         self.num_horiz_colors = 48
         self.color_default = colors.rgb_to_565([0, 255, 255])
-        self.horiz_palette = colors.make_palette(horiz_far, horiz_near, self.num_horiz_colors)
+        self.horiz_palette = colors.make_gradient(horiz_far, horiz_near, self.num_horiz_colors)
         self.horiz_palette.insert(0, colors.rgb_to_565([0, 0, 255]))
 
         # self.horiz_palette = list(blue.range_to(cyan, self.num_horiz_colors))
@@ -64,7 +65,12 @@ class RoadGrid():
         num_vert_colors = math.ceil(len(points1) / 2)
         print(f"Making a vertical palette of {num_vert_colors}")
 
-        palette_1 = colors.make_palette(red, cyan, num_vert_colors)
+        palette_1 = colors.make_gradient(red, cyan, num_vert_colors)
+
+        # The last 3 colors are different, since they mark the ridable lanes
+        # hex: 0x217eff (pink) or 0xff7e21 (cyan)
+        color = SSD1331.rgb(*colors.hex_to_rgb(0x217eff))
+        palette_1[num_vert_colors-3:] = [color] * 3
         palette_2 = palette_1[::-1]
 
         self.vert_palette = palette_1 + palette_2
@@ -143,16 +149,23 @@ class RoadGrid():
         self.offset_bottom = - (num_lines * lane_width_near/ 2)
 
         points_start = []
+        lane_edges = [7, 12]
         for i in range(num_lines):
             x = (i * lane_width_far) + self.camera.half_width
             # x = int(x -  (self.width / 2) )
             # x = int(x -  (self.width / 2) )
             points_start.append([int(x), self.horiz_y])
 
+            if i in lane_edges:
+                points_start.append([int(x-1), self.horiz_y])
+
         points_end = []
         for i in range(num_lines):
             x = (i * lane_width_near) + self.camera.half_width
             points_end.append([int(x), self.height])
+
+            if i in lane_edges:
+                points_end.append([int(x-1), self.height])
 
         self.vert_points = [points_start, points_end]
         return self.vert_points
@@ -171,8 +184,8 @@ class RoadGrid():
             ratio_start = (rel_y + self.min_spacing) / (self.height - self.horiz_y)
             ratio_end = (rel_y + self.min_spacing) / (self.height)
 
-            start_x = int(start[0] + self.offset_top + screen_x_far - self.camera.half_width + (self.camera.vp['x']))
-            end_x = int(end[0] + self.offset_bottom + screen_x_near - self.camera.half_width - self.camera.vp['x'])
+            start_x = int(start[0] + self.offset_top + screen_x_far - self.camera.half_width)
+            end_x = int(end[0] + self.offset_bottom + screen_x_near - self.camera.half_width)
             start_y = start[1]
             end_y = end[1]
 

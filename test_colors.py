@@ -17,7 +17,7 @@ def main():
     horiz_far = [92, 0, 24]
     horiz_near = [0, 238, 255]
 
-    all_colors = colors.make_palette(horiz_far, horiz_near, 10)
+    all_colors = colors.make_gradient(horiz_far, horiz_near, 10)
     print(all_colors)
     canvas = Canvas(root, width = 500, height = 500)
     canvas.pack()
@@ -45,7 +45,7 @@ def horiz_test():
     horiz_near = [0, 238, 255]
 
     num_horiz_colors = 24
-    horiz_palette = colors.make_palette(horiz_near, horiz_far, num_horiz_colors)
+    horiz_palette = colors.make_gradient(horiz_near, horiz_far, num_horiz_colors)
     horiz_palette.insert(0, [0, 0, 0])
     draw_palette(horiz_palette, root)
 
