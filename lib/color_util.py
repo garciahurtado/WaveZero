@@ -179,8 +179,6 @@ def make_palette(colors):
     for color in colors:
         color = hex_to_rgb(color)
         new_color = SSD1331.rgb(color[0], color[1], color[2])
-
-        print(f"New color: {new_color}")
         new_colors.append(new_color)
 
     return new_colors
@@ -240,7 +238,6 @@ class FramebufferPalette(framebuf.FrameBuffer):
         super().__init__(palette_buffer, num_colors, 1, framebuf.RGB565)
 
         for i, color in enumerate(palette):
-
             self.set_color(i, color)
 
     def set_color(self, index, color):

@@ -11,8 +11,8 @@ from camera3d import Point3D
 
 class Sprite:
     """ Represents a sprite which is loaded from disk in BMP format, and stored in memory as an RGB565 framebuffer"""
-    pixels = None
-    palette = []
+    pixels: framebuf.FrameBuffer
+    palette: FramebufferPalette
     num_colors = 0
     width = 0
     height = 0
@@ -69,6 +69,9 @@ class Sprite:
 
         self.has_alpha = True
         self.alpha_index = alpha_index
+        alpha_color = self.palette.pixel(alpha_index, 0)
+        print(f"alpha color: {alpha_color}")
+        self.alpha_color = alpha_color
 
     def set_palette(self, palette):
         """ Convert a list of colors to a palette Framebuffer ready to use with display.blit(). Useful in changing
@@ -84,7 +87,6 @@ class Sprite:
             new_palette.pixel(i, 0, new_color)
 
         self.palette = new_palette
-        #self.palette = color_bytes
 
     def show(self, display: framebuf.FrameBuffer):
         x, y = self.pos()
@@ -103,7 +105,7 @@ class Sprite:
         #     print(f"c:{value}-", end="")
 
         if self.has_alpha:
-            display.blit(self.pixels, x, y, self.alpha_index, self.palette)
+            display.blit(self.pixels, x, y, self.alpha_color, self.palette)
         else:
             display.blit(self.pixels, x, y, -1, self.palette)
 
@@ -122,6 +124,7 @@ class Sprite:
 
         copy.has_alpha = self.has_alpha
         copy.alpha_color = self.alpha_color
+        copy.alpha_index = self.alpha_index
 
         return copy
 
@@ -181,6 +184,7 @@ class Spritesheet(Sprite):
 
                 buffer = bytearray(frame_width * frame_height * 2)
                 my_buffer = framebuf.FrameBuffer(buffer, frame_width, frame_height, framebuf.RGB565)
+                scan_width = frame_width
 
                 for i in range(frame_width):
                     for j in range(frame_height):
@@ -264,18 +268,15 @@ class ImageLoader():
 
         #bytearray_pixels = [byte for color in bmp_image.parray for byte in colors.int_to_bytes(color)]
         for i, pixel_index in enumerate(bmp_image.parray):
-            #pixel_index = bytearray(pixel_index)
             #pixel_index = int.from_bytes(pixel_index[0] + pixel_index[1], 'big')
             #print(f"Pixel index: {pixel_index}")
-            color = palette.get_color(pixel_index)
+            #color = palette.get_color(pixel_index)
 
             #print(f"Color: {color:02x}")
             bytearray_pixels[i] = pixel_index
 
-        #bytearray_pixels = bytearray(bmp_image.parray)
-
         image_buffer = framebuf.FrameBuffer(
-                bytearray(bytearray_pixels),
+                bytearray_pixels,
                 width,
                 height,
                 framebuf.GS8)

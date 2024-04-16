@@ -5,7 +5,7 @@ from color_util import FramebufferPalette
 import color_util as colors
 from screen import Screen
 from sprite import Sprite
-
+from collections import deque
 
 class TitleScreen(Screen):
     def run(self):
@@ -23,17 +23,19 @@ class TitleScreen(Screen):
         title_wave = Sprite("/img/title_wave.bmp")
         title_wave.x = 7
         title_wave.y = 4
+        title_wave.orig_palette = title_wave.palette
+        title_wave.set_alpha(0)
 
         # "Zero"
         title_zero = Sprite("/img/title_zero.bmp")
         title_zero.set_alpha(0)
         title_zero.x = 100
         title_zero.y = 15
+        title_zero.orig_palette = title_zero.palette
 
-        self.screen.add(title_wave)
-        self.screen.add(title_zero)
+        self.ui.add(title_wave)
+        self.ui.add(title_zero)
 
-        title_wave.set_alpha(0)
 
         # num_colors = len(title1_palette) - 1
         # # Make transparent before we show the bitmap
@@ -41,21 +43,20 @@ class TitleScreen(Screen):
         #     title1_palette.make_transparent(i)
         #
 
-        self.screen.draw_sprites()
+        self.ui.draw_sprites()
         await asyncio.sleep(0.5)
+        title_wave.palette = FramebufferPalette(title_wave.palette.palette)
 
         # # Do some color transitions manipulating the palette
-        for i in range(title_wave.num_colors-1):
-            title_wave.set_alpha(i+1)
+        for i in range(title_wave.num_colors-2,0,-1):
+            title_wave.palette.set_color(i+2, colors.hex_to_rgb(0xFFFFFF))
             self.display.fill(0)
             self.refresh_display()
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.05)
 
-        title_wave.set_alpha(0)
+        title_wave.palette = title_wave.orig_palette
         self.display.fill(0)
         self.refresh_display()
-
-        title_wave.orig_palette = title_wave.palette
 
         self.refresh_display()
 
@@ -95,24 +96,45 @@ class TitleScreen(Screen):
 
         # Do some crazy palette tricks
 
-        for i in range(1, title_wave.num_colors):
+        new_palette = [color for color in title_wave.palette.palette]
+        new_palette = deque(new_palette, len(new_palette))
+
+        for i in range(1, title_wave.num_colors, 2):
             # rotate palette list by one
-            new_palette = [color for color in title_wave.palette.palette]
-            new_palette = FramebufferPalette(new_palette)
-            new_color = title_wave.palette.get_color(i)
-            new_palette.set_color(title_wave.num_colors-1, new_color)
 
-            for j in range(0, title_wave.num_colors - 1):
-                new_palette.set_color(j, title_wave.palette.get_color(j+1))
+            new_palette.appendleft(new_palette.pop())
+            new_palette_buffer = FramebufferPalette(list(new_palette))
+            new_palette_buffer.set_color(0, colors.hex_to_rgb(0x000000))
+            title_wave.palette = new_palette_buffer
 
-            new_palette.set_color(0, colors.hex_to_rgb(0x000000))
-            title_wave.palette = new_palette
-            title_wave.set_alpha(0)
+            self.display.fill(0)
             self.refresh_display()
 
             await asyncio.sleep(0.05)
 
         title_wave.palette = title_wave.orig_palette
+        self.display.fill(0)
+        self.refresh_display()
+
+        new_palette = [color for color in title_zero.palette.palette]
+        new_palette = deque(new_palette, len(new_palette))
+
+        # Do the same with "Zero"
+        for i in range(1, title_zero.num_colors):
+            # rotate palette list by one
+
+            new_palette.appendleft(new_palette.pop())
+            new_palette_buffer = FramebufferPalette(list(new_palette))
+            new_palette_buffer.set_color(0, colors.hex_to_rgb(0x000000))
+            title_zero.palette = new_palette_buffer
+
+            self.display.fill(0)
+            self.refresh_display()
+
+            await asyncio.sleep(0.1)
+
+        title_zero.palette = title_zero.orig_palette
+        self.display.fill(0)
         self.refresh_display()
 
         await asyncio.sleep(2)

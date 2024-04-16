@@ -38,6 +38,11 @@ from boolpalette import BoolPalette
 
 # Data sheet SPI spec: 150ns min clock period 6.66MHz
 class SSD1331(framebuf.FrameBuffer):
+    height: int
+    width: int
+    palette: framebuf.FrameBuffer
+    buffer: bytearray
+
     # Convert r, g, b in range 0-255 to a 16 bit colour value RGB565
     #  acceptable to hardware: rrrrrggggggbbbbb
     # LS byte of 16 bit result is shifted out 1st

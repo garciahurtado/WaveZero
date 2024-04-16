@@ -24,6 +24,7 @@
 import framebuf
 from uctypes import bytearray_at, addressof
 from sys import implementation
+import color_util as colors
 
 __version__ = (0, 5, 1)
 
@@ -43,6 +44,8 @@ def _get_id(device):
 class Writer():
 
     state = {}  # Holds a display state for each device
+    text_height: int
+    text_width: int
 
     @staticmethod
     def set_textpos(device, row=None, col=None):
@@ -60,7 +63,10 @@ class Writer():
             s.text_col = col
         return s.text_row,  s.text_col
 
-    def __init__(self, device, font, verbose=True):
+    def __init__(self, device, font, text_width, text_height, verbose=True):
+        self.text_height = text_height
+        self.text_width = text_width
+
         self.devid = _get_id(device)
         self.device = device
         if self.devid not in Writer.state:
@@ -81,7 +87,7 @@ class Writer():
         self.screenheight = device.height
         self.bgcolor = 0  # Monochrome background and foreground colors
         self.fgcolor = 1
-        self.row_clip = False  # Clip or scroll when screen fullt
+        self.row_clip = False  # Clip or scroll when screen full
         self.col_clip = False  # Clip or new line when row is full
         self.wrap = True  # Word wrap
         self.cpos = 0
@@ -239,8 +245,10 @@ class Writer():
         if invert:
             for i, v in enumerate(buf):
                 buf[i] = 0xFF & ~ v
-        fbc = framebuf.FrameBuffer(buf, self.clip_width, self.char_height, self.map)
-        self.device.blit(fbc, s.text_col, s.text_row)
+        char_pixels = framebuf.FrameBuffer(buf, self.clip_width, self.char_height, self.map)
+
+        print(f"text in {s.text_col}")
+        self.pixels.blit(char_pixels, s.text_col, s.text_row, -1, self.palette)
         s.text_col += self.char_width
         self.cpos += 1
 
@@ -253,7 +261,11 @@ class Writer():
         return self.fgcolor, self.bgcolor
 
 # Writer for colour displays.
-class CWriter(Writer):
+class ColorWriter(Writer):
+    palette: framebuf.FrameBuffer
+    pixels: framebuf.FrameBuffer
+    text_x = 0
+    text_y = 0
 
     @staticmethod
     def create_color(ssd, idx, r, g, b):
@@ -267,13 +279,14 @@ class CWriter(Writer):
         ssd.lut[x + 1] = c >> 8
         return idx
 
-    def __init__(self, device, font, fgcolor=None, bgcolor=None, verbose=True):
+    def __init__(self, device, font, text_width, text_height, fgcolor=None, bgcolor=None, verbose=True):
         if not hasattr(device, 'palette'):
             raise OSError('Incompatible device driver.')
         if implementation[1] < (1, 17, 0):
             raise OSError('Firmware must be >= 1.17.')
 
-        super().__init__(device, font, verbose)
+        super().__init__(device, font, text_width, text_height, verbose)
+
         if bgcolor is not None:  # Assume monochrome.
             self.bgcolor = bgcolor
         if fgcolor is not None:
@@ -281,19 +294,38 @@ class CWriter(Writer):
         self.def_bgcolor = self.bgcolor
         self.def_fgcolor = self.fgcolor
 
+        palette = [bgcolor, fgcolor]
+        #my_palette = framebuf.FrameBuffer(bytearray(2*2), 2, 1, framebuf.RGB565)
+        my_palette = colors.FramebufferPalette(palette)
+        for i, new_color in enumerate(palette):
+            new_color = colors.byte3_to_byte2(new_color)
+            new_color = colors.bytearray_to_int(new_color)
+            my_palette.pixel(i, 0, new_color)
+
+        self.palette = my_palette
+        print("Palette")
+        print(self.palette.pixel(0,0))
+        print(self.palette.pixel(1,0))
+
+        pixels = bytearray(self.text_width * self.text_height)
+        self.pixels = framebuf.FrameBuffer(pixels, self.text_width, self.text_height, self.map)
+
     def _printchar(self, char, invert=False, recurse=False):
         s = self._getstate()
         self._get_char(char, recurse)
         if self.glyph is None:
             return  # All done
         buf = bytearray_at(addressof(self.glyph), len(self.glyph))
-        fbc = framebuf.FrameBuffer(buf, self.clip_width, self.char_height, self.map)
-        palette = self.device.palette
-        palette.bg(self.fgcolor if invert else self.bgcolor)
-        palette.fg(self.bgcolor if invert else self.fgcolor)
-        self.device.blit(fbc, s.text_col, s.text_row, -1, palette)
+        char_pixels = framebuf.FrameBuffer(buf, self.clip_width, self.char_height, self.map)
+
+        self.pixels.blit(char_pixels, s.text_col, s.text_row)
         s.text_col += self.char_width
         self.cpos += 1
+
+    def show(self, display):
+        s = self._getstate()
+        x, y = s.text_x, s.text_y
+        display.blit(self.pixels, x, y, -1, self.palette)
 
     def setcolor(self, fgcolor=None, bgcolor=None):
         if fgcolor is None and bgcolor is None:

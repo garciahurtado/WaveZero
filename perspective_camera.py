@@ -1,12 +1,14 @@
+import framebuf
 from ulab import numpy as np
 
 from camera3d import Camera, Point3D
 import math
 
 class PerspectiveCamera():
-    def __init__(self, screen_width, screen_height, pos_x=0, pos_y=0, pos_z=0, vp_x=0, vp_y=0, focal_length=100):
-        self.screen_width = screen_width
-        self.screen_height = screen_height
+    def __init__(self, display: framebuf.FrameBuffer, pos_x=0, pos_y=0, pos_z=0, vp_x=0, vp_y=0, focal_length=100):
+
+        self.screen_width = display.width
+        self.screen_height = display.height
 
         self.half_width = self.screen_width / 2
         self.half_height = self.screen_height / 2
