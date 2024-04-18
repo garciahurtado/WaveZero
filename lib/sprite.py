@@ -19,14 +19,16 @@ class Sprite:
     width_2d = 0
     height_2d = 0
     ratio = 0
+    is3d = False
 
     x = 0
     y = 0
-    z = 0  # used in pseudo 3D rendering
+    z = 0
     draw_x = 0
     draw_y = 0
+    speed = 0
 
-    horiz_z = 2000
+    horiz_z = 1500
 
     has_alpha = False
     alpha_color = None
@@ -42,6 +44,7 @@ class Sprite:
         self.y = y
         self.z = z
         self.camera = camera
+        self.update()
 
     def load_image(self, filename):
         """Loads an image from a BMP file and converts it to a binary RGB565 stream for later display"""
@@ -57,11 +60,9 @@ class Sprite:
 
         self.width = image.width
         self.height = image.height
-        #self.set_palette(image.palette)
         self.palette = image.palette
         self.num_colors = image.num_colors
         self.pixels = image.pixels
-        #print(self.pixels)
 
     def set_alpha(self, alpha_index=0):
         """Sets the index of the color to be used as an alpha channel (transparent), when drawing the sprite
@@ -89,25 +90,25 @@ class Sprite:
         self.palette = new_palette
 
     def show(self, display: framebuf.FrameBuffer):
-        x, y = self.pos()
+        if self.z > self.horiz_z:
+            return False
+
+        x, y = self.draw_x, self.draw_y
         if x > (display.width * 2):
             x = display.width * 2
-
-        #print(f"Pixels: {self.pixels} / palette: {self.palette}")
-        # for i in range(self.height):
-        #     for j in range(self.width):
-        #         value = self.pixels.pixel(j,i)
-        #         print(f"{value:02x}-", end="")
-
-        # print("PALETTE")
-        # for i in range(self.num_colors):
-        #     value = self.palette.pixel(i,0)
-        #     print(f"c:{value}-", end="")
 
         if self.has_alpha:
             display.blit(self.pixels, x, y, self.alpha_color, self.palette)
         else:
             display.blit(self.pixels, x, y, -1, self.palette)
+
+    def update(self):
+        if self.speed:
+            self.z = self.z + self.speed
+
+
+        self.draw_x, self.draw_y = self.pos()
+
 
     def clone(self):
         copy = self.__class__()
@@ -115,6 +116,9 @@ class Sprite:
         copy.x = self.x
         copy.y = self.y
         copy.z = self.z
+        copy.is3d = self.is3d
+        copy.draw_x = self.draw_x
+        copy.draw_y = self.draw_y
 
         copy.pixels = self.pixels
         copy.palette = self.palette
@@ -130,17 +134,19 @@ class Sprite:
 
     """3D sprites only"""
 
-
-    def get_lane(self, offset):
+    def get_lane(self):
         """
         Returns the lane number which this sprite occupies in 3D space
         """
-        total_width = self.num_lanes * self.lane_width
-
-        if (self.x + offset) == 0:
-            return 0
+        if self.x == 0:
+            lane = 0
         else:
-            return math.floor((self.x + offset) / self.lane_width)
+            lane = int((self.x) / self.lane_width)
+
+        # +2 because x in 3D is at the center and we count
+        # lanes from the left edge
+        lane = lane + 2
+        return lane
 
     def pos(self):
         """Returns the 2D coordinates of the object, calculated from the internal x,y (if 2D) or x,y,z
@@ -148,6 +154,10 @@ class Sprite:
         """
         if self.camera:
             x, y = self.camera.to_2d(self.x, self.y, self.z)
+
+            if y < 0 or self.z <= self.camera.pos['z']:
+                self.z = self.camera.horiz_z
+
             y = int(y - self.height_2d) # set the object on the "floor", since it starts being drawn from the top
             x = int(x - (self.width_2d/2)) # Draw the object so that it is horizontally centered
 
@@ -162,9 +172,12 @@ class Spritesheet(Sprite):
     frame_width = 0
     frame_height = 0
     ratio = 0
+    half_scale_one_dist = 0
+    lane_width = 0
 
     def __init__(self, filename=None, frame_width=None, frame_height=None, *args, **kwargs):
         super().__init__(filename, *args, **kwargs)
+
 
         if frame_width and frame_height:
             self.frame_width = frame_width
@@ -195,6 +208,15 @@ class Spritesheet(Sprite):
 
             self.set_frame(0)
 
+    def set_camera(self, camera):
+        self.camera = camera
+        self.half_scale_one_dist = abs(self.camera.pos['z']) / 2
+
+
+    def update(self):
+        super().update()
+        self.update_frame()
+
     def set_frame(self, frame_num):
         self.current_frame = frame_num
         self.pixels = self.frames[frame_num]
@@ -206,9 +228,11 @@ class Spritesheet(Sprite):
         if not self.frames or len(self.frames) == 0 or not self.camera:
             return False
 
-        scale_one_dist = abs(self.camera.pos['z'])
-        scale = (scale_one_dist / 2) / ((self.z - self.camera.pos['z']) / 2)
-        frame_idx = int(scale * len(self.frames))
+        scale = self.half_scale_one_dist / ((self.z - self.camera.pos['z']) / 2)
+        frame_idx = round(scale * len(self.frames))
+
+        if self.current_frame == frame_idx:
+            return False
 
         #print(f"Scale: {scale:.3} / Frame: {frame_idx}")
         self.height_2d = scale * self.height
@@ -230,7 +254,11 @@ class Spritesheet(Sprite):
         copy.frame_height = self.frame_height
         copy.ratio = self.ratio
         copy.palette = self.palette.clone()
+        copy.lane_width = self.lane_width
+        copy.speed = self.speed
 
+        if self.camera:
+            copy.set_camera(self.camera)
 
         return copy
 

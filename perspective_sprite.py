@@ -34,16 +34,14 @@ class PerspectiveSprite():
         self._z = value
         self.update_sprite()
         
-    def get_lane(self, offset):
+    def get_lane(self):
         """
         Returns the lane number which this sprite occupies in 3D space
         """
-        total_width = self.num_lanes * self.lane_width
-        
-        if (self.x + offset) == 0:
+        if (self.x) == 0:
             return 0
         else:
-            return math.floor( (self.x + offset) / self.lane_width )
+            return math.floor( (self.x) / self.lane_width )
         
 
 

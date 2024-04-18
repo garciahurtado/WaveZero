@@ -5,8 +5,8 @@ from title_screen import TitleScreen
 
 def main():
     app = ScreenApp(96, 64)
-    #app.load_screen(TitleScreen())
-    app.load_screen(GameScreen())
+    #app.load_screen(TitleScreen(app.display))
+    app.load_screen(GameScreen(app.display))
     app.run()
 
 

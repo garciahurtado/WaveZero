@@ -247,7 +247,7 @@ class Writer():
                 buf[i] = 0xFF & ~ v
         char_pixels = framebuf.FrameBuffer(buf, self.clip_width, self.char_height, self.map)
 
-        print(f"text in {s.text_col}")
+        print(f"text in {s.text_col} / char width: {self.clip_width}")
         self.pixels.blit(char_pixels, s.text_col, s.text_row, -1, self.palette)
         s.text_col += self.char_width
         self.cpos += 1
@@ -303,9 +303,6 @@ class ColorWriter(Writer):
             my_palette.pixel(i, 0, new_color)
 
         self.palette = my_palette
-        print("Palette")
-        print(self.palette.pixel(0,0))
-        print(self.palette.pixel(1,0))
 
         pixels = bytearray(self.text_width * self.text_height)
         self.pixels = framebuf.FrameBuffer(pixels, self.text_width, self.text_height, self.map)
@@ -323,8 +320,7 @@ class ColorWriter(Writer):
         self.cpos += 1
 
     def show(self, display):
-        s = self._getstate()
-        x, y = s.text_x, s.text_y
+        x, y = self.text_x, self.text_y
         display.blit(self.pixels, x, y, -1, self.palette)
 
     def setcolor(self, fgcolor=None, bgcolor=None):

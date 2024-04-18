@@ -1,6 +1,7 @@
 import os
 import time
 import subprocess
+from windows_toasts import Toast, ToastDuration, WindowsToaster
 
 # Set the directory to monitor
 project_root = os.getcwd()
@@ -27,6 +28,13 @@ def upload_file(file_path):
 
         # Use MicroPython tools to upload the file
         subprocess.run(["python", os.path.join(micropython_tools_path, "pyboard.py"), "--device", "COM7", "-f", "cp", file_path, ":/" + relative_path], check=True)
+
+        # Success! - show Windows toast
+        toaster = WindowsToaster('File Watcher')
+        newToast = Toast(duration=ToastDuration.Short)
+        newToast.text_fields = [f"File uploaded:\n {relative_path}"]
+        toaster.show_toast(newToast)
+
     except subprocess.CalledProcessError as e:
         print(f"{RED}Error uploading file: {file_path}\nError message: {str(e)}{RESET}")
     except Exception as e:

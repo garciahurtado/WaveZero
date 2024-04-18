@@ -14,7 +14,7 @@ class TitleScreen(Screen):
     async def main_loop(self):
         await asyncio.gather(
             self.update_loop(),
-            self.refresh()
+            self.refresh_display()
         )
 
     async def update_loop(self):

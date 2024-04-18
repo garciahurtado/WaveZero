@@ -18,7 +18,7 @@ class RoadGrid():
         self.horiz_y = camera.vp['y']  # 16
         print(f"Horizon Y: {self.horiz_y}")
 
-        self.far_z = 500
+        self.far_z = 300
         self.near_z = 1
 
         # For vertical road lines only
@@ -34,9 +34,10 @@ class RoadGrid():
         self.offset_top = 0
         self.offset_bottom = 0
 
+        self.global_speed = 8
+        self.ground_height = camera.screen_height - self.horiz_y
 
-
-        num_horiz_lines = 50
+        num_horiz_lines = 30
         print(f"Creating {num_horiz_lines} hlines")
         # red1 = Color('red')
         # red = Color('#ff0000')
@@ -87,15 +88,13 @@ class RoadGrid():
             self.horiz_lines_data.append(line)
 
     def draw_horiz_lines(self):
-        global_speed = 8
         max_z = self.max_z
-        min_z = 1
         last_y = 0
 
         for i, my_line in enumerate(self.horiz_lines_data):
 
             # The lines at the very start are in "standby" until its their time to move
-            my_line['z'] = my_line['z'] - global_speed
+            my_line['z'] = my_line['z'] - self.global_speed
             y = self.calculate_screen_y(my_line['z'])
 
             # Reached the bottom of the screen, send the line back up to the horizon
@@ -110,7 +109,7 @@ class RoadGrid():
             # print(f"For Z: {my_line['z']}, Calculated y as {y}")
 
             if y != self.horiz_y:
-                rel_y = (y - self.horiz_y) / (self.display.height - self.horiz_y)
+                rel_y = (y - self.horiz_y) / self.ground_height
                 rel_y = max(0.0, min(1.0, rel_y))  # Clamp rel_y between 0 and 1
             else:
                 rel_y = 0

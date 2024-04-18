@@ -6,7 +6,7 @@ import ssd1331_16bit
 from sprite import Sprite
 import framebuf
 import color_util as colors
-import fonts.vtks_blocketo_6
+import fonts.vtks_blocketo_6px as font
 from font_writer import Writer, ColorWriter
 
 
@@ -27,9 +27,6 @@ class ui_screen():
         self.init_lives()
         self.init_score()
 
-    def add(self, sprite):
-        self.sprites.append(sprite)
-
     def init_lives(self):
         for i in range(0, self.num_lives):
             x, y = i * 12, 0
@@ -39,29 +36,32 @@ class ui_screen():
             self.add(new_sprite)
 
     def init_score(self):
-
         CYAN = (0, 255, 255)
         BLACK = (0, 0, 0)
 
-        self.score_text = ColorWriter(self.display, fonts.vtks_blocketo_6, 92, 6, fgcolor=CYAN, bgcolor=BLACK)
-        self.score_text.x = 0
-        self.score_text.y = 0
-        self.add(self.score_text)
+        self.score_text = ColorWriter(
+            self.display,
+            font, 35, 6, fgcolor=CYAN, bgcolor=BLACK)
+        self.score_text.text_x = 61
+        self.score_text.text_y = 0
 
         return self.score_text
 
     def update_score(self, new_score):
         if new_score == self.score:
-            return
+            return False
 
         self.score = new_score
         Writer.set_textpos(self.display, 0, 0)
         self.score_text.printstring(f"{self.score:09}")
 
-    def refresh(self):
-        self.draw_sprites()
-        self.display.show()
+
+    def add(self, sprite):
+        self.sprites.append(sprite)
+
 
     def draw_sprites(self):
         for my_sprite in self.sprites:
             my_sprite.show(self.display)
+
+        self.score_text.show(self.display)
