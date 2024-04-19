@@ -31,10 +31,6 @@ class Screen:
 
     def do_refresh(self):
         """Synchronous, non-looping, version of refresh_display()"""
-        self.display.fill(0)
-        self.grid.draw_horiz_lines()
-        self.grid.draw_vert_lines()
-        self.draw_sprites()
         self.display.show()
         self.fps.tick()
 

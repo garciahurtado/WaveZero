@@ -153,12 +153,11 @@ class Sprite:
         (if 3D with perspective camera)
         """
         if self.camera:
-            x, y = self.camera.to_2d(self.x, self.y, self.z)
+            x, y = self.camera.to_2d(self.x, self.y + self.height, self.z)
 
             if y < 0 or self.z <= self.camera.pos['z']:
                 self.z = self.camera.horiz_z
 
-            y = int(y - self.height_2d) # set the object on the "floor", since it starts being drawn from the top
             x = int(x - (self.width_2d/2)) # Draw the object so that it is horizontally centered
 
             return x, y
@@ -208,6 +207,8 @@ class Spritesheet(Sprite):
 
             self.set_frame(0)
 
+            self.width = self.frame_width
+
     def set_camera(self, camera):
         self.camera = camera
         self.half_scale_one_dist = abs(self.camera.pos['z']) / 2
@@ -235,7 +236,7 @@ class Spritesheet(Sprite):
             return False
 
         #print(f"Scale: {scale:.3} / Frame: {frame_idx}")
-        self.height_2d = scale * self.height
+        self.height_2d = scale * self.frame_height
         self.width_2d = self.ratio * self.height_2d
 
         if frame_idx < 0:

@@ -7,6 +7,7 @@ import uasyncio as asyncio
 
 from asyncio_stoppable import Stoppable
 from crash_effect import DeathEffect
+from player_sprite import PlayerSprite
 from screen import Screen
 from road_grid import RoadGrid
 from perspective_sprite import PerspectiveSprite
@@ -18,14 +19,6 @@ import color_util as colors
 from ui_elements import ui_screen
 
 start_time_ms = 0
-line_cache = {}
-line_cache = {}
-road_sprites = []
-
-# Bike movement
-current_lane = 2
-target_lane = 2
-
 
 class GameScreen(Screen):
     display: None
@@ -34,11 +27,17 @@ class GameScreen(Screen):
     sprites: []
     enemies: []
     ui: ui_screen
-    bike: Sprite
     crash_fx: None
-    sprite_max_z = 2000
+    sprite_max_z = 10000
     ground_speed = 0
-    max_ground_speed = 20
+    max_ground_speed = 10
+
+    # Bike movement
+    bike: PlayerSprite
+    bike_invisible = True
+
+    current_enemy_lane = -2
+
 
     def __init__(self, display, *args, **kwargs):
         super().__init__(display, *args, **kwargs)
@@ -48,15 +47,8 @@ class GameScreen(Screen):
         self.preload_images()
 
     def preload_images(self):
-        bike = Spritesheet("/img/bike_sprite.bmp", 37, 22)
-        bike.set_alpha(0)
-        bike.set_frame(8)  # middle frame
-        bike.x = 25
-        bike.y = 42
-        self.bike = bike
-
+        self.bike = PlayerSprite()
         self.crash_fx = DeathEffect(self.display, self.bike)
-        self.add(bike)
 
     def run(self):
         self.ui = ui_screen(self.display)
@@ -64,10 +56,10 @@ class GameScreen(Screen):
 
     async def main_async(self):
         sun_x_start = 39
-        sun_img = Sprite("/img/sunset.bmp")
-        sun_img.x = 39
-        sun_img.y = 5
-        self.add(sun_img)
+        sun = Sprite("/img/sunset.bmp")
+        sun.x = 39
+        sun.y = 7
+        self.add(sun)
 
         # show_title(display, root)
         gc.collect()
@@ -78,29 +70,31 @@ class GameScreen(Screen):
 
         # Camera
         horiz_y = 16
+        camera_z = 68
+
         self.camera = PerspectiveCamera(
             self.display,
             pos_x=0,
             pos_y=64,
-            pos_z=-64,
+            pos_z=camera_z,
+            focal_length=camera_z,
             vp_x=0,
             vp_y=horiz_y)
         self.camera.horiz_z = self.sprite_max_z
 
-        self.grid = RoadGrid(self.camera, self.display)
+        self.grid = RoadGrid(self.camera, self.display, lane_width=20)
 
         loop = asyncio.get_event_loop()
 
+        self.update_task = loop.create_task(self.update_loop(sun, sun_x_start))
         self.display_task = loop.create_task(self.refresh_display())
-        self.update_task = loop.create_task(self.update_loop(sun_img, sun_x_start))
 
         await asyncio.gather(
             self.update_fps(),
             self.get_input(encoder, last_pos))
 
     async def update_loop(self, sun_image, sun_x_start):
-        global target_lane, current_lane
-        BLACK = self.display.rgb(0, 0, 0)
+        lane_width = self.grid.lane_width
 
         start_time_ms = round(time.ticks_ms())
         print(f"Start time: {start_time_ms}")
@@ -108,56 +102,64 @@ class GameScreen(Screen):
         # 2D Y coordinate at which obstacles will crash with the player
         crash_y = 70
 
+        lane_width = 20
+
         # Create road obstacles
         self.enemies = []
-        num_obstacles = 20
+        num_enemies = 40
 
-        obstacle = Spritesheet("/img/road_wall.bmp", 10, 20)
-        obstacle.set_camera(self.camera)
-        obstacle.set_alpha(1)
-        obstacle.x = -16
-        obstacle.y = 0
-        obstacle.z = self.sprite_max_z
-        obstacle.is3d = True
-        obstacle.speed = -self.ground_speed
-        obstacle.set_frame(0)
-        obstacle.lane_width = 8
+        enemy = Spritesheet("/img/road_wall.bmp", 10, 20)
+        enemy.set_camera(self.camera)
+        enemy.set_alpha(1)
+        enemy.x = -16
+        enemy.y = 0
+        enemy.z = self.sprite_max_z
+        enemy.is3d = True
+        enemy.speed = -self.ground_speed
+        enemy.set_frame(0)
+        enemy.lane_width = lane_width
 
         obs_colors = [0x00f6ff, 0x00dff9, 0x00c8f1, 0x00b1e8, 0x009add, 0x0083cf, 0x006cbf, 0x0055ac, 0x003e96,
                       0x00267d]
 
         # Create a number of road obstacles by cloning
-        for i in range(num_obstacles):
-            new_obs = obstacle.clone()
-            new_obs.z = 1000 + (i * 50)
-            new_obs.x = int(new_obs.x + (random.randrange(0,5) * 16))
+        for i in range(num_enemies):
+            new_enemy = enemy.clone()
+            new_enemy.z = 1000 + (int(i/2) * 50)
+            # new_enemy.x = int(new_enemy.x + (random.randrange(0,5) * 16))
+            my_x = self.current_enemy_lane * lane_width
+            new_enemy.x = my_x
             palette_len = len(obs_colors)
-            new_obs.palette.set_color(0, colors.hex_to_rgb(obs_colors[i%palette_len]))
+            new_enemy.palette.set_color(0, colors.hex_to_rgb(obs_colors[i%palette_len]))
 
-            self.enemies.insert(0, new_obs)  # prepend, so they will be drawn in the right order
+            self.enemies.insert(0, new_enemy)  # prepend, so they will be drawn in the right order
 
         for one_sprite in self.enemies:
             self.add(one_sprite)
 
+        self.add(self.bike) # Add after the obstacles, to it appears on top
         bike_angle = 0
         turn_incr = 0.2  # turning speed
         half_width = int(self.camera.half_width)
 
         # Draw loop - will run until program exit
         while True:
-            # gc.collect()
+            #self.camera.yaw = self.camera.yaw + 1
+
             # print("Free memory: {} bytes".format(gc.mem_free()) )
 
             # Turn the bike automatically
             # bike_angle = math.sin(now / 1000) # (-1,1)
 
             # Handle bike swerving
+            target_lane = self.bike.target_lane
+            current_lane = self.bike.current_lane
             target_angle = (target_lane * (2 / 4)) - 1
 
             if target_lane < current_lane:
                 bike_angle = bike_angle - turn_incr
                 if bike_angle < target_angle:
-                    current_lane = target_lane
+                    self.bike.current_lane = target_lane
                     bike_angle = target_angle
 
                 bike_angle = max(bike_angle, -1)  # Clamp the input between -1 and 1
@@ -165,12 +167,12 @@ class GameScreen(Screen):
             elif target_lane > current_lane:
                 bike_angle = bike_angle + turn_incr
                 if bike_angle > target_angle:
-                    current_lane = target_lane
+                    self.bike.current_lane = target_lane
                     bike_angle = target_angle
 
                 bike_angle = min(bike_angle, 1)  # Clamp the input between -1 and 1
 
-            line_offset = self.turn_bike(self.bike, bike_angle)  # range(-1,1)
+            line_offset = self.bike.turn(bike_angle)  # range(-1,1)
             self.bike.x = int((line_offset * 30) + half_width - 18)
             self.bike.update()
 
@@ -186,12 +188,22 @@ class GameScreen(Screen):
             for sprite in self.enemies:
 
                 # Check collisions
-                if (sprite.draw_y >= crash_y) and (sprite.get_lane() == current_lane):
+                if (    (sprite.draw_y >= crash_y) and
+                        (sprite.get_lane() == self.bike.current_lane) and
+                        not self.bike_invisible):
+
                     self.do_crash()
 
             await asyncio.sleep(1 / 90)
 
         # Wait for next update
+
+    def do_refresh(self):
+        """ Overrides parent method """
+        self.display.fill(0)
+        self.grid.show()
+        self.draw_sprites()
+        super().do_refresh()
 
     def do_crash(self):
         print("CRASH")
@@ -225,6 +237,8 @@ class GameScreen(Screen):
 
     async def update_fps(self):
         while True:
+            gc.collect()
+
             # Show the FPS in the score label
             fps = int(self.fps.fps())
             self.ui.update_score(fps)
@@ -235,48 +249,14 @@ class GameScreen(Screen):
         while True:
             position = encoder.value
             if position > last_pos['pos']:
-                self.move_left()
+                self.bike.move_left()
                 last_pos['pos'] = position
             elif position < last_pos['pos']:
-                self.move_right()
+                self.bike.move_right()
                 last_pos['pos'] = position
 
             await asyncio.sleep(0.01)
 
-    def move_left(self):
-        global current_lane, target_lane
-
-        if current_lane == 0:
-            return
-
-        if current_lane == target_lane:
-            target_lane = current_lane - 1
-        else:
-            if target_lane > 0:
-                target_lane -= 1
-
-    def move_right(self):
-        global current_lane, target_lane
-
-        if current_lane == 4:
-            return
-
-        if current_lane == target_lane:
-            target_lane = current_lane + 1
-        else:
-            if target_lane < 4:
-                target_lane += 1
-    def move_right(self):
-        global current_lane, target_lane
-
-        if current_lane == 4:
-            return
-
-        if current_lane == target_lane:
-            target_lane = current_lane + 1
-        else:
-            if target_lane < 4:
-                target_lane += 1
 
     def create_road_sprite(self, x, y, z, bitmap=None, palette=None, camera=None, i=0):
         # self.enemies
@@ -290,14 +270,6 @@ class GameScreen(Screen):
         road_sprites.append(sprite)  # Will be used to update sprite coordinates
 
         return grid
-
-    def turn_bike(self, bike: Spritesheet, angle):
-        new_frame = round(((angle * 16) + 17) / 2)
-        if bike.current_frame != new_frame:
-            bike.set_frame(new_frame)
-
-        line_offset = angle
-        return line_offset
 
     def make_palette_from_img(self):
         bitmap, palette = adafruit_imageload.load(

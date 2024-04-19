@@ -120,11 +120,12 @@ class DeathEffect():
 
             # And some rays emanating from the center
             if (random.random() * 100) > 80:
-                end_x = int(center_x + (random.random() * 150) - 75)
+                angle = 140
+                end_x = int(center_x + (random.random() * angle) - (angle/2))
                 end_y = 0
 
-                if random.randint(0,2):
-                    # randomly invert the line
+                if random.randint(0,3) -1:
+                    # randomly invert the direction
                     end_y = self.display.height
 
                 self.stage.line(center_x, center_y, end_x, end_y, 1)

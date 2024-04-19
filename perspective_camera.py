@@ -5,7 +5,7 @@ from camera3d import Camera, Point3D
 import math
 
 class PerspectiveCamera():
-    def __init__(self, display: framebuf.FrameBuffer, pos_x=0, pos_y=0, pos_z=0, vp_x=0, vp_y=0, focal_length=100):
+    def __init__(self, display: framebuf.FrameBuffer, pos_x=0, pos_y=0, pos_z=0, vp_x=0, vp_y=0, focal_length=100, yaw=0):
 
         self.screen_width = display.width
         self.screen_height = display.height
@@ -13,33 +13,33 @@ class PerspectiveCamera():
         self.half_width = self.screen_width / 2
         self.half_height = self.screen_height / 2
 
-        self.fov_angle = 65  # Desired FOV angle in degrees
-        self.focal_length_y = self.half_height / np.tan(np.radians(self.fov_angle / 2))
-        self.focal_length_x = self.half_width / np.tan(np.radians(self.fov_angle / 2))
+        # self.fov_angle = 65  # Desired FOV angle in degrees
+        # self.focal_length_y = self.half_height / np.tan(np.radians(self.fov_angle / 2))
+        # self.focal_length_x = self.half_width / np.tan(np.radians(self.fov_angle / 2))
 
-        self.focal_length = focal_length
         self.pos = {"x":pos_x, "y":pos_y, "z":pos_z} # location of camera in 3D space
         self.vp = {"x": vp_x, "y":vp_y} # vanishing point
         self.focal_length = focal_length # Distance from the camera to the projection plane in pixels
+
+        self.focal_length_x, self.focal_length_y = self.calculate_fov(focal_length)
+
         self.horiz_z = 5000 # past this point all sprites are considered to be in the horizon line
         self.min_z = pos_z
 
+        """In order to simulate yaw of the camera, we will shift objects horizontally between a max and a min"""
+        self.min_yaw = 0
+        self.max_yaw = 0
 
-    def to_viewport(self, point:Point3D):
-        camera_point = point.world_to_camera(self.camera_3d)
+    def calculate_fov(self, focal_length):
+        # Calculate the horizontal and vertical FOV
+        h_fov = 2 * math.atan(self.screen_width / (2 * focal_length))
+        v_fov = 2 * math.atan(self.screen_height / (2 * focal_length))
 
-        # Project the point onto the 2D screen
-        projected_point = self.camera_3d.perspective_project(camera_point)
+        # Convert to degrees
+        h_fov_deg = math.degrees(h_fov)
+        v_fov_deg = math.degrees(v_fov)
 
-        # Transform the projected point to viewport coordinates
-        viewport_point = self.camera_3d.viewport_transform(projected_point)
-
-        # Invert Y, since Y is at the top on the viewport
-        viewport_point.y = self.screen_height - viewport_point.y
-
-        return int(viewport_point.x), int(viewport_point.y)
-
-
+        return h_fov_deg, v_fov_deg
 
 
     def to_2d(self, x, y, z):
@@ -56,6 +56,6 @@ class PerspectiveCamera():
 
         # Invert, since the screen y=0 is at the top, and in 3D space it is on the floor
         screen_y = self.screen_height - screen_y - self.vp['y']
-        screen_x = screen_x - (self.pos['x'])
+        screen_x = screen_x
 
         return round(screen_x), round(screen_y)
