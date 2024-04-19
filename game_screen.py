@@ -36,7 +36,7 @@ class GameScreen(Screen):
     bike: PlayerSprite
     bike_invisible = True
 
-    current_enemy_lane = -2
+    current_enemy_lane = 0
 
 
     def __init__(self, display, *args, **kwargs):
@@ -76,13 +76,13 @@ class GameScreen(Screen):
             self.display,
             pos_x=0,
             pos_y=64,
-            pos_z=camera_z,
+            pos_z=-camera_z,
             focal_length=camera_z,
             vp_x=0,
             vp_y=horiz_y)
         self.camera.horiz_z = self.sprite_max_z
 
-        self.grid = RoadGrid(self.camera, self.display, lane_width=20)
+        self.grid = RoadGrid(self.camera, self.display, lane_width=22)
 
         loop = asyncio.get_event_loop()
 
@@ -93,7 +93,7 @@ class GameScreen(Screen):
             self.update_fps(),
             self.get_input(encoder, last_pos))
 
-    async def update_loop(self, sun_image, sun_x_start):
+    async def update_loop(self, sun, sun_x_start):
         lane_width = self.grid.lane_width
 
         start_time_ms = round(time.ticks_ms())
@@ -106,7 +106,7 @@ class GameScreen(Screen):
 
         # Create road obstacles
         self.enemies = []
-        num_enemies = 40
+        num_enemies = 30
 
         enemy = Spritesheet("/img/road_wall.bmp", 10, 20)
         enemy.set_camera(self.camera)
@@ -179,7 +179,7 @@ class GameScreen(Screen):
             # REFACTOR
             self.camera.vp["x"] = int(bike_angle * 10)  # So that 3D sprites will follow the movement of the road
             self.camera.pos["x"] = int(bike_angle * 5)
-            sun_image.x = sun_x_start - self.camera.pos["x"]
+            sun.x = sun_x_start - self.camera.pos["x"]
 
             for sprite in self.sprites:
                 sprite.update()

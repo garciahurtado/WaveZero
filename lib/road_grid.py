@@ -156,7 +156,7 @@ class RoadGrid():
         self.offset_near = - (num_lines * lane_width_near / 2)
 
 
-        horiz_y_offset = 0; # Manual adjustment for the start.y of the vertical lines
+        horiz_y_offset = +1; # Manual adjustment for the start.y of the vertical lines
         horiz_y = self.horiz_y + horiz_y_offset
 
         points_start = []
