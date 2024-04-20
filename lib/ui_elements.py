@@ -35,6 +35,11 @@ class ui_screen():
             new_sprite.y = y
             self.add(new_sprite)
 
+    def remove_life(self):
+        self.num_lives = self.num_lives - 1
+        self.lives_sprites = []
+        self.init_lives()
+
     def init_score(self):
         CYAN = (0, 255, 255)
         BLACK = (0, 0, 0)

@@ -8,7 +8,6 @@ from sprite import Sprite
 
 class Screen:
     display: framebuf.FrameBuffer
-    ui: None
     grid: RoadGrid
     sprites: [Sprite]
 
@@ -37,4 +36,10 @@ class Screen:
     def draw_sprites(self):
         for my_sprite in self.sprites:
             my_sprite.show(self.display)
-        self.ui.draw_sprites()
+
+    async def update_fps(self):
+        while True:
+            # Show the FPS in the score label
+            fps = int(self.fps.fps())
+            await asyncio.sleep(0.2)
+

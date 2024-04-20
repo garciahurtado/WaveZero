@@ -28,14 +28,12 @@ class GameScreen(Screen):
     enemies: []
     ui: ui_screen
     crash_fx: None
-    sprite_max_z = 10000
+    sprite_max_z = 2000
     ground_speed = 0
     max_ground_speed = 10
 
     # Bike movement
     bike: PlayerSprite
-    bike_invisible = True
-
     current_enemy_lane = 0
 
 
@@ -51,6 +49,9 @@ class GameScreen(Screen):
         self.crash_fx = DeathEffect(self.display, self.bike)
 
     def run(self):
+        gc.collect()
+        print(f"Free memory before main loop:  {gc.mem_free():,} bytes")
+
         self.ui = ui_screen(self.display)
         asyncio.run(self.main_async())
 
@@ -62,15 +63,13 @@ class GameScreen(Screen):
         self.add(sun)
 
         # show_title(display, root)
-        gc.collect()
-        print(f"Free memory before main loop:  {gc.mem_free():,} bytes")
 
         encoder = Encoder(27, 26)
         last_pos = {'pos': 0}
 
         # Camera
         horiz_y = 16
-        camera_z = 68
+        camera_z = 72
 
         self.camera = PerspectiveCamera(
             self.display,
@@ -95,13 +94,13 @@ class GameScreen(Screen):
 
     async def update_loop(self, sun, sun_x_start):
         lane_width = self.grid.lane_width
+        loop = asyncio.get_event_loop()
 
         start_time_ms = round(time.ticks_ms())
         print(f"Start time: {start_time_ms}")
 
         # 2D Y coordinate at which obstacles will crash with the player
         crash_y = 70
-
         lane_width = 20
 
         # Create road obstacles
@@ -190,9 +189,14 @@ class GameScreen(Screen):
                 # Check collisions
                 if (    (sprite.draw_y >= crash_y) and
                         (sprite.get_lane() == self.bike.current_lane) and
-                        not self.bike_invisible):
+                        not self.bike.invisible and
+                        not self.bike.blink):
 
                     self.do_crash()
+                    self.ui.remove_life()
+                    self.bike.blink = True
+                    await loop.create_task(self.bike.stop_blink()) # Will run after a few seconds
+
 
             await asyncio.sleep(1 / 90)
 
@@ -237,7 +241,6 @@ class GameScreen(Screen):
 
     async def update_fps(self):
         while True:
-            gc.collect()
 
             # Show the FPS in the score label
             fps = int(self.fps.fps())
@@ -278,6 +281,10 @@ class GameScreen(Screen):
         palette._colors.sort()
 
         return palette
+
+    def draw_sprites(self):
+        super().draw_sprites()
+        self.ui.draw_sprites()
 
 
 if __name__ == "__main__":

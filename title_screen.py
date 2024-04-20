@@ -1,28 +1,54 @@
 import asyncio
-import time
+import gc
+from utime import sleep_ms
 
+from animation import Animation
 from color_util import FramebufferPalette
 import color_util as colors
 from screen import Screen
 from sprite import Sprite
 from collections import deque
 
+from ui_elements import ui_screen
+
+
 class TitleScreen(Screen):
+    running = False
+
+    def __init__(self, display, *args, **kwargs):
+        super().__init__(display, *args, **kwargs)
+        gc.collect()
+        print(f"Free memory __init__: {gc.mem_free():,} bytes")
+
     def run(self):
-        asyncio.run(self.main_loop())
+        self.running = True
+        asyncio.run(self.main_async())
+
+    async def main_async(self):
+        loop = asyncio.get_event_loop()
+        self.task_refresh = loop.create_task(self.refresh())
+
+        await asyncio.gather(
+            self.main_loop(),
+        )
+        # loop.run_until_complete(self.update_fps())
+
+
+    async def refresh(self):
+        while self.running:
+            self.display.fill(0)
+            self.draw_sprites()
+            self.do_refresh()
+            await asyncio.sleep(1 / 30)
 
     async def main_loop(self):
-        await asyncio.gather(
-            self.update_loop(),
-            self.refresh_display()
-        )
-
-    async def update_loop(self):
+        loop = asyncio.get_event_loop()
+        ms = 1000
 
         # "Wave"
         title_wave = Sprite("/img/title_wave.bmp")
         title_wave.x = 7
-        title_wave.y = 4
+        title_wave.y = -40
         title_wave.orig_palette = title_wave.palette
         title_wave.set_alpha(0)
 
@@ -33,61 +59,51 @@ class TitleScreen(Screen):
         title_zero.y = 15
         title_zero.orig_palette = title_zero.palette
 
-        self.ui.add(title_wave)
-        self.ui.add(title_zero)
+        self.add(title_wave)
+        self.add(title_zero)
+
+        title_wave_anim = Animation(title_wave, 'y', 0, 600)
+        await title_wave_anim.run()
 
 
-        # num_colors = len(title1_palette) - 1
-        # # Make transparent before we show the bitmap
-        # for i in range(0, num_colors):
-        #     title1_palette.make_transparent(i)
-        #
-
-        self.ui.draw_sprites()
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(300/ms)
         title_wave.palette = FramebufferPalette(title_wave.palette.palette)
 
+        for j in range(0, 2):
+            for i in range(1, 6):
+                title_wave.set_alpha(i+1)
+                await asyncio.sleep(0.05)
+
+        title_wave.set_alpha(0)
+
         # # Do some color transitions manipulating the palette
-        for i in range(title_wave.num_colors-2,0,-1):
-            title_wave.palette.set_color(i+2, colors.hex_to_rgb(0xFFFFFF))
-            self.display.fill(0)
-            self.refresh_display()
-            await asyncio.sleep(0.05)
+        for i in range(2, 5):
+            title_wave.palette.set_color(i, colors.hex_to_rgb(0xFFFFFF))
+            title_wave.set_alpha(0)
+            await asyncio.sleep(50/ms)
 
         title_wave.palette = title_wave.orig_palette
-        self.display.fill(0)
-        self.refresh_display()
-
-        self.refresh_display()
+        title_wave.set_alpha(0)
 
         # Make the bitmap white by assigning a new palette
-        white_palette = [colors.hex_to_rgb(0xFFFFFF) for color in range(0,8)]
+        white_palette = [colors.hex_to_rgb(0xFFFFFF) for _ in range(1,8)]
         white_palette = FramebufferPalette(white_palette)
+        white_palette.set_color(0, colors.hex_to_rgb(0x000000))
         title_wave.palette = white_palette
 
-        self.refresh_display()
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(100/ms)
 
         title_wave.palette = title_wave.orig_palette
-        self.refresh_display()
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(100/ms)
 
 
-        for x in range(100, 15, -2):
-            title_zero.x = x
-            self.display.fill(0)
-            self.refresh_display()
+        zero_anim = Animation(title_zero, "x", 15, 300)
+        await zero_anim.run()
 
-            await asyncio.sleep(0.0001)
+        # just a quick white flash
+        self.display.fill(colors.rgb_to_565(colors.hex_to_rgb(0xFFFFFF)))
+        await asyncio.sleep(0.5)
 
-        # title1_grid.pixel_shader = white_palette
-        # title_zero.pixel_shader = white_palette
-
-        # just a flash
-
-        await asyncio.sleep(0.15)
-
-        #time.sleep(0.15)
         # title1_grid.pixel_shader = title1_palette
         # title_zero.pixel_shader = title2_palette
         # display.refresh()
@@ -99,7 +115,7 @@ class TitleScreen(Screen):
         new_palette = [color for color in title_wave.palette.palette]
         new_palette = deque(new_palette, len(new_palette))
 
-        for i in range(1, title_wave.num_colors, 2):
+        for i in range(1, title_wave.num_colors):
             # rotate palette list by one
 
             new_palette.appendleft(new_palette.pop())
@@ -107,14 +123,12 @@ class TitleScreen(Screen):
             new_palette_buffer.set_color(0, colors.hex_to_rgb(0x000000))
             title_wave.palette = new_palette_buffer
 
-            self.display.fill(0)
-            self.refresh_display()
+            #self.refresh()
 
-            await asyncio.sleep(0.05)
+            await asyncio.sleep(100/ms)
 
         title_wave.palette = title_wave.orig_palette
-        self.display.fill(0)
-        self.refresh_display()
+        #self.refresh()
 
         new_palette = [color for color in title_zero.palette.palette]
         new_palette = deque(new_palette, len(new_palette))
@@ -128,16 +142,11 @@ class TitleScreen(Screen):
             new_palette_buffer.set_color(0, colors.hex_to_rgb(0x000000))
             title_zero.palette = new_palette_buffer
 
-            self.display.fill(0)
-            self.refresh_display()
-
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(150/ms)
 
         title_zero.palette = title_zero.orig_palette
-        self.display.fill(0)
-        self.refresh_display()
+        await asyncio.sleep(200/ms)
 
-        await asyncio.sleep(2)
-        self.display.fill(0)
+        self.running = False
 
-        self.refresh_display()
+        print("-- End of intro screen --")

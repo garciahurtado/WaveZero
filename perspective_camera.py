@@ -28,7 +28,7 @@ class PerspectiveCamera():
 
         """In order to simulate yaw of the camera, we will shift objects horizontally between a max and a min"""
         self.min_yaw = 0
-        self.max_yaw = -200
+        self.max_yaw = -100
 
     @property
     def vp(self):

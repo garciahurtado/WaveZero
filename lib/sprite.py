@@ -1,3 +1,4 @@
+import utime
 from ucollections import namedtuple
 
 from microbmp import MicroBMP as bmp
@@ -20,6 +21,9 @@ class Sprite:
     height_2d = 0
     ratio = 0
     is3d = False
+    invisible = False
+    blink = False
+    blink_flip = 1
 
     x = 0
     y = 0
@@ -71,7 +75,6 @@ class Sprite:
         self.has_alpha = True
         self.alpha_index = alpha_index
         alpha_color = self.palette.pixel(alpha_index, 0)
-        print(f"alpha color: {alpha_color}")
         self.alpha_color = alpha_color
 
     def set_palette(self, palette):
@@ -79,10 +82,8 @@ class Sprite:
         the color palette of an already loaded image"""
         self.num_colors = len(palette)
 
-        new_palette = framebuf.FrameBuffer(bytearray(self.num_colors*2), self.num_colors, 1, framebuf.RGB565)
+        new_palette = framebuf.FrameBuffer(bytearray(self.num_colors * 2), self.num_colors, 1, framebuf.RGB565)
         for i, new_color in enumerate(palette):
-            # new_color = colors.hex_to_rgb(new_color)
-            # new_color = colors.int_to_bytes(new_color)
             new_color = colors.byte3_to_byte2(new_color)
             new_color = colors.bytearray_to_int(new_color)
             new_palette.pixel(i, 0, new_color)
@@ -90,10 +91,23 @@ class Sprite:
         self.palette = new_palette
 
     def show(self, display: framebuf.FrameBuffer):
-        if self.z > self.horiz_z:
+        if self.invisible:
             return False
 
-        x, y = self.draw_x, self.draw_y
+        # Simulate a transparent Sprite effect
+        if self.blink:
+            self.blink_flip = self.blink_flip * -1
+            if self.blink_flip == -1:
+                return False
+
+        if self.is3d:
+            if self.z > self.horiz_z:
+                return False
+
+            x, y = self.draw_x, self.draw_y
+        else:
+            x, y = self.x, self.y
+
         if x > (display.width * 2):
             x = display.width * 2
 
@@ -106,9 +120,7 @@ class Sprite:
         if self.speed:
             self.z = self.z + self.speed
 
-
         self.draw_x, self.draw_y = self.pos()
-
 
     def clone(self):
         copy = self.__class__()
@@ -158,7 +170,7 @@ class Sprite:
             if y < 0 or self.z <= self.camera.pos['z']:
                 self.z = self.camera.horiz_z
 
-            x = int(x - (self.width_2d/2)) # Draw the object so that it is horizontally centered
+            x = int(x - (self.width_2d / 2))  # Draw the object so that it is horizontally centered
 
             return x, y
         else:
@@ -176,7 +188,6 @@ class Spritesheet(Sprite):
 
     def __init__(self, filename=None, frame_width=None, frame_height=None, *args, **kwargs):
         super().__init__(filename, *args, **kwargs)
-
 
         if frame_width and frame_height:
             self.frame_width = frame_width
@@ -213,7 +224,6 @@ class Spritesheet(Sprite):
         self.camera = camera
         self.half_scale_one_dist = abs(self.camera.pos['z']) / 2
 
-
     def update(self):
         super().update()
         self.update_frame()
@@ -235,7 +245,7 @@ class Spritesheet(Sprite):
         if self.current_frame == frame_idx:
             return False
 
-        #print(f"Scale: {scale:.3} / Frame: {frame_idx}")
+        # print(f"Scale: {scale:.3} / Frame: {frame_idx}")
         self.height_2d = scale * self.frame_height
         self.width_2d = self.ratio * self.height_2d
 
@@ -291,24 +301,24 @@ class ImageLoader():
         palette = bmp_image.palette
         num_colors = len(palette)
 
-        #palette = [colors.bytearray_to_int(colors.byte3_to_byte2(color)) for color in palette]
+        # palette = [colors.bytearray_to_int(colors.byte3_to_byte2(color)) for color in palette]
         palette = FramebufferPalette(palette)
         bytearray_pixels = bytearray(len(bmp_image.parray))
 
-        #bytearray_pixels = [byte for color in bmp_image.parray for byte in colors.int_to_bytes(color)]
+        # bytearray_pixels = [byte for color in bmp_image.parray for byte in colors.int_to_bytes(color)]
         for i, pixel_index in enumerate(bmp_image.parray):
-            #pixel_index = int.from_bytes(pixel_index[0] + pixel_index[1], 'big')
-            #print(f"Pixel index: {pixel_index}")
-            #color = palette.get_color(pixel_index)
+            # pixel_index = int.from_bytes(pixel_index[0] + pixel_index[1], 'big')
+            # print(f"Pixel index: {pixel_index}")
+            # color = palette.get_color(pixel_index)
 
-            #print(f"Color: {color:02x}")
+            # print(f"Color: {color:02x}")
             bytearray_pixels[i] = pixel_index
 
         image_buffer = framebuf.FrameBuffer(
-                bytearray_pixels,
-                width,
-                height,
-                framebuf.GS8)
+            bytearray_pixels,
+            width,
+            height,
+            framebuf.GS8)
 
         image = Image(
             width,

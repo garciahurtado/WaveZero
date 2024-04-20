@@ -1,3 +1,5 @@
+import asyncio
+
 from sprite import Spritesheet
 
 
@@ -11,6 +13,7 @@ class PlayerSprite(Spritesheet):
         self.set_frame(8)  # middle frame
         self.x = 25
         self.y = 42
+        # self.blink = True
 
     def move_left(self):
         if self.current_lane == 0:
@@ -39,3 +42,8 @@ class PlayerSprite(Spritesheet):
 
         line_offset = angle
         return line_offset
+
+    async def stop_blink(self):
+        asyncio.sleep(3)
+        self.blink = False
+
