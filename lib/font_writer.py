@@ -46,6 +46,7 @@ class Writer():
     state = {}  # Holds a display state for each device
     text_height: int
     text_width: int
+    visible = True
 
     @staticmethod
     def set_textpos(device, row=None, col=None):
@@ -320,6 +321,9 @@ class ColorWriter(Writer):
         self.cpos += 1
 
     def show(self, display):
+        if not self.visible:
+            return False
+
         x, y = self.text_x, self.text_y
         display.blit(self.pixels, x, y, -1, self.palette)
 

@@ -78,7 +78,7 @@ class TitleScreen(Screen):
 
         # # Do some color transitions manipulating the palette
         for i in range(2, 5):
-            title_wave.palette.set_color(i, colors.hex_to_rgb(0xFFFFFF))
+            title_wave.palette.set_rgb(i, colors.hex_to_rgb(0xFFFFFF))
             title_wave.set_alpha(0)
             await asyncio.sleep(50/ms)
 
@@ -88,7 +88,7 @@ class TitleScreen(Screen):
         # Make the bitmap white by assigning a new palette
         white_palette = [colors.hex_to_rgb(0xFFFFFF) for _ in range(1,8)]
         white_palette = FramebufferPalette(white_palette)
-        white_palette.set_color(0, colors.hex_to_rgb(0x000000))
+        white_palette.set_rgb(0, colors.hex_to_rgb(0x000000))
         title_wave.palette = white_palette
 
         await asyncio.sleep(100/ms)
@@ -120,7 +120,7 @@ class TitleScreen(Screen):
 
             new_palette.appendleft(new_palette.pop())
             new_palette_buffer = FramebufferPalette(list(new_palette))
-            new_palette_buffer.set_color(0, colors.hex_to_rgb(0x000000))
+            new_palette_buffer.set_rgb(0, colors.hex_to_rgb(0x000000))
             title_wave.palette = new_palette_buffer
 
             #self.refresh()
@@ -139,7 +139,7 @@ class TitleScreen(Screen):
 
             new_palette.appendleft(new_palette.pop())
             new_palette_buffer = FramebufferPalette(list(new_palette))
-            new_palette_buffer.set_color(0, colors.hex_to_rgb(0x000000))
+            new_palette_buffer.set_rgb(0, colors.hex_to_rgb(0x000000))
             title_zero.palette = new_palette_buffer
 
             await asyncio.sleep(150/ms)

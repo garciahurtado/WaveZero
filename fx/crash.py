@@ -5,14 +5,17 @@ import random
 
 import framebuf
 
+from color_util import FramebufferPalette
+from fx.scanline_fade import ScanlineFade
 from sprite import Sprite, Spritesheet
+import color_util as colors
 
-
-class DeathEffect():
+class Crash():
     x = 0
     y = 0
     particles = []
     explode_sprite: Spritesheet
+    palette: FramebufferPalette
     display: framebuf.FrameBuffer
     stage_width = 0
     stage_height = 0
@@ -35,6 +38,10 @@ class DeathEffect():
 
     def create_particles(self):
         bitmap = self.explode_sprite.pixels
+        self.palette = self.explode_sprite.palette.clone()
+        self.palette.set_rgb(1, [104, 250, 255])
+        self.palette.set_rgb(2, [90, 247, 255])
+        self.palette.set_rgb(3, [52, 235, 198])
 
         # Get the center of the bitmap
         self.center_x = self.explode_sprite.frame_width // 2
@@ -46,11 +53,15 @@ class DeathEffect():
         # Get the particle data from the bitmap
         for x in range(0, 25, 3):
             for y in range(0, 42, 3):
-                if bitmap.pixel(x, y) != 0 and round(random.random()):
+                if bitmap.pixel(x, y) != 0 and round(random.random() + 0.2):
                     # Calculate the distance from the center
                     distance = math.sqrt((x - self.center_x) ** 2 + (y - self.center_y) ** 2)
-                    if distance < 4:
-                        distance == 4
+                    distance = abs(distance)
+                    if distance < 3:
+                        distance == 3
+
+                    if distance > 10:
+                        distance == 10
 
                     # Calculate the angle from the center
                     angle = math.atan2(y - self.center_y, x - self.center_x)
@@ -62,63 +73,63 @@ class DeathEffect():
                     # Store the particle data as a tuple
                     particles.append((new_x, new_y, distance, angle))
 
-        print(f"Num particles created: {len(particles)}")
-
         self.particles = particles
         return particles
 
     def anim_particles(self):
         particles = self.particles
-        speed = 5
+        speed = 7
         center_x = self.center_x + self.explode_sprite.x
         center_y = self.center_y + self.explode_sprite.y
+        rand_range = 0.7
+        alpha = self.explode_sprite.alpha_color
 
         # Animate the particles
         for i in range(60): # number of frames for this animation
+
             for i in range(len(particles)):
                 x, y, distance, angle = particles[i]
 
                 # add a bit of random
-                range = 0.2
-                angle = angle + (random.random()*range -(range/2))
+                delta = (random.random()*rand_range*2) - (rand_range)
+                angle = angle + delta
 
                 # Calculate the new position
-                x += (math.cos(angle) * distance / 10) * (speed + random.random()*2)
-                y += (math.sin(angle) * distance / 10) * (speed + random.random()*2)
+                x += ((math.cos(angle) * distance / 10) * speed)
+                y += ((math.sin(angle) * distance / 10) * speed)
 
                 # Bounce off the walls
-                if x > self.stage_width:
-                    x = self.stage_width
-                    angle = angle + math.pi
-                elif x < 0:
-                    x = 0
-                    angle = angle + math.pi
-                elif y > self.stage_height:
-                    y = self.stage_height
-                    angle = angle + math.pi
-                elif y < 0:
-                    y = 0
-                    angle = angle + math.pi
+                # if x > self.stage_width:
+                #     x = self.stage_width
+                #     angle = angle + math.pi
+                # elif x < 0:
+                #     x = 0
+                #     angle = angle + math.pi
+                #
 
 
                 # Store the updated particle data
                 particles[i] = (x, y, distance, angle)
+                distance = abs(distance)
 
                 color = random.randrange(0,4)
                 self.stage.pixel(int(x), int(y), color)
 
                 # Sometimes we draw single pixels, sometimes fat pixels
-                size = random.choice([1, 1, 1, 1, 1, 1, 2, 2, 2, 3])  # (1-3)
+                size = random.choice([3, 2, 2, 2, 1, 1, 1, 1, 1, 1])  # (1-3)
+                size = size + int(distance/10)
+
+                if size > 3:
+                    size = 3
+
                 # if round(random.random()):
                 self.draw_dot(x, y, color, size)
 
-            # throw some random scanlines too
-            num_lines = random.randrange(1,3)
-            for i in range(num_lines):
-                y = random.randrange(0, self.stage_height)
-                self.stage.line(0, y, self.stage_width, y, 0)
+            rand_range = rand_range * 0.95
 
             # And some rays emanating from the center
+
+            #self.palette.set_rgb(1, (255,255,255))
             if (random.random() * 100) > 80:
                 angle = 140
                 end_x = int(center_x + (random.random() * angle) - (angle/2))
@@ -132,9 +143,12 @@ class DeathEffect():
                 self.stage.line(center_x, center_y, end_x+1, end_y, 2)
                 self.stage.line(center_x, center_y, end_x-1, end_y, 2)
 
-            self.display.blit(self.stage, 0, 0, self.explode_sprite.alpha_color, self.explode_sprite.palette)
+            self.display.blit(self.stage, 0, 0, alpha, self.palette)
             self.display.show()
             speed = speed * 0.97
+
+        fade_fx = ScanlineFade(self.display)
+        fade_fx.start()
 
         # End of animation
         self.particles = []

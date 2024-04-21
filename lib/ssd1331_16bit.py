@@ -87,3 +87,7 @@ class SSD1331(framebuf.FrameBuffer):
             self._spi_init(spi)  # Bus may be shared
         self._write(_cmd, 0)
         self._write(self.buffer, 1)
+
+    def set_offset_x(self, _cmd=b''):
+        self._write(_cmd, 0)
+        self._write(self.buffer, 1)

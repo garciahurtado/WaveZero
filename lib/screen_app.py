@@ -38,7 +38,7 @@ class ScreenApp:
         pin_dc = Pin(5, Pin.OUT, value=0)
 
 
-        spi = machine.SPI(0, baudrate=62_500_000, sck=pin_sck, mosi=pin_sda, miso=None)
+        spi = machine.SPI(0, baudrate=256_000_000, sck=pin_sck, mosi=pin_sda, miso=None)
         ssd = SSD(spi, pin_cs, pin_dc, pin_rst, height=self.screen_height,
                   width=self.screen_width)  # Create a display instance
 

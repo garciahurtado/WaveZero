@@ -1,7 +1,4 @@
 import framebuf
-from ulab import numpy as np
-
-from camera3d import Camera, Point3D
 import math
 
 class PerspectiveCamera():

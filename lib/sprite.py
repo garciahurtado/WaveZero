@@ -1,4 +1,3 @@
-import utime
 from ucollections import namedtuple
 
 from microbmp import MicroBMP as bmp
@@ -6,13 +5,11 @@ import framebuf
 import os
 import color_util as colors
 from color_util import FramebufferPalette
-import math
-from camera3d import Point3D
 
 
 class Sprite:
     """ Represents a sprite which is loaded from disk in BMP format, and stored in memory as an RGB565 framebuffer"""
-    pixels: framebuf.FrameBuffer
+    pixels: framebuf.FrameBuffer = None
     palette: FramebufferPalette
     num_colors = 0
     width = 0
@@ -21,7 +18,7 @@ class Sprite:
     height_2d = 0
     ratio = 0
     is3d = False
-    invisible = False
+    visible = True
     blink = False
     blink_flip = 1
 
@@ -38,10 +35,10 @@ class Sprite:
     alpha_color = None
     alpha_index = 0
     camera = None  # to simulate 3D
-    point: Point3D
 
     def __init__(self, filename=None, x=0, y=0, z=0, camera=None) -> None:
         if filename:
+            print(filename)
             self.load_image(filename)
 
         self.x = x
@@ -55,12 +52,6 @@ class Sprite:
         print(f"Loading BMP: {filename}")
 
         image = ImageLoader.load_image(filename)
-
-        # if filename in ImageLoader.images:
-        #     image = ImageLoader.images[filename]
-        # else:
-        #     image = ImageLoader.load_image(filename)
-        #     ImageLoader.images[filename] = image
 
         self.width = image.width
         self.height = image.height
@@ -90,8 +81,11 @@ class Sprite:
 
         self.palette = new_palette
 
+    def set_camera(self, camera):
+        self.camera = camera
+
     def show(self, display: framebuf.FrameBuffer):
-        if self.invisible:
+        if not self.visible:
             return False
 
         # Simulate a transparent Sprite effect
@@ -123,7 +117,7 @@ class Sprite:
         self.draw_x, self.draw_y = self.pos()
 
     def clone(self):
-        copy = self.__class__()
+        copy = Sprite()
         copy.camera = self.camera
         copy.x = self.x
         copy.y = self.y
@@ -155,10 +149,13 @@ class Sprite:
         else:
             lane = int((self.x) / self.lane_width)
 
-        # +2 because x in 3D is at the center and we count
+        # +2 because X=0 in 3D is at the center and we count
         # lanes from the left edge
         lane = lane + 2
         return lane
+
+    def set_lane(self, lane_num):
+        self.x = (lane_num - 2) * self.lane_width
 
     def pos(self):
         """Returns the 2D coordinates of the object, calculated from the internal x,y (if 2D) or x,y,z
@@ -186,39 +183,27 @@ class Spritesheet(Sprite):
     half_scale_one_dist = 0
     lane_width = 0
 
-    def __init__(self, filename=None, frame_width=None, frame_height=None, *args, **kwargs):
-        super().__init__(filename, *args, **kwargs)
+    def __init__(self, filename=None, frame_width=None, frame_height=None, x=0, y=0, z=0, camera=None, *args, **kwargs):
+        self.frame_width = frame_width
+        self.frame_height = frame_height
 
-        if frame_width and frame_height:
-            self.frame_width = frame_width
-            self.frame_height = frame_height
 
+        if filename:
+            print(filename)
+            self.load_image(filename, frame_width, frame_height)
+
+        self.x = x
+        self.y = y
+        self.z = z
+        self.camera = camera
+        self.update()
+
+        if self.frame_width and self.frame_height:
             self.ratio = self.frame_width / self.frame_height
-            print(f"Ratio : {self.ratio}")
 
-            num_frames = self.width // frame_width
-            print(f"Spritesheet with {num_frames} frames")
-
-            self.frames = [None] * num_frames
-
-            for idx in range(num_frames):
-                x = idx * frame_width
-                y = 0
-
-                buffer = bytearray(frame_width * frame_height * 2)
-                my_buffer = framebuf.FrameBuffer(buffer, frame_width, frame_height, framebuf.RGB565)
-                scan_width = frame_width
-
-                for i in range(frame_width):
-                    for j in range(frame_height):
-                        color = self.pixels.pixel(x + i, y + j)
-                        my_buffer.pixel(i, j, color)
-
-                self.frames[idx] = my_buffer
-
+        if self.pixels:
             self.set_frame(0)
 
-            self.width = self.frame_width
 
     def set_camera(self, camera):
         self.camera = camera
@@ -228,15 +213,16 @@ class Spritesheet(Sprite):
         super().update()
         self.update_frame()
 
+
     def set_frame(self, frame_num):
         self.current_frame = frame_num
-        self.pixels = self.frames[frame_num]
+        self.pixels = self.frames[frame_num].pixels
 
     def update_frame(self):
         """Update the current frame in the spritesheet to the one that represents the correct size when taking into
         account 3D coordinates and the camera"""
 
-        if not self.frames or len(self.frames) == 0 or not self.camera:
+        if not self.camera or not self.frames or (len(self.frames) == 0):
             return False
 
         scale = self.half_scale_one_dist / ((self.z - self.camera.pos['z']) / 2)
@@ -253,17 +239,55 @@ class Spritesheet(Sprite):
             frame_idx = 0
         if frame_idx >= len(self.frames):
             frame_idx = len(self.frames) - 1
+
         self.set_frame(frame_idx)
 
         return True
 
+    def load_image(self, filename, frame_width, frame_height):
+        """Overrides parent"""
+        images = ImageLoader.load_image(filename, frame_width, frame_height)
+
+        if isinstance(images, list):
+            self.frames = images
+            image = images[0]
+        else:
+            image = images
+
+        self.width = image.width
+        self.height = image.height
+        self.palette = image.palette
+        self.num_colors = image.num_colors
+
     def clone(self):
-        copy = super().clone()
+        copy = Spritesheet(
+            frame_width=self.frame_width,
+            frame_height=self.frame_height,
+            x=self.x,
+            y=self.y,
+            z=self.z,
+            camera=self.camera
+        )
+        copy.is3d = self.is3d
+        copy.draw_x = self.draw_x
+        copy.draw_y = self.draw_y
+
+        copy.pixels = self.pixels
+        copy.palette = self.palette
+        copy.width = self.width
+        copy.height = self.height
+        copy.horiz_z = self.horiz_z
+
+        copy.has_alpha = self.has_alpha
+        copy.alpha_color = self.alpha_color
+        copy.alpha_index = self.alpha_index
+
         copy.frames = self.frames
         copy.current_frame = self.current_frame
         copy.frame_width = self.frame_width
         copy.frame_height = self.frame_height
         copy.ratio = self.ratio
+        copy.half_scale_one_dist = self.half_scale_one_dist
         copy.palette = self.palette.clone()
         copy.lane_width = self.lane_width
         copy.speed = self.speed
@@ -292,27 +316,40 @@ class ImageLoader():
             ImageLoader.images[image_path] = image
 
     @staticmethod
-    def load_image(filename):
+    def load_image(filename, frame_width=0, frame_height=0):
         bmp_image = bmp().load(filename)
         print(bmp_image)  # Show metadata
 
-        width = bmp_image.DIB_w
-        height = bmp_image.DIB_h
+        width = bmp_image.width
+        height = bmp_image.height
         palette = bmp_image.palette
-        num_colors = len(palette)
 
         # palette = [colors.bytearray_to_int(colors.byte3_to_byte2(color)) for color in palette]
         palette = FramebufferPalette(palette)
-        bytearray_pixels = bytearray(len(bmp_image.parray))
 
-        # bytearray_pixels = [byte for color in bmp_image.parray for byte in colors.int_to_bytes(color)]
-        for i, pixel_index in enumerate(bmp_image.parray):
-            # pixel_index = int.from_bytes(pixel_index[0] + pixel_index[1], 'big')
-            # print(f"Pixel index: {pixel_index}")
-            # color = palette.get_color(pixel_index)
+        if frame_width and frame_height:
+            # This is a spritesheet, so lets make frames from the pixel data without allocating new memory
+            frames = []
+            frame_byte_size = frame_width * frame_height  # assuming < 8 BPP
+            pixel_view = memoryview(bmp_image.pixels)
 
-            # print(f"Color: {color:02x}")
-            bytearray_pixels[i] = pixel_index
+            for i in range(0, len(bmp_image.pixels), frame_byte_size):
+                frame = pixel_view[i:i+frame_byte_size]
+
+                image = ImageLoader.create_image(bytearray(frame), frame_width, frame_height, palette)
+                frames.append(image)
+
+            return frames
+
+        else:
+            bytearray_pixels = bytearray(bmp_image.pixels)
+            image = ImageLoader.create_image(bytearray_pixels, width, height, palette)
+
+            return image
+
+    @staticmethod
+    def create_image(bytearray_pixels, width, height, palette):
+        num_colors = len(palette)
 
         image_buffer = framebuf.FrameBuffer(
             bytearray_pixels,
@@ -328,6 +365,12 @@ class ImageLoader():
             palette)
 
         return image
+
+    @staticmethod
+    def load_as_palette(filename):
+        image = ImageLoader.load_image(filename)
+
+        return image.palette
 
 
 Image = namedtuple("Image",

@@ -228,27 +228,48 @@ class FramebufferPalette(framebuf.FrameBuffer):
     """
     A color palette in framebuffer format (rgb565), ready to be used by display.blit()
     """
-    palette: [int]
+    palette: bytearray
     num_colors = 0
 
     def __init__(self, palette):
-        self.palette = palette
-        num_colors = len(palette)
-        palette_buffer = bytearray(num_colors * 2)
-        super().__init__(palette_buffer, num_colors, 1, framebuf.RGB565)
 
-        for i, color in enumerate(palette):
-            self.set_color(i, color)
+        set_colors = []
 
-    def set_color(self, index, color):
+        if isinstance(palette, bytearray):
+            self.num_colors = int(len(palette) / 2)
+            self.palette = palette
+        else:
+            """ you can also pass a list of RGB tuples to the constructor"""
+            self.num_colors = len(palette)
+            self.palette = bytearray(self.num_colors * 2)
+            set_colors = palette
+
+        super().__init__(self.palette, self.num_colors, 1, framebuf.RGB565)
+
+        for i, color in enumerate(set_colors):
+            self.set_rgb(i, color)
+
+    def __len__(self):
+        return len(self.palette)
+
+    def set_rgb(self, index, color):
         color = SSD1331.rgb(color[0], color[1], color[2])  # returns 2 bytes
         self.pixel(index, 0, color)
 
-    def get_color(self, index):
+    def get_rgb(self, index):
         color = self.pixel(index, 0)
         color = colors.rgb565_to_rgb(color)
         return color
 
+    def set_bytes(self, index, color):
+        self.pixel(index, 0, color)
+
+    def get_bytes(self, index):
+        color = self.pixel(index, 0)
+        return color
+
     def clone(self):
-        copy = FramebufferPalette(self.palette)
-        return copy
+        palette = bytearray(len(self.palette))
+        palette[:] = self.palette
+        new_palette = FramebufferPalette(palette)
+        return new_palette

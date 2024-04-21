@@ -8,7 +8,7 @@ class PlayerSprite(Spritesheet):
     current_lane = 2
 
     def __init__(self):
-        super().__init__("/img/bike_sprite.bmp", 37, 22)
+        super().__init__("/img/bike_sprite.bmp", frame_width=37, frame_height=22)
         self.set_alpha(0)
         self.set_frame(8)  # middle frame
         self.x = 25
@@ -44,6 +44,6 @@ class PlayerSprite(Spritesheet):
         return line_offset
 
     async def stop_blink(self):
-        asyncio.sleep(3)
+        await asyncio.sleep(3)
         self.blink = False
 

@@ -16,7 +16,7 @@ Examples
 >>> from microbmp import MicroBMP
 >>> img_24b_2x2 = MicroBMP(2, 2, 24)  # Create a 2(width) by 2(height) 24-bit image.
 >>> img_24b_2x2.palette  # 24-bit image has no palette.
->>> img_24b_2x2.parray  # Pixels are arranged horizontally (top-down) in RGB order.
+>>> img_24b_2x2.pixels  # Pixels are arranged horizontally (top-down) in RGB order.
 bytearray(b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
 >>> img_24b_2x2[1, 1] = 255, 255, 255  # Access 1 pixel (R, G, B): img[x, y]
 >>> img_24b_2x2[0, 1, 0] = 255  # Access 1 primary colour of 1 pixel (Red): img[x, y, c]
@@ -26,16 +26,16 @@ bytearray(b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
 70
 >>> new_img_24b_2x2 = MicroBMP().load("img_24b_2x2.bmp")
 >>> new_img_24b_2x2.palette
->>> new_img_24b_2x2.parray
+>>> new_img_24b_2x2.pixels
 bytearray(b'\x00\x00\xff\x00\xff\x00\xff\x00\x00\xff\xff\xff')
 >>> print(new_img_24b_2x2)
 BMP image, RGB, 24-bit, 2x2 pixels, 70 bytes
 >>> img_1b_3x2 = MicroBMP(3, 2, 1)  # Create a 3(width) by 2(height) 1-bit image.
 >>> img_1b_3x2.palette  # Each colour is in the order of (R, G, B)
 [bytearray(b'\x00\x00\x00'), bytearray(b'\xff\xff\xff')]
->>> img_1b_3x2.parray  # Each bit stores the colour index in HLSB format.
+>>> img_1b_3x2.pixels  # Each bit stores the colour index in HLSB format.
 bytearray(b'\x00')
->>> " ".join([f"{bin(byte)[2:]:0>8}" for byte in img_1b_3x2.parray])
+>>> " ".join([f"{bin(byte)[2:]:0>8}" for byte in img_1b_3x2.pixels])
 '00000000'
 >>> img_1b_3x2[1, 0] = 1  # Access 1 pixel (index): img[x, y]
 >>> img_1b_3x2[1, 1] = 1
@@ -45,15 +45,16 @@ bytearray(b'\x00')
 >>> new_img_1b_3x2 = MicroBMP().load("img_1b_3x2.bmp")
 >>> new_img_1b_3x2.palette
 [bytearray(b'\x00\x00\x00'), bytearray(b'\xff\xff\xff')]
->>> new_img_1b_3x2.parray
+>>> new_img_1b_3x2.pixels
 bytearray(b'L')
->>> " ".join([f"{bin(b)[2:]:0>8}" for b in new_img_1b_3x2.parray])
+>>> " ".join([f"{bin(b)[2:]:0>8}" for b in new_img_1b_3x2.pixels])
 '01001100'
 >>> print(new_img_1b_3x2)
 BMP image, indexed, 1-bit, 3x2 pixels, 70 bytes
 """
 import array
 from struct import pack, unpack
+from color_util import rgb_to_565
 
 # Project Version
 __version__ = "0.3.0"
@@ -84,13 +85,13 @@ class MicroBMP(object):
     ----------
     BMP_size : int
         The number of bytes the image takes from the file system.
-    DIB_w : int
+    width : int
         The width of the image.
-    DIB_h : int
+    height : int
         The height of the image.
-    DIB_depth : int
+    color_depth : int
         The colour depth of the image.
-    DIB_comp : int
+    compression : int
         The compression method of the image read from the file system.
     palette : list of bytearray, optional
         The colour palette of indexed images (colour depth of 1, 2, 4, or 8).
@@ -121,7 +122,7 @@ class MicroBMP(object):
     - To get or set a primary colour value of a pixel of a 24-bit image : `img[x, y, c]`
     """
 
-    def __init__(self, width=None, height=None, depth:int=8, palette=None):
+    def __init__(self, width=None, height=None, depth:int=8, palette=None, frame_width=None, frame_height=None):
         # BMP Header
         self.BMP_id = b"BM"
         self.BMP_size = None
@@ -129,23 +130,30 @@ class MicroBMP(object):
         self.BMP_reserved2 = b"\x00\x00"
         self.BMP_offset = None
 
+        if frame_width and frame_height:
+            self.frame_width = frame_width
+            self.frame_height = frame_height
+        else:
+            self.frame_width = width
+            self.frame_height = height
+
         # DIB Header
-        self.DIB_len = 40
-        self.DIB_w = width
-        self.DIB_h = height
-        self.DIB_planes_num = 1
-        self.DIB_depth = depth
-        self.DIB_comp = 0
-        self.DIB_raw_size = None
-        self.DIB_hres = 2835  # 72 DPI * 39.3701 inches/metre.
-        self.DIB_vres = 2835
-        self.DIB_num_in_plt = None
-        self.DIB_extra = None
+        self.header_len = 40
+        self.width = width
+        self.height = height
+        self.planes_num = 1
+        self.color_depth = depth
+        self.compression = 0
+        self.raw_size = None
+        self.hres = 2835  # 72 DPI * 39.3701 inches/metre.
+        self.vres = 2835
+        self.num_colors = None
+        self.extra = None
 
         self.palette = palette
 
         # Pixel array
-        self.parray: list[int] = []
+        self.pixels: list[int] = []
 
         self.ppb = None  # Number of pixels per byte for depth <= 8.
         self.pmask = None  # Pixel Mask
@@ -157,54 +165,63 @@ class MicroBMP(object):
 
     def __getitem__(self, key):
         assert self.initialised, "Image not initialised!"
-        assert key[0] < self.DIB_w and key[1] < self.DIB_h, "Out of image boundary!"
+        assert key[0] < self.width and key[1] < self.height, "Out of image boundary!"
 
         # Pixels are arranged in HLSB format with high bits being the leftmost
-        pindex = key[1] * self.DIB_w + key[0]  # Pixel index
-        if self.DIB_depth <= 8:
-            return self._extract_from_bytes(self.parray, pindex)
+        pindex = key[1] * self.width + key[0]  # Pixel index
+        if self.color_depth <= 8:
+            return self._extract_from_bytes(self.pixels, pindex)
         else:
             pindex *= 3
             if (len(key) > 2) and (key[2] in (0, 1, 2)):
-                return self.parray[pindex + key[2]]
+                return self.pixels[pindex + key[2]]
             else:
                 return (
-                    self.parray[pindex],
-                    self.parray[pindex + 1],
-                    self.parray[pindex + 2],
+                    self.pixels[pindex],
+                    self.pixels[pindex + 1],
+                    self.pixels[pindex + 2],
                 )
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key, color):
         assert self.initialised, "Image not initialised!"
-        assert key[0] < self.DIB_w and key[1] < self.DIB_h, "Out of image boundary!"
+        assert key[0] < self.width and key[1] < self.height, "Out of image boundary!"
+
+        if len(key) == 2:
+            x = key[0]
+            y = key[1]
+        elif len(key) == 3:
+            x = key[0]
+            y = key[1]
+            ch = key[2]
 
         # Pixels are arranged in HLSB format with high bits being the leftmost
-        pindex = key[1] * self.DIB_w + key[0]  # Pixel index
-        if self.DIB_depth <= 8:
-            self._fill_in_bytes(self.parray, pindex, value)
+        pindex = y * self.width + x  # Pixel index
+
+        if self.color_depth <= 8:
+            self._fill_in_bytes(self.pixels, pindex, color)
         else:
             pindex *= 3
-            if (len(key) > 2) and (key[2] in (0, 1, 2)):
-                self.parray[pindex + key[2]] = value
+            if (len(key) > 2) and (ch in (0, 1, 2)):
+                self.pixels[pindex + key[2]] = color
             else:
-                self.parray[pindex] = value[0]
-                self.parray[pindex + 1] = value[1]
-                self.parray[pindex + 2] = value[2]
+                self.pixels[pindex] = color[0]
+                self.pixels[pindex + 1] = color[1]
+                self.pixels[pindex + 2] = color[2]
 
     def __str__(self):
         if not self.initialised:
             return repr(self)
 
         return "BMP image, {}, {}-bit, {}x{} pixels, {} bytes".format(
-            "indexed" if self.DIB_depth <= 8 else "RGB",
-            self.DIB_depth,
-            self.DIB_w,
-            self.DIB_h,
+            "indexed" if self.color_depth <= 8 else "RGB",
+            self.color_depth,
+            self.width,
+            self.height,
             self.BMP_size,
         )
 
     def _init(self):
-        if None in (self.DIB_w, self.DIB_h, self.DIB_depth):
+        if None in (self.width, self.height, self.color_depth):
             self.initialised = False
             return self.initialised
 
@@ -214,63 +231,64 @@ class MicroBMP(object):
         ), "Length of BMP reserved fields ({}+{}) must be 2+2!".format(
             len(self.BMP_reserved1), len(self.BMP_reserved2)
         )
-        assert self.DIB_planes_num == 1, "DIB planes number ({}) must be 1!".format(
-            self.DIB_planes_num
+        assert self.planes_num == 1, "DIB planes number ({}) must be 1!".format(
+            self.planes_num
         )
-        assert self.DIB_depth in (
+        assert self.color_depth in (
             1,
             2,
             4,
             8,
             24,
-        ), "Colour depth ({}) must be in (1, 2, 4, 8, 24)!".format(self.DIB_depth)
+        ), "Colour depth ({}) must be in (1, 2, 4, 8, 24)!".format(self.color_depth)
         assert (
-            self.DIB_comp == 0
-            or (self.DIB_depth == 8 and self.DIB_comp == 1)
-            or (self.DIB_depth == 4 and self.DIB_comp == 2)
+                self.compression == 0
+                or (self.color_depth == 8 and self.compression == 1)
+                or (self.color_depth == 4 and self.compression == 2)
         ), "Colour depth + compression ({}+{}) must be X+0/8+1/4+2!".format(
-            self.DIB_depth, self.DIB_comp
+            self.color_depth, self.compression
         )
 
-        if self.DIB_depth <= 8:
-            self.ppb = 8 // self.DIB_depth
-            self.pmask = 0xFF >> (8 - self.DIB_depth)
+        if self.color_depth <= 8:
+            self.ppb = 8 // self.color_depth
+            self.pmask = 0xFF >> (8 - self.color_depth)
             if self.palette is None:
                 # Default palette is black and white or full size grey scale.
-                self.DIB_num_in_plt = 2 ** self.DIB_depth
-                self.palette = [None for i in range(self.DIB_num_in_plt)]
-                for i in range(self.DIB_num_in_plt):
+                self.num_colors = 2 ** self.color_depth
+                self.palette = [None for i in range(self.num_colors)]
+                for i in range(self.num_colors):
                     # Assignment that suits all: 1/2/4/8-bit colour depth.
-                    s = 255 * i // (self.DIB_num_in_plt - 1)
+                    s = 255 * i // (self.num_colors - 1)
                     self.palette[i] = bytearray([s, s, s])
             else:
-                self.DIB_num_in_plt = len(self.palette)
+                self.num_colors = len(self.palette)
         else:
             self.ppb = None
             self.pmask = None
-            self.DIB_num_in_plt = 0
+            self.num_colors = 0
             self.palette = None
 
-        if self.parray is None:
-            if self.DIB_depth <= 8:
-                div, mod = divmod(self.DIB_w * self.DIB_h, self.ppb)
-                self.parray = bytearray(div + (1 if mod else 0))
+        if self.pixels is None:
+            if self.color_depth <= 8:
+                #div, mod = divmod(self.width * self.height, self.ppb)
+                # self.parray = bytearray(div + (1 if mod else 0))
+                self.pixels = bytearray(self.width * self.height)
             else:
-                self.parray = bytearray(self.DIB_w * self.DIB_h * 3)
+                self.pixels = bytearray(self.width * self.height * 3)
 
-        plt_size = self.DIB_num_in_plt * 4
-        self.BMP_offset = 14 + self.DIB_len + plt_size
-        self.row_size = self._size_from_width(self.DIB_w)
+        plt_size = self.num_colors * 4
+        self.BMP_offset = 14 + self.header_len + plt_size
+        self.row_size = self._size_from_width(self.width)
         self.padded_row_size = self._padded_size_from_size(self.row_size)
-        if self.DIB_comp == 0:
-            self.DIB_raw_size = self.padded_row_size * self.DIB_h
-            self.BMP_size = self.BMP_offset + self.DIB_raw_size
+        if self.compression == 0:
+            self.raw_size = self.padded_row_size * self.height
+            self.BMP_size = self.BMP_offset + self.raw_size
 
         self.initialised = True
         return self.initialised
 
     def _size_from_width(self, width):
-        return (width * self.DIB_depth + 7) // 8
+        return (width * self.color_depth + 7) // 8
 
     def _padded_size_from_size(self, size):
         return (size + 3) // 4 * 4
@@ -278,13 +296,13 @@ class MicroBMP(object):
     def _extract_from_bytes(self, data, index):
         # One formula that suits all: 1/2/4/8-bit colour depth.
         byte_index, pos_in_byte = divmod(index, self.ppb)
-        shift = 8 - self.DIB_depth * (pos_in_byte + 1)
+        shift = 8 - self.color_depth * (pos_in_byte + 1)
         return (data[byte_index] >> shift) & self.pmask
 
     def _fill_in_bytes(self, data, index, value):
         # One formula that suits all: 1/2/4/8-bit colour depth.
         byte_index, pos_in_byte = divmod(index, self.ppb)
-        shift = 8 - self.DIB_depth * (pos_in_byte + 1)
+        shift = 8 - self.color_depth * (pos_in_byte + 1)
         value &= self.pmask
         data[byte_index] = (data[byte_index] & ~(self.pmask << shift)) + (
             value << shift
@@ -292,7 +310,7 @@ class MicroBMP(object):
 
     def _decode_rle(self, bf_io):
         # Only bottom-up bitmap can be compressed.
-        x, y = 0, self.DIB_h - 1
+        x, y = 0, self.height - 1
         while True:
             data = bf_io.read(2)
             if data[0] == 0:
@@ -339,54 +357,57 @@ class MicroBMP(object):
 
         # DIB Header
         data = bf_io.read(4)
-        self.DIB_len = unpack("<I", data[0:4])[0]
-        data = bf_io.read(self.DIB_len - 4)
+        self.header_len = unpack("<I", data[0:4])[0]
+        data = bf_io.read(self.header_len - 4)
         (
-            self.DIB_w,
-            self.DIB_h,
-            self.DIB_planes_num,
-            self.DIB_depth,
-            self.DIB_comp,
-            self.DIB_raw_size,
-            self.DIB_hres,
-            self.DIB_vres,
+            self.width,
+            self.height,
+            self.planes_num,
+            self.color_depth,
+            self.compression,
+            self.raw_size,
+            self.hres,
+            self.vres,
         ) = unpack("<iiHHIIii", data[0:28])
 
         DIB_plt_num_info = unpack("<I", data[28:32])[0]
         DIB_plt_important_num_info = unpack("<I", data[32:36])[0]
-        if self.DIB_len > 40:
-            self.DIB_extra = data[36:]
+        if self.header_len > 40:
+            self.extra = data[36:]
 
         # Palette
-        if self.DIB_depth <= 8:
+        if self.color_depth <= 8:
             if DIB_plt_num_info == 0:
-                self.DIB_num_in_plt = 2 ** self.DIB_depth
+                self.num_colors = 2 ** self.color_depth
             else:
-                self.DIB_num_in_plt = DIB_plt_num_info
-            self.palette = [None for i in range(self.DIB_num_in_plt)]
-            for i in range(self.DIB_num_in_plt):
+                self.num_colors = DIB_plt_num_info
+            self.palette = [None for i in range(self.num_colors)]
+            for i in range(self.num_colors):
                 data = bf_io.read(4)
                 colour = bytearray([data[2], data[1], data[0]])
                 self.palette[i] = colour
 
         # In case self.DIB_h < 0 for top-down format.
-        if self.DIB_h < 0:
-            self.DIB_h = -self.DIB_h
+        if self.height < 0:
+            self.height = -self.height
             is_top_down = True
         else:
             is_top_down = False
 
-        self.parray = None
+        self.pixels = None
         assert self._init(), "Failed to initialize the image!"
 
         # Pixels
-        if self.DIB_comp == 0:
+        if self.compression == 0:
             # BI_RGB
-            for h in range(self.DIB_h):
-                y = h if is_top_down else self.DIB_h - h - 1
+            for h in range(self.height):
+                y = h if is_top_down else self.height - h - 1
                 data = bf_io.read(self.padded_row_size)
-                for x in range(self.DIB_w):
-                    if self.DIB_depth <= 8:
+
+
+
+                for x in range(self.width):
+                    if self.color_depth <= 8:
                         self[x, y] = self._extract_from_bytes(data, x)
                     else:
                         v = x * 3
@@ -415,11 +436,11 @@ class MicroBMP(object):
             The number of bytes written to the io.
         """
         if force_40B_DIB:
-            self.DIB_len = 40
-            self.DIB_extra = None
+            self.header_len = 40
+            self.extra = None
 
         # Only uncompressed image is supported to write.
-        self.DIB_comp = 0
+        self.compression = 0
 
         assert self._init(), "Failed to initialize the image!"
 
@@ -433,37 +454,37 @@ class MicroBMP(object):
         bf_io.write(
             pack(
                 "<IiiHHIIiiII",
-                self.DIB_len,
-                self.DIB_w,
-                self.DIB_h,
-                self.DIB_planes_num,
-                self.DIB_depth,
-                self.DIB_comp,
-                self.DIB_raw_size,
-                self.DIB_hres,
-                self.DIB_vres,
-                self.DIB_num_in_plt,
-                self.DIB_num_in_plt,
+                self.header_len,
+                self.width,
+                self.height,
+                self.planes_num,
+                self.color_depth,
+                self.compression,
+                self.raw_size,
+                self.hres,
+                self.vres,
+                self.num_colors,
+                self.num_colors,
             )
         )
-        if self.DIB_len > 40:
-            bf_io.write(self.DIB_extra)
+        if self.header_len > 40:
+            bf_io.write(self.extra)
 
         # Palette
-        if self.DIB_depth <= 8:
+        if self.color_depth <= 8:
             for colour in self.palette:
                 bf_io.write(bytes([colour[2], colour[1], colour[0], 0]))
 
         # Pixels
-        for h in range(self.DIB_h):
+        for h in range(self.height):
             # BMP last row comes first.
-            y = self.DIB_h - h - 1
-            if self.DIB_depth <= 8:
+            y = self.height - h - 1
+            if self.color_depth <= 8:
                 d = 0
-                for x in range(self.DIB_w):
-                    self[x, y] %= self.DIB_num_in_plt
+                for x in range(self.width):
+                    self[x, y] %= self.num_colors
                     # One formula that suits all: 1/2/4/8-bit colour depth.
-                    d = (d << (self.DIB_depth % 8)) + self[x, y]
+                    d = (d << (self.color_depth % 8)) + self[x, y]
                     if x % self.ppb == self.ppb - 1:
                         # Got a whole byte.
                         bf_io.write(bytes([d]))
@@ -472,13 +493,13 @@ class MicroBMP(object):
                     # Last byte if width does not fit in whole bytes.
                     d <<= (
                         8
-                        - self.DIB_depth
-                        - (x % self.ppb) * (2 ** (self.DIB_depth - 1))
+                        - self.color_depth
+                        - (x % self.ppb) * (2 ** (self.color_depth - 1))
                     )
                     bf_io.write(bytes([d]))
                     d = 0
             else:
-                for x in range(self.DIB_w):
+                for x in range(self.width):
                     r, g, b = self[x, y]
                     bf_io.write(bytes([b, g, r]))
             # Pad row to multiple of 4 bytes with 0x00.
@@ -527,8 +548,8 @@ class MicroBMP(object):
     def rgb(self):
         """Returns a list of RGB pixels for indexed images (<=8bit)"""
         index = 0
-        while index < len(self.parray):
-            color_idx = self.parray[index]
+        while index < len(self.pixels):
+            color_idx = self.pixels[index]
             print(f"color index:{color_idx}")
             color = self.palette[color_idx]
             yield color[0], color[1], color[2]
@@ -543,14 +564,14 @@ class MicroBMP(object):
         Returns:
             bytes: An RGB565 encoded byte array.
         """
-        num_pixels = len(self.parray)
+        num_pixels = len(self.pixels)
         array_size = num_pixels * 2
         # print(f"Array size: {array_size} / palette size: {len(self.palette)}")
         rgb565_buffer = bytearray(array_size)  # Pre-allocate the buffer
         
         index = 0
-        while index < len(self.parray):
-            color_idx = self.parray[index]
+        while index < len(self.pixels):
+            color_idx = self.pixels[index]
             (r, g, b) = self.palette[color_idx]
             
             # Convert RGB values to 5-6-5 bit format

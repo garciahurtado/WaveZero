@@ -2,7 +2,7 @@ import math
 import utime
 import color_util as colors
 from ssd1331_16bit import SSD1331
-
+import micropython
 
 class RoadGrid():
 
@@ -131,10 +131,6 @@ class RoadGrid():
 
         self.vert_points = [points_start, points_end]
 
-        self.screen_x_far, _ = self.camera.to_2d(0, 0, self.far_z_vert)
-        self.screen_x_near, _ = self.camera.to_2d(0, 0, self.near_z)
-
-
         return self.vert_points
 
     def update_horiz_lines(self):
@@ -177,6 +173,7 @@ class RoadGrid():
         self.draw_horiz_lines()
 
     def draw_horiz_lines(self):
+
         for my_line in self.horiz_lines_data:
             idx = int(my_line['y'] - self.horiz_y)
 
@@ -187,23 +184,20 @@ class RoadGrid():
             self.display.hline(0, my_line['y'], self.width, rgb565)
 
     def update_vert_lines(self):
+        screen_x_far, _ = self.camera.to_2d(0, 0, self.far_z_vert)
+        screen_x_near, _ = self.camera.to_2d(0, 0, self.near_z)
+
         top_points, bottom_points = self.vert_points
 
         for index in range(len(top_points)):
             start = top_points[index]
             end = bottom_points[index]
-            start_x = int(start[0] + self.offset_far + self.screen_x_far - self.camera.half_width)
-            end_x = int(end[0] + self.offset_near + self.screen_x_near - self.camera.half_width)
+            start_x = int(start[0] + self.offset_far + screen_x_far - self.camera.half_width)
+            end_x = int(end[0] + self.offset_near + screen_x_near - self.camera.half_width)
             start_y = start[1]
             end_y = end[1]
 
             self.display.line(start_x, start_y, end_x, end_y, self.vert_palette[index])
-
-    def draw_vert_lines(self):
-
-        top_points, bottom_points = self.vert_points
-
-
 
 
     def draw_horizon(self):
@@ -211,6 +205,6 @@ class RoadGrid():
 
         for i in range(0, len(self.horizon_palette) -1):
             start_y = self.horiz_y - 5 + (i*2)
-            self.display.line(0, start_y, self.display.width, start_y, self.horizon_palette[0])
-            self.display.line(0, start_y + 1, self.display.width, start_y + 1, self.horizon_palette[i])
+            self.display.hline(0, start_y, self.display.width, self.horizon_palette[0])
+            self.display.hline(0, start_y + 1, self.display.width,  self.horizon_palette[i])
 
