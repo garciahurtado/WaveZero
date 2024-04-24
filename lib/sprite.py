@@ -1,10 +1,7 @@
-from ucollections import namedtuple
-
-from microbmp import MicroBMP as bmp
 import framebuf
-import os
 import color_util as colors
 from color_util import FramebufferPalette
+from image_loader import ImageLoader
 
 
 class Sprite:
@@ -35,6 +32,7 @@ class Sprite:
     alpha_color = None
     alpha_index = 0
     camera = None  # to simulate 3D
+    min_y = -20
 
     def __init__(self, filename=None, x=0, y=0, z=0, camera=None) -> None:
         if filename:
@@ -65,7 +63,7 @@ class Sprite:
 
         self.has_alpha = True
         self.alpha_index = alpha_index
-        alpha_color = self.palette.pixel(alpha_index, 0)
+        alpha_color = self.palette.get_bytes(alpha_index)
         self.alpha_color = alpha_color
 
     def set_palette(self, palette):
@@ -155,21 +153,26 @@ class Sprite:
         return lane
 
     def set_lane(self, lane_num):
-        self.x = (lane_num - 2) * self.lane_width
+        lane = lane_num - 2 # [-2,-1,0,1,2]
+        res = (lane * self.lane_width) - (self.frame_width/2)
+        self.x = int(res)
 
     def pos(self):
         """Returns the 2D coordinates of the object, calculated from the internal x,y (if 2D) or x,y,z
         (if 3D with perspective camera)
         """
         if self.camera:
-            x, y = self.camera.to_2d(self.x, self.y + self.height, self.z)
+            x_2d = self.x - self.camera.pos["x"]
+            #x_2d = x_2d - (self.frame_width / 2)
+            x, y = self.camera.to_2d(x_2d, self.y + self.height, self.z)
 
-            if y < 0 or self.z <= self.camera.pos['z']:
+            # Check whether we need to reset to max Z at the next update
+            if y < self.min_y or self.z <= self.camera.pos['z']:
                 self.z = self.camera.horiz_z
 
-            x = int(x - (self.width_2d / 2))  # Draw the object so that it is horizontally centered
+            #x = int(x - (self.width_2d / 2))  # Draw the object so that it is horizontally centered
 
-            return x, y
+            return int(x), int(y)
         else:
             return self.x, self.y
 
@@ -195,7 +198,9 @@ class Spritesheet(Sprite):
         self.x = x
         self.y = y
         self.z = z
-        self.camera = camera
+
+        if camera:
+            self.set_camera(camera)
         self.update()
 
         if self.frame_width and self.frame_height:
@@ -207,7 +212,8 @@ class Spritesheet(Sprite):
 
     def set_camera(self, camera):
         self.camera = camera
-        self.half_scale_one_dist = abs(self.camera.pos['z']) / 2
+        scale_adj = 10 # Increase this value to see bigger sprites when closer to the screen
+        self.half_scale_one_dist = abs(self.camera.pos['z']-scale_adj) / 2
 
     def update(self):
         super().update()
@@ -215,6 +221,9 @@ class Spritesheet(Sprite):
 
 
     def set_frame(self, frame_num):
+        if frame_num == self.current_frame:
+            return False
+
         self.current_frame = frame_num
         self.pixels = self.frames[frame_num].pixels
 
@@ -225,24 +234,29 @@ class Spritesheet(Sprite):
         if not self.camera or not self.frames or (len(self.frames) == 0):
             return False
 
-        scale = self.half_scale_one_dist / ((self.z - self.camera.pos['z']) / 2)
-        frame_idx = round(scale * len(self.frames))
-
+        frame_idx = self.get_frame_idx(self.z)
         if self.current_frame == frame_idx:
             return False
-
-        # print(f"Scale: {scale:.3} / Frame: {frame_idx}")
-        self.height_2d = scale * self.frame_height
-        self.width_2d = self.ratio * self.height_2d
-
-        if frame_idx < 0:
-            frame_idx = 0
-        if frame_idx >= len(self.frames):
-            frame_idx = len(self.frames) - 1
 
         self.set_frame(frame_idx)
 
         return True
+
+    def get_frame_idx(self, real_z):
+        scale = self.half_scale_one_dist / ((real_z - self.camera.pos['z']) / 2)
+        frame_idx = round(scale * len(self.frames))
+        self.height_2d = scale * self.frame_height
+        self.width_2d = self.ratio * self.height_2d
+
+        # print(f"height2d {self.height_2d} / width2d {self.width_2d} / real_z {real_z} / scale: {self.half_scale_one_dist}")
+
+        if frame_idx >= len(self.frames):
+            frame_idx = len(self.frames) - 1
+
+        if frame_idx < 0:
+            frame_idx = 0
+
+        return frame_idx
 
     def load_image(self, filename, frame_width, frame_height):
         """Overrides parent"""
@@ -250,14 +264,15 @@ class Spritesheet(Sprite):
 
         if isinstance(images, list):
             self.frames = images
-            image = images[0]
+            meta = images[0]
         else:
-            image = images
+            meta = images
 
-        self.width = image.width
-        self.height = image.height
-        self.palette = image.palette
-        self.num_colors = image.num_colors
+        self.width = meta.width
+        self.height = meta.height
+        self.palette = meta.palette
+        self.num_colors = meta.num_colors
+        self.pixels = meta.pixels
 
     def clone(self):
         copy = Spritesheet(
@@ -298,85 +313,3 @@ class Spritesheet(Sprite):
         return copy
 
 
-class ImageLoader():
-    """Preloads a list of images in order to cache their framebuffers (as RGB565) to later be used by Sprites"""
-    img_dir = "/img"
-    images = {}
-
-    @staticmethod
-    def load_images(image_names):
-        # Get a list of all BMP files in the specified directory
-        bmp_files = [file for file in os.listdir(ImageLoader.img_dir) if file.endswith(".bmp")]
-
-        # Load each BMP file as a Sprite and add it to the sprites list
-        for file in list(set(image_names) & set(bmp_files)):
-            print(f"Loading {file}")
-            image_path = os.path.join(ImageLoader.img_dir, file)
-            image = ImageLoader.load_image(image_path)
-            ImageLoader.images[image_path] = image
-
-    @staticmethod
-    def load_image(filename, frame_width=0, frame_height=0):
-        bmp_image = bmp().load(filename)
-        print(bmp_image)  # Show metadata
-
-        width = bmp_image.width
-        height = bmp_image.height
-        palette = bmp_image.palette
-
-        # palette = [colors.bytearray_to_int(colors.byte3_to_byte2(color)) for color in palette]
-        palette = FramebufferPalette(palette)
-
-        if frame_width and frame_height:
-            # This is a spritesheet, so lets make frames from the pixel data without allocating new memory
-            frames = []
-            frame_byte_size = frame_width * frame_height  # assuming < 8 BPP
-            pixel_view = memoryview(bmp_image.pixels)
-
-            for i in range(0, len(bmp_image.pixels), frame_byte_size):
-                frame = pixel_view[i:i+frame_byte_size]
-
-                image = ImageLoader.create_image(bytearray(frame), frame_width, frame_height, palette)
-                frames.append(image)
-
-            return frames
-
-        else:
-            bytearray_pixels = bytearray(bmp_image.pixels)
-            image = ImageLoader.create_image(bytearray_pixels, width, height, palette)
-
-            return image
-
-    @staticmethod
-    def create_image(bytearray_pixels, width, height, palette):
-        num_colors = len(palette)
-
-        image_buffer = framebuf.FrameBuffer(
-            bytearray_pixels,
-            width,
-            height,
-            framebuf.GS8)
-
-        image = Image(
-            width,
-            height,
-            image_buffer,
-            num_colors,
-            palette)
-
-        return image
-
-    @staticmethod
-    def load_as_palette(filename):
-        image = ImageLoader.load_image(filename)
-
-        return image.palette
-
-
-Image = namedtuple("Image",
-                   ("width",
-                    "height",
-                    "pixels",
-                    "num_colors",
-                    "palette",)
-                   )

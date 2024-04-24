@@ -24,7 +24,7 @@ class Screen:
         try:
             while True:
                 self.do_refresh()
-                await asyncio.sleep(1/90)
+                await asyncio.sleep(1/120)
         except asyncio.CancelledError:
             return True
 
