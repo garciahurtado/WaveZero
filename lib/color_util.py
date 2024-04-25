@@ -240,9 +240,10 @@ class FramebufferPalette(framebuf.FrameBuffer):
             self.palette = palette
         else:
             """ you can also pass a list of RGB tuples to the constructor"""
-            self.num_colors = len(palette)
-            self.palette = bytearray(self.num_colors * 2)
             set_colors = palette
+
+            self.num_colors = len(set_colors)
+            self.palette = bytearray(self.num_colors * 2) # 2 bytes per color (RGB565)
 
         super().__init__(self.palette, self.num_colors, 1, framebuf.RGB565)
 
@@ -269,7 +270,9 @@ class FramebufferPalette(framebuf.FrameBuffer):
         return color
 
     def clone(self):
-        palette = bytearray(len(self.palette))
-        palette[:] = self.palette
-        new_palette = FramebufferPalette(palette)
+        new_palette = FramebufferPalette(bytearray(self.num_colors * 2))
+        for i in range(0, self.num_colors + 1):
+            color = self.pixel(i, 0)
+            new_palette.pixel(i, 0, color)
+
         return new_palette

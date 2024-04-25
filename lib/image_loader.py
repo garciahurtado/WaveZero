@@ -72,7 +72,7 @@ class ImageLoader():
 
         width = bmp_image.width
         height = bmp_image.height
-        palette = bmp_image.palette
+        palette = bmp_image.palette # List of RGB tuples
 
         # palette = [colors.bytearray_to_int(colors.byte3_to_byte2(color)) for color in palette]
         palette = FramebufferPalette(palette)
@@ -101,7 +101,7 @@ class ImageLoader():
 
     @staticmethod
     def create_image(bytearray_pixels, width, height, palette):
-        num_colors = len(palette)
+        num_colors = palette.num_colors
 
         image_buffer = framebuf.FrameBuffer(
             bytearray_pixels,

@@ -6,8 +6,8 @@ import time
 def main():
     time.sleep(1)
     app = ScreenApp(96, 64)
-    #app.load_screen(TitleScreen(app.display))
-    app.load_screen(GameScreen(app.display))
+    app.load_screen(TitleScreen(app.display))
+    # app.load_screen(GameScreen(app.display))
     app.run()
 
 

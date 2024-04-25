@@ -381,10 +381,11 @@ class MicroBMP(object):
                 self.num_colors = 2 ** self.color_depth
             else:
                 self.num_colors = DIB_plt_num_info
+            print(f"Num colors: {self.num_colors}")
             self.palette = [None for i in range(self.num_colors)]
             for i in range(self.num_colors):
                 data = bf_io.read(4)
-                colour = bytearray([data[2], data[1], data[0]])
+                colour = bytearray([data[2], data[1], data[0]]) # BGR format
                 self.palette[i] = colour
 
         # In case self.DIB_h < 0 for top-down format.

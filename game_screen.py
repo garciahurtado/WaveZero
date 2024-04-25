@@ -32,6 +32,8 @@ class GameScreen(Screen):
     ground_speed = 0
     max_ground_speed = 11
     lane_width = 24
+    num_lives = 2
+    crash_y = 52 # Screen Y of Sprites which will start colliding with the player
 
     # Bike movement
     bike: PlayerSprite
@@ -71,7 +73,7 @@ class GameScreen(Screen):
         print(f"Free memory before main loop:  {gc.mem_free():,} bytes")
 
         self.encoder = Encoder(27, 26)
-        self.ui = ui_screen(self.display)
+        self.ui = ui_screen(self.display, self.num_lives)
         asyncio.run(self.main_async())
 
     async def main_async(self):
@@ -113,7 +115,6 @@ class GameScreen(Screen):
         print(f"Start time: {start_time_ms}")
 
         # 2D Y coordinate at which obstacles will crash with the player
-        crash_y = 48
 
         # Create road obstacles
         self.enemies = []
@@ -184,6 +185,7 @@ class GameScreen(Screen):
             group.z = group.z + (i*1000)
             group.set_lane(palette_num)
             self.add(group)
+            self.enemies.append(group)
 
         self.add(self.bike) # Add after the obstacles, to it appears on top
         bike_angle = 0
@@ -191,67 +193,77 @@ class GameScreen(Screen):
         half_width = int(self.camera.half_width)
 
 
-        self.reset_game()
+        self.restart_game()
 
         _thread.start_new_thread(self.start_display_loop, [])
 
-        # Draw loop - will run until program exit
-        while True:
+        # Draw loop - will run until task cancellation
+        try:
+            while True:
 
-            #self.camera.yaw = self.camera.yaw + 1
+                #self.camera.yaw = self.camera.yaw + 1
 
-            # print("Free memory: {} bytes".format(gc.mem_free()) )
+                # print("Free memory: {} bytes".format(gc.mem_free()) )
 
-            # Turn the bike automatically
-            # bike_angle = math.sin(now / 1000) # (-1,1)
+                # Turn the bike automatically
+                # bike_angle = math.sin(now / 1000) # (-1,1)
 
-            # Handle bike swerving
-            target_lane = self.bike.target_lane
-            current_lane = self.bike.current_lane
-            target_angle = (target_lane * (2 / 4)) - 1
+                # Handle bike swerving
+                target_lane = self.bike.target_lane
+                current_lane = self.bike.current_lane
+                target_angle = (target_lane * (2 / 4)) - 1
 
-            if target_lane < current_lane:
-                bike_angle = bike_angle - turn_incr
-                if bike_angle < target_angle:
-                    self.bike.current_lane = target_lane
-                    bike_angle = target_angle
+                if target_lane < current_lane:
+                    bike_angle = bike_angle - turn_incr
+                    if bike_angle < target_angle:
+                        self.bike.current_lane = target_lane
+                        bike_angle = target_angle
 
-            elif target_lane > current_lane:
-                bike_angle = bike_angle + turn_incr
-                if bike_angle > target_angle:
-                    self.bike.current_lane = target_lane
-                    bike_angle = target_angle
+                elif target_lane > current_lane:
+                    bike_angle = bike_angle + turn_incr
+                    if bike_angle > target_angle:
+                        self.bike.current_lane = target_lane
+                        bike_angle = target_angle
 
-            bike_angle = min(bike_angle, 1)  # Clamp the input between -1 and 1
-            line_offset = self.bike.turn(bike_angle)  # bike_angle->(-1,1)
-            self.bike.x = int((line_offset * 30) + half_width - 18)
+                bike_angle = min(bike_angle, 1)  # Clamp the input between -1 and 1
+                line_offset = self.bike.turn(bike_angle)  # bike_angle->(-1,1)
+                self.bike.x = int((line_offset * 30) + half_width - 18)
 
-            # REFACTOR
-            # used so that 3D sprites will follow the movement of lanes as they change perspective
-            # Not sure why the multipliers are needed, or how to get rid of them
-            mult = 4.5
+                # REFACTOR
+                # used so that 3D sprites will follow the movement of lanes as they change perspective
+                # Not sure why the multipliers are needed, or how to get rid of them
+                mult = 4.5
 
-            self.camera.vp["x"] = int(bike_angle * mult)
-            self.camera.pos["x"] = int(bike_angle * mult)
-            sun.x = sun_x_start - int(bike_angle*5)
+                self.camera.vp["x"] = int(bike_angle * mult)
+                self.camera.pos["x"] = int(bike_angle * mult)
+                sun.x = sun_x_start - int(bike_angle*5)
 
-            for sprite in self.sprites:
-                sprite.update()
+                for sprite in self.sprites:
+                    sprite.update()
 
-            for sprite in self.enemies:
+
+                self.detect_collisions(self.enemies)
+
+                await asyncio.sleep(1 / 90)
+
+        except asyncio.CancelledError:
+            return False
+
+        # Wait for next update
+
+    def detect_collisions(self, colliders):
+        if self.bike.visible:
+            for sprite in colliders:
 
                 # Check collisions
-                if (    (sprite.draw_y >= crash_y) and
-                        (sprite.draw_y < (self.display.height - 2) ) and
+                if ((sprite.draw_y >= self.crash_y) and
+                        (sprite.draw_y < (self.display.height - 2)) and
                         (sprite.get_lane() == self.bike.current_lane) and
                         not self.bike.blink):
 
+                    self.bike.visible = False
                     self.do_crash()
-
-
-            await asyncio.sleep(1 / 90)
-
-        # Wait for next update
+                    break # No need to check other collisions
 
     def create_group(self, base_group, palette, lane=0):
         group = base_group.clone()
@@ -278,12 +290,12 @@ class GameScreen(Screen):
         super().do_refresh()
 
     def do_crash(self):
-        self.display_task.cancel()
         self.input_task.cancel()
         self.grid.global_speed = self.ground_speed = 0
 
         white = colors.rgb_to_565(colors.hex_to_rgb(0xFFFFFF))
 
+        # Visual flash
         for i in range(3):
             self.display.fill(white)
             self.display.show()
@@ -292,21 +304,17 @@ class GameScreen(Screen):
         self.crash_fx.create_particles()
         self.crash_fx.anim_particles()
 
+        if not self.ui.remove_life():
+            self.bike.visible = False
+            self.input_task.cancel()
+            self.bike.visible = False
+            self.ui.show_game_over()
+            return False
+
         self.bike.blink = True
-        self.ui.remove_life()
+        self.restart_game()
 
-        if self.ui.num_lives < 0:
-            self.game_over()
-
-        self.reset_game()
-
-
-    def game_over(self):
-        self.ui.big_text_bg.visible = True
-        self.ui.game_over_text.visible = True
-        self.bike.visible = False
-
-    def reset_game(self):
+    def restart_game(self):
         """After losing a life, we reset all the obstacle sprites and the speed"""
 
         for sprite in self.enemies:

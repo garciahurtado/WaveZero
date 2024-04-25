@@ -15,12 +15,13 @@ class ui_screen():
     big_text_bg = None
     sprites = []
     lives_sprites = []
-    num_lives = 3
+    num_lives = 0
     CYAN = (0, 255, 255)
     BLACK = (0, 0, 0)
 
-    def __init__(self, display) -> None:
+    def __init__(self, display, num_lives) -> None:
         self.display = display
+        self.num_lives = num_lives
         self.lives_sprite = Sprite("/img/life.bmp")
         self.lives_sprite.set_alpha(0)
 
@@ -39,10 +40,9 @@ class ui_screen():
             self.lives_sprites.append(new_sprite)
 
     def remove_life(self):
-        if self.num_lives == 0:
-            return False
-
         self.num_lives = self.num_lives - 1
+        if self.num_lives < 0:
+            return False
 
         self.sprites.remove(self.lives_sprites[-1])
         del self.lives_sprites[-1]
@@ -60,7 +60,7 @@ class ui_screen():
         return self.score_text
 
     def init_big_text_bg(self):
-        width, height = self.display.width, 20
+        width, height = self.display.width, 21
         text_bg = SpriteRect(x=0, y=21, width=width, height=height)
         text_bg.visible = None
 
@@ -80,6 +80,12 @@ class ui_screen():
 
         self.game_over_text = game_over_text
         self.sprites.append(game_over_text)
+
+    def show_game_over(self):
+        self.big_text_bg.visible = True
+        self.game_over_text.visible = True
+
+
 
     def update_score(self, new_score):
         if new_score == self.score:
