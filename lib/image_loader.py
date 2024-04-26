@@ -1,3 +1,5 @@
+import gc
+
 from ucollections import namedtuple
 import uos
 from microbmp import MicroBMP as bmp
@@ -14,25 +16,31 @@ class ImageLoader():
     def load_images(images, display):
         # Get a list of all BMP files in the specified directory
         bmp_files = [file for file in uos.listdir(ImageLoader.img_dir) if file.endswith(".bmp")]
-        print(images)
         image_names = [one_image["name"] for one_image in images]
+
+        print(f"Before counting bytes: {gc.mem_free():,} bytes")
+
         # Load each BMP file as a Sprite and add it to the sprites list
         file_list = [file for file in list(set(image_names) & set(bmp_files))]
 
         total_size = 0
         for one_file in file_list:
             filename = f"{ImageLoader.img_dir}/{one_file}"
-            print(filename)
 
             # https://docs.pycom.io/firmwareapi/micropython/uos/
             total_size += ImageLoader.get_size(filename)
         loaded_size = 0
 
         print(f"Loading {total_size:,} bytes of images")
+        print(f"Before loading all images: {gc.mem_free():,} bytes")
 
         for image in images:
+            gc.collect()
+
             file = image['name']
             print(f"Loading {file}")
+            print(f"Before loading image: {gc.mem_free():,} bytes")
+
             image_path = f"{ImageLoader.img_dir}/{file}"
             if 'width' in image and 'height' in image:
                 ImageLoader.load_image(image_path, frame_width=image['width'], frame_height=image['height'])

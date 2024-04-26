@@ -17,12 +17,13 @@ class Animation:
     def __init__(self, anim_obj, anim_property, duration=0):
         self.anim_obj = anim_obj
         self.anim_property = anim_property
-        self.start_value = getattr(anim_obj, anim_property)
+        if anim_property:
+            self.start_value = getattr(anim_obj, anim_property)
         self.duration_ms = duration
         self.ellapsed_ms = 0
         self.running = False
 
-    async def run(self, fps=30):
+    async def run(self, fps=60):
         self.running = True
         self.started_ms = utime.ticks_ms()
 
@@ -32,7 +33,7 @@ class Animation:
 
         return True
 
-    async def run_loop(self, fps):
+    async def run_loop(self):
         """ Must be implemented in child classes"""
         pass
 

@@ -22,8 +22,8 @@ class Sprite:
     x = 0
     y = 0
     z = 0
-    draw_x = 0
-    draw_y = 0
+    draw_x: int = 0
+    draw_y: int = 0
     speed = 0
 
     horiz_z = 1500
@@ -33,6 +33,8 @@ class Sprite:
     alpha_index = 0
     camera = None  # to simulate 3D
     min_y = -20
+    max_x = 200
+    max_y = 200
 
     def __init__(self, filename=None, x=0, y=0, z=0, camera=None) -> None:
         if filename:
@@ -96,7 +98,7 @@ class Sprite:
             if self.z > self.horiz_z:
                 return False
 
-            x, y = self.draw_x, self.draw_y
+            x, y = int(self.draw_x), int(self.draw_y)
         else:
             x, y = self.x, self.y
 
@@ -112,7 +114,14 @@ class Sprite:
         if self.speed:
             self.z = self.z + self.speed
 
-        self.draw_x, self.draw_y = self.pos()
+        draw_x, draw_y = self.pos()
+        if draw_x > self.max_x:
+            draw_x = self.max_x
+
+        if draw_y > self.max_y:
+            draw_y = self.max_y
+
+        self.draw_x, self.draw_y = draw_x, draw_y
 
     def clone(self):
         copy = Sprite()
@@ -162,13 +171,8 @@ class Sprite:
         (if 3D with perspective camera)
         """
         if self.camera:
-            x_2d = self.x - self.camera.pos["x"]
-            #x_2d = x_2d - (self.frame_width / 2)
-            x, y = self.camera.to_2d(x_2d, self.y + self.height, self.z)
-
-            # Check whether we need to reset to max Z at the next update
-            if y < self.min_y or self.z <= self.camera.pos['z']:
-                self.z = self.camera.horiz_z
+            x_offset = self.x - self.camera.pos["x"]
+            x, y = self.camera.to_2d(x_offset, self.y + self.height, self.z)
 
             #x = int(x - (self.width_2d / 2))  # Draw the object so that it is horizontally centered
 
@@ -201,7 +205,7 @@ class Spritesheet(Sprite):
 
         if camera:
             self.set_camera(camera)
-        self.update()
+            self.update()
 
         if self.frame_width and self.frame_height:
             self.ratio = self.frame_width / self.frame_height
@@ -243,12 +247,14 @@ class Spritesheet(Sprite):
         return True
 
     def get_frame_idx(self, real_z):
-        scale = self.half_scale_one_dist / ((real_z - self.camera.pos['z']) / 2)
+        rate = ((real_z - self.camera.pos['z']) / 2)
+        if rate == 0:
+            rate = 0.00001 # Avoid divide by zero
+
+        scale = self.half_scale_one_dist / rate
         frame_idx = round(scale * len(self.frames))
         self.height_2d = scale * self.frame_height
         self.width_2d = self.ratio * self.height_2d
-
-        # print(f"height2d {self.height_2d} / width2d {self.width_2d} / real_z {real_z} / scale: {self.half_scale_one_dist}")
 
         if frame_idx >= len(self.frames):
             frame_idx = len(self.frames) - 1

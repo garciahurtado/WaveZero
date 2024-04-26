@@ -1,10 +1,12 @@
+import asyncio
+
 import ssd1331_16bit
 from sprite_rect import SpriteRect
 from sprite import Sprite
 import fonts.vtks_blocketo_6px as font_vtks
 import fonts.m42_8px as font_m42
 from font_writer import Writer, ColorWriter
-
+from anim.palette_rotate import PaletteRotate
 
 class ui_screen():
     display: ssd1331_16bit
@@ -70,7 +72,7 @@ class ui_screen():
     def init_game_over(self):
         game_over_text = ColorWriter(
             self.display,
-            font_m42, 92, 10, fgcolor=self.CYAN, bgcolor=self.BLACK)
+            font_m42, 96, 10, fgcolor=self.CYAN, bgcolor=self.BLACK)
         game_over_text.text_x = 2
         game_over_text.text_y = 28
         game_over_text.visible = False
@@ -85,7 +87,17 @@ class ui_screen():
         self.big_text_bg.visible = True
         self.game_over_text.visible = True
 
+        # Animate text colors
+        text_colors = [0x00FFFF,0x0094FF,0x00FF90,0x4800FF,0x4CFF00,0x21377F]
+        anim = PaletteRotate(
+            self.game_over_text.palette,
+            0,
+            1,
+            text_colors,
+            color_idx=1)
 
+        loop = asyncio.get_event_loop()
+        loop.create_task(anim.run())
 
     def update_score(self, new_score):
         if new_score == self.score:

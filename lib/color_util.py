@@ -158,16 +158,14 @@ def byte3_to_byte2(rgb_bytes_array):
 
 def make_gradient(start_color: list[int], end_color: list[int], num_colors):
     '''Sets up a color palette by mixing gradually between the two colors. The resulting colors will be saved as RGB565 for efficiency'''
-    palette = []
-    step = 1 / num_colors
+    palette = [None] * num_colors
 
     # Add colors to palette
-    for hsl in color_scale(
-            rgb_to_hsl(start_color), rgb_to_hsl(end_color), num_colors - 1):
+    for i, hsl in enumerate(color_scale(
+            rgb_to_hsl(start_color), rgb_to_hsl(end_color), num_colors - 1)):
         newcolor = hsl_to_rgb(hsl)
 
-        newcolor = SSD1331.rgb(newcolor[0], newcolor[1], newcolor[2], )
-        palette.append(newcolor)
+        palette[i] = int(SSD1331.rgb(newcolor[0], newcolor[1], newcolor[2]))
 
     return palette
 

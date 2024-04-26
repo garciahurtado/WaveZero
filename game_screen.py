@@ -9,11 +9,10 @@ from fx.crash import Crash
 from player_sprite import PlayerSprite
 from screen import Screen
 from road_grid import RoadGrid
-from perspective_sprite import PerspectiveSprite
 from perspective_camera import PerspectiveCamera
 from encoder import Encoder
 from sprite import Sprite, Spritesheet, ImageLoader
-from sprite_group import SpriteGroup
+from sprite_group import SpriteGroup, SpriteEnemyGroup
 from title_screen import TitleScreen
 import color_util as colors
 from ui_elements import ui_screen
@@ -32,7 +31,7 @@ class GameScreen(Screen):
     ground_speed = 0
     max_ground_speed = 11
     lane_width = 24
-    num_lives = 2
+    num_lives = 1
     crash_y = 52 # Screen Y of Sprites which will start colliding with the player
 
     # Bike movement
@@ -70,11 +69,15 @@ class GameScreen(Screen):
 
     def run(self):
         gc.collect()
-        print(f"Free memory before main loop:  {gc.mem_free():,} bytes")
+        self.check_mem()
 
         self.encoder = Encoder(27, 26)
         self.ui = ui_screen(self.display, self.num_lives)
         asyncio.run(self.main_async())
+
+    def check_mem(self):
+        gc.collect()
+        print(f"Free memory:  {gc.mem_free():,} bytes")
 
     async def main_async(self):
         sun_x_start = 39
@@ -85,7 +88,7 @@ class GameScreen(Screen):
 
         # Camera
         horiz_y = 16
-        camera_z = 72
+        camera_z = 64
 
         self.camera = PerspectiveCamera(
             self.display,
@@ -97,7 +100,10 @@ class GameScreen(Screen):
             vp_y=horiz_y)
         self.camera.horiz_z = self.sprite_max_z
 
+        print("Creating road grid...")
+        self.check_mem()
         self.grid = RoadGrid(self.camera, self.display, lane_width=self.lane_width)
+        self.check_mem()
 
         loop = asyncio.get_event_loop()
 
@@ -112,13 +118,17 @@ class GameScreen(Screen):
         loop = asyncio.get_event_loop()
 
         start_time_ms = round(time.ticks_ms())
-        print(f"Start time: {start_time_ms}")
+        print(f"Update loop Start time: {start_time_ms}")
+        self.check_mem()
 
         # 2D Y coordinate at which obstacles will crash with the player
 
         # Create road obstacles
         self.enemies = []
         num_enemies = 4
+
+        print("Loading road wall")
+        self.check_mem()
 
         enemy = Spritesheet("/img/road_wall.bmp", 10, 20)
         enemy.set_camera(self.camera)
@@ -137,53 +147,53 @@ class GameScreen(Screen):
 
         print(f"Creating {num_palettes}")
         self.enemy_palettes = Spritesheet('/img/enemy_gradients.bmp', frame_width=4, frame_height=1)
-        print(f"Frames len: {len(self.enemy_palettes.frames)}")
         all_palettes = []
+        self.check_mem()
 
         # Split up the palette gradient into individual sub-palettes
         for i in range(num_palettes):
-            start = i * palette_size
-            new_palette = []
-            print(f"Grabbing frame {i}")
             self.enemy_palettes.set_frame(i)
             pixels = self.enemy_palettes.pixels
 
-            new_palette = colors.FramebufferPalette(bytearray(palette_size))
+            new_palette = colors.FramebufferPalette(bytearray(palette_size * 2))
 
             for j in range(0, palette_size):
-                new_palette.set_bytes(j, pixels.pixel(j,0))
+                color_idx = pixels.pixel(j, 0)
+                color = self.enemy_palettes.palette.pixel(color_idx,0)
+                new_palette.palette[0] = color # Only replace the first color in the palette
 
             all_palettes.append(new_palette)
 
-        # Create a number of road obstacles by cloning
-        # for i in range(num_enemies):
-        #     new_enemy = enemy.clone()
-        #     new_enemy.z = 1000 + (i * 10)
-        #     new_enemy.set_lane(1)
-        #     new_enemy.palette.set_bytes(0, current_enemy_palette[i])
-        #
-        #     self.enemies.insert(0, new_enemy)  # prepend, so they will be drawn in the right order
+        for i in range(all_palettes[0].num_colors):
 
-        # for one_sprite in self.enemies:
-        #     self.add(one_sprite)
+            print(all_palettes[0].pixel(i, 0))
 
-        base_group = SpriteGroup(
+        # Create enemy / obstacle groups
+        base_group = SpriteEnemyGroup(
             "/img/road_wall.bmp",
-            num_elements=6,
+            num_elements=4,
             frame_width=10,
             frame_height=20,
             palette_gradient=all_palettes[0],
             lane_width=self.lane_width,
-            pos_delta={"x": 0, "y": 0, "z": 20}
+            pos_delta={"x": 0, "y": 0, "z": 20},
+            camera=self.camera,
+            x=0,
+            y=0,
+            z=1000
         )
+        base_group.visible = False
 
         for i in range(1, 6):
             # Set a random palette
             palette_num = random.randrange(0, 4)
             current_enemy_palette = all_palettes[palette_num]
-            group = self.create_group(base_group, current_enemy_palette, i)
-            group.z = group.z + (i*1000)
-            group.set_lane(palette_num)
+
+            group = self.create_group(base_group, i)
+            group.z = group.z + (i*500)
+            group.palette=current_enemy_palette
+            group.set_alpha(1)
+
             self.add(group)
             self.enemies.append(group)
 
@@ -191,7 +201,6 @@ class GameScreen(Screen):
         bike_angle = 0
         turn_incr = 0.2  # turning speed
         half_width = int(self.camera.half_width)
-
 
         self.restart_game()
 
@@ -232,7 +241,7 @@ class GameScreen(Screen):
                 # REFACTOR
                 # used so that 3D sprites will follow the movement of lanes as they change perspective
                 # Not sure why the multipliers are needed, or how to get rid of them
-                mult = 4.5
+                mult = 5
 
                 self.camera.vp["x"] = int(bike_angle * mult)
                 self.camera.pos["x"] = int(bike_angle * mult)
@@ -240,7 +249,6 @@ class GameScreen(Screen):
 
                 for sprite in self.sprites:
                     sprite.update()
-
 
                 self.detect_collisions(self.enemies)
 
@@ -265,12 +273,10 @@ class GameScreen(Screen):
                     self.do_crash()
                     break # No need to check other collisions
 
-    def create_group(self, base_group, palette, lane=0):
+    def create_group(self, base_group, lane=0):
         group = base_group.clone()
-        group.set_camera(self.camera)
-        group.palette = palette
         group.pos_delta = {"x": 0, "y": 0, "z": 20}
-        group.speed = -self.ground_speed
+        group.speed = -self.ground_speed # Negative speed moves towards the camera since everything happens on the -z axis
         group.set_alpha(1)
         group.x = 0
         group.y = 0
@@ -281,6 +287,11 @@ class GameScreen(Screen):
         group.set_lane(lane)
 
         return group
+
+    def reset_group(self, group: SpriteEnemyGroup):
+        lane = random.randrange(0,6)
+        group.set_lane(lane)
+        group.z = int(group.horiz_z + (200 * random.randrange(2,10)))
 
     def do_refresh(self):
         """ Overrides parent method """
@@ -317,8 +328,10 @@ class GameScreen(Screen):
     def restart_game(self):
         """After losing a life, we reset all the obstacle sprites and the speed"""
 
-        for sprite in self.enemies:
-            sprite.z = self.sprite_max_z
+        # for sprite in self.enemies:
+        #     sprite.z = self.sprite_max_z
+        #     lane = random.randrange(0,6)
+        #     sprite.set_lane(lane)
 
         self.grid.global_speed = self.ground_speed = self.max_ground_speed
         self.start_display_loop()
