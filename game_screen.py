@@ -31,7 +31,7 @@ class GameScreen(Screen):
     ui: ui_screen
     crash_fx: None
     sprite_max_z = 1000
-    ground_speed = 2
+    ground_speed = 8
     saved_ground_speed = 0
     lane_width = 24
     num_lives = 2
@@ -152,7 +152,7 @@ class GameScreen(Screen):
             while True:
                 self.grid.speed = self.ground_speed
                 for sprite in self.enemies:
-                    sprite.speed = -self.ground_speed
+                    sprite.speed = -self.ground_speed * 2
 
                 # Handle bike swerving
                 target_lane = self.bike.target_lane
@@ -254,10 +254,9 @@ class GameScreen(Screen):
             # Set a random palette
             palette_num = random.randrange(0, 4)
 
-            for j in range(0, 4):
-                current_enemy_palette = all_palettes[i*j]
+            current_enemy_palettes = all_palettes[i*palette_size:(i+1)*palette_size]
 
-            group = self.create_group(base_group, current_enemy_palette)
+            group = self.create_group(base_group, current_enemy_palettes)
             group.z = group.z + (i * 500)
             group.set_alpha(1)
 
@@ -278,9 +277,9 @@ class GameScreen(Screen):
                     self.do_crash()
                     break # No need to check other collisions
 
-    def create_group(self, base_group, enemy_palette):
+    def create_group(self, base_group, enemy_palettes):
         group = base_group.clone()
-        group.palette = enemy_palette
+        group.instance_palettes = enemy_palettes
         group.pos_delta = {"x": 0, "y": 0, "z": 20}
         group.grid = self.grid
         group.reset()

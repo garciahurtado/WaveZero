@@ -74,7 +74,6 @@ class SpriteGroup(Spritesheet):
             else:
                 palette = self.palette
 
-
             if self.has_alpha:
                 display.blit(self.pixels, int(inst.draw_x), int(inst.draw_y), self.alpha_color, palette)
             else:
