@@ -1,8 +1,8 @@
+import random
 
 import framebuf
-from collections import namedtuple
-
 from color_util import FramebufferPalette
+from road_grid import RoadGrid
 from sprite import Sprite, Spritesheet
 
 
@@ -11,11 +11,12 @@ class SpriteGroup(Spritesheet):
     the sprites without needing an object for each"""
 
     pos_delta = {'x': 0, 'y': 0, 'z': 0}
-    palette_gradient: FramebufferPalette = None
+    palette_gradient: FramebufferPalette
     instance_palettes = []
     instances = []
-    filename: None
+    filename: str
     num_elements = 0
+    grid: RoadGrid = None
 
     def __init__(self, filename=None, num_elements=0, palette_gradient=None, pos_delta=None, *args, **kwargs):
         super().__init__(filename, *args, **kwargs)
@@ -23,10 +24,11 @@ class SpriteGroup(Spritesheet):
         self.palette_gradient = palette_gradient
         self.pos_delta = pos_delta
         self.num_elements = num_elements
+        self.instances = []
 
         for i in range(0, num_elements):
             if palette_gradient:
-                new_palette = self.palette.clone()
+                new_palette = self.frames[0].palette.clone()
                 new_palette.pixel(i, 1, palette_gradient.pixel(i,0))
                 self.instance_palettes.append(new_palette)
 
@@ -38,8 +40,8 @@ class SpriteGroup(Spritesheet):
         super().update()
 
         # Check whether we need to reset to max Z
-        # if self.z < self.camera.pos['z']:
-        #     self.z = self.horiz_z
+        if self.z < self.camera.pos['z']:
+            self.z = self.horiz_z
 
         for i in range(self.num_elements):
             inst = self.instances[i]
@@ -59,18 +61,15 @@ class SpriteGroup(Spritesheet):
 
                 inst.draw_y -= inst.height
 
-
-
-
     def show(self, display: framebuf.FrameBuffer):
-        # if self.z > self.horiz_z:
-        #     return False
+        if not self.visible:
+            return False
 
         for i in range(len(self.instances)-1, -1, -1): # Iterate backwards through instances
             inst = self.instances[i]
             self.set_frame(inst.frame_idx)
 
-            if False and self.instance_palettes:
+            if self.instance_palettes:
                 palette = self.instance_palettes[i]
             else:
                 palette = self.palette
@@ -81,10 +80,21 @@ class SpriteGroup(Spritesheet):
             else:
                 display.blit(self.pixels, inst.draw_x, inst.draw_y, -1, palette)
 
+    def reset(self):
+        lane = random.randrange(0, 5)
+        self.set_lane(lane)
+        self.set_frame(0)
+
+        if self.grid:
+            self.speed = -self.grid.speed  # Negative speed moves towards the camera since everything happens on the -z axis
+
+        self.z = self.horiz_z + (200 * random.randrange(2, 10))
+
     def clone(self):
         new_group = SpriteGroup(
-            filename=None,
+            filename=self.filename,
             num_elements=self.num_elements,
+            palette_gradient=self.palette_gradient,
             width=self.width,
             height=self.height,
             frame_width=self.frame_width,
@@ -94,8 +104,6 @@ class SpriteGroup(Spritesheet):
             z=self.z,
             camera=self.camera
             )
-
-        new_group.instances = [inst.clone() for inst in self.instances]
         new_group.width_2d = self.width_2d
         new_group.height_2d = self.height_2d
         new_group.draw_x = self.draw_x
@@ -112,20 +120,21 @@ class SpriteGroup(Spritesheet):
         new_group.palette = self.palette
         new_group.palette_gradient = self.palette_gradient
         new_group.instance_palettes = self.instance_palettes
+        new_group.grid = self.grid
 
         return new_group
 
 class SpriteEnemyGroup(SpriteGroup):
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     def update(self):
         # Check whether we need to reset Z to max Z
-        if self.z > self.camera.pos['z']:
-            self.z = self.horiz_z
+        if self.z < self.camera.pos['z']:
+            self.reset()
 
         super().update()
-
 
 class SpriteInstance:
     def __init__(self, x, y, z, draw_x, draw_y, frame_idx, height):

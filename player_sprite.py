@@ -46,4 +46,6 @@ class PlayerSprite(Spritesheet):
     async def stop_blink(self):
         await asyncio.sleep(3)
         self.blink = False
+        self.visible = True
+        self.active = True
 

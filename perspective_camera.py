@@ -2,7 +2,8 @@ import framebuf
 import math
 
 class PerspectiveCamera():
-    def __init__(self, display: framebuf.FrameBuffer, pos_x=0, pos_y=0, pos_z=0, vp_x=0, vp_y=0, focal_length=100, yaw=0):
+    def __init__(self, display: framebuf.FrameBuffer, pos_x: float = 0, pos_y: float = 0, pos_z: float = 0, vp_x: float = 0, vp_y: float = 0,
+                 focal_length: float = 100) -> object:
 
         self.screen_width = display.width
         self.screen_height = display.height

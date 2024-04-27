@@ -1,3 +1,5 @@
+import gc
+
 import asyncio
 import framebuf
 
@@ -24,6 +26,7 @@ class Screen:
         try:
             while True:
                 self.do_refresh()
+                #self.check_mem()
                 await asyncio.sleep(1/120)
         except asyncio.CancelledError:
             return True
@@ -42,4 +45,9 @@ class Screen:
             # Show the FPS in the score label
             fps = int(self.fps.fps())
             await asyncio.sleep(0.2)
+
+    def check_mem(self):
+        gc.collect()
+        print(f"Free memory: {gc.mem_free():,} bytes")
+
 

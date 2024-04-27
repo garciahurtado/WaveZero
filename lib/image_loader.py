@@ -1,4 +1,5 @@
 import gc
+import math
 
 from ucollections import namedtuple
 import uos
@@ -46,6 +47,7 @@ class ImageLoader():
                 ImageLoader.load_image(image_path, frame_width=image['width'], frame_height=image['height'])
             else:
                 ImageLoader.load_image(image_path)
+            gc.collect()
 
             loaded_size += ImageLoader.get_size(image_path)
             ImageLoader.update_progress(display, loaded_size, total_size)
@@ -72,10 +74,14 @@ class ImageLoader():
     @staticmethod
     def load_image(filename, frame_width=0, frame_height=0):
         # First of all, check the cache
-        if filename in ImageLoader.images:
+        if filename in ImageLoader.images.keys():
             return ImageLoader.images[filename]
 
-        bmp_image = bmp().load(filename)
+        print(f"Loading BMP: {filename}")
+
+        bmp_image = bmp(frame_width=frame_width, frame_height=frame_height)
+        bmp_image.load(filename)
+
         print(bmp_image)  # Show metadata
 
         width = bmp_image.width
@@ -84,38 +90,32 @@ class ImageLoader():
 
         # palette = [colors.bytearray_to_int(colors.byte3_to_byte2(color)) for color in palette]
         palette = FramebufferPalette(palette)
+        frames = []
 
         if frame_width > 0 and frame_height > 0:
             # This is a spritesheet, so lets make frames from the pixel data without allocating new memory
-            frames = []
-            frame_byte_size = frame_width * frame_height  # assuming < 8 BPP
-            pixel_view = memoryview(bmp_image.pixels)
+            num_frames = int(height / frame_height)
 
-            for i in range(0, len(bmp_image.pixels), frame_byte_size):
+            for i in range(num_frames):
+                image_buffer = bmp_image.frames[i]
                 frame = ImageLoader.create_image(
-                    bytearray(pixel_view[i:i+frame_byte_size]),
+                    image_buffer,
                     frame_width,
                     frame_height,
                     palette)
                 frames.append(frame)
 
-            image = frames
+            ImageLoader.images[filename] = frames
+            return frames
 
         else:
-            image = ImageLoader.create_image(bytearray(bmp_image.pixels), width, height, palette)
-
-        ImageLoader.images[filename] = image
-        return image
+            image = ImageLoader.create_image(bmp_image.pixels, width, height, palette)
+            ImageLoader.images[filename] = image
+            return image
 
     @staticmethod
-    def create_image(bytearray_pixels, width, height, palette):
+    def create_image(image_buffer, width, height, palette):
         num_colors = palette.num_colors
-
-        image_buffer = framebuf.FrameBuffer(
-            bytearray_pixels,
-            width,
-            height,
-            framebuf.GS8)
 
         image = Image(
             width,

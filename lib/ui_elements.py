@@ -51,6 +51,8 @@ class ui_screen():
 
         print(f"{self.num_lives} lives left")
 
+        return True
+
     def init_score(self):
 
         self.score_text = ColorWriter(

@@ -1,6 +1,6 @@
 from tkinter import *
 from tkinter import ttk
-import lib.color_old as colors
+import lib.color_util as colors
 
 def main():
     root = Tk()

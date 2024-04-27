@@ -16,6 +16,7 @@ class Crash():
     particles = []
     explode_sprite: Spritesheet
     palette: FramebufferPalette
+    alpha_color: int
     display: framebuf.FrameBuffer
     stage_width = 0
     stage_height = 0
@@ -38,10 +39,12 @@ class Crash():
 
     def create_particles(self):
         bitmap = self.explode_sprite.pixels
-        self.palette = self.explode_sprite.palette.clone()
-        self.palette.set_rgb(1, [104, 250, 255])
-        self.palette.set_rgb(2, [90, 247, 255])
-        self.palette.set_rgb(3, [52, 235, 198])
+        # self.palette = self.explode_sprite.palette.clone()
+        # self.palette.set_rgb(1, [104, 250, 255])
+        # self.palette.set_rgb(2, [90, 247, 255])
+        # self.palette.set_rgb(3, [52, 235, 198])
+
+        self.palette = self.create_palette()
 
         # Get the center of the bitmap
         self.center_x = self.explode_sprite.frame_width // 2
@@ -53,7 +56,7 @@ class Crash():
         # Get the particle data from the bitmap
         for x in range(0, 25, 3):
             for y in range(0, 42, 3):
-                if bitmap.pixel(x, y) != 0 and round(random.random() + 0.2):
+                if bitmap.pixel(x, y) != 0 and round(random.random() + 0.4):
                     # Calculate the distance from the center
                     distance = math.sqrt((x - self.center_x) ** 2 + (y - self.center_y) ** 2)
                     distance = abs(distance)
@@ -76,16 +79,37 @@ class Crash():
         self.particles = particles
         return particles
 
+    def create_palette(self):
+        colors_hex = [  0x000000, # alpha color
+                        0xFFFFFF,
+                        0xFDFF30,
+                        0xFD7006,
+                        0xC32404,
+                        0x8C0B05,
+                        0x380000,
+                        0x0D0909]
+
+        colors_rgb = [colors.hex_to_rgb(color) for color in colors_hex]
+        palette = FramebufferPalette(colors_rgb)
+        self.alpha_color = colors.rgb_to_565(colors_rgb[0])
+
+        return palette
+
     def anim_particles(self):
         particles = self.particles
         speed = 7
         center_x = self.center_x + self.explode_sprite.x
         center_y = self.center_y + self.explode_sprite.y
         rand_range = 0.7
-        alpha = self.explode_sprite.alpha_color
+        color_offset = 0
 
         # Animate the particles
-        for i in range(60): # number of frames for this animation
+        for i in range(80): # number of frames for this animation
+
+            # Create a moving window for picking random colors from the palette
+            color_offset = int((i / 25) * 4)
+            if color_offset > 3:
+                color_offset = 3
 
             for i in range(len(particles)):
                 x, y, distance, angle = particles[i]
@@ -112,8 +136,8 @@ class Crash():
                 particles[i] = (x, y, distance, angle)
                 distance = abs(distance)
 
-                color = random.randrange(0,4)
-                self.stage.pixel(int(x), int(y), color)
+                color_idx = random.randrange(1,5) + color_offset
+                self.stage.pixel(int(x), int(y), color_idx)
 
                 # Sometimes we draw single pixels, sometimes fat pixels
                 size = random.choice([3, 2, 2, 2, 1, 1, 1, 1, 1, 1])  # (1-3)
@@ -123,14 +147,14 @@ class Crash():
                     size = 3
 
                 # if round(random.random()):
-                self.draw_dot(x, y, color, size)
+                self.draw_dot(x, y, color_idx, size)
 
             rand_range = rand_range * 0.95
 
             # And some rays emanating from the center
 
             #self.palette.set_rgb(1, (255,255,255))
-            if (random.random() * 100) > 80:
+            if (random.random() * 100) > 90:
                 angle = 140
                 end_x = int(center_x + (random.random() * angle) - (angle/2))
                 end_y = 0
@@ -139,11 +163,17 @@ class Crash():
                     # randomly invert the direction
                     end_y = self.display.height
 
-                self.stage.line(center_x, center_y, end_x, end_y, 1)
-                self.stage.line(center_x, center_y, end_x+1, end_y, 2)
-                self.stage.line(center_x, center_y, end_x-1, end_y, 2)
+                color1 = random.randrange(1,4) + color_offset -1
+                color2 = (random.randrange(1,4) + color_offset) % self.palette.num_colors
+                color3 = (random.randrange(1,4) + color_offset + 1) % self.palette.num_colors
 
-            self.display.blit(self.stage, 0, 0, alpha, self.palette)
+                self.stage.line(center_x, center_y, end_x, end_y, color1)
+                self.stage.line(center_x, center_y, end_x+1, end_y, color2)
+                self.stage.line(center_x, center_y, end_x-1, end_y, color2)
+                self.stage.line(center_x, center_y, end_x + 2, end_y, color3)
+                self.stage.line(center_x, center_y, end_x - 2, end_y, color3)
+
+            self.display.blit(self.stage, 0, 0, self.alpha_color, self.palette)
             self.display.show()
             speed = speed * 0.97
 
