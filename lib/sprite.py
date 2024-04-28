@@ -3,7 +3,6 @@ import color_util as colors
 from color_util import FramebufferPalette
 from image_loader import ImageLoader
 
-
 class Sprite:
     """ Represents a sprite which is loaded from disk in BMP format, and stored in memory as an RGB565 framebuffer"""
     filename: str
@@ -23,24 +22,16 @@ class Sprite:
 
     x = 0
     y = 0
-    z = 0
-    draw_x: int = 0
-    draw_y: int = 0
     speed = 0
-
-    horiz_z = 1500
 
     has_alpha = False
     alpha_color = None
     alpha_index = 0
-    camera = None  # to simulate 3D
-    min_y = -20
+    min_y = -32
     max_x = 200
     max_y = 200
 
-    lane_num = None
-
-    def __init__(self, filename=None, x=0, y=0, z=0, camera=None) -> None:
+    def __init__(self, filename=None, x=0, y=0) -> None:
         if filename:
             print(filename)
             self.load_image(filename)
@@ -48,9 +39,7 @@ class Sprite:
 
         self.x = x
         self.y = y
-        self.z = z
-        self.camera = camera
-        self.update()
+        # self.update()
 
     def reset(self):
         pass
@@ -89,9 +78,6 @@ class Sprite:
 
         self.palette = new_palette
 
-    def set_camera(self, camera):
-        self.camera = camera
-
     def show(self, display: framebuf.FrameBuffer):
         if not self.visible:
             return False
@@ -102,243 +88,57 @@ class Sprite:
             if self.blink_flip == -1:
                 return False
 
-        if self.is3d:
-            if self.z > self.horiz_z:
-                return False
+        x, y = self.get_draw_xy(display)
 
+        if x > self.max_x:
+            x = self.max_x
 
-            x, y = self.draw_x, self.draw_y
-        else:
-            x, y = self.x, self.y
-
-        if x > (display.width * 2):
-            x = display.width * 2
+        if y > self.max_y:
+            y = self.max_y
 
         if self.has_alpha:
-            display.blit(self.pixels, x, y, self.alpha_color, self.palette)
+            display.blit(self.pixels, round(x), round(y), self.alpha_color, self.palette)
         else:
-            display.blit(self.pixels, int(x), int(y), -1, self.palette)
+            display.blit(self.pixels, round(x), round(y), -1, self.palette)
+
+    def get_draw_xy(self, display: framebuf.FrameBuffer):
+        x, y = self.x, self.y
+        return x, y
 
     def update(self):
+        """ Meant to be overridden in child class"""
         if not self.active:
             return False
 
-        if self.speed:
-            self.z = self.z + self.speed
-
-        draw_x, draw_y = self.pos()
-        if draw_x > self.max_x:
-            draw_x = self.max_x
-
-        if draw_y > self.max_y:
-            draw_y = self.max_y
-
-        self.draw_x, self.draw_y = draw_x, draw_y
-
-    def clone(self):
-        copy = Sprite()
-        copy.camera = self.camera
-        copy.x = self.x
-        copy.y = self.y
-        copy.z = self.z
-        copy.is3d = self.is3d
-        copy.draw_x = self.draw_x
-        copy.draw_y = self.draw_y
-
-        copy.pixels = self.pixels
-        copy.palette = self.palette
-        copy.width = self.width
-        copy.height = self.height
-        copy.horiz_z = self.horiz_z
-
-        copy.has_alpha = self.has_alpha
-        copy.alpha_color = self.alpha_color
-        copy.alpha_index = self.alpha_index
-
-        return copy
-
-    """3D sprites only"""
-
-
-    def pos(self):
-        """Returns the 2D coordinates of the object, calculated from the internal x,y (if 2D) or x,y,z
-        (if 3D with perspective camera)
-        """
-        if self.camera:
-            x_offset = self.x - self.camera.pos["x"]
-            x, y = self.camera.to_2d(x_offset, self.y + self.height, self.z)
-
-            #x = int(x - (self.width_2d / 2))  # Draw the object so that it is horizontally centered
-
-            return int(x), int(y)
-        else:
-            return self.x, self.y
-
-
-
-    def get_lane(self):
-        """
-        Returns the lane number which this sprite occupies in 3D space:
-        [-2,-1,0,1,2]
-        """
-        return self.lane_num
-        # if self.x == 0:
-        #     lane = 0
-        # else:
-        #     x = self.x + self.half_field
-        #     lane = int(x / self.lane_width)
-        #
-        # return lane
-
-    def set_lane(self, lane_num):
-        self.lane_num = lane_num
-        lane = lane_num - 2 # [-2,-1,0,1,2]
-        res = (lane * self.lane_width) - (self.frame_width/2)
-        self.x = int(res)
-
-
-class Spritesheet(Sprite):
-    frames = []
-    current_frame = 0
-    frame_width = 0
-    frame_height = 0
-    ratio = 0
-    half_scale_one_dist = 0
-    lane_width = 0
-    palette = None
-
-    def __init__(self, filename=None, frame_width=None, frame_height=None, x=0, y=0, z=0, camera=None, lane_width=None, *args, **kwargs):
-        self.frame_width = frame_width
-        self.frame_height = frame_height
-
-
-        if filename:
-            print(filename)
-            self.filename = filename
-            self.load_image(filename, frame_width, frame_height)
-
-        self.x = x
-        self.y = y
-        self.z = z
-
-        if camera:
-            self.set_camera(camera)
-            self.update()
-
-        self.lane_width = lane_width
-
-        if self.frame_width and self.frame_height:
-            self.ratio = self.frame_width / self.frame_height
-
-        if self.pixels:
-            self.set_frame(0)
-
-
-    def set_camera(self, camera):
-        self.camera = camera
-        scale_adj = 10 # Increase this value to see bigger sprites when closer to the screen
-        self.half_scale_one_dist = abs(self.camera.pos['z']-scale_adj) / 2
-
-    def update(self):
-        super().update()
-        self.update_frame()
-
-
-    def set_frame(self, frame_num):
-        if frame_num == self.current_frame:
-            return False
-
-        self.current_frame = frame_num
-        self.pixels = self.frames[frame_num].pixels
-
-    def update_frame(self):
-        """Update the current frame in the spritesheet to the one that represents the correct size when taking into
-        account 3D coordinates and the camera"""
-
-        if not self.camera or not self.frames or (len(self.frames) == 0):
-            return False
-
-        frame_idx = self.get_frame_idx(self.z)
-        if self.current_frame == frame_idx:
-            return False
-
-        self.set_frame(frame_idx)
-
         return True
 
-    def get_frame_idx(self, real_z):
-        rate = ((real_z - self.camera.pos['z']) / 2)
-        if rate == 0:
-            rate = 0.00001 # Avoid divide by zero
-
-        scale = self.half_scale_one_dist / rate
-        frame_idx = round(scale * len(self.frames))
-        self.height_2d = scale * self.frame_height
-        self.width_2d = self.ratio * self.height_2d
-
-        if frame_idx >= len(self.frames):
-            frame_idx = len(self.frames) - 1
-
-        if frame_idx < 0:
-            frame_idx = 0
-
-        return frame_idx
-
-    def load_image(self, filename, frame_width, frame_height):
-        """Overrides parent"""
-        images = ImageLoader.load_image(filename, frame_width, frame_height)
-
-        if isinstance(images, list):
-            self.frames = images
-            self.set_frame(0)
-            meta = images[0]
-        else:
-            meta = images
-
-        self.width = meta.width
-        self.height = meta.height
-        self.palette = meta.palette
-        self.num_colors = meta.num_colors
-        self.pixels = meta.pixels
-
-        self.reset()
-
-    def clone(self):
-        copy = Spritesheet(
-            frame_width=self.frame_width,
-            frame_height=self.frame_height,
-            x=self.x,
-            y=self.y,
-            z=self.z,
-            camera=self.camera
-        )
-        copy.is3d = self.is3d
-        copy.draw_x = self.draw_x
-        copy.draw_y = self.draw_y
+    def _clone(self):
+        copy = Sprite()
+        copy.x = self.x
+        copy.y = self.y
 
         copy.pixels = self.pixels
         copy.palette = self.palette
         copy.width = self.width
         copy.height = self.height
-        copy.horiz_z = self.horiz_z
 
         copy.has_alpha = self.has_alpha
         copy.alpha_color = self.alpha_color
         copy.alpha_index = self.alpha_index
 
-        copy.frames = self.frames
-        copy.current_frame = self.current_frame
-        copy.frame_width = self.frame_width
-        copy.frame_height = self.frame_height
-        copy.ratio = self.ratio
-        copy.half_scale_one_dist = self.half_scale_one_dist
-        copy.palette = self.palette.clone()
-        copy.lane_width = self.lane_width
-        copy.speed = self.speed
-
-        if self.camera:
-            copy.set_camera(self.camera)
-
         return copy
+
+    def clone(self):
+        cloned_obj = self.__class__()
+        for key, value in self.__dict__.items():
+            if False and hasattr(value, 'clone'):
+                # Recursively clone the object
+                setattr(cloned_obj, key, value.clone())
+            else:
+                setattr(cloned_obj, key, value)
+
+        return cloned_obj
+
+
 
 

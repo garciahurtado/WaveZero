@@ -82,8 +82,8 @@ class Writer():
             raise ValueError('Font must be horizontally mapped.')
         if verbose:
             fstr = 'Orientation: Horizontal. Reversal: {}. Width: {}. Height: {}.'
-            print(fstr.format(font.reverse(), device.width, device.height))
-            print('Start row = {} col = {}'.format(self._getstate().text_row, self._getstate().text_col))
+            #print(fstr.format(font.reverse(), device.width, device.height))
+            #print('Start row = {} col = {}'.format(self._getstate().text_row, self._getstate().text_col))
         self.screenwidth = device.width  # In pixels
         self.screenheight = device.height
         self.bgcolor = 0  # Monochrome background and foreground colors

@@ -64,4 +64,4 @@ class PerspectiveCamera():
         y_factor = (screen_y - self.vp['y']) / (self.screen_height - self.vp['y'])
         screen_x = screen_x - (self.vp['x'] * y_factor)
 
-        return int(screen_x), int(screen_y)
+        return round(screen_x), round(screen_y)

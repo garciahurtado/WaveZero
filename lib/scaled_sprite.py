@@ -1,7 +1,7 @@
-from sprite import Sprite
+from sprite_3d import Sprite3D
 
 
-class ScaledSprite(Sprite):
+class ScaledSprite(Sprite3D):
     frames = []
     current_frame = 0
 

@@ -7,7 +7,7 @@ import framebuf
 
 from color_util import FramebufferPalette
 from fx.scanline_fade import ScanlineFade
-from sprite import Sprite, Spritesheet
+from spritesheet import Spritesheet
 import color_util as colors
 
 class Crash():
@@ -56,7 +56,7 @@ class Crash():
         # Get the particle data from the bitmap
         for x in range(0, 25, 3):
             for y in range(0, 42, 3):
-                if bitmap.pixel(x, y) != 0 and round(random.random() + 0.4):
+                if bitmap.pixel(x, y) != 0 and round(random.random() + 0.6):
                     # Calculate the distance from the center
                     distance = math.sqrt((x - self.center_x) ** 2 + (y - self.center_y) ** 2)
                     distance = abs(distance)
@@ -97,25 +97,27 @@ class Crash():
 
     def anim_particles(self):
         particles = self.particles
-        speed = 7
+        speed = 8
         center_x = self.center_x + self.explode_sprite.x
         center_y = self.center_y + self.explode_sprite.y
-        rand_range = 0.7
+        rand_range = 0.8
         color_offset = 0
 
         # Animate the particles
-        for i in range(80): # number of frames for this animation
+        for i in range(50): # number of frames for this animation
 
             # Create a moving window for picking random colors from the palette
-            color_offset = int((i / 25) * 4)
+            color_offset = int(((i-5) / 55) * 4)
             if color_offset > 3:
                 color_offset = 3
+            elif color_offset < 0:
+                color_offset = 0
 
             for i in range(len(particles)):
                 x, y, distance, angle = particles[i]
 
                 # add a bit of random
-                delta = (random.random()*rand_range*2) - (rand_range)
+                delta = (random.random()*rand_range) - (rand_range/2)
                 angle = angle + delta
 
                 # Calculate the new position
@@ -134,14 +136,13 @@ class Crash():
 
                 # Store the updated particle data
                 particles[i] = (x, y, distance, angle)
-                distance = abs(distance)
 
-                color_idx = random.randrange(1,5) + color_offset
+                color_idx = random.randrange(1,3) + color_offset
                 self.stage.pixel(int(x), int(y), color_idx)
 
                 # Sometimes we draw single pixels, sometimes fat pixels
                 size = random.choice([3, 2, 2, 2, 1, 1, 1, 1, 1, 1])  # (1-3)
-                size = size + int(distance/10)
+                size = size + int(abs(distance)/10)
 
                 if size > 3:
                     size = 3
@@ -152,20 +153,18 @@ class Crash():
             rand_range = rand_range * 0.95
 
             # And some rays emanating from the center
-
-            #self.palette.set_rgb(1, (255,255,255))
-            if (random.random() * 100) > 90:
-                angle = 140
+            if (random.random() * 100) > 75:
+                angle = 205
                 end_x = int(center_x + (random.random() * angle) - (angle/2))
                 end_y = 0
 
-                if random.randint(0,3) -1:
+                if (random.randint(0,1) +0.1) > 1:
                     # randomly invert the direction
                     end_y = self.display.height
 
-                color1 = random.randrange(1,4) + color_offset -1
-                color2 = (random.randrange(1,4) + color_offset) % self.palette.num_colors
-                color3 = (random.randrange(1,4) + color_offset + 1) % self.palette.num_colors
+                color1 = random.randrange(1,3)
+                color2 = color1 + 1
+                color3 = color1 + 2
 
                 self.stage.line(center_x, center_y, end_x, end_y, color1)
                 self.stage.line(center_x, center_y, end_x+1, end_y, color2)

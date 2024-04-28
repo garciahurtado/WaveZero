@@ -85,7 +85,12 @@ class RoadGrid():
 
         color = SSD1331.rgb(*colors.hex_to_rgb(0x217eff))
         palette_1[num_vert_colors-3:] = [color] * 3
-        palette_2 = palette_1[::-1]
+
+        # Color conversion to RGB
+        # palette_1 = [colors.rgb565_to_rgb(color) for color in palette_1]
+
+        palette_2 = palette_1[::-1] # mirror palette 1
+
 
         # Concatenate the two mirrored palettes into one
         self.vert_palette = palette_1 + palette_2
@@ -94,8 +99,8 @@ class RoadGrid():
 
     def show(self):
         self.update_horiz_lines()
-        self.update_vert_lines()
         self.draw_horizon()
+        self.update_vert_lines()
 
     def create_horiz_lines(self, num_lines):
         max_z = self.far_z_horiz
@@ -168,6 +173,9 @@ class RoadGrid():
 
             last_y = y
 
+            if my_line['y'] > self.display.height:
+                continue
+
             color_idx = int(my_line['y'] - self.horiz_y)
 
             if color_idx >= len(self.horiz_palette):
@@ -191,7 +199,8 @@ class RoadGrid():
             start_y = start[1]
             end_y = end[1]
 
-            self.display.line(start_x, start_y, end_x, end_y, self.vert_palette[index])
+            rgb = self.vert_palette[index]
+            self.display.line(start_x, start_y, end_x, end_y, rgb)
 
 
     def draw_horizon(self):

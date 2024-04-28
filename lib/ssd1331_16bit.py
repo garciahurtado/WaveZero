@@ -37,6 +37,10 @@ from boolpalette import BoolPalette
 # Mode 0, 0 works on ESP and STM
 
 # Data sheet SPI spec: 150ns min clock period 6.66MHz
+
+CMD_DRAWLINE = b'0x21'
+DC_MODE_CMD = 0x00
+DC_MODE_DATA = 0x01
 class SSD1331(framebuf.FrameBuffer):
     height: int
     width: int
@@ -54,6 +58,7 @@ class SSD1331(framebuf.FrameBuffer):
         self._spi = spi
         self._pincs = pincs
         self._pindc = pindc  # 1 = data 0 = cmd
+        self.dc_mode = DC_MODE_CMD
         self.height = height  # Required by Writer class
         self.width = width
         self._spi_init = init_spi
@@ -71,7 +76,7 @@ class SSD1331(framebuf.FrameBuffer):
             self._spi_init(spi)  # Bus may be shared
         self._write(b'\xAE\xA0\x72\xA1\x00\xA2\x00\xA4\xA8\x3F\xAD\x8E\xB0'\
         b'\x0B\xB1\x31\xB3\xF0\x8A\x64\x8B\x78\x8C\x64\xBB\x3A\xBE\x3E\x87'\
-        b'\x06\x81\x91\x82\x50\x83\x7D\xAF', 0)
+        b'\x06\x81\x91\x82\x50\x83\x7D\xAF', DC_MODE_CMD)
         gc.collect()
         self.show()
 
@@ -81,6 +86,69 @@ class SSD1331(framebuf.FrameBuffer):
         self._pincs(0)
         self._spi.write(buf)
         self._pincs(1)
+
+    def _start_data(self):
+        if self.dc_mode != DC_MODE_DATA:
+            self._pindc(DC_MODE_DATA)
+            self.dc_mode = DC_MODE_DATA
+
+    def _start_cmd(self):
+        if self.dc_mode != DC_MODE_CMD:
+            self._pindc(DC_MODE_CMD)
+            self.dc_mode = DC_MODE_CMD
+
+
+    def line_v2(self, x_0, y_0, x_1, y_1, color):
+        r, g, b = color[0], color[1], color[2]
+
+        self._write_start()
+        self._write_line(x_0, y_0, x_1, y_1)
+        self._write_color(r, g, b)
+        self._write_end()
+
+    def _write_line(self, x_0, y_0, x_1, y_1):
+        #self._write_cmd(CMD_DRAWLINE)
+        self._write(CMD_DRAWLINE, DC_MODE_CMD)
+        x_0 = x_0 & 0xFF
+        y_0 = y_0 & 0xFF
+        x_1 = x_1 & 0xFF
+        y_1 = y_1 & 0xFF
+
+        x_0 = self._to_bytes(x_0)
+        y_0 = self._to_bytes(y_0)
+        x_1 = self._to_bytes(x_1)
+        y_1 = self._to_bytes(y_1)
+
+        self._write(x_0, DC_MODE_CMD)
+        self._write(y_0, DC_MODE_CMD)
+        self._write(x_1, DC_MODE_CMD)
+        self._write(y_1, DC_MODE_CMD)
+
+    def _write_color(self, r, g, b):
+        self._write(self._to_bytes(r), DC_MODE_CMD)
+        self._write(self._to_bytes(g), DC_MODE_CMD)
+        self._write(self._to_bytes(b), DC_MODE_CMD)
+
+    def _write_start(self):
+        self._start_cmd()
+
+    def _write_end(self):
+        self._pincs(1)
+
+    def _write_cmd(self, cmd):
+        #self._start_cmd()
+        cmd = self._to_bytes(cmd)
+        self._spi.write(cmd)
+
+    def _write_data(self, data):
+        self._start_data()
+        self._spi.write(data)
+
+    def _to_bytes(self, data, size=2):
+        if isinstance(data, int):
+            data = data.to_bytes(size, 'big')
+
+        return data
 
     def show(self, _cmd=b'\x15\x00\x5f\x75\x00\x3f'):  # Pre-allocate
         if self._spi_init:  # A callback was passed

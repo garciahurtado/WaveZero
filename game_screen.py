@@ -14,7 +14,9 @@ from screen import Screen
 from road_grid import RoadGrid
 from perspective_camera import PerspectiveCamera
 from encoder import Encoder
-from sprite import Sprite, Spritesheet, ImageLoader
+from sprite import Sprite
+from spritesheet import Spritesheet
+from image_loader import ImageLoader
 from sprite_group import SpriteGroup, SpriteEnemyGroup
 from title_screen import TitleScreen
 import color_util as colors
@@ -28,6 +30,7 @@ class GameScreen(Screen):
     camera: PerspectiveCamera
     sprites: []
     enemies: []
+    flying_enemies: []
     ui: ui_screen
     crash_fx: None
     sprite_max_z = 1000
@@ -54,11 +57,14 @@ class GameScreen(Screen):
         super().__init__(display, *args, **kwargs)
         gc.collect()
         print(f"Free memory __init__: {gc.mem_free():,} bytes")
+        self.init_camera()
         self.preload_images()
         self.enemies = []
+        self.flying_enemies = []
 
     def preload_images(self):
         images = [
+            {"name": "enemy_gradients.bmp", "width": 4, "height": 1},
             {"name": "bike_sprite.bmp", "width": 37, "height": 22},
             {"name": "road_wall.bmp", "width": 10, "height": 20},
             {"name": "sunset.bmp"},
@@ -67,7 +73,7 @@ class GameScreen(Screen):
 
         ImageLoader.load_images(images, self.display)
 
-        self.bike = PlayerSprite()
+        self.bike = PlayerSprite(camera=self.camera)
         self.crash_fx = Crash(self.display, self.bike)
 
     def run(self):
@@ -76,7 +82,6 @@ class GameScreen(Screen):
 
         self.encoder = Encoder(27, 26)
         self.ui = ui_screen(self.display, self.num_lives)
-        self.init_camera()
         self.init_sprites()
         self.init_enemies()
 
@@ -140,7 +145,7 @@ class GameScreen(Screen):
         self.bike.y = 64 # Hide it below the screen
 
         # Make the bike slide in from the bottom
-        anim = AnimAttr(self.bike, 'y', bike_y, 2 * 1000)
+        anim = AnimAttr(self.bike, 'y', bike_y, 1 * 1000)
         loop.create_task(anim.run(fps=30))
         loop.create_task(self.speed_anim.run(fps=5))
 
@@ -201,9 +206,12 @@ class GameScreen(Screen):
         self.enemies = []
 
         # Create flying triangles
-        # for i in range(0,4):
-        #     enemy = ScaledSprite('/img/enemy_gradients.bmp')
-        #     self.enemies.append(enemy)
+        for i in range(0,4):
+            enemy = ScaledSprite(z=100, camera=self.camera, filename='/img/laser_tri.bmp', x=-40+(i*20), y=80)
+            enemy.set_alpha(2)
+            enemy.is3d = True
+            self.flying_enemies.append(enemy)
+            self.add(enemy)
 
         # Create road obstacles
         num_groups = 4
@@ -212,7 +220,7 @@ class GameScreen(Screen):
         num_palettes = int(palette_width / palette_size)
         print(f"Creating {num_palettes}")
 
-        self.enemy_palettes = Spritesheet('/img/enemy_gradients.bmp', frame_width=4, frame_height=1)
+        self.enemy_palettes = Spritesheet(frame_width=4, frame_height=1, filename='/img/enemy_gradients.bmp')
         all_palettes = []
         self.check_mem()
 
@@ -232,28 +240,27 @@ class GameScreen(Screen):
 
                 all_palettes.append(new_palette) # We should end up with 16 palettes total
 
-            # Create enemy / obstacle groups
-            base_group = SpriteGroup(
-                "/img/road_wall.bmp",
-                num_elements=4,
-                frame_width=10,
-                frame_height=20,
-                palette_gradient=all_palettes[0],
-                lane_width=self.lane_width,
-                half_field=self.grid.half_field,
-                pos_delta={"x": 0, "y": 0, "z": 20},
-                camera=self.camera,
-                x=50,
-                y=0,
-                z=2000
-            )
-            base_group.grid = self.grid
-            base_group.visible = False
+        print(f"Num enemy palettes: {len(all_palettes)}")
+        # Create enemy / obstacle groups
+        base_group = SpriteGroup(
+            num_elements=4,
+            palette_gradient=all_palettes[0],
+            pos_delta={"x": 0, "y": 0, "z": 10},
+            filename="/img/road_wall.bmp",
+            frame_width=10,
+            frame_height=20,
+            lane_width=self.lane_width,
+            x=50,
+            y=0,
+            z=2000
+        )
+        base_group.grid = self.grid
+        # base_group.visible = False
 
         for i in range(0, num_groups):
             # Set a random palette
             palette_num = random.randrange(0, 4)
-
+            print(f"All palettes size: {len(all_palettes)}")
             current_enemy_palettes = all_palettes[i*palette_size:(i+1)*palette_size]
 
             group = self.create_group(base_group, current_enemy_palettes)
@@ -282,7 +289,9 @@ class GameScreen(Screen):
         group.instance_palettes = enemy_palettes
         group.pos_delta = {"x": 0, "y": 0, "z": 20}
         group.grid = self.grid
-        group.reset()
+        group.visible = True
+        group.set_camera(self.camera)
+        #group.reset()
 
         return group
 

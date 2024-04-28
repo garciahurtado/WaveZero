@@ -3,7 +3,7 @@ import random
 import framebuf
 from color_util import FramebufferPalette
 from road_grid import RoadGrid
-from sprite import Sprite, Spritesheet
+from spritesheet import Spritesheet
 
 
 class SpriteGroup(Spritesheet):
@@ -18,18 +18,21 @@ class SpriteGroup(Spritesheet):
     num_elements = 0
     grid: RoadGrid = None
 
-    def __init__(self, filename=None, num_elements=0, palette_gradient=None, pos_delta=None, *args, **kwargs):
-        super().__init__(filename, *args, **kwargs)
+    def __init__(self, num_elements=0, palette_gradient=None, pos_delta=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.palette_gradient = palette_gradient
         self.pos_delta = pos_delta
         self.num_elements = num_elements
-        self.instances = []
 
-        for i in range(0, num_elements):
-            if palette_gradient:
+        self.create_instances()
+
+    def create_instances(self):
+        self.instances = []
+        for i in range(0, self.num_elements):
+            if self.palette_gradient:
                 new_palette = self.frames[0].palette.clone()
-                new_palette.pixel(i, 1, palette_gradient.pixel(i,0))
+                new_palette.pixel(i, 1, self.palette_gradient.pixel(i,0))
                 self.instance_palettes.append(new_palette)
 
             instance = SpriteInstance(0, 0, 0, 0, 0, 0, 0)
@@ -89,13 +92,11 @@ class SpriteGroup(Spritesheet):
 
         self.z = self.horiz_z + (200 * random.randrange(2, 10))
 
-    def clone(self):
+    def _clone(self):
         new_group = SpriteGroup(
             filename=self.filename,
             num_elements=self.num_elements,
             palette_gradient=self.palette_gradient,
-            width=self.width,
-            height=self.height,
             frame_width=self.frame_width,
             frame_height=self.frame_height,
             x=self.x,
@@ -122,6 +123,11 @@ class SpriteGroup(Spritesheet):
         new_group.grid = self.grid
 
         return new_group
+
+    def clone(self):
+        copy = super().clone()
+        copy.create_instances()
+        return copy
 
 class SpriteEnemyGroup(SpriteGroup):
 

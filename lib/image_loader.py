@@ -92,7 +92,7 @@ class ImageLoader():
         palette = FramebufferPalette(palette)
         frames = []
 
-        if frame_width > 0 and frame_height > 0:
+        if frame_width and frame_height:
             # This is a spritesheet, so lets make frames from the pixel data without allocating new memory
             num_frames = int(height / frame_height)
 

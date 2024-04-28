@@ -1,18 +1,22 @@
 import asyncio
 
-from sprite import Spritesheet
-
+from spritesheet import Spritesheet
 
 class PlayerSprite(Spritesheet):
     target_lane = 2
     current_lane = 2
 
-    def __init__(self):
-        super().__init__("/img/bike_sprite.bmp", frame_width=37, frame_height=22)
-        self.set_alpha(0)
-        self.set_frame(8)  # middle frame
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            filename="/img/bike_sprite.bmp",
+            frame_width=37,
+            frame_height=22
+            )
         self.x = 25
         self.y = 42
+        self.set_alpha(0)
+        self.set_frame(8)  # middle frame
+
         # self.blink = True
 
     def move_left(self):
