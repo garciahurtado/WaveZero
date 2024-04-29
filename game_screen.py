@@ -134,7 +134,6 @@ class GameScreen(Screen):
         print(f"Update loop Start time: {start_time_ms}")
         self.check_mem()
 
-
         self.add(self.bike) # Add after the obstacles, to it appears on top
         bike_angle = 0
         turn_incr = 0.2  # turning speed
@@ -291,7 +290,7 @@ class GameScreen(Screen):
         group.grid = self.grid
         group.visible = True
         group.set_camera(self.camera)
-        #group.reset()
+        group.reset()
 
         return group
 

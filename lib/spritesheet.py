@@ -3,10 +3,7 @@ from sprite_3d import Sprite3D
 
 
 class Spritesheet(Sprite3D):
-    frames = []
-    current_frame = 0
-    frame_width = 0
-    frame_height = 0
+
     ratio = 0
     half_scale_one_dist = 0
     lane_width = 0
@@ -26,77 +23,9 @@ class Spritesheet(Sprite3D):
         if self.pixels:
             self.set_frame(0)
 
-
-
     def update(self):
         super().update()
         self.update_frame()
-
-
-    def set_frame(self, frame_num):
-        if frame_num == self.current_frame:
-            return False
-
-        self.current_frame = frame_num
-        self.pixels = self.frames[frame_num].pixels
-
-    def update_frame(self):
-        """Update the current frame in the spritesheet to the one that represents the correct size when taking into
-        account 3D coordinates and the camera"""
-
-        if not self.camera or not self.frames or (len(self.frames) == 0):
-            return False
-
-        frame_idx = self.get_frame_idx(self.z)
-        if self.current_frame == frame_idx:
-            return False
-
-        self.set_frame(frame_idx)
-
-        return True
-
-    def get_frame_idx(self, real_z):
-        rate = ((real_z - self.camera.pos['z']) / 2)
-        if rate == 0:
-            rate = 0.00001 # Avoid divide by zero
-
-        scale = self.half_scale_one_dist / rate
-        frame_idx = round(scale * len(self.frames))
-        self.height_2d = scale * self.frame_height
-        self.width_2d = self.ratio * self.height_2d
-
-        if frame_idx >= len(self.frames):
-            frame_idx = len(self.frames) - 1
-
-        if frame_idx < 0:
-            frame_idx = 0
-
-        return frame_idx
-
-    def load_image(self, filename, frame_width=None, frame_height=None):
-        """Overrides parent"""
-        if not frame_width:
-            frame_width == self.width
-
-        if not frame_height:
-            frame_height = self.height
-
-        images = ImageLoader.load_image(filename, frame_width, frame_height)
-
-        if isinstance(images, list):
-            self.frames = images
-            self.set_frame(0)
-            meta = images[0]
-        else:
-            meta = images
-
-        self.width = meta.width
-        self.height = meta.height
-        self.palette = meta.palette
-        self.num_colors = meta.num_colors
-        self.pixels = meta.pixels
-
-        self.reset()
 
     def _clone(self):
         copy = Spritesheet(

@@ -52,17 +52,18 @@ bytearray(b'L')
 >>> print(new_img_1b_3x2)
 BMP image, indexed, 1-bit, 3x2 pixels, 70 bytes
 """
-import array
+import math
 from struct import pack, unpack
 
 import framebuf
-
-from color_util import rgb_to_565
+import color_util as colors
 from ulab import numpy as np
 
 # Project Version
 __version__ = "0.3.0"
 __all__ = ["MicroBMP"]
+
+from indexed_image import Image, create_image
 
 
 class MicroBMP(object):
@@ -127,6 +128,7 @@ class MicroBMP(object):
     """
     frame_width: int = 0
     frame_height: int = 0
+    frames = []
 
     def __init__(self, width=None, height=None, depth:int=8, palette=None, frame_width=0, frame_height=0):
         # BMP Header
@@ -152,10 +154,11 @@ class MicroBMP(object):
         self.num_colors = None
         self.extra = None
 
-        self.palette = palette
+        self.palette: colors.FramebufferPalette = palette
 
         # Pixel array
-        self.pixels: np.array
+        self.pixels = None
+        self.frames = []
 
         self.ppb = None  # Number of pixels per byte for depth <= 8.
         self.pmask = None  # Pixel Mask
@@ -189,7 +192,6 @@ class MicroBMP(object):
         assert key[0] < self.width and key[1] < self.height, "Out of image boundary!"
 
         x, y = key[0], key[1]
-        #rgb565 = rgb_to_565(color)
         self.pixels.pixel(x,y, color)
 
     def __str__(self):
@@ -236,16 +238,6 @@ class MicroBMP(object):
         if self.color_depth <= 8:
             self.ppb = 8 // self.color_depth
             self.pmask = 0xFF >> (8 - self.color_depth)
-            if self.palette is None:
-                # Default palette is black and white or full size grey scale.
-                self.num_colors = 2 ** self.color_depth
-                self.palette = [None for i in range(self.num_colors)]
-                for i in range(self.num_colors):
-                    # Assignment that suits all: 1/2/4/8-bit colour depth.
-                    s = 255 * i // (self.num_colors - 1)
-                    self.palette[i] = bytearray([s, s, s])
-            else:
-                self.num_colors = len(self.palette)
         else:
             self.ppb = None
             self.pmask = None
@@ -254,32 +246,9 @@ class MicroBMP(object):
 
         if self.pixels is None:
             # Initialize the pixels array or pixel frames to zero
-            if self.color_depth <= 8:
-                #div, mod = divmod(self.width * self.height, self.ppb)
-                # self.parray = bytearray(div + (1 if mod else 0))
-                self.frames = []
-                num_frames = int(self.height / self.frame_height)
-                frame_size = self.frame_width * self.frame_height
-                print(f"Creating {num_frames} frames of {self.frame_width}x{self.frame_height} ")
-
-                for f in range(num_frames):
-                    buffer = framebuf.FrameBuffer(
-                        bytearray(frame_size),
-                        self.frame_width,
-                        self.frame_height,
-                        framebuf.GS8
-                    )
-                    self.frames.append(buffer)
-
-                self.pixels = self.frames[0]
-
-                #self.pixels: np.array = np.zeros(size, dtype=np.uint8)
-
-                #self.pixels = bytearray(self.width * self.height)
-            else:
+            if self.color_depth > 8:
                 print("Only 8 BPP color depth supported")
                 exit()
-                self.pixels = bytearray(self.width * self.height * 3)
 
         plt_size = self.num_colors * 4
         self.BMP_offset = 14 + self.header_len + plt_size
@@ -384,18 +353,23 @@ class MicroBMP(object):
         if self.header_len > 40:
             self.extra = data[36:]
 
-        # Palette
+        """ Create and populate palette """
         if self.color_depth <= 8:
             if DIB_plt_num_info == 0:
                 self.num_colors = 2 ** self.color_depth
             else:
                 self.num_colors = DIB_plt_num_info
             print(f"Num colors: {self.num_colors}")
-            self.palette = [None for i in range(self.num_colors)]
-            for frame_idx in range(self.num_colors):
+            # self.palette = [None for i in range(self.num_colors)]
+
+            self.palette = colors.FramebufferPalette(bytearray(self.num_colors*2))
+
+            for color_idx in range(self.num_colors):
                 data = bf_io.read(4)
-                colour = bytearray([data[2], data[1], data[0]]) # BGR format
-                self.palette[frame_idx] = colour
+                # palette = [colors.bytearray_to_int(colors.byte3_to_byte2(color)) for color in palette]
+                # BGR format
+                rgb_color = [data[2], data[1], data[0]]
+                self.palette.set_rgb(color_idx, rgb_color)
 
         # In case self.DIB_h < 0 for top-down format.
         if self.height < 0:
@@ -407,17 +381,33 @@ class MicroBMP(object):
         self.pixels = None
         assert self._init(), "Failed to initialize the image!"
 
-        # Pixels
+        """ Create and populate pixel frames """
         if self.compression == 0:
             # BI_RGB
-            num_frames = int(self.height / self.frame_height)
+            num_frames = math.floor(self.height / self.frame_height)
+            frame_size = self.frame_width * self.frame_height
+            print(f"Creating {num_frames} frames of {self.frame_width}x{self.frame_height} ")
 
             for frame_idx in range(num_frames):
                 if not is_top_down:
                     # invert the frame index, since we're reading them from the bottom
                     frame_idx = num_frames - frame_idx - 1
 
-                frame = self.frames[frame_idx]
+                byte_pixels = bytearray(frame_size)
+
+                buffer = framebuf.FrameBuffer(
+                    byte_pixels,
+                    self.frame_width,
+                    self.frame_height,
+                    framebuf.GS8
+                )
+
+                frame = create_image(
+                    buffer,
+                    byte_pixels,
+                    self.frame_width,
+                    self.frame_height,
+                    self.palette)
 
                 for row in range(0, self.frame_height):
                     data = bf_io.read(self.padded_row_size)
@@ -425,11 +415,14 @@ class MicroBMP(object):
 
                     for x in range(self.width):
                         if self.color_depth <= 8:
-                            frame.pixel(x, y, self._extract_from_bytes(data, x))
+                            buffer.pixel(x, y, self._extract_from_bytes(data, x))
                         else:
                             raise Exception("Only color depth <= 8bit is supported")
 
+                self.frames.append(frame)
+
             self.pixels = self.frames[0]
+            self.palette = self.pixels.palette
         else:
             # BI_RLE8 or BI_RLE4
             self._decode_rle(bf_io)
@@ -567,7 +560,6 @@ class MicroBMP(object):
         index = 0
         while index < len(self.pixels):
             color_idx = self.pixels[index]
-            print(f"color index:{color_idx}")
             color = self.palette[color_idx]
             yield color[0], color[1], color[2]
             index = index + 1

@@ -52,7 +52,7 @@ class SpriteGroup(Spritesheet):
             if self.camera:
                 new_z = self.z + (self.pos_delta["z"] * i)
                 inst.frame_idx = self.get_frame_idx(new_z)
-                inst.height = self.height_2d
+                inst.height = self.frames[inst.frame_idx].height
 
                 new_x = self.x + (self.pos_delta["x"]*i)
                 new_y = self.y + (self.pos_delta["y"]*i)

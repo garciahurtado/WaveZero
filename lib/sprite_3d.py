@@ -45,6 +45,8 @@ class Sprite3D(Sprite):
         draw_x, draw_y = self.pos()
         self.draw_x, self.draw_y = draw_x, draw_y
 
+        super().update_frame()
+
     def pos(self):
         """Returns the 2D coordinates of the object, calculated from the internal x,y (if 2D) or x,y,z
         (if 3D with perspective camera)

@@ -1,12 +1,7 @@
 import gc
-import math
-
-from ucollections import namedtuple
 import uos
 from microbmp import MicroBMP as bmp
-from color_util import FramebufferPalette
 import color_util as colors
-import framebuf
 
 class ImageLoader():
     """Preloads a list of images in order to cache their framebuffers (as RGB565) to later be used by Sprites"""
@@ -75,7 +70,8 @@ class ImageLoader():
     def load_image(filename, frame_width=0, frame_height=0):
         # First of all, check the cache
         if filename in ImageLoader.images.keys():
-            return ImageLoader.images[filename]
+            frames = ImageLoader.images[filename]
+            return frames
 
         print(f"Loading BMP: {filename}")
 
@@ -84,47 +80,16 @@ class ImageLoader():
 
         print(bmp_image)  # Show metadata
 
-        width = bmp_image.width
-        height = bmp_image.height
-        palette = bmp_image.palette # List of RGB tuples
-
-        # palette = [colors.bytearray_to_int(colors.byte3_to_byte2(color)) for color in palette]
-        palette = FramebufferPalette(palette)
-        frames = []
 
         if frame_width and frame_height:
             # This is a spritesheet, so lets make frames from the pixel data without allocating new memory
-            num_frames = int(height / frame_height)
-
-            for i in range(num_frames):
-                image_buffer = bmp_image.frames[i]
-                frame = ImageLoader.create_image(
-                    image_buffer,
-                    frame_width,
-                    frame_height,
-                    palette)
-                frames.append(frame)
-
-            ImageLoader.images[filename] = frames
-            return frames
+            ImageLoader.images[filename] = bmp_image.frames
+            return bmp_image.frames
 
         else:
-            image = ImageLoader.create_image(bmp_image.pixels, width, height, palette)
-            ImageLoader.images[filename] = image
-            return image
+            ImageLoader.images[filename] = bmp_image.frames[0]
+            return bmp_image.frames[0]
 
-    @staticmethod
-    def create_image(image_buffer, width, height, palette):
-        num_colors = palette.num_colors
-
-        image = Image(
-            width,
-            height,
-            image_buffer,
-            num_colors,
-            palette)
-
-        return image
 
     @staticmethod
     def load_as_palette(filename):
@@ -133,10 +98,3 @@ class ImageLoader():
         return image.palette
 
 
-Image = namedtuple("Image",
-                   ("width",
-                    "height",
-                    "pixels",
-                    "num_colors",
-                    "palette",)
-                   )
