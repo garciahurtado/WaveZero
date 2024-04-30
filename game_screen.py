@@ -1,6 +1,7 @@
 import _thread
 import gc
 import random
+import micropython
 
 import framebuf
 import utime as time
@@ -61,6 +62,7 @@ class GameScreen(Screen):
         self.preload_images()
         self.enemies = []
         self.flying_enemies = []
+        micropython.alloc_emergency_exception_buf(100)
 
     def preload_images(self):
         images = [
@@ -82,10 +84,18 @@ class GameScreen(Screen):
 
         self.encoder = Encoder(27, 26)
         self.ui = ui_screen(self.display, self.num_lives)
+
         self.init_sprites()
         self.init_enemies()
 
+        # Start the display render / input handling loop in core #2
+        gc.collect()
+        self.check_mem()
+
+        _thread.start_new_thread(self.start_display_loop, [])
+
         asyncio.run(self.main_async())
+
 
     def init_sprites(self):
         sun = Sprite("/img/sunset.bmp")
@@ -115,12 +125,16 @@ class GameScreen(Screen):
         self.camera.horiz_z = self.sprite_max_z
 
     async def main_async(self):
+
+
+        gc.collect()
         loop = asyncio.get_event_loop()
         self.update_task = loop.create_task(self.update_loop())
 
         max_speed = 50
         self.speed_anim = AnimAttr(self, 'ground_speed', max_speed, 240000)
 
+        gc.collect()
         await asyncio.gather(
             self.update_fps(),
         )
@@ -147,9 +161,6 @@ class GameScreen(Screen):
         anim = AnimAttr(self.bike, 'y', bike_y, 1 * 1000)
         loop.create_task(anim.run(fps=30))
         loop.create_task(self.speed_anim.run(fps=5))
-
-        # Start the display render / input handling loop in core #2
-        _thread.start_new_thread(self.start_display_loop, [])
 
         # Draw loop - will run until task cancellation
         try:
@@ -205,12 +216,12 @@ class GameScreen(Screen):
         self.enemies = []
 
         # Create flying triangles
-        for i in range(0,4):
-            enemy = ScaledSprite(z=100, camera=self.camera, filename='/img/laser_tri.bmp', x=-40+(i*20), y=80)
-            enemy.set_alpha(2)
-            enemy.is3d = True
-            self.flying_enemies.append(enemy)
-            self.add(enemy)
+        # for i in range(0,4):
+        #     enemy = ScaledSprite(z=100, camera=self.camera, filename='/img/laser_tri.bmp', x=-40+(i*20), y=80)
+        #     enemy.set_alpha(2)
+        #     enemy.is3d = True
+        #     self.flying_enemies.append(enemy)
+        #     self.add(enemy)
 
         # Create road obstacles
         num_groups = 4
@@ -219,18 +230,23 @@ class GameScreen(Screen):
         num_palettes = int(palette_width / palette_size)
         print(f"Creating {num_palettes}")
 
-        self.enemy_palettes = Spritesheet(frame_width=4, frame_height=1, filename='/img/enemy_gradients.bmp')
+        self.enemy_palettes = Spritesheet(filename='/img/enemy_gradients.bmp', frame_width=4, frame_height=1)
+        self.enemy_palettes.set_frame(0)
         all_palettes = []
         self.check_mem()
 
+        print(f"{len(self.enemy_palettes.frames)} enemy palettes")
         # Split up the palette gradient into individual sub-palettes
         for i in range(num_groups):
+            print(f"Group {i}")
             self.enemy_palettes.set_frame(i)
-            pixels = self.enemy_palettes.pixels # Colors for a single group (4 palettes)
+
+            pixels = self.enemy_palettes.frames[0].pixels # Colors for a single group (4 palettes)
 
             for j in range(palette_size):
+                print(f"Creating palette {j}")
                 new_palette = colors.FramebufferPalette(bytearray(3 * 2))
-                color_idx = pixels.pixel(j,0)
+                color_idx = pixels.pixel(j, 0)
                 color = self.enemy_palettes.palette.get_bytes(color_idx)
 
                 new_palette.set_bytes(0, color)
@@ -361,8 +377,8 @@ class GameScreen(Screen):
         # Restart the game display and input
         loop = asyncio.get_event_loop()
 
-        self.display_task = loop.create_task(self.refresh_display())
-        self.input_task = loop.create_task(self.get_input(self.encoder, self.encoder_last_pos))
+        #self.display_task = loop.create_task(self.refresh_display())
+        #self.input_task = loop.create_task(self.get_input(self.encoder, self.encoder_last_pos))
 
     def display_thread(self):
         """ Display refresh thread will be executed by core #2 """

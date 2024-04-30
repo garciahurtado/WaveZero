@@ -1,14 +1,15 @@
 import framebuf
+import utime
+
 import color_util as colors
 from color_util import FramebufferPalette
 from image_loader import ImageLoader
 from indexed_image import Image
 
-
 class Sprite:
     """ Represents a sprite which is loaded from disk in BMP format, and stored in memory as an RGB565 framebuffer"""
     filename: str
-    pixels: Image = None
+    image: Image = None
     palette: FramebufferPalette
     num_colors = 0
     width = 0
@@ -37,8 +38,12 @@ class Sprite:
     min_y = -32
     max_x = 200
     max_y = 200
+    dot_color: int = 0
 
-    def __init__(self, filename=None, x=0, y=0) -> None:
+    def __init__(self, filename=None, x=0, y=0, frame_width=None, frame_height=None) -> None:
+        self.frame_width = frame_width
+        self.frame_height = frame_height
+
         if filename:
             print(filename)
             self.load_image(filename)
@@ -56,7 +61,7 @@ class Sprite:
             return False
 
         self.current_frame = frame_num
-        self.pixels = self.frames[frame_num].pixels
+        self.image = self.frames[frame_num]
 
     def update_frame(self):
         """Update the current frame in the spritesheet to the one that represents the correct size when taking into
@@ -75,6 +80,7 @@ class Sprite:
         return True
 
     def get_frame_idx(self, real_z):
+
         rate = ((real_z - self.camera.pos['z']) / 2)
         if rate == 0:
             rate = 0.00001 # Avoid divide by zero
@@ -103,16 +109,18 @@ class Sprite:
         images = ImageLoader.load_image(filename, frame_width, frame_height)
 
         if isinstance(images, list):
+            print(f"Loaded {len(images)} frames")
             self.frames = images
             self.set_frame(0)
             meta = images[0]
         else:
-            self.pixels = images
+            self.image = images
             meta = images
 
         self.width = meta.width
         self.height = meta.height
         self.palette = meta.palette
+        self.dot_color = self.palette.get_bytes(1)
         self.num_colors = meta.palette.num_colors
         self.reset()
 
@@ -157,11 +165,19 @@ class Sprite:
         if y > self.max_y:
             y = self.max_y
 
+        # If this is a scaled sprite, rather than blit, draw a dot into the framebuffer
+        if 5 > self.image.height > 1:
+            display.fill_rect(round(x) + 1, round(y) + 1, 2, 2, self.dot_color)
+            return True
+        if self.image.height <= 1:
+            display.pixel(round(x), round(y), self.dot_color)
+            return True
+
         if self.has_alpha:
             #print(f"x/y: {x},{y} / alpha:{self.alpha_color}")
-            display.blit(self.pixels.pixels, round(x), round(y), self.alpha_color, self.palette)
+            display.blit(self.image.pixels, round(x), round(y), self.alpha_color, self.palette)
         else:
-            display.blit(self.pixels.pixels, round(x), round(y), -1, self.palette)
+            display.blit(self.image.pixels, round(x), round(y), -1, self.palette)
 
     def get_draw_xy(self, display: framebuf.FrameBuffer):
         x, y = self.x, self.y
@@ -181,7 +197,7 @@ class Sprite:
         copy.x = self.x
         copy.y = self.y
 
-        copy.pixels = self.pixels
+        copy.image = self.image
         copy.palette = self.palette
         copy.width = self.width
         copy.height = self.height

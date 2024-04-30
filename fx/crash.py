@@ -38,7 +38,7 @@ class Crash():
         self.stage = framebuf.FrameBuffer(stage, self.display.width, self.display.height, framebuf.GS4_HMSB)
 
     def create_particles(self):
-        bitmap = self.explode_sprite.pixels
+        bitmap = self.explode_sprite.image.pixels
         # self.palette = self.explode_sprite.palette.clone()
         # self.palette.set_rgb(1, [104, 250, 255])
         # self.palette.set_rgb(2, [90, 247, 255])

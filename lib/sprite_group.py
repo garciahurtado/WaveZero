@@ -78,9 +78,9 @@ class SpriteGroup(Spritesheet):
                 palette = self.palette
 
             if self.has_alpha:
-                display.blit(self.pixels, int(inst.draw_x), int(inst.draw_y), self.alpha_color, palette)
+                display.blit(self.image.pixels, int(inst.draw_x), int(inst.draw_y), self.alpha_color, palette)
             else:
-                display.blit(self.pixels, inst.draw_x, inst.draw_y, -1, palette)
+                display.blit(self.image.pixels, inst.draw_x, inst.draw_y, -1, palette)
 
     def reset(self):
         lane = random.randrange(0, 5)
@@ -115,7 +115,7 @@ class SpriteGroup(Spritesheet):
         new_group.speed = self.speed
         new_group.lane_width = self.lane_width
         new_group.frames = self.frames
-        new_group.pixels = self.pixels
+        new_group.image = self.image
         new_group.pos_delta = self.pos_delta
         new_group.palette = self.palette
         new_group.palette_gradient = self.palette_gradient

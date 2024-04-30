@@ -1,3 +1,5 @@
+import utime
+
 from sprite import Sprite
 import framebuf
 
@@ -88,7 +90,7 @@ class Sprite3D(Sprite):
         copy.x = self.x
         copy.y = self.y
 
-        copy.pixels = self.pixels
+        copy.image = self.image
         copy.palette = self.palette
         copy.width = self.width
         copy.height = self.height

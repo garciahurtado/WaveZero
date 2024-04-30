@@ -11,10 +11,6 @@ class PerspectiveCamera():
         self.half_width = self.screen_width / 2
         self.half_height = self.screen_height / 2
 
-        # self.fov_angle = 65  # Desired FOV angle in degrees
-        # self.focal_length_y = self.half_height / np.tan(np.radians(self.fov_angle / 2))
-        # self.focal_length_x = self.half_width / np.tan(np.radians(self.fov_angle / 2))
-
         self.pos = {"x":pos_x, "y":pos_y, "z":pos_z} # location of camera in 3D space
         self.vp = {"x": vp_x, "y":vp_y} # vanishing point
         self.focal_length = focal_length # Distance from the camera to the projection plane in pixels
@@ -45,23 +41,17 @@ class PerspectiveCamera():
         https://forum.gamemaker.io/index.php?threads/basic-pseudo-3d-in-gamemaker.105242/"""
         z = z - self.pos['z']
         if z == 0:
-            z = 0.001 # avoid division by zero
-
+            z = 0.0001 # avoid division by zero
 
         camera_y = self.pos['y']
         screen_x = ((x * self.focal_length_x) / (z)) + self.half_width
         screen_y = (((y - camera_y) * self.focal_length_y) / (z)) + self.half_height
 
-        # Invert, since the screen y=0 is at the top, and in 3D space it is on the floor
         screen_y = self.screen_height - screen_y - self.vp['y']
-        #screen_y_rel = (screen_y - self.vp['y']) / (self.screen_height - self.vp['y'])
-        #yaw = self.max_yaw * (self.pos['x'] / self.screen_width) * screen_y_rel
-
-        #screen_x = screen_x + yaw
         screen_x = screen_x - self.pos["x"]
 
-        # Skew real X according to the camera's vanishing point (vp) to simulate change in perspective
         y_factor = (screen_y - self.vp['y']) / (self.screen_height - self.vp['y'])
         screen_x = screen_x - (self.vp['x'] * y_factor)
 
-        return round(screen_x), round(screen_y)
+        return int(screen_x), int(screen_y)
+

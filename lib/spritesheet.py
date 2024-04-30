@@ -9,18 +9,15 @@ class Spritesheet(Sprite3D):
     lane_width = 0
     palette = None
 
-    def __init__(self, frame_width=None, frame_height=None, lane_width=None, *args, **kwargs):
-        self.frame_width = frame_width
-        self.frame_height = frame_height
+    def __init__(self, lane_width=None, *args, **kwargs):
+
         self.lane_width = lane_width
 
-        if self.frame_width and self.frame_height:
-            self.ratio = self.frame_width / self.frame_height
-
         super().__init__(*args, **kwargs)
-        print(f"Spritesheet init'd with {len(self.frames)} frames")
+        if 'filename' in kwargs:
+            print(f"Spritesheet init'd with {len(self.frames)} frames")
 
-        if self.pixels:
+        if self.image:
             self.set_frame(0)
 
     def update(self):
@@ -40,7 +37,7 @@ class Spritesheet(Sprite3D):
         copy.draw_x = self.draw_x
         copy.draw_y = self.draw_y
 
-        copy.pixels = self.pixels
+        copy.image = self.image
         copy.palette = self.palette
         copy.width = self.width
         copy.height = self.height

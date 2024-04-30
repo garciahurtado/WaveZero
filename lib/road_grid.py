@@ -58,16 +58,16 @@ class RoadGrid():
         print(f"Adding horiz colors palette")
         self.check_mem()
 
-        self.num_horiz_colors = self.height - self.horiz_y
+        self.num_horiz_colors = self.height - self.horiz_y + 1
         self.color_default = colors.rgb_to_565([0, 255, 255])
         self.horiz_palette = colors.make_gradient(horiz_far, horiz_near, self.num_horiz_colors)
-        self.horiz_palette.insert(0, colors.rgb_to_565([0, 0, 255]))
+        self.horiz_palette.set_rgb(0, [0, 0, 255])
 
         print(f"Adding horizon palette")
         self.check_mem()
 
-        self.horizon_palette = colors.make_gradient([21,3,8], [105,5,12], 5)
-        self.horizon_palette.insert(0, 0) # Make the first color black
+        self.horizon_palette = colors.make_gradient([21,3,8], [105,5,12], 6)
+        self.horizon_palette.set_rgb(0, [0,0,0]) # Make the first color black
         self.horiz_lines_data = [None] * num_horiz_lines
 
         print(f"Creating {num_horiz_lines} hlines")
@@ -84,6 +84,8 @@ class RoadGrid():
         self.check_mem()
 
         color = SSD1331.rgb(*colors.hex_to_rgb(0x217eff))
+
+        # Color middle lanes light blue
         palette_1[num_vert_colors-3:] = [color] * 3
 
         # Color conversion to RGB

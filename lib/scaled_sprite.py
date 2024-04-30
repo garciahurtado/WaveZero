@@ -28,7 +28,7 @@ class ScaledSprite(Sprite3D):
     def create_scaled_frames(self):
         num_frames = self.height - 1
         self.frames = []
-        orig_img: Image = self.pixels
+        orig_img: Image = self.image
 
         for f in range(1, num_frames + 1):
             scale = f / num_frames
@@ -37,8 +37,6 @@ class ScaledSprite(Sprite3D):
 
             new_width = math.ceil(self.width * scale)
             new_height = math.ceil(self.height * scale)
-
-            # print(f"New frame of {new_width} x {new_height}")
 
             orig_pixels = np.frombuffer(orig_img.pixel_bytes, dtype=np.uint8)
             orig_pixels = orig_pixels.reshape((self.height, self.width))
@@ -53,6 +51,7 @@ class ScaledSprite(Sprite3D):
                 for x in range(new_width):
                     y_1 = round(y / scale)
                     x_1 = round(x / scale)
+
 
                     if y_1 >= self.height:
                         y_1 = self.height - 1
@@ -69,10 +68,11 @@ class ScaledSprite(Sprite3D):
                 new_height,
                 framebuf.GS8
             )
+            #print(f"Making scaled frame:: {new_width} x {new_height}")
 
             frame = create_image(
                 new_buffer,
-                new_bytes,
+                memoryview(new_bytes),
                 new_width,
                 new_height,
                 self.palette)
@@ -82,4 +82,4 @@ class ScaledSprite(Sprite3D):
 
     def set_frame(self, index: int):
         self.current_frame = index
-        self.pixels = self.frames[index]
+        self.image = self.frames[index]
