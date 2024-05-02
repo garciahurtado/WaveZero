@@ -3,10 +3,9 @@ import random
 import framebuf
 from color_util import FramebufferPalette
 from road_grid import RoadGrid
-from spritesheet import Spritesheet
+from sprite_3d import Sprite3D
 
-
-class SpriteGroup(Spritesheet):
+class SpriteGroup(Sprite3D):
     """Represents a group of sprites that use the same image and are rendered nearby as a group. This class renders
     the sprites without needing an object for each"""
 
@@ -14,7 +13,6 @@ class SpriteGroup(Spritesheet):
     palette_gradient: FramebufferPalette
     instance_palettes = []
     instances = []
-    filename: str
     num_elements = 0
     grid: RoadGrid = None
 
@@ -159,7 +157,7 @@ class SpriteInstance:
             self.draw_x,
             self.draw_y,
             self.frame_idx,
-            self.height
+            self.height,
         )
         return my_copy
 

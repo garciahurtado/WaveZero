@@ -1,5 +1,3 @@
-import math
-
 from image_loader import ImageLoader
 from sprite_3d import Sprite3D
 import framebuf
@@ -18,12 +16,8 @@ class ScaledSprite(Sprite3D):
             self.ratio = self.width / self.height
 
         if self.filename: # Will be None when cloning
-            if self.frames:
-                self.set_frame(0)
-            else:
-                self.create_scaled_frames()
-                ImageLoader.images[kwargs['filename']] = self.frames
-                self.set_frame(0)
+            self.set_frame(0)
+            self.create_scaled_frames()
 
     def create_scaled_frames(self):
         num_frames = self.height - 1
@@ -35,8 +29,8 @@ class ScaledSprite(Sprite3D):
             if scale > 1:
                 scale = 1
 
-            new_width = math.ceil(self.width * scale)
-            new_height = math.ceil(self.height * scale)
+            new_width = round(self.width * scale)
+            new_height = round(self.height * scale)
 
             orig_pixels = np.frombuffer(orig_img.pixel_bytes, dtype=np.uint8)
             orig_pixels = orig_pixels.reshape((self.height, self.width))
@@ -68,7 +62,7 @@ class ScaledSprite(Sprite3D):
                 new_height,
                 framebuf.GS8
             )
-            #print(f"Making scaled frame:: {new_width} x {new_height}")
+            # print(f"Making scaled frame:: {new_width} x {new_height}")
 
             frame = create_image(
                 new_buffer,
@@ -80,6 +74,3 @@ class ScaledSprite(Sprite3D):
 
         self.set_frame(0)
 
-    def set_frame(self, index: int):
-        self.current_frame = index
-        self.image = self.frames[index]

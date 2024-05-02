@@ -1,6 +1,8 @@
 import color_lib
 import color_util as colors
 import framebuf
+
+from framebuffer_palette import FramebufferPalette
 from ssd1331_16bit import SSD1331
 
 
@@ -22,7 +24,7 @@ def color_mix(c1, c2, mix):
     return [r, g, b]
 
 
-def rgb_to_565(rgb):
+def _rgb_to_565(rgb):
     """ Convert RGB values to 5-6-5 bit BGR format (16bit) """
     r5 = (rgb[2] >> 3) & 0b11111
     g6 = (rgb[1] >> 2) & 0b111111
@@ -32,6 +34,10 @@ def rgb_to_565(rgb):
     rgb565 = (r5 << 11) | (g6 << 5) | b5
     return rgb565
 
+def rgb_to_565(rgb):
+    """ Convert RGB values to 5-6-5 bit BGR format (16bit) """
+    r, g, b = rgb[0], rgb[1], rgb[2]
+    return ((b & 0xf8) << 5) | ((g & 0x1c) << 11) | (r & 0xf8) | ((g & 0xe0) >> 5)
 
 def rgb565_to_rgb(rgb565):
     """
@@ -158,7 +164,7 @@ def byte3_to_byte2(rgb_bytes_array):
 
 def make_gradient(start_color: list[int], end_color: list[int], num_colors):
     '''Sets up a color palette by mixing gradually between the two colors. The resulting colors will be saved as RGB565 for efficiency'''
-    palette = FramebufferPalette(num_colors)
+    palette = FramebufferPalette(bytearray(num_colors*2))
 
     # Add colors to palette
     for i, hsl in enumerate(color_scale(
@@ -220,57 +226,3 @@ def color_scale(begin_hsl, end_hsl, nb):
         return tuple([v + step2[i] for i, v in enumerate(step)])
 
     return [add_v(begin_hsl, mul(step, r)) for r in range(0, nb + 1)]
-
-
-class FramebufferPalette(framebuf.FrameBuffer):
-    """
-    A color palette in framebuffer format (rgb565), ready to be used by display.blit()
-    """
-    palette: bytearray
-    num_colors = 0
-
-    def __init__(self, palette):
-
-        set_colors = []
-
-        if isinstance(palette, bytearray):
-            self.num_colors = int(len(palette) / 2)
-            self.palette = palette
-        else:
-            """ you can also pass a list of RGB tuples to the constructor"""
-            set_colors = palette
-
-            self.num_colors = len(set_colors)
-            self.palette = bytearray(self.num_colors * 2) # 2 bytes per color (RGB565)
-
-        super().__init__(self.palette, self.num_colors, 1, framebuf.RGB565)
-
-        for i, color in enumerate(set_colors):
-            self.set_rgb(i, color)
-
-    def __len__(self):
-        return len(self.palette)
-
-    def set_rgb(self, index, color):
-        color = SSD1331.rgb(color[0], color[1], color[2])  # returns 2 bytes
-        self.pixel(index, 0, color)
-
-    def get_rgb(self, index):
-        color = self.pixel(index, 0)
-        color = colors.rgb565_to_rgb(color)
-        return color
-
-    def set_bytes(self, index, color):
-        self.pixel(index, 0, color)
-
-    def get_bytes(self, index):
-        color = self.pixel(index, 0)
-        return color
-
-    def clone(self):
-        new_palette = FramebufferPalette(bytearray(self.num_colors * 2))
-        for i in range(0, self.num_colors + 1):
-            color = self.pixel(i, 0)
-            new_palette.pixel(i, 0, color)
-
-        return new_palette

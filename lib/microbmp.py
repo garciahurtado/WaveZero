@@ -56,15 +56,15 @@ import math
 from struct import pack, unpack
 
 import framebuf
+from micropython import const
+
 import color_util as colors
-from ulab import numpy as np
 
 # Project Version
-__version__ = "0.3.0"
-__all__ = ["MicroBMP"]
+__version__ = const("0.3.0")
+__all__ = const("MicroBMP")
 
-from indexed_image import Image, create_image
-
+from indexed_image import create_image
 
 class MicroBMP(object):
     """MicroBMP class.
@@ -404,7 +404,7 @@ class MicroBMP(object):
 
                 frame = create_image(
                     buffer,
-                    byte_pixels,
+                    memoryview(byte_pixels),
                     self.frame_width,
                     self.frame_height,
                     self.palette)
@@ -414,12 +414,16 @@ class MicroBMP(object):
                     y = row if is_top_down else self.frame_height - row - 1
 
                     for x in range(self.width):
+                        x = x if is_top_down else self.frame_width - x - 1
                         if self.color_depth <= 8:
                             buffer.pixel(x, y, self._extract_from_bytes(data, x))
                         else:
                             raise Exception("Only color depth <= 8bit is supported")
 
                 self.frames.append(frame)
+
+            if not is_top_down:
+                self.frames.reverse()
 
             self.pixels = self.frames[0]
             self.palette = self.pixels.palette

@@ -1,9 +1,9 @@
-import utime
+import math
 
-from sprite import Sprite
 import framebuf
+from spritesheet import Spritesheet
 
-class Sprite3D(Sprite):
+class Sprite3D(Spritesheet):
     """ A Sprite which has an x,y,z location in 3D space, and that can be rendered in a 2D screen with the help
     of a camera."""
 
@@ -14,12 +14,14 @@ class Sprite3D(Sprite):
     lane_num = None
     lane_width = 0
 
-    def __init__(self, z=0, camera=None, lane_width=0, *args, **kwargs):
+    half_scale_one_dist = 0
+
+    def __init__(self, z=0, camera=None, lane_width=None, *args, **kwargs):
+
         self.lane_width = lane_width
         self.z = z
         self.camera = camera
         super().__init__(*args, **kwargs)
-
 
     def set_camera(self, camera):
         self.camera = camera
@@ -35,7 +37,7 @@ class Sprite3D(Sprite):
         if self.z > self.horiz_z:
             return False
 
-        return super().show(display)
+        return super().show(display, self.draw_x, self.draw_y)
 
     def update(self):
         if not self.active:
@@ -45,24 +47,43 @@ class Sprite3D(Sprite):
             self.z = self.z + self.speed
 
         draw_x, draw_y = self.pos()
+
+        if draw_y < self.min_y and self.horiz_z:
+            self.z = self.horiz_z
+            draw_x, draw_y = self.pos()
+
         self.draw_x, self.draw_y = draw_x, draw_y
 
-        super().update_frame()
+        self.update_frame()
+
+    def do_blit(self, x: int, y: int, display: framebuf.FrameBuffer):
+        # Overrides parent for some performance hacks
+        offset: int = 0
+        if 3 > self.image.height > 2:
+            offset = int(self.image.height / 2)
+            display.fill_rect(x + offset, y + offset, self.image.height, self.image.width, self.dot_color)
+            return True
+        if self.image.height <= 2:
+            offset = int(self.image.height / 2)
+            display.pixel(x + offset, y + offset, self.dot_color)
+            return True
+
+        return super().do_blit(x, y, display)
 
     def pos(self):
         """Returns the 2D coordinates of the object, calculated from the internal x,y (if 2D) or x,y,z
         (if 3D with perspective camera)
         """
-        if self.camera:
-            x_offset = self.x - self.camera.pos["x"]
-            x, y = self.camera.to_2d(x_offset, self.y + self.height, self.z)
+        x_offset = 0
+        camera = self.camera
 
-            #x = int(x - (self.width_2d / 2))  # Draw the object so that it is horizontally centered
+        if camera:
+            x_offset = self.x - camera.pos["x"]
+            x, y = camera.to_2d(x_offset, self.y + self.frame_height, self.z)
 
-            return int(x), int(y)
+            return x, y
         else:
             return self.x, self.y
-
 
 
     def get_lane(self):
@@ -80,24 +101,11 @@ class Sprite3D(Sprite):
         # return lane
 
     def set_lane(self, lane_num):
+        if lane_num == self.lane_num:
+            return False
+
         self.lane_num = lane_num
         lane = lane_num - 2 # [-2,-1,0,1,2]
-        res = (lane * self.lane_width) - (self.frame_width/2)
-        self.x = int(res)
-
-    def _clone(self):
-        copy = Sprite()
-        copy.x = self.x
-        copy.y = self.y
-
-        copy.image = self.image
-        copy.palette = self.palette
-        copy.width = self.width
-        copy.height = self.height
-
-        copy.has_alpha = self.has_alpha
-        copy.alpha_color = self.alpha_color
-        copy.alpha_index = self.alpha_index
-
-        return copy
+        new_x = (lane * self.lane_width) - (self.frame_width/2)
+        self.x = int(new_x)
 

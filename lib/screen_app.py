@@ -10,8 +10,10 @@ class ScreenApp:
     display: framebuf.FrameBuffer
     screens = []
     display: None
+    screen_width: int = 0
+    screen_height: int = 0
 
-    def __init__(self, screen_width, screen_height):
+    def __init__(self, screen_width: int, screen_height: int):
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.setup_display()

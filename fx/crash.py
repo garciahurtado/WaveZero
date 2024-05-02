@@ -28,14 +28,14 @@ class Crash():
         self.stage_width = self.display.width
         self.stage_height = self.display.height
 
-        gc.collect()
         print(f"Free memory before main loop:  {gc.mem_free():,} bytes")
 
         # Create a 1-bit stage the size of the display where we will draw the FX
-        size = self.display.width * self.display.height / 2
+        size = int(self.display.width * self.display.height / 2)
         print(f"Stage size: {size:0} bytes")
-        stage = bytearray(int(size))
-        self.stage = framebuf.FrameBuffer(stage, self.display.width, self.display.height, framebuf.GS4_HMSB)
+        gc.collect()
+
+        self.stage = framebuf.FrameBuffer(bytearray(size), self.display.width, self.display.height, framebuf.GS4_HMSB)
 
     def create_particles(self):
         bitmap = self.explode_sprite.image.pixels

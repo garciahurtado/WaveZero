@@ -44,7 +44,6 @@ DC_MODE_DATA = 0x01
 class SSD1331(framebuf.FrameBuffer):
     height: int
     width: int
-    palette: framebuf.FrameBuffer
     buffer: bytearray
 
     # Convert r, g, b in range 0-255 to a 16 bit colour value RGB565
@@ -63,8 +62,7 @@ class SSD1331(framebuf.FrameBuffer):
         self.width = width
         self._spi_init = init_spi
         mode = framebuf.RGB565
-        self.palette = BoolPalette(mode)
-        
+
         gc.collect()
         self.buffer = bytearray(self.height * self.width * 2) # RGB565 is 2 bytes
         super().__init__(self.buffer, self.width, self.height, mode)
@@ -109,20 +107,11 @@ class SSD1331(framebuf.FrameBuffer):
     def _write_line(self, x_0, y_0, x_1, y_1):
         #self._write_cmd(CMD_DRAWLINE)
         self._write(CMD_DRAWLINE, DC_MODE_CMD)
-        x_0 = x_0 & 0xFF
-        y_0 = y_0 & 0xFF
-        x_1 = x_1 & 0xFF
-        y_1 = y_1 & 0xFF
 
-        x_0 = self._to_bytes(x_0)
-        y_0 = self._to_bytes(y_0)
-        x_1 = self._to_bytes(x_1)
-        y_1 = self._to_bytes(y_1)
-
-        self._write(x_0, DC_MODE_CMD)
-        self._write(y_0, DC_MODE_CMD)
-        self._write(x_1, DC_MODE_CMD)
-        self._write(y_1, DC_MODE_CMD)
+        self._write(self._to_bytes(x_0 & 0xFF), DC_MODE_CMD)
+        self._write(self._to_bytes(y_0 & 0xFF), DC_MODE_CMD)
+        self._write(self._to_bytes(x_1 & 0xFF), DC_MODE_CMD)
+        self._write(self._to_bytes(y_1 & 0xFF), DC_MODE_CMD)
 
     def _write_color(self, r, g, b):
         self._write(self._to_bytes(r), DC_MODE_CMD)

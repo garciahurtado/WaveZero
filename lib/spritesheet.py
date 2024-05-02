@@ -1,63 +1,86 @@
 from image_loader import ImageLoader
-from sprite_3d import Sprite3D
+from sprite import Sprite
 
 
-class Spritesheet(Sprite3D):
+class Spritesheet(Sprite):
 
     ratio = 0
     half_scale_one_dist = 0
-    lane_width = 0
     palette = None
 
-    def __init__(self, lane_width=None, *args, **kwargs):
+    # Scaled / spritesheet frames
+    frames = []
+    current_frame = 0
+    frame_width: int = 0
+    frame_height: int = 0
 
-        self.lane_width = lane_width
+    def __init__(self, frame_width: int = 0, frame_height: int = 0,  *args, **kwargs):
+        self.frame_width = frame_width
+        self.frame_height = frame_height
 
         super().__init__(*args, **kwargs)
-        if 'filename' in kwargs:
-            print(f"Spritesheet init'd with {len(self.frames)} frames")
+        # if 'filename' in kwargs:
+        #     print(f"Spritesheet init'd with {len(self.frames)} frames")
 
-        if self.image:
-            self.set_frame(0)
+
+    def load_image(self, filename):
+        """Overrides parent"""
+        self.frames = ImageLoader.load_image(filename, self.frame_width, self.frame_height)
+
+        print(f"Loaded {len(self.frames)} frames")
+        meta = self.frames[0]
+
+        self.width = meta.width
+        self.height = meta.height
+        self.palette = meta.palette
+        self.dot_color = self.palette.get_bytes(1)
+        self.num_colors = meta.palette.num_colors
+        self.visible = True
+
+        self.set_frame(0)
 
     def update(self):
         super().update()
-        self.update_frame()
 
-    def _clone(self):
-        copy = Spritesheet(
-            frame_width=self.frame_width,
-            frame_height=self.frame_height,
-            x=self.x,
-            y=self.y,
-            z=self.z,
-            camera=self.camera
-        )
-        copy.is3d = self.is3d
-        copy.draw_x = self.draw_x
-        copy.draw_y = self.draw_y
+    def set_frame(self, frame_num):
+        if frame_num >= len(self.frames):
+            raise KeyError(f"Frame {frame_num} is invalid (only {len(self.frames)} frames)")
 
-        copy.image = self.image
-        copy.palette = self.palette
-        copy.width = self.width
-        copy.height = self.height
-        copy.horiz_z = self.horiz_z
+        self.current_frame = frame_num
+        self.image = self.frames[frame_num]
+        self.width = self.image.width
+        self.height = self.image.height
 
-        copy.has_alpha = self.has_alpha
-        copy.alpha_color = self.alpha_color
-        copy.alpha_index = self.alpha_index
+    def update_frame(self):
+        """Update the current frame in the spritesheet to the one that represents the correct size when taking into
+        account 3D coordinates and the camera """
 
-        copy.frames = self.frames
-        copy.current_frame = self.current_frame
-        copy.frame_width = self.frame_width
-        copy.frame_height = self.frame_height
-        copy.ratio = self.ratio
-        copy.half_scale_one_dist = self.half_scale_one_dist
-        copy.palette = self.palette.clone()
-        copy.lane_width = self.lane_width
-        copy.speed = self.speed
+        frame_idx = self.get_frame_idx(self.z)
+        if self.current_frame == frame_idx:
+            return False
 
-        if self.camera:
-            copy.set_camera(self.camera)
+        self.set_frame(frame_idx)
 
-        return copy
+        return True
+
+    def get_frame_idx(self, real_z):
+
+        rate = ((real_z - self.camera.pos['z']) / 2)
+        if rate == 0:
+            rate = 0.00001 # Avoid divide by zero
+
+        scale = self.half_scale_one_dist / rate
+        frame_idx = int(scale * len(self.frames))
+        #self.height_2d = scale * self.frame_height
+        #self.width_2d = self.ratio * self.height_2d
+
+        if frame_idx >= len(self.frames):
+            frame_idx = len(self.frames) - 1
+
+        if frame_idx < 0:
+            frame_idx = 0
+
+        return frame_idx
+
+
+

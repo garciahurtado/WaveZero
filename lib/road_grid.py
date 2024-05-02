@@ -3,7 +3,9 @@ import math
 import utime
 import color_util as colors
 from ssd1331_16bit import SSD1331
-import micropython
+
+MIDDLE_CYAN = colors.hex_to_rgb(0x217eff)
+BLACK = colors.rgb_to_565([0,0,0])
 
 class RoadGrid():
 
@@ -14,7 +16,6 @@ class RoadGrid():
         self.num_vert_lines = 19
         self.vert_points = []
         self.display = display
-
 
         self.camera = camera
         self.horiz_y = camera.vp['y']  # 16
@@ -66,7 +67,7 @@ class RoadGrid():
         print(f"Adding horizon palette")
         self.check_mem()
 
-        self.horizon_palette = colors.make_gradient([21,3,8], [105,5,12], 6)
+        self.horizon_palette = colors.make_gradient([21,3,8], [105,5,12], 7)
         self.horizon_palette.set_rgb(0, [0,0,0]) # Make the first color black
         self.horiz_lines_data = [None] * num_horiz_lines
 
@@ -79,30 +80,31 @@ class RoadGrid():
         num_vert_colors = math.ceil(self.num_vert_lines / 2)
         print(f"Making a vertical palette of {num_vert_colors}")
 
-        palette_1 = colors.make_gradient(red, cyan, num_vert_colors)
+        vert_palette_1 = colors.make_gradient(red, cyan, num_vert_colors)
         print("After vertical palette")
         self.check_mem()
 
-        color = SSD1331.rgb(*colors.hex_to_rgb(0x217eff))
-
-        # Color middle lanes light blue
-        palette_1[num_vert_colors-3:] = [color] * 3
+        # Color last 3 lines cyan (x2: 6 lines total)
+        for i in range(4):
+            vert_palette_1.set_rgb(num_vert_colors-3+i, MIDDLE_CYAN)
 
         # Color conversion to RGB
         # palette_1 = [colors.rgb565_to_rgb(color) for color in palette_1]
 
-        palette_2 = palette_1[::-1] # mirror palette 1
+        vert_palette_2 = vert_palette_1.mirror()
 
 
         # Concatenate the two mirrored palettes into one
-        self.vert_palette = palette_1 + palette_2
+        self.vert_palette = vert_palette_1 + vert_palette_2
+        #self.vert_palette = vert_palette_2
         print("After both palettes combined")
         self.check_mem()
 
     def show(self):
         self.update_horiz_lines()
-        self.draw_horizon()
         self.update_vert_lines()
+        self.draw_horizon()
+
 
     def create_horiz_lines(self, num_lines):
         max_z = self.far_z_horiz
@@ -115,7 +117,7 @@ class RoadGrid():
     def create_vert_points(self):
         """ Calculates the x,y start and end points for the vertical lines of the road grid """
 
-        num_lines = self.num_vert_lines
+        num_vert_lines = self.num_vert_lines
 
         lane_width_far, _ = self.camera.to_2d(self.lane_width, 0, self.far_z_vert) # used to measure the lane width in screen space
         lane_width_far = lane_width_far - self.camera.half_width
@@ -123,15 +125,15 @@ class RoadGrid():
         lane_width_near, _ = self.camera.to_2d(self.lane_width, 0, self.near_z) # used to measure the lane width in screen space
         lane_width_near = lane_width_near - self.camera.half_width
 
-        self.x_start_top = - (num_lines * lane_width_far / 2)
-        self.x_start_bottom = - (num_lines * lane_width_near / 2)
+        self.x_start_top = - (num_vert_lines * lane_width_far / 2)
+        self.x_start_bottom = - (num_vert_lines * lane_width_near / 2)
 
-        horiz_y_offset = +1; # Manual adjustment for the start.y of the vertical lines
+        horiz_y_offset = +1 # Manual adjustment for the start.y of the vertical lines
         horiz_y = self.horiz_y + horiz_y_offset
 
-        points_start = [None] * num_lines
+        points_start = [None] * num_vert_lines
         lane_start, lane_end = 7, 12
-        for i in range(num_lines):
+        for i in range(num_vert_lines):
             x = (i * lane_width_far) + self.camera.half_width
             points_start[i] = [int(x), horiz_y]
 
@@ -140,15 +142,15 @@ class RoadGrid():
             elif i == lane_end:
                 points_start[i] = [int(x + 1), horiz_y]
 
-        points_end = [None] * num_lines
-        for i in range(num_lines):
-            x = (i * lane_width_near) + self.camera.half_width
-            points_end[i] = [int(x), self.height]
+        points_end = [None] * num_vert_lines
+        for j in range(num_vert_lines):
+            x = (j * lane_width_near) + self.camera.half_width
+            points_end[j] = [int(x), self.height]
 
-            if i == lane_start:
-                points_end[i] = [int(x - 1), self.height]
-            elif i == lane_end:
-                points_end[i] = [int(x + 1), self.height]
+            if j == lane_start:
+                points_end[j] = [int(x - 1), self.height]
+            elif j == lane_end:
+                points_end[j] = [int(x + 1), self.height]
 
         self.vert_points = [points_start, points_end]
 
@@ -180,10 +182,10 @@ class RoadGrid():
 
             color_idx = int(my_line['y'] - self.horiz_y)
 
-            if color_idx >= len(self.horiz_palette):
-                color_idx = len(self.horiz_palette) - 1
+            if color_idx >= self.horiz_palette.num_colors:
+                color_idx = self.horiz_palette.num_colors - 1
 
-            rgb565 = self.horiz_palette[color_idx]
+            rgb565 = self.horiz_palette.get_bytes(color_idx)
             self.display.hline(0, my_line['y'], self.width, rgb565)
 
     def update_vert_lines(self):
@@ -201,17 +203,19 @@ class RoadGrid():
             start_y = start[1]
             end_y = end[1]
 
-            rgb = self.vert_palette[index]
+            rgb = self.vert_palette.get_bytes(index)
             self.display.line(start_x, start_y, end_x, end_y, rgb)
 
 
     def draw_horizon(self):
         """Draw some static horizontal lines to cover up the seam between vertical and horiz road lines"""
+        color: int = 0
 
-        for i in range(0, len(self.horizon_palette) -2):
+        for i in range(0, self.horizon_palette.num_colors-3):
+            color = self.horizon_palette.get_bytes(i)
             start_y = self.horiz_y - 4 + (i*2)
-            self.display.hline(0, start_y, self.display.width, self.horizon_palette[0])
-            self.display.hline(0, start_y + 1, self.display.width,  self.horizon_palette[i])
+            self.display.hline(0, start_y, self.display.width, BLACK)
+            self.display.hline(0, start_y + 1, self.display.width,  color)
 
 
     def check_mem(self):

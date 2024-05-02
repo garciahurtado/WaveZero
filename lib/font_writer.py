@@ -31,6 +31,9 @@ __version__ = (0, 5, 1)
 fast_mode = True  # Does nothing. Kept to avoid breaking code.
 
 class DisplayState():
+    text_row: int = 0
+    text_col: int = 0
+
     def __init__(self):
         self.text_row = 0
         self.text_col = 0
@@ -281,8 +284,6 @@ class ColorWriter(Writer):
         return idx
 
     def __init__(self, device, font, text_width, text_height, fgcolor=None, bgcolor=None, verbose=True):
-        if not hasattr(device, 'palette'):
-            raise OSError('Incompatible device driver.')
         if implementation[1] < (1, 17, 0):
             raise OSError('Firmware must be >= 1.17.')
 
@@ -295,13 +296,9 @@ class ColorWriter(Writer):
         self.def_bgcolor = self.bgcolor
         self.def_fgcolor = self.fgcolor
 
-        palette = [bgcolor, fgcolor]
-        #my_palette = framebuf.FrameBuffer(bytearray(2*2), 2, 1, framebuf.RGB565)
-        my_palette = colors.FramebufferPalette(palette)
-        for i, new_color in enumerate(palette):
-            new_color = colors.byte3_to_byte2(new_color)
-            new_color = colors.bytearray_to_int(new_color)
-            my_palette.pixel(i, 0, new_color)
+        my_palette = colors.FramebufferPalette(bytearray(2*2))
+        for i, new_color in enumerate([bgcolor, fgcolor]):
+            my_palette.pixel(i, 0, colors.bytearray_to_int(colors.byte3_to_byte2(new_color)))
 
         self.palette = my_palette
 

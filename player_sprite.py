@@ -1,5 +1,4 @@
 import asyncio
-
 from spritesheet import Spritesheet
 
 class PlayerSprite(Spritesheet):

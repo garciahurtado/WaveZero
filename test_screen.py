@@ -13,7 +13,7 @@ import fonts.vtks_blocketo_6px as font_vtks
 
 
 class TestScreen(Screen):
-    sprite_max_z = const(1000)
+    sprite_max_z = const(5000)
     display_task = None
     CYAN = (0, 255, 255)
     GREEN = (0, 255, 0)
@@ -56,9 +56,9 @@ class TestScreen(Screen):
             # Show the FPS in the score label
             fps = int(self.fps.fps())
             Writer.set_textpos(self.display, 0, 0)
-            self.fps_text.printstring(f"{fps: >4}")
+            self.fps_text.printstring("{:>5}".format(fps))
 
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.1)
 
 
     async def sprite_fps_test(self):
@@ -66,10 +66,10 @@ class TestScreen(Screen):
 
         while True:
             for i, sprite in enumerate(self.sprites):
-                sprite.z = sprite.z + 3
+                sprite.z = sprite.z + 6
                 sprite.update()
 
-            await asyncio.sleep(1 / 120)
+            await asyncio.sleep(1 / 90)
 
     def create_sprites(self):
         # Create n * n * n sprites
@@ -128,7 +128,7 @@ class TestScreen(Screen):
 
         color = colors.rgb_to_565((4, 4, 4))
         while True:
-            # start = utime.ticks_ms()
+            #start = utime.ticks_ms()
 
             self.display.fill(color)
             for i, sprite in enumerate(self.sprites):
@@ -137,8 +137,8 @@ class TestScreen(Screen):
             self.fps_text.show(self.display)
             self.do_refresh()
 
-            # diff = utime.ticks_ms() - start
-            # print(f"sprite.show(): {diff}ms")
+            #diff = utime.ticks_ms() - start
+            #print(f"sprite.show(): {diff}ms")
 
     def start_display_loop(self):
         self.refresh_display()

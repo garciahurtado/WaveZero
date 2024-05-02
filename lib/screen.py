@@ -1,32 +1,33 @@
+import _thread
 import gc
 
 import asyncio
 import framebuf
 
 from fps_counter import FpsCounter
-from road_grid import RoadGrid
 from sprite import Sprite
-
+import micropython
 
 class Screen:
     display: framebuf.FrameBuffer
-    grid: RoadGrid
     sprites: [Sprite]
+    sprites_lock: None
 
     def __init__(self, display=None):
+        self.sprites_lock = _thread.allocate_lock()
         self.sprites = []
         if display:
             self.display = display
         self.fps = FpsCounter()
 
     def add(self, sprite):
-        self.sprites.append(sprite)
+        with self.sprites_lock:
+            self.sprites.append(sprite)
 
     async def refresh_display(self):
         try:
             while True:
                 self.do_refresh()
-                #self.check_mem()
                 await asyncio.sleep(1/120)
         except asyncio.CancelledError:
             return True
@@ -49,5 +50,11 @@ class Screen:
     def check_mem(self):
         gc.collect()
         print(f"Free memory: {gc.mem_free():,} bytes")
+
+    def mem_marker(self, msg=None):
+        gc.collect()
+        print(msg)
+        print(micropython.mem_info())
+
 
 

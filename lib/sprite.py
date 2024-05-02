@@ -1,3 +1,5 @@
+import math
+
 import framebuf
 import utime
 
@@ -18,15 +20,11 @@ class Sprite:
     height_2d = 0
     ratio = 0
     is3d = False
-    visible = True # Whether show() will render this Sprite
+    visible = False # Whether show() will render this Sprite
     active = True # Whether update() will update this Sprite
     blink = False
     blink_flip = 1
-    frames = []
-    current_frame = 0
-    frame_width = 0
-    frame_height = 0
-    half_scale_one_dist = 0
+
 
     x = 0
     y = 0
@@ -40,12 +38,9 @@ class Sprite:
     max_y = 200
     dot_color: int = 0
 
-    def __init__(self, filename=None, x=0, y=0, frame_width=None, frame_height=None) -> None:
-        self.frame_width = frame_width
-        self.frame_height = frame_height
+    def __init__(self, filename=None, x=0, y=0) -> None:
 
         if filename:
-            print(filename)
             self.load_image(filename)
             self.filename = filename
 
@@ -56,73 +51,20 @@ class Sprite:
 
     def reset(self):
         pass
-    def set_frame(self, frame_num):
-        if frame_num == self.current_frame:
-            return False
 
-        self.current_frame = frame_num
-        self.image = self.frames[frame_num]
+    def load_image(self, filename):
+        self.filename = filename
+        self.image = ImageLoader.load_image(filename)
 
-    def update_frame(self):
-        """Update the current frame in the spritesheet to the one that represents the correct size when taking into
-        account 3D coordinates and the camera"""
-
-        if not self.camera or not self.frames or (len(self.frames) == 0):
-            print("MISSING PARAMS ERROR")
-            return False
-
-        frame_idx = self.get_frame_idx(self.z)
-        if self.current_frame == frame_idx:
-            return False
-
-        self.set_frame(frame_idx)
-
-        return True
-
-    def get_frame_idx(self, real_z):
-
-        rate = ((real_z - self.camera.pos['z']) / 2)
-        if rate == 0:
-            rate = 0.00001 # Avoid divide by zero
-
-        scale = self.half_scale_one_dist / rate
-        frame_idx = int(scale * len(self.frames))
-        #self.height_2d = scale * self.frame_height
-        #self.width_2d = self.ratio * self.height_2d
-
-        if frame_idx >= len(self.frames):
-            frame_idx = len(self.frames) - 1
-
-        if frame_idx < 0:
-            frame_idx = 0
-
-        return frame_idx
-
-    def load_image(self, filename, frame_width=None, frame_height=None):
-        """Overrides parent"""
-        if not frame_width:
-            frame_width == self.width
-
-        if not frame_height:
-            frame_height = self.height
-
-        images = ImageLoader.load_image(filename, frame_width, frame_height)
-
-        if isinstance(images, list):
-            print(f"Loaded {len(images)} frames")
-            self.frames = images
-            self.set_frame(0)
-            meta = images[0]
-        else:
-            self.image = images
-            meta = images
+        meta = self.image
 
         self.width = meta.width
         self.height = meta.height
         self.palette = meta.palette
         self.dot_color = self.palette.get_bytes(1)
         self.num_colors = meta.palette.num_colors
-        self.reset()
+
+        self.visible = True
 
 
     def set_alpha(self, alpha_index=0):
@@ -147,9 +89,14 @@ class Sprite:
 
         self.palette = new_palette
 
-    def show(self, display: framebuf.FrameBuffer):
-        if not self.visible:
+    def show(self, display: framebuf.FrameBuffer, x: int = None, y: int = None):
+        if not self.visible or not self.image:
+            # print("nothing to show")
             return False
+
+        if x is None or y is None:
+            x = self.x
+            y = self.y
 
         # Simulate a transparent Sprite effect
         if self.blink:
@@ -157,27 +104,23 @@ class Sprite:
             if self.blink_flip == -1:
                 return False
 
-        x, y = self.get_draw_xy(display)
-
         if x > self.max_x:
             x = self.max_x
 
         if y > self.max_y:
             y = self.max_y
 
-        # If this is a scaled sprite, rather than blit, draw a dot into the framebuffer
-        if 5 > self.image.height > 1:
-            display.fill_rect(round(x) + 1, round(y) + 1, 2, 2, self.dot_color)
-            return True
-        if self.image.height <= 1:
-            display.pixel(round(x), round(y), self.dot_color)
-            return True
+        return self.do_blit(x, y, display)
 
+
+    def do_blit(self, x: int, y: int, display: framebuf.FrameBuffer):
         if self.has_alpha:
             #print(f"x/y: {x},{y} / alpha:{self.alpha_color}")
-            display.blit(self.image.pixels, round(x), round(y), self.alpha_color, self.palette)
+            display.blit(self.image.pixels, x, y, self.alpha_color, self.palette)
         else:
-            display.blit(self.image.pixels, round(x), round(y), -1, self.palette)
+            display.blit(self.image.pixels, x, y, -1, self.palette)
+
+        return True
 
     def get_draw_xy(self, display: framebuf.FrameBuffer):
         x, y = self.x, self.y
@@ -187,8 +130,6 @@ class Sprite:
         """ Meant to be overridden in child class"""
         if not self.active:
             return False
-
-        self.update_frame()
 
         return True
 
