@@ -1,20 +1,19 @@
 import gc
 import uos
-from microbmp import MicroBMP as bmp
+from microbmp import MicroBMP as microbmp
 import color_util as colors
 
 class ImageLoader():
     """Preloads a list of images in order to cache their framebuffers (as RGB565) to later be used by Sprites"""
     img_dir = "/img"
     images = {}
+    bmp_reader = microbmp()
 
     @staticmethod
     def load_images(images, display):
         # Get a list of all BMP files in the specified directory
         bmp_files = [file for file in uos.listdir(ImageLoader.img_dir) if file.endswith(".bmp")]
         image_names = [one_image["name"] for one_image in images]
-
-        print(f"Before counting bytes: {gc.mem_free():,} bytes")
 
         # Load each BMP file as a Sprite and add it to the sprites list
         file_list = [file for file in list(set(image_names) & set(bmp_files))]
@@ -27,22 +26,20 @@ class ImageLoader():
             total_size += ImageLoader.get_size(filename)
         loaded_size = 0
 
-        print(f"Loading {total_size:,} bytes of images")
+        # print(f"Loading {total_size:,} bytes of images")
         print(f"Before loading all images: {gc.mem_free():,} bytes")
 
         for image in images:
-            gc.collect()
-
             file = image['name']
             print(f"Loading {file}")
-            print(f"Before loading image: {gc.mem_free():,} bytes")
 
             image_path = f"{ImageLoader.img_dir}/{file}"
+            color_depth = image['color_depth'] if 'color_depth' in image else None
+
             if 'width' in image and 'height' in image:
-                ImageLoader.load_image(image_path, frame_width=image['width'], frame_height=image['height'])
+                ImageLoader.load_image(image_path, frame_width=image['width'], frame_height=image['height'], color_depth=color_depth)
             else:
-                ImageLoader.load_image(image_path)
-            gc.collect()
+                ImageLoader.load_image(image_path, color_depth=color_depth)
 
             loaded_size += ImageLoader.get_size(image_path)
             ImageLoader.update_progress(display, loaded_size, total_size)
@@ -67,7 +64,7 @@ class ImageLoader():
         display.show()
 
     @staticmethod
-    def load_image(filename, frame_width=0, frame_height=0):
+    def load_image(filename, frame_width=0, frame_height=0, color_depth=8):
         # First of all, check the cache
         if filename in ImageLoader.images.keys():
             frames = ImageLoader.images[filename]
@@ -75,20 +72,25 @@ class ImageLoader():
 
         print(f"Loading BMP: {filename}")
 
-        bmp_image = bmp(frame_width=frame_width, frame_height=frame_height)
-        bmp_image.load(filename)
+        reader = ImageLoader.bmp_reader
+        reader.frame_width = reader.width = frame_width
+        reader.frame_height = reader.height = frame_height
+        reader.color_depth = color_depth
+        reader._init()
 
-        print(bmp_image)  # Show metadata
+        gc.collect()
+        reader.load(filename)
 
+        print(reader)  # Show metadata
 
         if frame_width and frame_height:
             # This is a spritesheet, so lets make frames from the pixel data without allocating new memory
-            ImageLoader.images[filename] = bmp_image.frames
-            return bmp_image.frames
+            ImageLoader.images[filename] = reader.frames
+            return reader.frames
 
         else:
-            ImageLoader.images[filename] = bmp_image.frames[0]
-            return bmp_image.frames[0]
+            ImageLoader.images[filename] = reader.frames[0]
+            return reader.frames[0]
 
 
     @staticmethod

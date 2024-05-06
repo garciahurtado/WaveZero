@@ -8,7 +8,7 @@ class Sprite3D(Spritesheet):
     of a camera."""
 
     z: int = 0
-    horiz_z = 1500
+    horiz_z = 2000
     draw_x: int = 0
     draw_y: int = 0
     lane_num = None
@@ -25,7 +25,7 @@ class Sprite3D(Spritesheet):
 
     def set_camera(self, camera):
         self.camera = camera
-        scale_adj = 10 # Increase this value to see bigger sprites when closer to the screen
+        scale_adj = 8 # Increase this value to see bigger sprites when closer to the screen
         self.half_scale_one_dist = abs(self.camera.pos['z']-scale_adj) / 2
 
     def get_draw_xy(self, display: framebuf.FrameBuffer):
@@ -47,26 +47,21 @@ class Sprite3D(Spritesheet):
             self.z = self.z + self.speed
 
         draw_x, draw_y = self.pos()
-
-        if draw_y < self.min_y and self.horiz_z:
-            self.z = self.horiz_z
-            draw_x, draw_y = self.pos()
-
         self.draw_x, self.draw_y = draw_x, draw_y
 
         self.update_frame()
 
     def do_blit(self, x: int, y: int, display: framebuf.FrameBuffer):
         # Overrides parent for some performance hacks
-        offset: int = 0
-        if 3 > self.image.height > 2:
-            offset = int(self.image.height / 2)
-            display.fill_rect(x + offset, y + offset, self.image.height, self.image.width, self.dot_color)
-            return True
-        if self.image.height <= 2:
-            offset = int(self.image.height / 2)
-            display.pixel(x + offset, y + offset, self.dot_color)
-            return True
+        # offset: int = 0
+        # if 3 > self.image.height > 2:
+        #     offset = int(self.image.height / 2)
+        #     display.fill_rect(x + offset, y + offset, self.image.height, self.image.width, self.dot_color)
+        #     return True
+        # if self.image.height <= 2:
+        #     offset = int(self.image.height / 2)
+        #     display.pixel(x + offset, y + offset, self.dot_color)
+        #     return True
 
         return super().do_blit(x, y, display)
 
@@ -79,7 +74,7 @@ class Sprite3D(Spritesheet):
 
         if camera:
             x_offset = self.x - camera.pos["x"]
-            x, y = camera.to_2d(x_offset, self.y + self.frame_height, self.z)
+            x, y = camera.to_2d(self.x, self.y + self.frame_height, self.z)
 
             return x, y
         else:
@@ -103,9 +98,10 @@ class Sprite3D(Spritesheet):
     def set_lane(self, lane_num):
         if lane_num == self.lane_num:
             return False
+        lane_width = self.lane_width # perspective adjust
 
         self.lane_num = lane_num
         lane = lane_num - 2 # [-2,-1,0,1,2]
-        new_x = (lane * self.lane_width) - (self.frame_width/2)
-        self.x = int(new_x)
+        new_x = (lane * (lane_width)) - (self.frame_width/2)
+        self.x = round(new_x)
 

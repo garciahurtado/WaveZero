@@ -1,20 +1,18 @@
 import random
-
 import framebuf
-from color_util import FramebufferPalette
-from road_grid import RoadGrid
-from sprite_3d import Sprite3D
+from scaled_sprite import ScaledSprite
 
-class SpriteGroup(Sprite3D):
+class SpriteGroup(ScaledSprite):
     """Represents a group of sprites that use the same image and are rendered nearby as a group. This class renders
     the sprites without needing an object for each"""
 
     pos_delta = {'x': 0, 'y': 0, 'z': 0}
-    palette_gradient: FramebufferPalette
+    palette_gradient = None
     instance_palettes = []
     instances = []
     num_elements = 0
-    grid: RoadGrid = None
+    grid = None
+    z_length: int = 0
 
     def __init__(self, num_elements=0, palette_gradient=None, pos_delta=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -22,6 +20,9 @@ class SpriteGroup(Sprite3D):
         self.palette_gradient = palette_gradient
         self.pos_delta = pos_delta
         self.num_elements = num_elements
+
+        if pos_delta and 'z' in pos_delta:
+            self.z_length = int(pos_delta['z'] * (num_elements+1))
 
         self.create_instances()
 
@@ -38,22 +39,25 @@ class SpriteGroup(Sprite3D):
 
     def update(self):
         """ Update the position of all the Sprite instances """
+        if self.grid:
+            self.speed = -self.grid.speed
+
         super().update()
 
-        # Check whether we need to reset to max Z
-        if self.z < self.camera.pos['z']:
-            self.z = self.horiz_z
+        # Check whether we need to reset
+        if (self.z + self.z_length) < self.camera.pos['z']:
+            self.reset()
 
         for i in range(self.num_elements):
             inst = self.instances[i]
 
             if self.camera:
-                new_z = self.z + (self.pos_delta["z"] * i)
-                inst.frame_idx = self.get_frame_idx(new_z)
-                inst.height = self.frames[inst.frame_idx].height
-
                 new_x = self.x + (self.pos_delta["x"]*i)
                 new_y = self.y + (self.pos_delta["y"]*i)
+                new_z = self.z + (self.pos_delta["z"] * i)
+
+                inst.frame_idx = self.get_frame_idx(new_z)
+                inst.height = self.frames[inst.frame_idx].height
 
                 inst.draw_x, inst.draw_y = self.camera.to_2d(
                     new_x,
@@ -85,45 +89,12 @@ class SpriteGroup(Sprite3D):
         self.set_lane(lane)
         self.set_frame(0)
 
-        if self.grid:
-            self.speed = -self.grid.speed  # Negative speed moves towards the camera since everything happens on the -z axis
-
         self.z = self.horiz_z + (200 * random.randrange(2, 10))
 
-    def _clone(self):
-        new_group = SpriteGroup(
-            filename=self.filename,
-            num_elements=self.num_elements,
-            palette_gradient=self.palette_gradient,
-            frame_width=self.frame_width,
-            frame_height=self.frame_height,
-            x=self.x,
-            y=self.y,
-            z=self.z,
-            camera=self.camera
-            )
-        new_group.width_2d = self.width_2d
-        new_group.height_2d = self.height_2d
-        new_group.draw_x = self.draw_x
-        new_group.draw_y = self.draw_y
-        new_group.min_y = self.min_y
-        new_group.half_scale_one_dist = self.half_scale_one_dist
-        new_group.horiz_z = self.horiz_z
-        new_group.is3d = True
-        new_group.speed = self.speed
-        new_group.lane_width = self.lane_width
-        new_group.frames = self.frames
-        new_group.image = self.image
-        new_group.pos_delta = self.pos_delta
-        new_group.palette = self.palette
-        new_group.palette_gradient = self.palette_gradient
-        new_group.instance_palettes = self.instance_palettes
-        new_group.grid = self.grid
-
-        return new_group
 
     def clone(self):
         copy = super().clone()
+        copy.reset()
         copy.create_instances()
         return copy
 
@@ -141,24 +112,13 @@ class SpriteEnemyGroup(SpriteGroup):
 
 class SpriteInstance:
     def __init__(self, x, y, z, draw_x, draw_y, frame_idx, height):
-        self.x = x
-        self.y = y
-        self.z = z
-        self.draw_x = draw_x
-        self.draw_y = draw_y
-        self.frame_idx = frame_idx
-        self.height = height
+        self.x: int = x
+        self.y: int = y
+        self.z: int = z
+        self.draw_x: int = draw_x
+        self.draw_y: int = draw_y
+        self.frame_idx: int = frame_idx
+        self.height: int = height
 
-    def clone(self):
-        my_copy = SpriteInstance(
-            self.x,
-            self.y,
-            self.z,
-            self.draw_x,
-            self.draw_y,
-            self.frame_idx,
-            self.height,
-        )
-        return my_copy
 
 

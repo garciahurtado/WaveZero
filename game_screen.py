@@ -1,21 +1,26 @@
+from image_loader import ImageLoader
+
 import _thread
+
 import framebuf
+import gc
 import utime as time
 import uasyncio as asyncio
 
 from anim.anim_attr import AnimAttr
-from fx.crash import Crash
 from player_sprite import PlayerSprite
-from scaled_sprite import ScaledSprite
+from fx.crash import Crash
+
 from screen import Screen
 from road_grid import RoadGrid
 from perspective_camera import PerspectiveCamera
 from encoder import Encoder
 from sprite import Sprite
-from spritesheet import Spritesheet
-from image_loader import ImageLoader
 from title_screen import TitleScreen
 import color_util as colors
+from stages.stage_1 import Stage1
+
+gc.collect()
 from ui_elements import ui_screen
 
 start_time_ms = 0
@@ -26,15 +31,15 @@ class GameScreen(Screen):
     camera: PerspectiveCamera
     sprites: []
     enemies: []
-    flying_enemies: []
     ui: ui_screen
     crash_fx: None
-    sprite_max_z = 1000
-    ground_speed = 8
+    sprite_max_z = 2000
+    ground_speed = 0
+    ground_max_speed = 12
     saved_ground_speed = 0
-    lane_width = 24
-    num_lives = 2
-    crash_y = 50 # Screen Y of Sprites which will start colliding with the player
+    lane_width = 23
+    num_lives = 1
+    crash_y = 48 # Screen Y of Sprites which will start colliding with the player
 
     # Bike movement
     bike: PlayerSprite
@@ -53,17 +58,31 @@ class GameScreen(Screen):
     refresh_lock: None
     sprite_lock: None
     loop: None
+    stage: None
 
     def __init__(self, display, *args, **kwargs):
+        self.mem_marker('- Before init display')
+
         super().__init__(display, *args, **kwargs)
-
-        self.mem_marker('- After init display')
-        self.init_camera()
-
         self.preload_images()
+
+        #self.mem_marker('- After init display')
+        self.init_camera()
+        self.init_stage()
+
+        self.mem_marker('- Before preload images')
         self.mem_marker('- After preload images')
 
+
+        """ Display Thread """
+        gc.collect()
+        _thread.start_new_thread(self.start_display_loop, [])
+
+
+        self.ui = ui_screen(self.display, self.num_lives)
         self.bike = PlayerSprite(camera=self.camera)
+
+        # self.bike.blink = True
         self.crash_fx = Crash(self.display, self.bike)
 
         self.loop = asyncio.get_event_loop()
@@ -72,28 +91,38 @@ class GameScreen(Screen):
         self.enemies = []
         self.flying_enemies = []
 
-        self.ui = ui_screen(self.display, self.num_lives)
+        # self.base_group = SpriteGroup(
+        #     num_elements=100,
+        #     # palette_gradient=self.enemy_palettes.image.pixels,
+        #     pos_delta={"x": 0, "y": 0, "z": 20},
+        #     filename="/img/laser_tri.bmp",
+        #     frame_width=20,
+        #     frame_height=20,
+        #     lane_width=self.lane_width,
+        #     x=50,
+        #     y=0,
+        #     z=700
+        # )
+        # self.base_group.set_alpha(0)
+
 
     def preload_images(self):
         images = [
-            {"name": "enemy_gradients.bmp", "width": 4, "height": 1},
-            {"name": "life.bmp"},
+            {"name": "bike_sprite.bmp", "width": 32, "height": 22, "color_depth": 4},
+            {"name": "road_barrier_yellow.bmp", "width": 20, "height": 15, "color_depth": 4},
             {"name": "sunset.bmp"},
-            {"name": "road_wall_single.bmp", "width": 10, "height": 20},
-            {"name": "bike_sprite.bmp", "width": 37, "height": 22},
+            # {"name": "enemy_gradients.bmp", "width": 4, "height": 1},
+            {"name": "life.bmp"},
         ]
 
         ImageLoader.load_images(images, self.display)
 
 
     def run(self):
-        # Start display loop as early as possible
-        #gc.collect()
-        _thread.start_new_thread(self.start_display_loop, [])
 
         self.init_sprites()
-        self.init_enemies()
         self.init_road_grid()
+        self.init_enemies()
 
         asyncio.run(self.main_loop())
 
@@ -109,7 +138,6 @@ class GameScreen(Screen):
         print("Creating road grid...")
         self.grid = RoadGrid(self.camera, self.display, lane_width=self.lane_width)
         self.grid.speed = self.ground_speed
-        self.mem_marker(" - After Road Grid - ")
 
     def init_camera(self):
         # Camera
@@ -118,7 +146,7 @@ class GameScreen(Screen):
         self.camera = PerspectiveCamera(
             self.display,
             pos_x=0,
-            pos_y=63,
+            pos_y=54,
             pos_z=-camera_z,
             focal_length=camera_z,
             vp_x=0,
@@ -126,15 +154,9 @@ class GameScreen(Screen):
         self.camera.horiz_z = self.sprite_max_z
 
     async def main_loop(self):
-
         loop = asyncio.get_event_loop()
-
-        #self.update_task = loop.create_task(self.update_loop())
-
-        max_speed = 50
-        self.speed_anim = AnimAttr(self, 'ground_speed', max_speed, 240000)
-
         self.input_task = loop.create_task(self.get_input(self.encoder, self.encoder_last_pos))
+        self.stage.start()
         await asyncio.gather(
             self.update_loop(),
             self.update_fps(),
@@ -159,17 +181,19 @@ class GameScreen(Screen):
         bike_y = self.bike.y
         self.bike.y = 64 # Hide it below the screen
 
+        # Animate the road speed from 0 to max
+        self.speed_anim = AnimAttr(self, 'ground_speed', self.ground_max_speed, 1 * 1000)
+
         # Make the bike slide in from the bottom
         anim = AnimAttr(self.bike, 'y', bike_y, 1 * 1000)
+        loop.create_task(self.speed_anim.run(fps=30))
         loop.create_task(anim.run(fps=30))
-        loop.create_task(self.speed_anim.run(fps=5))
+
 
         # Draw loop - will run until task cancellation
         try:
             while True:
                 self.grid.speed = self.ground_speed
-                for sprite in self.enemies:
-                    sprite.speed = -self.ground_speed * 2
 
                 # Handle bike swerving
                 target_lane = self.bike.target_lane
@@ -204,15 +228,19 @@ class GameScreen(Screen):
 
                 for sprite in self.sprites:
                     sprite.update()
+                self.stage.update()
 
                 self.detect_collisions(self.enemies)
 
-                await asyncio.sleep(1 / 120)
+                await asyncio.sleep(1 / 90)
 
         except asyncio.CancelledError:
             return False
 
         # Wait for next update
+
+    def init_stage(self):
+        self.stage = Stage1(self.camera, lane_width=self.lane_width)
 
     def init_enemies(self):
         self.enemies = []
@@ -228,66 +256,43 @@ class GameScreen(Screen):
         #     self.add(enemy)
 
         # Create road obstacles
-        num_groups = 10
+        num_groups = 0
         palette_size = 4
         palette_width = 16
         num_palettes = int(palette_width / palette_size)
-        print(f"Creating {num_palettes} palettes")
+        # print(f"Creating {num_palettes} palettes")
 
-        self.enemy_palettes = Spritesheet(filename='/img/enemy_gradients.bmp', frame_width=4, frame_height=1)
-        self.enemy_palettes.set_frame(0)
-        all_palettes = []
-        self.check_mem()
+        # self.enemy_palettes = Spritesheet(filename='/img/enemy_gradients.bmp', frame_width=4, frame_height=1)
+        # self.enemy_palettes.set_frame(0)
+        # all_palettes = []
+        # self.check_mem()
 
-        print(f"Loaded {len(self.enemy_palettes.frames)} enemy palettes")
+        # print(f"Loaded {len(self.enemy_palettes.frames)} enemy palettes")
 
         # Split up the palette gradient into individual sub-palettes
-        # for i in range(num_groups):
-        #     print(f"Group {i}")
-        #     i = i % palette_size
+        # for i in range(int(palette_width / palette_size)):
         #     self.enemy_palettes.set_frame(i)
         #
         #     pixels = self.enemy_palettes.frames[0].pixels # Colors for a single group (4 palettes)
         #
+        #     orig_palette = [
+        #         (0,0,0),
+        #         (0,0,0),
+        #         (255,255,255),
+        #         (0,0,0),
+        #     ]
         #     for j in range(palette_size):
         #         print(f"Creating palette {j}")
-        #         new_palette = colors.FramebufferPalette(bytearray(3 * 2))
+        #         new_palette = colors.make_framebuffer_palette(orig_palette)
+        #
         #         color_idx = pixels.pixel(j, 0)
         #         color = self.enemy_palettes.palette.get_bytes(color_idx)
-        #
         #         new_palette.set_bytes(0, color)
-        #         new_palette.set_rgb(1, (255,255,255))
-        #         new_palette.set_rgb(2, (0,0,0,))
         #
         #         all_palettes.append(new_palette) # We should end up with 16 palettes total
 
-        print(f"Num enemy palettes: {len(all_palettes)}")
+        # print(f"Num enemy palettes: {len(all_palettes)}")
         # Create enemy / obstacle groups
-        # base_group = SpriteGroup(
-        #     num_elements=1,
-        #     palette_gradient=all_palettes[0],
-        #     pos_delta={"x": 0, "y": 0, "z": 10},
-        #     filename="/img/road_wall_single.bmp",
-        #     frame_width=10,
-        #     frame_height=20,
-        #     lane_width=self.lane_width,
-        #     x=50,
-        #     y=0,
-        #     z=2000
-        # )
-
-        base_group = ScaledSprite(
-            filename="/img/road_wall_single.bmp",
-            frame_width=12,
-            frame_height=22,
-            lane_width=self.lane_width,
-            x=20,
-            y=0,
-            z=1000
-        )
-        base_group.grid = self.grid
-        base_group.set_camera(self.camera)
-        base_group.visible = True
 
         for i in range(0, num_groups):
             print(f"Created group {i}")
@@ -296,36 +301,9 @@ class GameScreen(Screen):
             # print(f"All palettes size: {len(all_palettes)}")
             # current_enemy_palettes = all_palettes[i*palette_size:(i+1)*palette_size]
 
-            group = self.create_group(base_group)
-            group.z = group.z + (i * 50)
-            group.set_alpha(0)
+            self.create_group(self.base_group, i)
 
-            self.add(group)
-            self.enemies.append(group)
-            group.set_lane(3)
 
-        # Create triangles
-        base_group = ScaledSprite(
-            filename="/img/laser_tri.bmp",
-            frame_width=20,
-            frame_height=20,
-            lane_width=self.lane_width,
-            x=-20,
-            y=0,
-            z=1000
-        )
-        base_group.grid = self.grid
-        base_group.set_camera(self.camera)
-        base_group.visible = True
-
-        for i in range(0, num_groups):
-            group = self.create_group(base_group)
-            group.z = group.z + (i * 50)
-            group.set_alpha(0)
-
-            self.add(group)
-            self.enemies.append(group)
-            group.set_lane(0)
 
     def detect_collisions(self, colliders):
         if self.bike.visible and self.bike.active:
@@ -340,8 +318,16 @@ class GameScreen(Screen):
                     self.do_crash()
                     break # No need to check other collisions
 
-    def create_group(self, base_group):
+    def create_group(self, base_group, i):
         group = base_group.clone()
+        #group.z = group.z + (i * 50)
+        group.set_camera(self.camera)
+        group.grid = self.grid
+        group.reset()
+
+        self.add(group)
+        self.enemies.append(group)
+
         return group
 
     def do_refresh(self):
@@ -371,7 +357,6 @@ class GameScreen(Screen):
 
         if not self.ui.remove_life():
             self.bike.visible = False
-            self.input_task.cancel()
             self.ui.show_game_over()
             return False
 
@@ -402,14 +387,15 @@ class GameScreen(Screen):
         Starts / restarts the input loop and display loop. Should be ran on Core #2
         """
 
-        if getattr(self, 'input_task', False):
-            self.input_task.cancel()
-
-        if getattr(self, 'display_task', False):
-            self.display_task.cancel()
+        # if getattr(self, 'input_task', False):
+        #     self.input_task.cancel()
+        #
+        # if getattr(self, 'display_task', False):
+        #     self.display_task.cancel()
 
         # Restart the game display and input
-        self.display_task = self.loop.create_task(self.refresh_display())
+        loop = asyncio.get_event_loop()
+        self.display_task = loop.create_task(self.refresh_display())
 
     async def update_fps(self):
         while True:
@@ -418,7 +404,7 @@ class GameScreen(Screen):
             fps = int(self.fps.fps())
             self.ui.update_score(fps)
 
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(2)
 
     async def get_input(self, encoder, last_pos):
         while True:
@@ -434,6 +420,8 @@ class GameScreen(Screen):
 
     def draw_sprites(self):
         super().draw_sprites()
+        for my_sprite in self.stage.sprites:
+            my_sprite.show(self.display)
         self.ui.show()
 
 

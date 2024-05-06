@@ -6,7 +6,7 @@ LIST_SIZE = const(20)
 class FpsCounter():
     ticks: [int] = [0] * LIST_SIZE
     index: int = 0
-    ellapsed: int = 0
+    ellapsed = 0
 
     def tick(self):
         """ Get current timestamp at the time of rendering one frame, to calculate FPS later
@@ -20,23 +20,26 @@ class FpsCounter():
         """
         Calculate FPS based on the timestamp measurements recorded
         """
+        start = self.index
+
         if self.index == 0:
-            start = self.index
             end = -1
         else:
-            start = self.index
             end = self.index - 1
-            
+
         if self.ticks[start] == 0 or self.ticks[end] == 0:
             return 0
 
         self.ellapsed = self.ticks[end] - self.ticks[start]
+        if self.ellapsed <= 0 or len(self.ticks) == 0:
+            return False
+
         avg_ms = self.ellapsed / len(self.ticks)
         
-        if avg_ms == 0:
-           return 0
+        if avg_ms <= 0:
+           return False
            
         return 1000 / avg_ms
-        
+
 
         

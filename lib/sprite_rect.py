@@ -1,5 +1,4 @@
 from sprite import Sprite
-import framebuf
 
 class SpriteRect(Sprite):
     """A Sprite that does not load a bitmap from disk, but serves as an empty canvas for eg. drawing solid backgrounds

@@ -1,7 +1,6 @@
 import asyncio
 
 from anim.animation import Animation
-from color_util import colors
 
 class PaletteRotate(Animation):
     rotate_values: []

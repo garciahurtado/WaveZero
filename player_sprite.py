@@ -8,7 +8,7 @@ class PlayerSprite(Spritesheet):
     def __init__(self, *args, **kwargs):
         super().__init__(
             filename="/img/bike_sprite.bmp",
-            frame_width=37,
+            frame_width=32,
             frame_height=22
             )
         self.x = 25

@@ -1,7 +1,5 @@
-import math
 
 import framebuf
-import utime
 
 import color_util as colors
 from color_util import FramebufferPalette
@@ -13,29 +11,26 @@ class Sprite:
     filename: str
     image: Image = None
     palette: FramebufferPalette
-    num_colors = 0
-    width = 0
-    height = 0
-    width_2d = 0
-    height_2d = 0
+    num_colors: int = 0
+    width: int = 0
+    height: int = 0
     ratio = 0
-    is3d = False
     visible = False # Whether show() will render this Sprite
     active = True # Whether update() will update this Sprite
     blink = False
     blink_flip = 1
 
 
-    x = 0
-    y = 0
-    speed = 0
+    x: int = 0
+    y: int = 0
+    speed: int = 0
 
     has_alpha = False
     alpha_color = None
-    alpha_index = 0
-    min_y = -32
-    max_x = 200
-    max_y = 200
+    alpha_index: int = 0
+    min_y: int = -32
+    max_x: int = 200
+    max_y: int = 200
     dot_color: int = 0
 
     def __init__(self, filename=None, x=0, y=0) -> None:
@@ -61,7 +56,7 @@ class Sprite:
         self.width = meta.width
         self.height = meta.height
         self.palette = meta.palette
-        self.dot_color = self.palette.get_bytes(1)
+        # self.dot_color = self.palette.get_bytes(1)
         self.num_colors = meta.palette.num_colors
 
         self.visible = True

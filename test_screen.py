@@ -1,16 +1,18 @@
+import math
+
+import fonts.vtks_blocketo_6px as font_vtks
+from screen import Screen
+
 import asyncio
 import _thread
 import gc
-import utime
 from micropython import const
 
 from font_writer import ColorWriter, Writer
 from perspective_camera import PerspectiveCamera
 from scaled_sprite import ScaledSprite
-from screen import Screen
 import color_util as colors
-import fonts.vtks_blocketo_6px as font_vtks
-
+import random
 
 class TestScreen(Screen):
     sprite_max_z = const(5000)
@@ -20,27 +22,44 @@ class TestScreen(Screen):
     BLACK = (0, 0, 0)
     fps_text: ColorWriter
     sprites = []
+    lines = []
+    # line_color = colors.hex_to_rgb(0xFFFFFF)
+    line_colors = [ colors.hex_to_565(0xFF0000),
+                    colors.hex_to_565(0x00FF00),
+                    colors.hex_to_565(0x0000FF)]
 
     def __init__(self, display, *args, **kwargs):
         super().__init__(display, *args, **kwargs)
-        gc.collect()
         print(f"Free memory __init__: {gc.mem_free():,} bytes")
 
+        # self.display.set_clock_divide(16)
         self.init_camera()
         self.init_fps()
 
     def run(self):
-        self.check_mem()
+        #self.check_mem()
         asyncio.run(self.main_loop())
 
     async def main_loop(self):
+        self.create_lines()
 
         _thread.start_new_thread(self.start_display_loop, [])
 
         await asyncio.gather(
-            self.sprite_fps_test(),
+            # self.sprite_fps_test(),
+            self.display_line_test(),
             self.update_fps()
         )
+
+    def create_lines(self):
+        count = 300
+        print(f"Creating {count} lines")
+        for i in range(count):
+            y_start = 16 + int(i)
+            y_start -= y_start % 2
+            idx = math.floor(random.randrange(0,3))
+            color = self.line_colors[idx]
+            self.lines.append([int(0), int(y_start), int(95), int(y_start), color])
 
     def init_fps(self):
         self.fps_text = ColorWriter(
@@ -54,12 +73,16 @@ class TestScreen(Screen):
     async def update_fps(self):
         while True:
             # Show the FPS in the score label
-            fps = int(self.fps.fps())
-            Writer.set_textpos(self.display, 0, 0)
-            self.fps_text.printstring("{:>5}".format(fps))
+            fps = self.fps.fps()
+            if fps is False:
+                pass
+            else:
+                fps = int(fps)
+                Writer.set_textpos(self.display, 0, 0)
+                self.fps_text.row_clip = True
+                self.fps_text.printstring("{: >6}".format(fps))
 
             await asyncio.sleep(0.1)
-
 
     async def sprite_fps_test(self):
         self.create_sprites()
@@ -70,6 +93,10 @@ class TestScreen(Screen):
                 sprite.update()
 
             await asyncio.sleep(1 / 90)
+
+    async def display_line_test(self):
+        while True:
+            await asyncio.sleep(1 / 60)
 
     def create_sprites(self):
         # Create n * n * n sprites
@@ -124,13 +151,15 @@ class TestScreen(Screen):
             vp_y=horiz_y)
         self.camera.horiz_z = self.sprite_max_z
 
-    def refresh_display(self):
+    async def refresh_display(self):
 
-        color = colors.rgb_to_565((4, 4, 4))
+        bg_color = colors.rgb_to_565((4, 4, 4))
         while True:
             #start = utime.ticks_ms()
 
-            self.display.fill(color)
+            self.display.fill(bg_color)
+
+            self.refresh_lines()
             for i, sprite in enumerate(self.sprites):
                 sprite.show(self.display)
 
@@ -139,6 +168,28 @@ class TestScreen(Screen):
 
             #diff = utime.ticks_ms() - start
             #print(f"sprite.show(): {diff}ms")
+            await asyncio.sleep(1/240)
+
+    def refresh_lines(self):
+        for line in self.lines:
+            # print(f"Line in {line[0]},{line[1]}, / {line[2]},{line[3]}")
+            x1 = line[0]
+            y1 = line[1]
+            x2 = line[2]
+            y2 = line[3]
+            color = line[4]
+
+            y2 = y2 + int(random.randrange(0, 2))
+            self.display.rect(
+                x1,
+                y2,
+                x2,
+                y2,
+                color)
+
 
     def start_display_loop(self):
-        self.refresh_display()
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.refresh_display())
+
+        return True

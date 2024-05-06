@@ -17,6 +17,9 @@ class Spritesheet(Sprite):
     def __init__(self, frame_width: int = 0, frame_height: int = 0,  *args, **kwargs):
         self.frame_width = frame_width
         self.frame_height = frame_height
+        if 'width' not in kwargs:
+            self.width = frame_width
+            self.height = frame_height
 
         super().__init__(*args, **kwargs)
         # if 'filename' in kwargs:
@@ -30,8 +33,8 @@ class Spritesheet(Sprite):
         print(f"Loaded {len(self.frames)} frames")
         meta = self.frames[0]
 
-        self.width = meta.width
-        self.height = meta.height
+        # self.width = meta.width
+        # self.height = meta.height
         self.palette = meta.palette
         self.dot_color = self.palette.get_bytes(1)
         self.num_colors = meta.palette.num_colors
@@ -48,8 +51,8 @@ class Spritesheet(Sprite):
 
         self.current_frame = frame_num
         self.image = self.frames[frame_num]
-        self.width = self.image.width
-        self.height = self.image.height
+        # self.frame_width = self.image.width
+        # self.frame_height = self.image.height
 
     def update_frame(self):
         """Update the current frame in the spritesheet to the one that represents the correct size when taking into
@@ -81,6 +84,20 @@ class Spritesheet(Sprite):
             frame_idx = 0
 
         return frame_idx
+
+    def clone(self):
+        new = super().clone()
+        new.frames = self.frames
+        new.frame_width = self.frame_width
+        new.frame_height = self.frame_height
+        new.width = self.width
+        new.height = self.height
+        new.ratio = self.ratio
+        new.half_scale_one_dist = self.half_scale_one_dist
+        new.palette = self.palette
+
+        return new
+
 
 
 

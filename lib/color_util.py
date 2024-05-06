@@ -1,6 +1,4 @@
 import color_lib
-import color_util as colors
-import framebuf
 
 from framebuffer_palette import FramebufferPalette
 from ssd1331_16bit import SSD1331
@@ -78,6 +76,14 @@ def hex_to_rgb(hex_value):
     blue = hex_value & 0xFF
 
     return (red, green, blue)
+
+def hex_to_565(hex_value):
+    # Extract the red, green, and blue components
+    red = (hex_value >> 16) & 0xFF
+    green = (hex_value >> 8) & 0xFF
+    blue = hex_value & 0xFF
+
+    return rgb_to_565((red, green, blue))
 
 
 def rgb_to_hsl(color):
@@ -177,7 +183,7 @@ def make_gradient(start_color: list[int], end_color: list[int], num_colors):
 
 
 def make_palette(colors):
-    """Given a list of Hex colors, return a list of RGB565 colors, ready for the display """
+    """Given a list of Hex colors, return a list of RGB565 colors, ready for the display driver """
 
     new_colors = []
     for color in colors:
@@ -186,6 +192,11 @@ def make_palette(colors):
         new_colors.append(new_color)
 
     return new_colors
+
+def make_framebuffer_palette(palette):
+    """ Given a list of RGB565 colors, create a FramebufferPalette from it """
+    palette = FramebufferPalette(palette)
+    return palette
 
 
 def color_scale(begin_hsl, end_hsl, nb):
@@ -219,10 +230,15 @@ def color_scale(begin_hsl, end_hsl, nb):
     step = tuple([float(end_hsl[i] - begin_hsl[i]) / nb for i in range(0, 3)]) \
         if nb > 0 else (0, 0, 0)
 
-    def mul(step, value):
-        return tuple([v * value for v in step])
+    list = []
+    for r in range(0, nb + 1):
+        list.append(add_v(begin_hsl, mul(step, r)))
 
-    def add_v(step, step2):
-        return tuple([v + step2[i] for i, v in enumerate(step)])
+    return list
 
-    return [add_v(begin_hsl, mul(step, r)) for r in range(0, nb + 1)]
+def mul(step, value):
+    return tuple([v * value for v in step])
+
+def add_v(step, step2):
+    return tuple([v + step2[i] for i, v in enumerate(step)])
+

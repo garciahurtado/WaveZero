@@ -89,9 +89,12 @@ class Crash():
                         0x380000,
                         0x0D0909]
 
-        colors_rgb = [colors.hex_to_rgb(color) for color in colors_hex]
-        palette = FramebufferPalette(colors_rgb)
-        self.alpha_color = colors.rgb_to_565(colors_rgb[0])
+        #colors_rgb = [colors.hex_to_rgb(color) for color in colors_hex]
+        palette = FramebufferPalette(8)
+        for i, color in enumerate(colors_hex):
+            palette.set_rgb(i, colors.hex_to_rgb(color))
+
+        self.alpha_color = colors.hex_to_565(0x000000)
 
         return palette
 

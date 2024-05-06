@@ -1,4 +1,3 @@
-import _thread
 import gc
 
 import asyncio
@@ -8,27 +7,27 @@ from fps_counter import FpsCounter
 from sprite import Sprite
 import micropython
 
+from ssd1331_16bit import SSD1331
+
+
 class Screen:
-    display: framebuf.FrameBuffer
+    display: SSD1331
     sprites: [Sprite]
-    sprites_lock: None
 
     def __init__(self, display=None):
-        self.sprites_lock = _thread.allocate_lock()
         self.sprites = []
         if display:
             self.display = display
         self.fps = FpsCounter()
 
     def add(self, sprite):
-        with self.sprites_lock:
-            self.sprites.append(sprite)
+        self.sprites.append(sprite)
 
     async def refresh_display(self):
         try:
             while True:
                 self.do_refresh()
-                await asyncio.sleep(1/120)
+                await asyncio.sleep(1/60)
         except asyncio.CancelledError:
             return True
 

@@ -12,7 +12,12 @@ class FramebufferPalette(framebuf.FrameBuffer):
 
         set_colors = []
 
-        if isinstance(palette, bytearray):
+        if isinstance(palette, int):
+            self.num_colors = palette
+            palette = bytearray(palette * 2)
+
+            self.palette = palette
+        elif isinstance(palette, bytearray):
             self.num_colors = int(len(palette) / 2)
             self.palette = palette
         else:
@@ -33,7 +38,14 @@ class FramebufferPalette(framebuf.FrameBuffer):
     def __add__(self, second_palette):
         print(f"Adding palettes ... {self.num_colors} + {second_palette.num_colors}")
         total_colors = self.num_colors + second_palette.num_colors
-        new_palette = FramebufferPalette(bytearray(self.palette + second_palette.palette))
+        new_palette = FramebufferPalette(bytearray(total_colors * 2))
+
+        for i in range(self.num_colors):
+            new_palette.set_bytes(i, self.get_bytes(i))
+
+        for j in range(second_palette.num_colors):
+            new_palette.set_bytes(j + self.num_colors, second_palette.get_bytes(j))
+
         return new_palette
 
     def set_rgb(self, index, color):
@@ -46,7 +58,11 @@ class FramebufferPalette(framebuf.FrameBuffer):
         return color
 
     def set_bytes(self, index, color):
-        self.pixel(index, 0, color)
+        # print(color)
+        # color = int.from_bytes(bytearray([color]), "little")
+        # # color = color.to_bytes(2, 'big')
+        # print(color)
+        self.pixel(index, 0, int(color))
 
     def get_bytes(self, index):
         color = self.pixel(index, 0)
@@ -68,3 +84,17 @@ class FramebufferPalette(framebuf.FrameBuffer):
             new_palette.set_bytes(j, color)
 
         return new_palette
+
+    def pick_from_value(self, value, max, min=0):
+        """ Given a value that is part of a range, pick the color index on the palette which represents the same ratio"""
+        if value < min:
+            value = min
+        if value > max:
+            value = max
+
+        my_range = max - min
+        my_value = value - min
+
+        idx = int((my_value / my_range) * self.num_colors)
+        return idx
+

@@ -1,23 +1,23 @@
-import asyncio
+import fonts.vtks_blocketo_6px as font_vtks
+import fonts.bm_japan as large_font
+from font_writer import Writer, ColorWriter
 
-import ssd1331_16bit
 from sprite_rect import SpriteRect
 from sprite import Sprite
-import fonts.vtks_blocketo_6px as font_vtks
-import fonts.m42_8px as font_m42
-from font_writer import Writer, ColorWriter
+
 from anim.palette_rotate import PaletteRotate
+import asyncio
 
 class ui_screen():
-    display: ssd1331_16bit
+    display: None
     lives_sprite: Sprite
-    score = 0
+    score: int = 0
     score_text = None
     game_over_text = None
     big_text_bg = None
     sprites = []
     lives_sprites = []
-    num_lives = 0
+    num_lives: int = 0
     CYAN = (0, 255, 255)
     BLACK = (0, 0, 0)
 
@@ -74,10 +74,14 @@ class ui_screen():
     def init_game_over(self):
         game_over_text = ColorWriter(
             self.display,
-            font_m42, 96, 10, fgcolor=self.CYAN, bgcolor=self.BLACK)
-        game_over_text.text_x = 2
+            large_font, 96, 11, fgcolor=self.CYAN, bgcolor=self.BLACK)
+        game_over_text.text_x = 3
         game_over_text.text_y = 28
         game_over_text.visible = False
+
+        game_over_text.row_clip = True  # Clip or scroll when screen full
+        game_over_text.col_clip = True  # Clip or new line when row is full
+        game_over_text.wrap = False  # Word wrap
 
         Writer.set_textpos(self.display, 0, 0)
         game_over_text.printstring("GAME OVER")

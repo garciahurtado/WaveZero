@@ -126,9 +126,27 @@ class MicroBMP(object):
     - To get or set the `r, g, b` values of a pixel of a 24-bit image : `img[x, y]`
     - To get or set a primary colour value of a pixel of a 24-bit image : `img[x, y, c]`
     """
-    frame_width: int = 0
-    frame_height: int = 0
+    frame_width: int
+    frame_height: int
     frames = []
+
+    BMP_id = bytes(bytearray(2))
+    BMP_size: int
+    BMP_reserved1 = bytes(bytearray(2))
+    BMP_reserved2 = bytes(bytearray(2))
+    BMP_offset: int
+
+    header_len: int
+    width: int
+    height: int
+    planes_num: int
+    color_depth: int
+    compression: int
+    raw_size: int
+    hres: int
+    vres: int
+    num_colors: int
+    extra = None
 
     def __init__(self, width=None, height=None, depth:int=8, palette=None, frame_width=0, frame_height=0):
         # BMP Header
@@ -151,7 +169,7 @@ class MicroBMP(object):
         self.raw_size = None
         self.hres = 2835  # 72 DPI * 39.3701 inches/metre.
         self.vres = 2835
-        self.num_colors = None
+        self.num_colors = 0
         self.extra = None
 
         self.palette: colors.FramebufferPalette = palette
@@ -191,8 +209,7 @@ class MicroBMP(object):
         assert self.initialised, "Image not initialised!"
         assert key[0] < self.width and key[1] < self.height, "Out of image boundary!"
 
-        x, y = key[0], key[1]
-        self.pixels.pixel(x,y, color)
+        self.pixels.pixel(key[0],key[1], color)
 
     def __str__(self):
         if not self.initialised:
@@ -235,6 +252,10 @@ class MicroBMP(object):
             self.color_depth, self.compression
         )
 
+        self.pixels = None
+        self.frames = []
+        self.num_colors = 0
+
         if self.color_depth <= 8:
             self.ppb = 8 // self.color_depth
             self.pmask = 0xFF >> (8 - self.color_depth)
@@ -250,7 +271,8 @@ class MicroBMP(object):
                 print("Only 8 BPP color depth supported")
                 exit()
 
-        plt_size = self.num_colors * 4
+        print(f"Color depth: {self.color_depth} / ppb: {self.ppb}")
+        plt_size: int = self.num_colors * 4
         self.BMP_offset = 14 + self.header_len + plt_size
         self.row_size = self._size_from_width(self.width)
         self.padded_row_size = self._padded_size_from_size(self.row_size)
@@ -268,6 +290,7 @@ class MicroBMP(object):
         return (size + 3) // 4 * 4
 
     def _extract_from_bytes(self, data, index):
+        # print(f"data size: {len(data)} / idx:{index} / ppb: {self.ppb}")
         # One formula that suits all: 1/2/4/8-bit colour depth.
         byte_index, pos_in_byte = divmod(index, self.ppb)
         shift = 8 - self.color_depth * (pos_in_byte + 1)
@@ -284,9 +307,12 @@ class MicroBMP(object):
 
     def _decode_rle(self, bf_io):
         # Only bottom-up bitmap can be compressed.
+        x: int
+        y: int
         x, y = 0, self.height - 1
+
         while True:
-            data = bf_io.read(2)
+            data: bytes = bf_io.read(2)
             if data[0] == 0:
                 if data[1] == 0:
                     x, y = 0, y - 1
@@ -303,9 +329,8 @@ class MicroBMP(object):
                         self[x, y] = self._extract_from_bytes(data, i)
                         x += 1
             else:
-                b = bytes([data[1]])
                 for i in range(data[0]):
-                    self[x, y] = self._extract_from_bytes(b, i % self.ppb)
+                    self[x, y] = self._extract_from_bytes(bytes([data[1]]), i % self.ppb)
                     x += 1
 
     def read_io(self, bf_io):
@@ -386,20 +411,26 @@ class MicroBMP(object):
             # BI_RGB
             num_frames = math.floor(self.height / self.frame_height)
             frame_size = self.frame_width * self.frame_height
+
             print(f"Creating {num_frames} frames of {self.frame_width}x{self.frame_height} ")
 
+            if self.color_depth == 8:
+                format = framebuf.GS8
+            elif self.color_depth == 4:
+                format = framebuf.GS4_HMSB
+                frame_size = int(frame_size / 2)
+            elif self.color_depth == 2:
+                format = framebuf.GS2_HMSB
+                frame_size = int(frame_size / 4)
+
             for frame_idx in range(num_frames):
-                if not is_top_down:
-                    # invert the frame index, since we're reading them from the bottom
-                    frame_idx = num_frames - frame_idx - 1
-
                 byte_pixels = bytearray(frame_size)
-
+                # print(f"Creating frame of size {frame_size} format: {format} {framebuf.GS4_HMSB} ({self.frame_width}x{self.frame_height})")
                 buffer = framebuf.FrameBuffer(
                     byte_pixels,
                     self.frame_width,
                     self.frame_height,
-                    framebuf.GS8
+                    format
                 )
 
                 frame = create_image(
@@ -407,13 +438,14 @@ class MicroBMP(object):
                     memoryview(byte_pixels),
                     self.frame_width,
                     self.frame_height,
-                    self.palette)
+                    self.palette,
+                    self.color_depth)
 
                 for row in range(0, self.frame_height):
                     data = bf_io.read(self.padded_row_size)
                     y = row if is_top_down else self.frame_height - row - 1
 
-                    for x in range(self.width):
+                    for x in range(self.frame_width):
                         x = x if is_top_down else self.frame_width - x - 1
                         if self.color_depth <= 8:
                             buffer.pixel(x, y, self._extract_from_bytes(data, x))
@@ -424,6 +456,7 @@ class MicroBMP(object):
 
             if not is_top_down:
                 self.frames.reverse()
+
 
             self.pixels = self.frames[0]
             self.palette = self.pixels.palette
