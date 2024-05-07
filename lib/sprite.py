@@ -1,5 +1,6 @@
 
 import framebuf
+from micropython import const
 
 import color_util as colors
 from color_util import FramebufferPalette
@@ -28,12 +29,11 @@ class Sprite:
     has_alpha = False
     alpha_color = None
     alpha_index: int = 0
-    min_y: int = -32
-    max_x: int = 200
-    max_y: int = 200
+    max_x = const(200)
+    max_y = const(200)
     dot_color: int = 0
 
-    def __init__(self, filename=None, x=0, y=0) -> None:
+    def __init__(self, filename=None, x=0, y=0):
 
         if filename:
             self.load_image(filename)
@@ -45,7 +45,8 @@ class Sprite:
         # self.update()
 
     def reset(self):
-        pass
+        self.active = True
+        self.visible = True
 
     def load_image(self, filename):
         self.filename = filename
@@ -86,7 +87,6 @@ class Sprite:
 
     def show(self, display: framebuf.FrameBuffer, x: int = None, y: int = None):
         if not self.visible or not self.image:
-            # print("nothing to show")
             return False
 
         if x is None or y is None:
@@ -154,6 +154,10 @@ class Sprite:
                 setattr(cloned_obj, key, value)
 
         return cloned_obj
+
+    def kill(self):
+        self.active = False
+        self.visible = False
 
 
 

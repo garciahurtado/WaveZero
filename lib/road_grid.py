@@ -8,8 +8,7 @@ from framebuffer_palette import FramebufferPalette
 from ssd1331_16bit import SSD1331
 
 MIDDLE_CYAN = colors.hex_to_rgb(0x217eff)
-MIDDLE_CYAN2 = colors.hex_to_rgb(0xff7e21)
-MIDDLE_BLUE = colors.hex_to_rgb(0x00697F)
+MIDDLE_BLUE = colors.hex_to_rgb(0x008097)
 BLACK = colors.rgb_to_565([0,0,0])
 
 class RoadGrid():
@@ -58,7 +57,10 @@ class RoadGrid():
                     0xFFFFFF,
                     ]
 
-
+    last_tick = 0
+    # reinforce the edges of the road
+    bright_lines = [7, 12]
+    bright_color = colors.hex_to_565(0x00ffff)
 
     def __init__(self, camera, display, lane_width=30):
         self.width = camera.screen_width
@@ -103,7 +105,8 @@ class RoadGrid():
 
         red = [97, 0, 112]
         # mag = [255, 0, 50]
-        cyan = [0, 255, 255]
+        # cyan = [0, 255, 255]
+        cyan = MIDDLE_BLUE
         # blue = [20, 80, 255]
         horiz_far = [82, 0, 20]
         horiz_near = [0, 238, 255]
@@ -207,6 +210,7 @@ class RoadGrid():
         self.update_horiz_lines()
         self.draw_horizon()
         self.update_vert_lines()
+        self.last_tick = utime.ticks_ms()
 
 
     def create_horiz_lines(self, num_lines):
@@ -243,38 +247,18 @@ class RoadGrid():
             x = (j * lane_width_near) + self.x_start_bottom
             points_end[j] = [round(x), self.height]
 
-        # reinforce the edges of the road
-        # lane_start, lane_end = 6, 11
-        #
-        # idx_1 = lane_start
-        # x_1 = (idx_1 * lane_width_far) + self.x_start_top
-        #
-        # idx_2 = lane_end
-        # x_2 = (idx_2 * lane_width_far) + self.x_start_top
-        #
-        # points_start.insert(idx_1, [x_1-1, horiz_y])
-        # points_start.insert(idx_2, [x_2+1, horiz_y])
-        #
-        # idx_1 = lane_start
-        # x_1 = (idx_1 * lane_width_near)+ self.x_start_bottom
-        #
-        # idx_2 = lane_end
-        # x_2 = (idx_2 * lane_width_near)+ self.x_start_bottom
-        #
-        # points_end.insert(idx_1, [round(x_1-1), self.height])
-        # points_end.insert(idx_2+1, [round(x_2+1), self.height])
-
         print(f"points_Start: {len(points_start)} / points end: {len(points_end)}")
         self.vert_points = [points_start, points_end]
 
     def update_horiz_lines(self):
-        far_z = 0
-        last_y = 0
+        last_y: int = 0
         far_z = 0 # Keep track of the furthest line, to see if we need new ones
         delete_lines = []
+        ellapsed_ticks = utime.ticks_ms() - self.last_tick
 
         for i, my_line in enumerate(self.horiz_lines_data):
-            my_line['z'] = my_line['z'] - self.speed
+
+            my_line['z'] = my_line['z'] - (self.speed * ellapsed_ticks / 1000)
 
             if my_line['z'] > far_z:
                 far_z = my_line['z']
@@ -292,7 +276,7 @@ class RoadGrid():
             if y == last_y:
                 continue
 
-            last_y = y
+            last_y = int(y)
 
             # Avoid drawing out of bounds
             if my_line['y'] > self.display.height:
@@ -322,13 +306,10 @@ class RoadGrid():
         # Calculate the reference points just once
         screen_x_far, _ = self.camera.to_2d(0, 0, self.far_z_vert)
         screen_x_near, _ = self.camera.to_2d(0, 0, self.near_z)
-
-        # screen_x_far = 34
-        # screen_x_near = 34
+        bright_lines = self.bright_lines
+        bright_color = self.bright_color
 
         top_points, bottom_points = self.vert_points[0], self.vert_points[1]
-
-        half_width = self.camera.half_width
 
         # print("COLORS:")
         # for color in self.vert_palette.palette:
@@ -350,6 +331,11 @@ class RoadGrid():
             # print(f"Coords: {start_x},{start_y},{end_x},{end_y}")
             self.display.line(start_x, start_y, end_x, end_y, color)
 
+            if index in bright_lines:
+                if index == bright_lines[0]:
+                    self.display.line(start_x-1, start_y, end_x-1, end_y, bright_color)
+                else:
+                    self.display.line(start_x+1, start_y, end_x+1, end_y, bright_color)
 
     def draw_horizon(self):
         """Draw some static horizontal lines to cover up the seam between vertical and horiz road lines"""

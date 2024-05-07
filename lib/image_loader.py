@@ -30,6 +30,8 @@ class ImageLoader():
         print(f"Before loading all images: {gc.mem_free():,} bytes")
 
         for image in images:
+            gc.collect()
+
             file = image['name']
             print(f"Loading {file}")
 

@@ -4,16 +4,16 @@
 
 """CircuitPython Essentials Audio Out WAV example"""
 import time
-import board
 import digitalio
 from audiocore import WaveFile
 from audiopwmio import PWMAudioOut as AudioOut
+from machine import Pin
 
 
 def main():
     wave_file = open("sound/warchief-guitar.wav", "rb")
     wave = WaveFile(wave_file)
-    audio = AudioOut(board.GP13)
+    audio = AudioOut(Pin(13))
     print("Playing sound file...")
 
     while audio.playing:

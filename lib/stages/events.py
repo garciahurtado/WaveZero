@@ -68,7 +68,6 @@ class WaitEvent(Event):
     def update(self):
         now = utime.ticks_ms()
         if self.started_ms + self.delay_ms < now:
-            print("FINISHED WAIT")
             self.finished = True
             self.active = False
 
@@ -83,17 +82,36 @@ class OneShotEvent(Event):
         """ Override """
         pass
 
+class MultiEvent(Event):
+    events = []
+    
+    """ A class that allows multiple other events to fire off at once"""
+    def __init__(self, events):
+        self.events = events
+
+    def start(self):
+        super().start()
+        self.active = True
+        for event in self.events:
+            event.start()
+        self.finished = True
+        self.active = False
+    
 class SpawnEnemyEvent(OneShotEvent):
-    pool: None
+    res_pool: None
+    active_pool: None
+    enemy_pool: None
+
     x: int
     y: int
     z: int
     speed: int
     lane: int
 
-    def __init__(self, res_pool, active_pool, x: int=0, y: int=0, z: int=0, speed: int=0, lane: int=0):
+    def __init__(self, res_pool, active_pool, x: int=0, y: int=0, z: int=0, speed: int=0, lane: int=0, enemy_pool=None):
         self.res_pool = res_pool
         self.active_pool = active_pool
+        self.enemy_pool = enemy_pool
 
         self.x = x
         self.y = y
@@ -109,6 +127,7 @@ class SpawnEnemyEvent(OneShotEvent):
         sprite.speed = self.speed
         sprite.set_lane(self.lane)
         self.active_pool.append(sprite)
+        self.enemy_pool.append(sprite)
 
         return sprite
 

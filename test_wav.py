@@ -20,7 +20,7 @@
          
     SDCard.py  is available in  https://github.com/micropython/micropython/tree/master/drivers/sdcard
       please be sure to rename it SDCard.py into the pico lib folder
-    
+
 
     ***  be sure to increase the SPI clock speed > 5MHz
     *** once SDCard is initialize set the spi to an higher clock
@@ -65,6 +65,7 @@
 import os as uos
 import time
 from wav.wavePlayer import wavePlayer
+import wav.wave as wave
 from machine import Pin, PWM
 
 def test_pulse():
@@ -75,15 +76,15 @@ def test_pulse():
     speaker_pwm = PWM(speaker_pin)
 
     # Set the PWM frequency and duty cycle
-    frequency = 100  # Frequency in Hz
-    duty_cycle = 0.2  # Duty cycle between 0 and 1
+    frequency = 420  # Frequency in Hz
+    duty_cycle = 0.4  # Duty cycle between 0 and 1
 
     # Play the tone for a specified duration
     duration = 2  # Duration in seconds
     going_up = True
 
     try:
-        for i in range(100):
+        for i in range(duration*100):
             
             step = int(frequency / 3)
             
@@ -115,11 +116,7 @@ def test_pulse():
     speaker_pwm.deinit()
 
 def test_wav():
-    player = wavePlayer(
-        leftPin=Pin(16),
-        rightPin=Pin(17),  # Speaker positive lead for left / right speakers
-        dma0Channel=9,
-        dma1Channel=10)
+    player = wavePlayer(leftPin=Pin(18, Pin.OUT))
     waveFolder = "/sound"
     wavelist = []
 
@@ -129,22 +126,27 @@ def test_wav():
         elif i.find(".WAV") >= 0:
             wavelist.append(waveFolder + "/" + i)
 
+    print("{0:<45}".format('File Path'), ' Framerate| Width|  Ch.|Frames')
+    for filename in wavelist:
+        f = wave.open(filename, 'rb')
+        # the format string "{0:<50}" says print left justified from chars 0 to 50 in a fixed with string
+        print("{0:<50}".format(filename),
+              "{0:>5}".format(f.getframerate()),
+              "{0:>5}".format(f.getsampwidth()),
+              "{0:>6}".format(f.getnchannels()),
+              "{0:>6}".format(f.getnframes())
+              )
+
     if not wavelist:
         print("Warning NO '.wav' files")
     else:
         print("Will play these '.wav' files", "/n", wavelist)
         try:
-            while True:
-                for song in wavelist:
-                    print(f"Playing {song}")
-                    player.play(song)
+            for song in wavelist:
+                print(f"Playing {song}")
+                player.play(song)
         except KeyboardInterrupt:
             player.stop()
     print("wavePlayer terminated")
 
-if __name__ == "__main__":
-    test_pulse()
-    test_wav()
 
-test_pulse()
-test_wav()

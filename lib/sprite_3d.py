@@ -39,12 +39,12 @@ class Sprite3D(Spritesheet):
 
         return super().show(display, self.draw_x, self.draw_y)
 
-    def update(self):
+    def update(self, ellapsed):
         if not self.active:
             return False
 
         if self.speed:
-            self.z = self.z + self.speed
+            self.z = self.z + (self.speed * ellapsed)
 
         draw_x, draw_y = self.pos()
         self.draw_x, self.draw_y = draw_x, draw_y

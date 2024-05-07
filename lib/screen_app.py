@@ -37,9 +37,9 @@ class ScreenApp:
         # GPIO5 (or any)        DC
 
 
-        spi = machine.SPI(0, baudrate=500_000_000, sck=pin_sck, mosi=pin_sda, miso=None)
+        spi = machine.SPI(0, baudrate=640_000_000, sck=pin_sck, mosi=pin_sda, miso=None)
         ssd = SSD(spi, pin_cs, pin_dc, pin_rst, height=self.screen_height,
                   width=self.screen_width)  # Create a display instance
-        ssd.set_clock_divide(16)
+        # ssd.set_clock_divide(8)
         self.display = ssd
         return ssd

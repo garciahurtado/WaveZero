@@ -1,5 +1,8 @@
+import _thread
 import asyncio
 import gc
+
+from machine import Pin
 
 from anim.anim_attr import AnimAttr
 from color_util import FramebufferPalette
@@ -8,14 +11,18 @@ from screen import Screen
 from sprite import Sprite
 from collections import deque
 
+from wav.wavePlayer import wavePlayer
+
 
 class TitleScreen(Screen):
     running = False
+    sound_player = None
 
     def __init__(self, display, *args, **kwargs):
         super().__init__(display, *args, **kwargs)
         gc.collect()
         print(f"Free memory __init__: {gc.mem_free():,} bytes")
+
 
     def run(self):
         self.running = True
@@ -25,11 +32,23 @@ class TitleScreen(Screen):
         loop = asyncio.get_event_loop()
         self.task_refresh = loop.create_task(self.refresh())
 
+        """ Sound Thread """
+
         await asyncio.gather(
             self.main_loop(),
         )
         # loop.run_until_complete(self.update_fps())
 
+    def play_music(self):
+        self.sound_player = wavePlayer(
+            leftPin=Pin(18),
+            rightPin=Pin(19),
+            virtualGndPin=Pin(20))
+
+        sound_file = '/sound/thunder_force_iv_01_8k.wav'
+        print(f"Playing {sound_file}")
+        self.sound_player.play(sound_file)
+        print(f"End of play music loop")
 
     async def refresh(self):
         while self.running:

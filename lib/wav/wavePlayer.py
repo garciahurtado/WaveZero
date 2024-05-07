@@ -70,7 +70,7 @@
 '''
 import wav.wave as wave
 import uctypes
-from rp2 import DMA
+from wav.myDMA import myDMA
 from wav.myPWM import myPWM
 from machine import Pin
 
@@ -143,7 +143,7 @@ def interleavebytes(r0,r1,r2):
 
 class wavePlayer:
     def __init__(self,leftPin=Pin(2),rightPin=Pin(3), virtualGndPin=Pin(4),
-                 dma0Channel=10,dma1Channel=11,dmaTimer=3,pwmBits=10):
+                 dma0Channel=8,dma1Channel=9,dmaTimer=3,pwmBits=10):
         #left channel Pin needs to be an even GPIO Pin number
         #right channel Pin needs to be left channel + 1
         self.pwmBits=pwmBits
@@ -175,50 +175,41 @@ class wavePlayer:
         self.dma1Channel = dma1Channel
         self.dmaTimer = dmaTimer
 
+
     def stop(self):
         self.dma0.abort()
         self.dma1.abort()
 
-    def play(self, filename):
+    def play(self,filename):
         # open Audio file and get information
-        f = wave.open(filename, 'rb')
+
+        f = wave.open(filename,'rb')
 
         rate = f.getframerate()
         bytesDepth = f.getsampwidth()
         channels = f.getnchannels()
         frameCount = f.getnframes()
 
-        print(f"Bitrate: {rate}")
-        print(f"bit depth: {bytesDepth}")
-        print(f"Channels: {2}")
-        print(f"Num frames: {f.getnframes()}")
-
-
         # set number of Frames/chunk and DMAunitSize for Stereo samples
         DMAunitSize = 4
         nbFrame = 2048
         # adjust down if 1 channel (mono)
         if channels == 1:
-            nbFrame = 1024
-        # number of 16bit audio chunks per Frame
-        nbData = nbFrame * 2
+            nbFrame=1024
+        #number of 16bit audio chunks per Frame
+        nbData = nbFrame*2
+        # Set DMA channel and timer rate
+        # the divider set the rate at 2Khz (125Mhz//62500)
+        # The multiplier  use the sample rate to adjust it correctly
+        if rate == 44100:
+            self.dma0 = myDMA(self.dma0Channel,timer=self.dmaTimer,clock_MUL= 15, clock_DIV=42517)
+        else:
+            self.dma0 = myDMA(self.dma0Channel,timer=self.dmaTimer,clock_MUL= rate // 2000, clock_DIV=62500)
+        self.dma1 = myDMA(self.dma1Channel,timer=self.dmaTimer)  # don't need to set  timer clock
 
-        # Set up DMA channels
-        self.dma0 = DMA()
-        self.dma1 = DMA()
-
-        ctrl1 = self.dma0.pack_ctrl()
-        ctrl2 = self.dma0.pack_ctrl()
-
-        # Set up DMA channel configuration
-        #self.dma0.config(src_inc=True, dst_inc=False, data_size=DMAunitSize, ring=True, ring_size=nbFrame * DMAunitSize)
-        #self.dma1.config(src_inc=True, dst_inc=False, data_size=DMAunitSize, ring=True, ring_size=nbFrame * DMAunitSize)
-        self.dma0.config(read=f._file.read, write=self.leftPWM, count=f.getnframes(), ctrl=ctrl1, trigger=True)
-        self.dma1.config(src_inc=True, dst_inc=False, data_size=DMAunitSize, ring=True, ring_size=nbFrame * DMAunitSize)
-
-        # Set up DMA channel chaining
-        self.dma0.chain_to(self.dma1)
-        self.dma1.chain_to(self.dma0)
+        #setup DMA   chain dma0 to dma1 and vice versa
+        self.dma0.setCtrl(src_inc=True, dst_inc=False,data_size=DMAunitSize,chainTo=self.dma1.channel)
+        self.dma1.setCtrl(src_inc=True, dst_inc=False,data_size=DMAunitSize,chainTo=self.dma0.channel)
 
         # need to alternate DMA buffer using a toggle flag
         toggle = True
@@ -227,59 +218,55 @@ class wavePlayer:
         # loop until is done
         frameLeft = frameCount
 
-        self.dma0.active(1)
-        while self.dma0.read != 1000:
-            pass
-
-        while frameLeft > 0:
-            # first DMA
+        while frameLeft>0:
+         # first DMA
             if frameLeft < nbFrame:
                 nbFrame = frameLeft
-                nbData = nbFrame * 2
+                nbData = nbFrame*2
             if toggle:
                 t1 = f.readframes(nbFrame)
-                # --- Duplicate mono audio samples to simulate stereo sound (on both channels)
-                if channels == 1:
+#--- Duplicate mono audio samples to simulate stereo sound (on both channels)
+                if channels ==1:
                     t3 = bytearray(4096)
-                    interleavebytes(uctypes.addressof(t1), uctypes.addressof(t3), nbFrame)
-                    t1 = t3
-                # --- make t1 stereo data to PWM compatible
-                convert2PWM(uctypes.addressof(t1), nbData, self.pwmBits)
-                self.dma1.transfer(uctypes.addressof(t1), self.leftPWM.PWM_CC, nbFrame * DMAunitSize)
+                    interleavebytes(uctypes.addressof(t1),uctypes.addressof(t3),nbFrame)
+                    t1=t3
+#--- make t1 stereo data to PWM compatible
+                convert2PWM(uctypes.addressof(t1), nbData,self.pwmBits)
+                self.dma1.move(uctypes.addressof(t1),self.leftPWM.PWM_CC,nbFrame*DMAunitSize)
                 # check if previous DMA is done
-                while self.dma0.is_busy():
-                    pass
+                while self.dma0.isBusy():
+                     pass
                 # start DMA.
                 # Since they are chained we need to start the first DMA
                 if First:
-                    self.dma1.start()
-                    First = False
+                  self.dma1.start()
+                  First = False
             else:
                 t0 = f.readframes(nbFrame)
-                # --- Duplicate mono audio samples to simulate stereo sound (on both channels)
+#--- Duplicate mono audio samples to simulate stereo sound (on both channels)
                 if channels == 1:
                     t3 = bytearray(4096)
-                    interleavebytes(uctypes.addressof(t0), uctypes.addressof(t3), nbFrame)
-                    t0 = t3
-                # --- make t0 stereo data to PWM compatible
-                convert2PWM(uctypes.addressof(t0), nbData, self.pwmBits)
-                self.dma0.transfer(uctypes.addressof(t0), self.leftPWM.PWM_CC, nbFrame * DMAunitSize)
+                    interleavebytes(uctypes.addressof(t0),uctypes.addressof(t3),nbFrame)
+                    t0=t3
+#--- make t0 stereo data to PWM compatible
+                convert2PWM(uctypes.addressof(t0), nbData,self.pwmBits)
+                self.dma0.move(uctypes.addressof(t0),self.leftPWM.PWM_CC,nbFrame*DMAunitSize)
                 # check if previous DMA is done
-                while self.dma1.is_busy():
-                    pass
+                while self.dma1.isBusy():
+                     pass
             toggle = not toggle
             frameLeft -= nbFrame
 
         if toggle:
-            self.dma1.stop()
-            while self.dma0.is_busy():
+            self.dma1.pause()
+            while self.dma0.isBusy():
                 pass
-            self.dma0.stop()
+            self.dma0.pause()
         else:
-            self.dma0.stop()
-            while self.dma1.is_busy():
+            self.dma0.pause()
+            while self.dma1.isBusy():
                 pass
-            self.dma1.stop()
+            self.dma1.pause()
         f.close()
         self.stop()
 
@@ -308,7 +295,7 @@ if __name__ == "__main__":
             wavelist.append(waveFolder+"/"+i)
         elif i.find(".WAV")>=0:
             wavelist.append(waveFolder+"/"+i)
-            
+
 
     try:
         for  i in wavelist:

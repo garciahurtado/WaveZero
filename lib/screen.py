@@ -13,6 +13,7 @@ from ssd1331_16bit import SSD1331
 class Screen:
     display: SSD1331
     sprites: [Sprite]
+    last_tick: int = 0
 
     def __init__(self, display=None):
         self.sprites = []
@@ -27,7 +28,7 @@ class Screen:
         try:
             while True:
                 self.do_refresh()
-                await asyncio.sleep(1/60)
+                await asyncio.sleep(1/240)
         except asyncio.CancelledError:
             return True
 
