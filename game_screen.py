@@ -1,8 +1,10 @@
 import gc
-
-from micropython import const
-
 from ui_elements import ui_screen
+
+from machine import Pin
+from micropython import const
+from stages.stage_1 import Stage1
+
 gc.collect()
 
 import utime
@@ -22,12 +24,10 @@ from fx.crash import Crash
 from screen import Screen
 from road_grid import RoadGrid
 from perspective_camera import PerspectiveCamera
-from encoder import Encoder
-from sprite import Sprite
+from sprites.sprite import Sprite
 from title_screen import TitleScreen
 import color_util as colors
-from stages.stage_1 import Stage1
-
+from primitives.encoder import Encoder
 
 start_time_ms = 0
 
@@ -39,13 +39,14 @@ class GameScreen(Screen):
     enemies: []
     ui: ui_screen
     crash_fx: None
-    sprite_max_z: int = 2000
+    sprite_max_z: int = const(1301)
     ground_speed = 0
-    ground_max_speed = 600
+    ground_max_speed: int = const(300)
     saved_ground_speed = 0
-    lane_width: int = 23
-    num_lives = 1
-    crash_y = 48 # Screen Y of Sprites which will start colliding with the player
+    lane_width: int = const(24)
+    num_lives: int = const(4)
+    crash_y_start = const(48) # Screen Y of Sprites which will collide with the player
+    crash_y_end = const(62) # Screen Y of end collision
 
     # Bike movement
     bike: PlayerSprite
@@ -65,35 +66,40 @@ class GameScreen(Screen):
     sprite_lock: None
     loop: None
     stage: None
-    sun_x_start: 38
+    sun_x_start: 0
 
     def __init__(self, display, *args, **kwargs):
-        self.encoder = Encoder(27, 26)
+        self.encoder = Encoder(
+            Pin(27, Pin.IN, Pin.PULL_UP),
+            Pin(26, Pin.IN, Pin.PULL_UP))
+
         self.enemies = []
         self.flying_enemies = []
 
         self.mem_marker('- Before init display')
         super().__init__(display, *args, **kwargs)
 
-        """ Display Thread """
-        gc.collect()
-        _thread.start_new_thread(self.start_display_loop, [])
-
-        self.mem_marker('- Before preload images')
-        self.preload_images()
-        self.mem_marker('- After preload images')
-
-        #self.mem_marker('- After init display')
         self.init_camera()
-        self.init_stage()
-
 
         self.ui = ui_screen(self.display, self.num_lives)
-        self.bike = PlayerSprite(camera=self.camera)
-        self.sun_x_start = 38
 
-        # self.bike.blink = True
+        """ Display Thread """
+        _thread.start_new_thread(self.start_display_loop, [])
+
+        self.mem_marker('--- Before preload images ---')
+        self.preload_images()
+        self.mem_marker('--- After preload images ---')
+
+        self.bike = PlayerSprite(camera=self.camera)
+
+        self.mem_marker('%%% Before FX init %%%')
         self.crash_fx = Crash(self.display, self.bike)
+
+        #self.mem_marker('- After init display')
+        self.init_stage()
+
+        self.sun_x_start = 37
+        self.bike.blink = True
 
         self.loop = asyncio.get_event_loop()
 
@@ -115,9 +121,9 @@ class GameScreen(Screen):
 
     def preload_images(self):
         images = [
-            {"name": "road_barrier_yellow.bmp", "width": 20, "height": 15, "color_depth": 4},
-            {"name": "bike_sprite.bmp", "width": 32, "height": 22, "color_depth": 4},
             {"name": "laser_tri.bmp", "width": 20, "height": 20, "color_depth": 4},
+            {"name": "road_barrier_yellow.bmp", "width": 24, "height": 15, "color_depth": 4},
+            {"name": "bike_sprite.bmp", "width": 32, "height": 22, "color_depth": 4},
             {"name": "sunset.bmp"},
             # {"name": "enemy_gradients.bmp", "width": 4, "height": 1},
             {"name": "life.bmp"},
@@ -129,15 +135,15 @@ class GameScreen(Screen):
     def run(self):
 
         self.init_sprites()
-        self.init_road_grid()
         self.init_enemies()
+        self.init_road_grid()
 
         asyncio.run(self.main_loop())
 
     def init_sprites(self):
         sun = Sprite("/img/sunset.bmp")
         sun.x = self.sun_x_start
-        sun.y = 7
+        sun.y = 8
         self.add(sun)
         self.sun = sun
         self.bike.visible = True
@@ -163,12 +169,12 @@ class GameScreen(Screen):
 
     async def main_loop(self):
         loop = asyncio.get_event_loop()
-        self.input_task = loop.create_task(self.get_input(self.encoder, self.encoder_last_pos))
+        # self.input_task = loop.create_task(self.get_input(self.encoder, self.encoder_last_pos))
         self.stage.start()
+
         await asyncio.gather(
             self.update_loop(),
             self.update_fps(),
-            self.input_task
         )
 
     async def update_loop(self):
@@ -199,11 +205,11 @@ class GameScreen(Screen):
         if not self.last_tick:
             self.last_tick = utime.ticks_ms()
 
-
         # update loop - will run until task cancellation
         try:
             while True:
                 self.grid.speed = self.ground_speed
+                # self.stage.event_chain.speed = -self.ground_speed
 
                 # Handle bike swerving
                 target_lane = self.bike.target_lane
@@ -236,19 +242,26 @@ class GameScreen(Screen):
                 self.camera.pos["x"] = round(bike_angle * mult2)
                 sun.x = self.sun_x_start - round(bike_angle*4)
 
-                ellapsed = utime.ticks_ms() - self.last_tick
-                self.stage.update(ellapsed/1000)
-                self.detect_collisions(self.stage.enemies)
+                elapsed = utime.ticks_ms() - self.last_tick
 
-                await asyncio.sleep(1 / 60)
+                if elapsed:
+                    self.stage.update(1000/elapsed)
+                    self.detect_collisions(self.stage.sprites)
+
+                # Wait for next update
+                await asyncio.sleep(1 / 90)
 
         except asyncio.CancelledError:
             return False
 
-        # Wait for next update
 
     def init_stage(self):
-        self.stage = Stage1(self.camera, lane_width=self.lane_width, enemies=self.enemies)
+        self.stage = Stage1(
+            self.camera,
+            lane_width=self.lane_width,
+            speed=self.ground_max_speed,
+            sprite_max_z=self.sprite_max_z
+            )
 
     def init_enemies(self):
         self.enemies = []
@@ -310,9 +323,6 @@ class GameScreen(Screen):
             # current_enemy_palettes = all_palettes[i*palette_size:(i+1)*palette_size]
 
             self.create_group(self.base_group, i)
-
-
-
     def detect_collisions(self, colliders):
         if self.bike.visible and self.bike.active:
             for sprite in colliders:
@@ -320,9 +330,11 @@ class GameScreen(Screen):
                     continue
 
                 # Check collisions
-                if ((sprite.draw_y >= self.crash_y) and
-                        (sprite.get_lane() == self.bike.current_lane) and
-                        not self.bike.blink):
+                if ((sprite.draw_y >= self.crash_y_start) and
+                    (sprite.draw_y < self.crash_y_end) and
+                    (sprite.get_lane() == self.bike.current_lane) and
+                    self.bike.has_physics):
+
                     print(f"Crash on {self.bike.current_lane}")
                     self.bike.active = False
                     self.do_crash()
@@ -397,9 +409,9 @@ class GameScreen(Screen):
         Starts / restarts the input loop and display loop. Should be ran on Core #2
         """
 
-        # if getattr(self, 'input_task', False):
-        #     self.input_task.cancel()
-        #
+        if getattr(self, 'input_task', False):
+            self.input_task.cancel()
+
         # if getattr(self, 'display_task', False):
         #     self.display_task.cancel()
 
@@ -414,19 +426,17 @@ class GameScreen(Screen):
             fps = int(self.fps.fps())
             self.ui.update_score(fps)
 
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.2)
 
     async def get_input(self, encoder, last_pos):
         while True:
-            position = encoder.value
-            if position > last_pos['pos']:
-                self.bike.move_left()
-                last_pos['pos'] = position
-            elif position < last_pos['pos']:
-                self.bike.move_right()
-                last_pos['pos'] = position
-
-            await asyncio.sleep_ms(int(1000/70))
+            async for position in encoder:
+                if position < last_pos['pos']:
+                    self.bike.move_left()
+                    last_pos['pos'] = position
+                elif position > last_pos['pos']:
+                    self.bike.move_right()
+                    last_pos['pos'] = position
 
     def draw_sprites(self):
         super().draw_sprites()

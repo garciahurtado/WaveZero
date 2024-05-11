@@ -1,4 +1,3 @@
-import _thread
 import asyncio
 import gc
 
@@ -8,7 +7,7 @@ from anim.anim_attr import AnimAttr
 from color_util import FramebufferPalette
 import color_util as colors
 from screen import Screen
-from sprite import Sprite
+from sprites.sprite import Sprite
 from collections import deque
 
 from wav.wavePlayer import wavePlayer

@@ -1,6 +1,6 @@
 import random
 import framebuf
-from scaled_sprite import ScaledSprite
+from sprites.scaled_sprite import ScaledSprite
 
 class SpriteGroup(ScaledSprite):
     """Represents a group of sprites that use the same image and are rendered nearby as a group. This class renders

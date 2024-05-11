@@ -1,5 +1,5 @@
 from image_loader import ImageLoader
-from sprite import Sprite
+from sprites.sprite import Sprite
 
 
 class Spritesheet(Sprite):
@@ -21,6 +21,8 @@ class Spritesheet(Sprite):
             self.width = frame_width
             self.height = frame_height
 
+        self.frames = []
+
         super().__init__(*args, **kwargs)
         # if 'filename' in kwargs:
         #     print(f"Spritesheet init'd with {len(self.frames)} frames")
@@ -29,7 +31,6 @@ class Spritesheet(Sprite):
     def load_image(self, filename):
         """Overrides parent"""
         self.frames = ImageLoader.load_image(filename, self.frame_width, self.frame_height)
-
         print(f"Loaded {len(self.frames)} frames")
         meta = self.frames[0]
 
@@ -49,10 +50,9 @@ class Spritesheet(Sprite):
         if frame_num >= len(self.frames):
             raise KeyError(f"Frame {frame_num} is invalid (only {len(self.frames)} frames)")
 
+        # print(f"SET FRAME {frame_num}")
         self.current_frame = frame_num
         self.image = self.frames[frame_num]
-        # self.frame_width = self.image.width
-        # self.frame_height = self.image.height
 
     def update_frame(self):
         """Update the current frame in the spritesheet to the one that represents the correct size when taking into
@@ -68,7 +68,7 @@ class Spritesheet(Sprite):
 
     def get_frame_idx(self, real_z):
 
-        rate = ((real_z - self.camera.pos['z']) / 2)
+        rate = (real_z - self.camera.pos['z']) / 2
         if rate == 0:
             rate = 0.00001 # Avoid divide by zero
 
@@ -77,7 +77,7 @@ class Spritesheet(Sprite):
         #self.height_2d = scale * self.frame_height
         #self.width_2d = self.ratio * self.height_2d
 
-        if frame_idx >= len(self.frames):
+        if frame_idx > len(self.frames) - 1:
             frame_idx = len(self.frames) - 1
 
         if frame_idx < 0:
@@ -95,6 +95,7 @@ class Spritesheet(Sprite):
         new.ratio = self.ratio
         new.half_scale_one_dist = self.half_scale_one_dist
         new.palette = self.palette
+        new.z = self.z
 
         return new
 

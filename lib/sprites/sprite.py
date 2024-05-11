@@ -20,7 +20,7 @@ class Sprite:
     active = True # Whether update() will update this Sprite
     blink = False
     blink_flip = 1
-
+    has_physics: bool
 
     x: int = 0
     y: int = 0
@@ -32,8 +32,14 @@ class Sprite:
     max_x = const(200)
     max_y = const(200)
     dot_color: int = 0
+    pool = None # The pool that spawned this sprite
+    pos_type = None # To help the stage place the sprite in order according to Z index
 
-    def __init__(self, filename=None, x=0, y=0):
+    POS_TYPE_FAR = const(0)
+    POS_TYPE_NEAR = const(1)
+    event_chain = None
+
+    def __init__(self, filename=None, x=0, y=0, speed=0, pos_type=None):
 
         if filename:
             self.load_image(filename)
@@ -41,12 +47,22 @@ class Sprite:
 
         self.x = x
         self.y = y
+        self.speed = speed
+        self.event_chain = None
 
+        if pos_type:
+            self.pos_type = pos_type
+        else:
+            self.pos_type = self.POS_TYPE_FAR
+
+        self.has_physics = False
         # self.update()
 
     def reset(self):
         self.active = True
         self.visible = True
+        if self.event_chain:
+            self.event_chain.start()
 
     def load_image(self, filename):
         self.filename = filename
@@ -111,9 +127,9 @@ class Sprite:
     def do_blit(self, x: int, y: int, display: framebuf.FrameBuffer):
         if self.has_alpha:
             #print(f"x/y: {x},{y} / alpha:{self.alpha_color}")
-            display.blit(self.image.pixels, x, y, self.alpha_color, self.palette)
+            display.blit(self.image.pixels, int(x), int(y), self.alpha_color, self.palette)
         else:
-            display.blit(self.image.pixels, x, y, -1, self.palette)
+            display.blit(self.image.pixels, int(x), int(y), -1, self.palette)
 
         return True
 
@@ -126,23 +142,10 @@ class Sprite:
         if not self.active:
             return False
 
+        if self.event_chain:
+            self.event_chain.update()
+
         return True
-
-    def _clone(self):
-        copy = Sprite()
-        copy.x = self.x
-        copy.y = self.y
-
-        copy.image = self.image
-        copy.palette = self.palette
-        copy.width = self.width
-        copy.height = self.height
-
-        copy.has_alpha = self.has_alpha
-        copy.alpha_color = self.alpha_color
-        copy.alpha_index = self.alpha_index
-
-        return copy
 
     def clone(self):
         cloned_obj = self.__class__()
@@ -158,6 +161,10 @@ class Sprite:
     def kill(self):
         self.active = False
         self.visible = False
+
+        """ If this sprite came from a pool, return it to the pool"""
+        if self.pool:
+            self.pool.add(self)
 
 
 

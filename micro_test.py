@@ -1,11 +1,10 @@
-from sprite import load_bmp
+from sprites.sprite import load_bmp
 import machine
 from machine import Pin
 import framebuf
 import utime
 from lib.ssd1331_16bit import SSD1331 as SSD
 from road_grid import RoadGrid
-from perspective_sprite import PerspectiveSprite
 from perspective_camera import PerspectiveCamera
 
 

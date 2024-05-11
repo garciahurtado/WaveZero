@@ -2,8 +2,8 @@ import fonts.vtks_blocketo_6px as font_vtks
 import fonts.bm_japan as large_font
 from font_writer import Writer, ColorWriter
 
-from sprite_rect import SpriteRect
-from sprite import Sprite
+from sprites.sprite_rect import SpriteRect
+from sprites.sprite import Sprite
 
 from anim.palette_rotate import PaletteRotate
 import asyncio

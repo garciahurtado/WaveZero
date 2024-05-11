@@ -1,6 +1,8 @@
 import math
 
 import fonts.vtks_blocketo_6px as font_vtks
+import utime
+
 from screen import Screen
 
 import asyncio
@@ -10,7 +12,7 @@ from micropython import const
 
 from font_writer import ColorWriter, Writer
 from perspective_camera import PerspectiveCamera
-from scaled_sprite import ScaledSprite
+from sprites.scaled_sprite import ScaledSprite
 import color_util as colors
 import random
 
@@ -46,13 +48,13 @@ class TestScreen(Screen):
         _thread.start_new_thread(self.start_display_loop, [])
 
         await asyncio.gather(
-            # self.sprite_fps_test(),
-            self.display_line_test(),
+            self.sprite_fps_test(),
+            #self.display_line_test(),
             self.update_fps()
         )
 
     def create_lines(self):
-        count = 300
+        count = 40
         print(f"Creating {count} lines")
         for i in range(count):
             y_start = 16 + int(i)
@@ -86,12 +88,13 @@ class TestScreen(Screen):
 
     async def sprite_fps_test(self):
         self.create_sprites()
+        self.last_tick = utime.ticks_ms()
 
         while True:
+            elapsed = utime.ticks_ms() - self.last_tick
             for i, sprite in enumerate(self.sprites):
                 sprite.z = sprite.z + 6
-                sprite.update()
-
+                sprite.update(elapsed)
             await asyncio.sleep(1 / 90)
 
     async def display_line_test(self):
@@ -105,13 +108,17 @@ class TestScreen(Screen):
 
         base_enemy1 = ScaledSprite(
             camera=self.camera,
-            filename='/img/laser_tri.bmp')
+            filename='/img/laser_tri.bmp',
+            frame_width=20,
+            frame_height=20)
         base_enemy1.set_alpha(0)
         base_enemy1.is3d = True
 
         base_enemy2 = ScaledSprite(
             camera=self.camera,
-            filename='/img/road_wall_single.bmp')
+            filename='/img/road_wall_single.bmp',
+            frame_width=12,
+            frame_height=22)
         base_enemy2.set_alpha(0)
         base_enemy2.is3d = True
 
@@ -159,7 +166,7 @@ class TestScreen(Screen):
 
             self.display.fill(bg_color)
 
-            self.refresh_lines()
+            # self.refresh_lines()
             for i, sprite in enumerate(self.sprites):
                 sprite.show(self.display)
 
@@ -170,7 +177,7 @@ class TestScreen(Screen):
             #print(f"sprite.show(): {diff}ms")
             await asyncio.sleep(1/240)
 
-    def refresh_lines(self):
+    def show_lines(self):
         for line in self.lines:
             # print(f"Line in {line[0]},{line[1]}, / {line[2]},{line[3]}")
             x1 = line[0]
@@ -182,7 +189,7 @@ class TestScreen(Screen):
             y2 = y2 + int(random.randrange(0, 2))
             self.display.rect(
                 x1,
-                y2,
+                y1,
                 x2,
                 y2,
                 color)

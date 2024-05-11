@@ -1,5 +1,5 @@
 import asyncio
-from spritesheet import Spritesheet
+from sprites.spritesheet import Spritesheet
 
 class PlayerSprite(Spritesheet):
     target_lane = 2
@@ -15,6 +15,7 @@ class PlayerSprite(Spritesheet):
         self.y = 42
         self.set_alpha(0)
         self.set_frame(8)  # middle frame
+        self.has_physics = True
 
         # self.blink = True
 
@@ -46,9 +47,14 @@ class PlayerSprite(Spritesheet):
         line_offset = angle
         return line_offset
 
+    def start_blink(self):
+        self.blink = True
+        self.has_physics = False
+
     async def stop_blink(self):
         await asyncio.sleep(3)
         self.blink = False
         self.visible = True
         self.active = True
+        self.has_physics = True
 

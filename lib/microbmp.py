@@ -419,7 +419,7 @@ class MicroBMP(object):
             elif self.color_depth == 4:
                 format = framebuf.GS4_HMSB
                 frame_size = int(frame_size / 2)
-            elif self.color_depth == 2:
+            else:
                 format = framebuf.GS2_HMSB
                 frame_size = int(frame_size / 4)
 

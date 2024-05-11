@@ -6,10 +6,13 @@ class FramebufferPalette(framebuf.FrameBuffer):
     A color palette in framebuffer format (rgb565), ready to be used by display.blit()
     """
     palette: bytearray
-    num_colors = 0
+    num_colors: int = 0
+
+    # By introducing an offset, we can "rotate" the colors in the palette without changing the data
+    index_offset: int = 0
 
     def __init__(self, palette):
-
+        self.index_offset = 0
         set_colors = []
 
         if isinstance(palette, int):
@@ -18,7 +21,7 @@ class FramebufferPalette(framebuf.FrameBuffer):
 
             self.palette = palette
         elif isinstance(palette, bytearray):
-            self.num_colors = int(len(palette) / 2)
+            self.num_colors = len(palette) // 2
             self.palette = palette
         else:
             """ you can also pass a list of RGB tuples to the constructor"""
@@ -53,6 +56,8 @@ class FramebufferPalette(framebuf.FrameBuffer):
         self.pixel(index, 0, color)
 
     def get_rgb(self, index):
+        index += self.index_offset
+        index = index % self.num_colors
         color = self.pixel(index, 0)
         color = colors.rgb565_to_rgb(color)
         return color
@@ -65,8 +70,11 @@ class FramebufferPalette(framebuf.FrameBuffer):
         self.pixel(index, 0, int(color))
 
     def get_bytes(self, index):
+        index += self.index_offset
+        index = index % self.num_colors
         color = self.pixel(index, 0)
         return color
+
 
     def clone(self):
         new_palette = FramebufferPalette(bytearray(self.num_colors * 2))
@@ -98,3 +106,16 @@ class FramebufferPalette(framebuf.FrameBuffer):
         idx = int((my_value / my_range) * self.num_colors)
         return idx
 
+    @staticmethod
+    def pick_from_palette(palette, value, max, min=0):
+        """ Static version of the above """
+        if value < min:
+            value = min
+        if value > max:
+            value = max
+
+        my_range = max - min
+        my_value = value - min
+
+        idx = int((my_value / my_range) * len(palette))
+        return idx

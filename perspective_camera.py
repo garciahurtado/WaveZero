@@ -2,14 +2,14 @@ import framebuf
 import math
 
 class PerspectiveCamera():
-    def __init__(self, display: framebuf.FrameBuffer, pos_x: float = 0, pos_y: float = 0, pos_z: float = 0, vp_x: float = 0, vp_y: float = 0,
+    def __init__(self, display: framebuf.FrameBuffer, pos_x: int = 0, pos_y: int = 0, pos_z: int = 0, vp_x: int = 0, vp_y: int = 0,
                  focal_length: float = 100) -> object:
 
         self.screen_width = display.width
         self.screen_height = display.height
 
-        self.half_width = self.screen_width / 2
-        self.half_height = self.screen_height / 2
+        self.half_width = int(self.screen_width / 2)
+        self.half_height = int(self.screen_height / 2)
 
         self.pos = {"x":pos_x, "y":pos_y, "z":pos_z} # location of camera in 3D space
         self.vp = {"x": vp_x, "y":vp_y} # vanishing point
@@ -33,7 +33,7 @@ class PerspectiveCamera():
         h_fov_deg = math.degrees(h_fov)
         v_fov_deg = math.degrees(v_fov)
 
-        return h_fov_deg, v_fov_deg
+        return round(h_fov_deg), round(v_fov_deg)
 
 
     def to_2d(self, x, y, z):
@@ -47,11 +47,11 @@ class PerspectiveCamera():
         screen_x = ((x * self.focal_length_x) / (z)) + self.half_width
         screen_y = (((y - camera_y) * self.focal_length_y) / (z)) + self.half_height
 
-        screen_y = self.screen_height - screen_y - self.vp['y']
         screen_x = screen_x - self.pos["x"]
+        screen_y = self.screen_height - screen_y - self.vp['y']
 
         y_factor = (screen_y - self.vp['y']) / (self.screen_height - self.vp['y'])
         screen_x = screen_x - (self.vp['x'] * y_factor)
 
-        return round(screen_x), round(screen_y)
+        return screen_x, screen_y
 

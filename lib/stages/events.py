@@ -1,36 +1,52 @@
 import asyncio
+import math
+
 import utime
 class Event:
     started_ms: int
     active: bool = False
     finished: bool = False
     next_event = False
+    speed: int = 0
+    elapsed = 0
+    last_tick = 0
 
     def start(self):
         self.started_ms = utime.ticks_ms()
         self.active: True
 
     def update(self):
-        """ Override in child classes """
-        if self.active:
-            return True
-        else:
+        """ Override and call from child classes """
+        if not self.active:
             return False
+
+        if not self.last_tick:
+            self.last_tick = self.started_ms
+
+        elapsed = utime.ticks_ms() - self.last_tick
+        return elapsed
 
 class EventChain:
     events: [] = []
     current_event: Event = None
     finished: bool = False
     running: bool = False
+    fps: int = 0
 
-    def start(self):
+    def start(self, fps=30):
+        self.fps = fps
         self.running = True
         self.current_event = self.events[0]
-        print(self.current_event)
+
         self.current_event.start()
 
         loop = asyncio.get_event_loop()
         loop.create_task(self.update())
+
+    def reset(self):
+        self.running = False
+        self.current_event = self.events[0]
+        # TODO: add task cancellation
 
     def add(self, new_event: Event):
         """ Chain it to the last event"""
@@ -40,9 +56,12 @@ class EventChain:
 
         self.events.append(new_event)
 
+    def add_many(self, all_events):
+        for event in all_events:
+            self.add(event)
+
     async def update(self):
         while self.running:
-
             if self.current_event.finished:
                 if self.current_event.next_event:
                     self.current_event = self.current_event.next_event
@@ -54,7 +73,7 @@ class EventChain:
 
             self.current_event.update()
 
-            await asyncio.sleep(1/30)
+            await asyncio.sleep(1/self.fps)
 
         return False
 
@@ -98,37 +117,74 @@ class MultiEvent(Event):
         self.active = False
     
 class SpawnEnemyEvent(OneShotEvent):
-    res_pool: None
-    active_pool: None
-    enemy_pool: None
+    dead_pool: None
+    active_sprites: None
 
     x: int
     y: int
     z: int
-    speed: int
     lane: int
 
-    def __init__(self, res_pool, active_pool, x: int=0, y: int=0, z: int=0, speed: int=0, lane: int=0, enemy_pool=None):
-        self.res_pool = res_pool
-        self.active_pool = active_pool
-        self.enemy_pool = enemy_pool
+    def __init__(self, x=0, y=0, z=0, lane=0, dead_pool=None):
+        super().__init__()
+
+        self.dead_pool = dead_pool
 
         self.x = x
         self.y = y
         self.z = z
-        self.speed = speed
         self.lane = lane
 
     def do_thing(self):
-        sprite = self.res_pool.get_new()
+        sprite = self.dead_pool.get_new()
         sprite.x = self.x
         sprite.y = self.y
         sprite.z = self.z
-        sprite.speed = self.speed
+        sprite.reset()
         sprite.set_lane(self.lane)
-        self.active_pool.append(sprite)
-        self.enemy_pool.append(sprite)
 
         return sprite
+
+class MoveCircle(Event):
+    item: None
+    center: []
+    radius: int = 0
+    speed: int = 0
+    total_count: int = 3
+    curr_count: int = 0
+    orig_x: int = 0
+    orig_y: int = 0
+
+    def __init__(self, item, center, radius, speed, count):
+        self.item = item # Sprite object with X and Y
+        self.center = center
+        self.radius = radius
+        self.speed = speed
+        self.count = count
+        self.orig_x = item.x
+        self.orig_y = item.y
+
+    def update(self):
+        # print("move circle")
+        elapsed = super().update()
+        if not elapsed:
+            return False
+
+        age = utime.ticks_ms() - self.started_ms
+        distance = (age * self.speed) / 1000
+        angle = distance * 2 * math.pi / self.radius
+
+        # self.item.x = self.orig_x + (self.center[0] - self.orig_x) + math.sin(angle) * self.radius
+        # self.item.y = self.orig_y + (self.center[1] - self.orig_y) + math.cos(angle) * self.radius
+
+        if distance >= 2 * math.pi * self.curr_count and distance < 2 * math.pi * (self.curr_count + 1):
+            self.curr_count += 1
+
+        if self.curr_count >= self.total_count:
+            return False
+
+
+
+
 
 

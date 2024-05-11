@@ -1,10 +1,9 @@
 import gc
 
 import asyncio
-import framebuf
 
 from fps_counter import FpsCounter
-from sprite import Sprite
+from sprites.sprite import Sprite
 import micropython
 
 from ssd1331_16bit import SSD1331
@@ -14,6 +13,7 @@ class Screen:
     display: SSD1331
     sprites: [Sprite]
     last_tick: int = 0
+    gc_interval: int = 10 # how often to call the garbage collector
 
     def __init__(self, display=None):
         self.sprites = []
@@ -28,14 +28,17 @@ class Screen:
         try:
             while True:
                 self.do_refresh()
-                await asyncio.sleep(1/240)
+                if (self.last_tick % self.gc_interval) == 0:
+                    gc.collect()
+
+                await asyncio.sleep(1/500)
         except asyncio.CancelledError:
             return True
 
     def do_refresh(self):
         """Synchronous, non-looping, version of refresh_display()"""
         self.display.show()
-        self.fps.tick()
+        self.last_tick = self.fps.tick()
 
     def draw_sprites(self):
         for my_sprite in self.sprites:
@@ -45,7 +48,7 @@ class Screen:
         while True:
             # Show the FPS in the score label
             fps = int(self.fps.fps())
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.3)
 
     def check_mem(self):
         gc.collect()

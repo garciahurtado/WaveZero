@@ -7,8 +7,8 @@ class Animation:
     """A base animation class used to animate properties of objects over time. It supports both endless and timed
     animations, but the details are left to the subclasses """
 
-    duration_ms: int
-    ellapsed_ms: int
+    duration: int
+    elapsed: int
     started_ms: int
     anim_obj: None
     anim_property: None
@@ -19,13 +19,13 @@ class Animation:
         self.anim_property = anim_property
         if anim_property:
             self.start_value = getattr(anim_obj, anim_property)
-        self.duration_ms = duration
-        self.ellapsed_ms = 0
+        self.duration = duration
+        self.elapsed = 0
         self.running = False
 
     async def run(self, fps=60):
         self.running = True
-        self.started_ms = utime.ticks_ms()
+        self.started = utime.ticks_us()
 
         while self.running:
             await self.run_loop()
