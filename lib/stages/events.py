@@ -91,7 +91,12 @@ class WaitEvent(Event):
             self.active = False
 
 class OneShotEvent(Event):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
     def start(self):
+        super().start()
+
         self.active = True
         self.do_thing()
         self.finished = True

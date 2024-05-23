@@ -1,6 +1,9 @@
 import framebuf
 import math
 
+import micropython
+
+
 class PerspectiveCamera():
     def __init__(self, display: framebuf.FrameBuffer, pos_x: int = 0, pos_y: int = 0, pos_z: int = 0, vp_x: int = 0, vp_y: int = 0,
                  focal_length: float = 100) -> object:
@@ -11,7 +14,7 @@ class PerspectiveCamera():
         self.half_width = int(self.screen_width / 2)
         self.half_height = int(self.screen_height / 2)
 
-        self.pos = {"x":pos_x, "y":pos_y, "z":pos_z} # location of camera in 3D space
+        self.pos: dict[str, int] = {"x":pos_x, "y":pos_y, "z":pos_z} # location of camera in 3D space
         self.vp = {"x": vp_x, "y":vp_y} # vanishing point
         self.focal_length = focal_length # Distance from the camera to the projection plane in pixels
 
@@ -36,10 +39,11 @@ class PerspectiveCamera():
         return round(h_fov_deg), round(v_fov_deg)
 
 
-    def to_2d(self, x, y, z):
+    @micropython.native
+    def to_2d(self, x: int, y: int, z: int):
         """Based on:
         https://forum.gamemaker.io/index.php?threads/basic-pseudo-3d-in-gamemaker.105242/"""
-        z = z - self.pos['z']
+        z = int(z - self.pos['z'])
         if z == 0:
             z = 0.0001 # avoid division by zero
 

@@ -1,3 +1,5 @@
+from uarray import array
+
 from sprites.sprite import Sprite
 
 
@@ -22,7 +24,10 @@ class SpritePool:
             self.add(new_sprite)
 
     def __len__(self):
-        return len(self.reserve_sprites)
+        return len(self.active_sprites)
+
+    def __iter__(self):
+        return iter(self.active_sprites)
 
 
     def add(self, new_sprite):
@@ -62,3 +67,18 @@ class SpritePool:
         sprite.z = 0
 
         return sprite
+
+    def update(self, elapsed):
+        for sprite in self.active_sprites:
+
+            if (sprite.z < self.camera.min_z) or (sprite.z > self.camera.horiz_z):
+                sprite.kill()
+                self.active_sprites.remove(sprite)
+                self.add(sprite)
+
+            sprite.update(elapsed)
+
+    def show(self, display):
+        for my_sprite in self.active_sprites:
+            my_sprite.show(display)
+

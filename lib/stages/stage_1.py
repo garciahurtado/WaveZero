@@ -1,11 +1,9 @@
-from anim.palette_rotate import PaletteRotate
+# from anim.palette_rotate import PaletteRotate
+import gc
 
 from sprites.flying_tri import FlyingTri
-from sprites.scaled_sprite import ScaledSprite
 from sprites.sprite_pool import SpritePool
 
-import asyncio
-import gc
 import utime
 
 from sprites.road_barrier import RoadBarrier
@@ -29,7 +27,7 @@ class Stage1:
         self.speed = speed
         self.sprite_max_z = sprite_max_z
 
-        # gc.collect()
+        gc.collect()
         print("Creating sprite pools....")
 
         """ Init sprites """
@@ -58,9 +56,9 @@ class Stage1:
 
         """ Rotate palette animation """
         fps = 120
-        self.color_anim = PaletteRotate(sprite_barrier.palette, 1000 / fps, slice=[1, 2])
-        loop = asyncio.get_event_loop()
-        loop.create_task(self.color_anim.run(fps=fps))
+        # self.color_anim = PaletteRotate(sprite_barrier.palette, 1000 / fps, slice=[1, 2])
+        # loop = asyncio.get_event_loop()
+        # loop.create_task(self.color_anim.run(fps=fps))
 
         """ Sprite pools """
 
@@ -86,47 +84,46 @@ class Stage1:
         wall_wait = 2000
         all_events = [
             WaitEvent(wall_wait),
-                self.spawn_one(lane=0, dead_pool=self.sprites_pool_tris),
-                self.spawn_one(lane=4, dead_pool=self.sprites_pool_tris),
-                WaitEvent(200),
+            self.spawn_one(lane=0, dead_pool=self.sprites_pool_tris),
+            self.spawn_one(lane=4, dead_pool=self.sprites_pool_tris),
+            WaitEvent(200),
 
-                self.spawn_one(lane=0, dead_pool=self.sprites_pool_tris),
-                self.spawn_one(lane=4, dead_pool=self.sprites_pool_tris),
-                WaitEvent(200),
+            self.spawn_one(lane=0, dead_pool=self.sprites_pool_tris),
+            self.spawn_one(lane=4, dead_pool=self.sprites_pool_tris),
+            WaitEvent(200),
 
-                self.spawn_one(lane=0, dead_pool=self.sprites_pool_tris),
-                self.spawn_one(lane=4, dead_pool=self.sprites_pool_tris),
-                WaitEvent(200),
-            #
-            #
-            # MultiEvent([
-            #     self.spawn_one(lane=0),
-            #     self.spawn_one(lane=1),
-            #     self.spawn_one(lane=2),
-            #     self.spawn_one(lane=3),
-            #     self.spawn_one(lane=4),
-            # ]),
-            # WaitEvent(wall_wait/2),
-            # MultiEvent([
-            #     self.spawn_one(lane=1),
-            #     self.spawn_one(lane=2),
-            #     self.spawn_one(lane=3),
-            #     self.spawn_one(lane=4),
-            # ]),
-            # WaitEvent(wall_wait),
-            # MultiEvent([
-            #     self.spawn_one(lane=0),
-            #     self.spawn_one(lane=1),
-            #     self.spawn_one(lane=3),
-            #     self.spawn_one(lane=4),
-            # ]),
-            # WaitEvent(wall_wait/2),
-            # MultiEvent([
-            #     self.spawn_one(lane=1),
-            #     self.spawn_one(lane=2),
-            #     self.spawn_one(lane=3),
-            #     self.spawn_one(lane=4),
-            # ]),
+            self.spawn_one(lane=0, dead_pool=self.sprites_pool_tris),
+            self.spawn_one(lane=4, dead_pool=self.sprites_pool_tris),
+            WaitEvent(200),
+
+            MultiEvent([
+                self.spawn_one(lane=0),
+                self.spawn_one(lane=1),
+                self.spawn_one(lane=2),
+                self.spawn_one(lane=3),
+                self.spawn_one(lane=4),
+            ]),
+            WaitEvent(wall_wait/2),
+            MultiEvent([
+                self.spawn_one(lane=1),
+                self.spawn_one(lane=2),
+                self.spawn_one(lane=3),
+                self.spawn_one(lane=4),
+            ]),
+            WaitEvent(wall_wait),
+            MultiEvent([
+                self.spawn_one(lane=0),
+                self.spawn_one(lane=1),
+                self.spawn_one(lane=3),
+                self.spawn_one(lane=4),
+            ]),
+            WaitEvent(wall_wait/2),
+            MultiEvent([
+                self.spawn_one(lane=1),
+                self.spawn_one(lane=2),
+                self.spawn_one(lane=3),
+                self.spawn_one(lane=4),
+            ]),
             #
             # WaitEvent(2000),
             # self.spawn_one(lane=0),
@@ -165,7 +162,8 @@ class Stage1:
             self.event_chain.add(event)
 
     def spawn_one(self, lane=0, dead_pool=None):
-        """ Event factory method """
+        """ Event factory method, doesn't actually spawn enemies """
+
         if not dead_pool:
             dead_pool = self.sprites_pool
 
@@ -183,13 +181,12 @@ class Stage1:
     def update(self, elapsed):
         # print(f"Sprite pools: 1:{len(self.sprites_pool)} / 2:{len(self.sprites_pool_tris)}")
 
-        for sprite in self.sprites:
-            if not sprite.speed:
-                sprite.speed = 2
-            sprite.update(elapsed)
+        self.sprites_pool.update(elapsed)
+        self.sprites_pool_tris.update(elapsed)
 
-            if (sprite.z < self.camera.min_z) or (sprite.z > self.sprite_max_z):
-                sprite.kill()
-                self.sprites.remove(sprite)
+    def show(self, display):
+        self.sprites_pool.show(display)
+        self.sprites_pool_tris.show(display)
+
 
 

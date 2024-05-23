@@ -10,7 +10,7 @@ from screen import Screen
 from sprites.sprite import Sprite
 from collections import deque
 
-from wav.wavePlayer import wavePlayer
+# from wav.wavePlayer import wavePlayer
 
 
 class TitleScreen(Screen):

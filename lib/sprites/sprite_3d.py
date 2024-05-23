@@ -37,6 +37,9 @@ class Sprite3D(Spritesheet):
         return x, y
 
     def show(self, display: framebuf.FrameBuffer):
+        if not self.visible or not self.image:
+            return False
+
         return super().show(display, self.draw_x, self.draw_y)
 
     def update(self, elapsed):
@@ -65,9 +68,7 @@ class Sprite3D(Spritesheet):
         camera = self.camera
 
         if camera:
-            x, y = camera.to_2d(self.x, self.y + self.frame_height, self.z)
-
-            return x, y
+            return camera.to_2d(self.x, self.y + self.frame_height, self.z)
         else:
             return self.x, self.y
 

@@ -1,8 +1,7 @@
-import color_lib
-
 from framebuffer_palette import FramebufferPalette
 from ssd1331_16bit import SSD1331
 
+FLOAT_ERROR = 0.0000005
 
 def color_mix(c1, c2, mix):
     """Returns a 24 bit (true color) bytes array"""
@@ -86,28 +85,112 @@ def hex_to_565(hex_value):
     return rgb_to_565((red, green, blue))
 
 
-def rgb_to_hsl(color):
-    return color_lib.rgb2hsl((color[0] / 255, color[1] / 255, color[2] / 255))
+def rgb_to_hsl(rgb):
+    """Convert RGB representation towards HSL
 
-    r, g, b = color
-    r /= 255
-    g /= 255
-    b /= 255
-    max_val = max(r, g, b)
-    min_val = min(r, g, b)
-    h, s, l = 0, 0, (max_val + min_val) / 2
+    :param r: Red amount (float between 0 and 1)
+    :param g: Green amount (float between 0 and 1)
+    :param b: Blue amount (float between 0 and 1)
+    :rtype: 3-uple for HSL values in float between 0 and 1
 
-    if max_val != min_val:
-        d = max_val - min_val
-        s = d / (2 - max_val - min_val) if l > 0.5 else d / (max_val + min_val)
-        if max_val == r:
-            h = (g - b) / d + (6 if g < b else 0)
-        elif max_val == g:
-            h = (b - r) / d + 2
-        else:
-            h = (r - g) / d + 4
-        h /= 6
-    return h, s, l
+    This algorithm came from:
+    http://www.easyrgb.com/index.php?X=MATH&H=19#text19
+
+    Here are some quick notion of RGB to HSL conversion:
+
+    >> from colour import rgb2hsl
+
+    Note that if red amount is equal to green and blue, then you
+    should have a gray value (from black to white).
+
+
+    >> rgb2hsl((1.0, 1.0, 1.0))  # doctest: +ELLIPSIS
+    (..., 0.0, 1.0)
+    >> rgb2hsl((0.5, 0.5, 0.5))  # doctest: +ELLIPSIS
+    (..., 0.0, 0.5)
+    >> rgb2hsl((0.0, 0.0, 0.0))  # doctest: +ELLIPSIS
+    (..., 0.0, 0.0)
+
+    If only one color is different from the others, it defines the
+    direct Hue:
+
+    >> rgb2hsl((0.5, 0.5, 1.0))  # doctest: +ELLIPSIS
+    (0.66..., 1.0, 0.75)
+    >> rgb2hsl((0.2, 0.1, 0.1))  # doctest: +ELLIPSIS
+    (0.0, 0.33..., 0.15...)
+
+    Having only one value set, you can check that:
+
+    >> rgb2hsl((1.0, 0.0, 0.0))
+    (0.0, 1.0, 0.5)
+    >> rgb2hsl((0.0, 1.0, 0.0))  # doctest: +ELLIPSIS
+    (0.33..., 1.0, 0.5)
+    >> rgb2hsl((0.0, 0.0, 1.0))  # doctest: +ELLIPSIS
+    (0.66..., 1.0, 0.5)
+
+    Regression check upon very close values in every component of
+    red, green and blue:
+
+    >> rgb2hsl((0.9999999999999999, 1.0, 0.9999999999999994))
+    (0.0, 0.0, 0.999...)
+
+    Of course:
+
+    >> rgb2hsl((0.0, 2.0, 0.5))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    ValueError: Green must be between 0 and 1. You provided 2.0.
+
+    And:
+    >> rgb2hsl((0.0, 0.0, 1.5))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    ValueError: Blue must be between 0 and 1. You provided 1.5.
+
+    """
+    r, g, b = [float(v/255) for v in rgb]
+
+    for name, v in {'Red': r, 'Green': g, 'Blue': b}.items():
+        if not (0 - FLOAT_ERROR <= v <= 1 + FLOAT_ERROR):
+            raise ValueError("%s must be between 0 and 1. You provided %r."
+                             % (name, v))
+
+    vmin = min(r, g, b)  ## Min. value of RGB
+    vmax = max(r, g, b)  ## Max. value of RGB
+    diff = vmax - vmin  ## Delta RGB value
+
+    vsum = vmin + vmax
+
+    l = vsum / 2
+
+    if diff < FLOAT_ERROR:  ## This is a gray, no chroma...
+        return (0.0, 0.0, l)
+
+    ##
+    ## Chromatic data...
+    ##
+
+    ## Saturation
+    if l < 0.5:
+        s = diff / vsum
+    else:
+        s = diff / (2.0 - vsum)
+
+    dr = (((vmax - r) / 6) + (diff / 2)) / diff
+    dg = (((vmax - g) / 6) + (diff / 2)) / diff
+    db = (((vmax - b) / 6) + (diff / 2)) / diff
+
+    if r == vmax:
+        h = db - dg
+    elif g == vmax:
+        h = (1.0 / 3) + dr - db
+    elif b == vmax:
+        h = (2.0 / 3) + dg - dr
+
+    if h < 0: h += 1
+    if h > 1: h -= 1
+
+    return (h, s, l)
 
 
 def hsl_to_rgb(hsl):

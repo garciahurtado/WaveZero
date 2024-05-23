@@ -89,7 +89,6 @@ class SSD1331(framebuf.FrameBuffer):
         if self._spi_init:  # A callback was passed
             self._spi_init(spi)  # Bus may be shared
         self._write(INIT_BYTES, DC_MODE_CMD)
-        gc.collect()
         self.show()
 
     def _write(self, buf, dc):

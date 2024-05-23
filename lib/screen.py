@@ -1,5 +1,7 @@
 import gc
 
+import utime
+
 import asyncio
 
 from fps_counter import FpsCounter
@@ -7,13 +9,14 @@ from sprites.sprite import Sprite
 import micropython
 
 from ssd1331_16bit import SSD1331
-
+import ssd_1331
 
 class Screen:
     display: SSD1331
     sprites: [Sprite]
     last_tick: int = 0
-    gc_interval: int = 10 # how often to call the garbage collector
+    last_gc: int = 0
+    gc_interval: int = 500 # how often to call the garbage collector (ms)
 
     def __init__(self, display=None):
         self.sprites = []
@@ -28,10 +31,13 @@ class Screen:
         try:
             while True:
                 self.do_refresh()
-                if (self.last_tick % self.gc_interval) == 0:
-                    gc.collect()
+                now = utime.ticks_ms()
 
-                await asyncio.sleep(1/500)
+                if (now - self.last_gc) > self.gc_interval:
+                    gc.collect()
+                    self.last_gc = utime.ticks_ms()
+
+                await asyncio.sleep(1//1000)
         except asyncio.CancelledError:
             return True
 
