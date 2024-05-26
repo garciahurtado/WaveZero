@@ -36,12 +36,12 @@ class FramebufferPalette(framebuf.FrameBuffer):
             self.set_rgb(i, color)
 
     def __len__(self):
-        return len(self.palette)
+        return self.num_colors
 
     def __add__(self, second_palette):
         print(f"Adding palettes ... {self.num_colors} + {second_palette.num_colors}")
         total_colors = self.num_colors + second_palette.num_colors
-        new_palette = FramebufferPalette(bytearray(total_colors * 2))
+        new_palette = FramebufferPalette(total_colors)
 
         for i in range(self.num_colors):
             new_palette.set_bytes(i, self.get_bytes(i))
@@ -63,16 +63,26 @@ class FramebufferPalette(framebuf.FrameBuffer):
         return color
 
     def set_bytes(self, index, color):
-        # print(color)
-        # color = int.from_bytes(bytearray([color]), "little")
-        # # color = color.to_bytes(2, 'big')
-        # print(color)
-        self.pixel(index, 0, int(color))
+        # Convert the color value to bytes
+        color_bytes = color.to_bytes(2, 'little')
+
+        # Convert the flipped bytes back to an integer
+        color = int.from_bytes(color_bytes, 'big')
+
+        # Set the color in the underlying data structure
+        self.pixel(index, 0, color)
 
     def get_bytes(self, index):
-        index += self.index_offset
-        index = index % self.num_colors
+        # index += self.index_offset
+        # index = index % self.num_colors
         color = self.pixel(index, 0)
+        color_bytes = color.to_bytes(2, 'big')
+        color = int.from_bytes(color_bytes, 'little')
+        return color
+
+    def flip_bytes(self, color):
+        color_bytes = color.to_bytes(2, 'big')
+        color = int.from_bytes(color_bytes, 'little')
         return color
 
 
@@ -85,7 +95,7 @@ class FramebufferPalette(framebuf.FrameBuffer):
         return new_palette
 
     def mirror(self):
-        new_palette = FramebufferPalette(bytearray(self.num_colors * 2))
+        new_palette = FramebufferPalette(self.num_colors)
         for i in range(0, self.num_colors):
             color = self.get_bytes(i)
             j = self.num_colors - i - 1
@@ -107,7 +117,7 @@ class FramebufferPalette(framebuf.FrameBuffer):
         return idx
 
     @staticmethod
-    def pick_from_palette(palette, value, max, min=0):
+    def pick_from_palette(palette, value, max=0, min=0):
         """ Static version of the above """
         if value < min:
             value = min
@@ -117,5 +127,8 @@ class FramebufferPalette(framebuf.FrameBuffer):
         my_range = max - min
         my_value = value - min
 
-        idx = int((my_value / my_range) * len(palette))
+        idx = int((my_value / (my_range * 1.0)) * (palette.num_colors - 1))
+        if idx < 0:
+            idx = 0
+
         return idx

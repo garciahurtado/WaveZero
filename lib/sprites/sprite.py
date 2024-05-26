@@ -12,6 +12,7 @@ class Sprite:
     filename: str
     image: Image = None
     palette: FramebufferPalette
+    palette_bytes: bytearray
     num_colors: int = 0
     width: int = 0
     height: int = 0
@@ -73,7 +74,6 @@ class Sprite:
         self.width = meta.width
         self.height = meta.height
         self.palette = meta.palette
-        # self.dot_color = self.palette.get_bytes(1)
         self.num_colors = meta.palette.num_colors
 
         self.visible = True

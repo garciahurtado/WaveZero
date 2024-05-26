@@ -9,7 +9,6 @@ from sprites.sprite import Sprite
 import micropython
 
 from ssd1331_16bit import SSD1331
-import ssd_1331
 
 class Screen:
     display: SSD1331

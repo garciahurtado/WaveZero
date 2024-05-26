@@ -142,6 +142,9 @@ class SpawnEnemyEvent(OneShotEvent):
 
     def do_thing(self):
         sprite = self.dead_pool.get_new()
+        if not sprite:
+            return False
+
         sprite.x = self.x
         sprite.y = self.y
         sprite.z = self.z

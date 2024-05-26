@@ -8,8 +8,11 @@ class PerspectiveCamera():
     def __init__(self, display: framebuf.FrameBuffer, pos_x: int = 0, pos_y: int = 0, pos_z: int = 0, vp_x: int = 0, vp_y: int = 0,
                  focal_length: float = 100) -> object:
 
-        self.screen_width = display.width
-        self.screen_height = display.height
+        # self.screen_width = display.width
+        # self.screen_height = display.height
+        #
+        self.screen_width = 96
+        self.screen_height = 64
 
         self.half_width = int(self.screen_width / 2)
         self.half_height = int(self.screen_height / 2)

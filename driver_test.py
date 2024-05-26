@@ -41,13 +41,12 @@ def test_ssd1331_driver():
     color_list = [0xFFFFFF, 0xFF0000, 0x00FF00, 0x0000FF, 0x00FFFF, 0xFF00FF]
 
     screen = SSD1331(pin_cs, pin_dc, pin_rst, pin_mosi, pin_sck)
+    screen.set_bitrate(80_000_000)
     screen.begin(False)
-    screen.set_bitrate(24000000)
     screen.fill(0xFFFFFF)
     screen.pixel(40, 40, 0x000000)
 
     # Let's do some fun tests
-    start = utime.ticks_ms()
 
 
     """ Full Screens ----------------------- """
@@ -64,13 +63,15 @@ def test_ssd1331_driver():
     """ End """
 
     """ Matrix -------------------------- """
-    # grid_matrix(screen)
+    grid_matrix(screen)
 
     """ Dots -------------------------- """
-    dot_fill(screen)
+    # dot_fill(screen)
 
     """ Image -------------------------- """
-    # display_image(screen)
+    start = utime.ticks_ms()
+
+    display_image(screen)
 
     end = utime.ticks_ms()
     diff = end - start
@@ -121,10 +122,10 @@ def random_rectangles(screen, color_list):
 def grid_matrix(screen):
     dir = +1
 
-    for t in range(20):
+    for t in range(10):
         for i in range(2, 30):
             if dir == -1:
-                i = 20 - i
+                i = 30 - i
 
             offset_x = int(-96 / 2)
             offset_y = int(-64 / 2)
@@ -148,16 +149,33 @@ def dot_fill(screen):
 
     screen.fill(0x1111)
 
-    for i in range(10000):
-        color = colors.hex_to_565(0x000000)
+    # Create a set to store used coordinates
+    used_coords = set()
 
+    # Keep track of the number of dots placed
+    dots_placed = 0
+
+    # Total number of pixels on the screen
+    total_pixels = width * height
+
+    while dots_placed < total_pixels:
         rand_x = random.randrange(0, width)
         rand_y = random.randrange(0, height)
+
+        # Check if the coordinate has already been used
+        # if (rand_x, rand_y) not in used_coords:
+        color = colors.hex_to_565(0x000000)
         screen.pixel(int(rand_x), int(rand_y), color)
+        # used_coords.add((rand_x, rand_y))
+        # dots_placed += 1
 
 def display_image(screen):
     loader = ImageLoader()
     img = loader.load_image('img/laser_tri.bmp')
     img_ptr = uctypes.addressof(img.pixels)
-    screen.draw_bitmap(20, 20, img_ptr, 20, 20, 0xFFFF)
+    palette_ptr = uctypes.addressof(img.palette_bytes)
 
+    for i in range(1000):
+        x = int(random.randrange(96))
+        y = int(random.randrange(64))
+        screen.blit_4bit(x, y, img_ptr, 20, 20, palette_ptr)

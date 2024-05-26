@@ -16,7 +16,7 @@ class FpsCounter():
         if self.index >= LIST_SIZE:
             self.index = 0
 
-        return self.ticks[self.index]
+        return True
 
     def fps(self):
         """

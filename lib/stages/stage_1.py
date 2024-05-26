@@ -70,7 +70,7 @@ class Stage1:
 
         sprite_barrier.set_alpha(0)
         self.sprites_pool = SpritePool(
-            size=40,
+            size=10,
             camera=camera,
             base_sprite=sprite_barrier,
             active_sprites=self.sprites)

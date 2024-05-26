@@ -128,12 +128,14 @@ class ScaledSprite(Sprite3D):
 
 
             frame = create_image(
-                new_buffer,
-                memoryview(new_bytes),
                 new_width,
                 new_height,
+                new_buffer,
+                memoryview(new_bytes),
                 self.palette,
+                self.image.palette_bytes,
                 self.image.color_depth)
+
             self.frames.append(frame)
 
         # Finally, the last frame is the original image at full size

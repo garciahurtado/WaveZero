@@ -1,3 +1,4 @@
+import gc
 from micropython import const
 import _thread
 
@@ -35,6 +36,7 @@ class GridTestScreen(Screen):
         self.grid = RoadGrid(self.camera, self.display, lane_width=self.lane_width)
         self.grid.speed = self.ground_speed
 
+        # self.start_display_loop()
         _thread.start_new_thread(self.start_display_loop, [])
         asyncio.run(self.main_loop())
 
@@ -55,20 +57,18 @@ class GridTestScreen(Screen):
         print(f"Update loop Start time: {start_time_ms}")
         self.check_mem()
 
-        if not self.last_tick:
-            self.last_tick = utime.ticks_ms()
-
         # update loop - will run until task cancellation
         try:
             while True:
+                # gc.collect()
                 self.grid.speed = self.ground_speed
                 self.total_frames += 1
-                fps_every_n_frames = 10
+                fps_every_n_frames = 30
 
                 if not self.total_frames % fps_every_n_frames:
                     print(f"FPS: {self.fps.fps()}")
 
-                await asyncio.sleep(1/1000)
+                await asyncio.sleep(1/60)
 
         except asyncio.CancelledError:
             return False
@@ -77,9 +77,10 @@ class GridTestScreen(Screen):
         """ Overrides parent method """
         self.display.fill(0)
         self.grid.show()
+        utime.sleep_ms(2)
 
-        self.display.show()
-        self.last_tick = self.fps.tick()
+        # self.display.show()
+        self.fps.tick()
 
     def init_camera(self):
         # Camera

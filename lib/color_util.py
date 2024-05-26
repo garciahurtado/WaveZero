@@ -2,6 +2,10 @@ from framebuffer_palette import FramebufferPalette
 from ssd1331_16bit import SSD1331
 
 FLOAT_ERROR = 0.0000005
+COLOR_FORMAT_RGB = 1
+COLOR_FORMAT_BGR = 2
+
+color_format = COLOR_FORMAT_BGR
 
 def color_mix(c1, c2, mix):
     """Returns a 24 bit (true color) bytes array"""
@@ -33,8 +37,16 @@ def _rgb_to_565(rgb):
 
 def rgb_to_565(rgb):
     """ Convert RGB values to 5-6-5 bit BGR format (16bit) """
-    r, g, b = rgb[0], rgb[1], rgb[2]
-    return ((b & 0xf8) << 5) | ((g & 0x1c) << 11) | (r & 0xf8) | ((g & 0xe0) >> 5)
+    if color_format == COLOR_FORMAT_RGB:
+        r, g, b = rgb[0], rgb[1], rgb[2]
+    else:
+        r, g, b = rgb[2], rgb[1], rgb[0]
+
+    res = (r & 0b11111000) << 8
+    res = res + ((g & 0b11111100) << 3)
+    res = res + (b >> 3)
+
+    return res
 
 def rgb565_to_rgb(rgb565):
     """
@@ -52,7 +64,10 @@ def rgb565_to_rgb(rgb565):
     g = (g6 << 2) | (g6 >> 4)
     b = (b5 << 3) | (b5 >> 2)
 
-    return r, g, b
+    if color_format == COLOR_FORMAT_RGB:
+        return r, g, b
+    else:
+        return b, g, r
 
 
 def rgb_to_hex(rgb):
@@ -63,7 +78,9 @@ def rgb_to_hex(rgb):
     rgb = [int(max(0, min(255, val))) for val in rgb]
 
     # Convert RGB values to hexadecimal
-    hex_color = "#{:02x}{:02x}{:02x}".format(*rgb)
+    # hex_color = "#{:02x}{:02x}{:02x}".format(*rgb)
+
+    hex_color = (rgb[0] << 16) | (rgb[1] << 8) | rgb[2]
 
     return hex_color
 
@@ -243,7 +260,8 @@ def byte3_to_byte2(rgb_bytes_array):
         b = rgb_bytes_array[i + 2]
 
         # Convert RGB888 to RGB565
-        rgb565 = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+        # rgb565 = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+        rgb565 = ((b & 0xf8) << 5) | ((g & 0x1c) << 11) | (r & 0xf8) | ((g & 0xe0) >> 5)
 
         # Pack RGB565 into two bytes
         byte2[i // 3 * 2] = rgb565 >> 8
@@ -253,15 +271,17 @@ def byte3_to_byte2(rgb_bytes_array):
 
 def make_gradient(start_color: list[int], end_color: list[int], num_colors):
     '''Sets up a color palette by mixing gradually between the two colors. The resulting colors will be saved as RGB565 for efficiency'''
-    palette = FramebufferPalette(bytearray(num_colors*2))
+    # palette = FramebufferPalette(bytearray(num_colors*2))
+    palette = []
 
     # Add colors to palette
     for i, hsl in enumerate(color_scale(
             rgb_to_hsl(start_color), rgb_to_hsl(end_color), num_colors - 1)):
         newcolor = hsl_to_rgb(hsl)
-
-        palette.set_rgb(i, (newcolor[0], newcolor[1], newcolor[2]))
-
+        hex = rgb_to_hex(newcolor)
+        print(f"{hex:06x}")
+        palette.append(hex)
+    print()
     return palette
 
 

@@ -387,14 +387,16 @@ class MicroBMP(object):
             print(f"Num colors: {self.num_colors}")
             # self.palette = [None for i in range(self.num_colors)]
 
-            self.palette = colors.FramebufferPalette(bytearray(self.num_colors*2))
+            self.palette_bytes = bytearray(self.num_colors*2)
+            self.palette = colors.FramebufferPalette(self.palette_bytes)
 
             for color_idx in range(self.num_colors):
                 data = bf_io.read(4)
-                # palette = [colors.bytearray_to_int(colors.byte3_to_byte2(color)) for color in palette]
-                # BGR format
-                rgb_color = [data[2], data[1], data[0]]
-                self.palette.set_rgb(color_idx, rgb_color)
+
+                # RGB format, but extract the bytes as little endian
+                color_bytes = colors.byte3_to_byte2([data[0], data[1], data[2]])
+                color = int.from_bytes(color_bytes, "little")
+                self.palette.set_bytes(color_idx, color)
 
         # In case self.DIB_h < 0 for top-down format.
         if self.height < 0:
@@ -434,11 +436,12 @@ class MicroBMP(object):
                 )
 
                 frame = create_image(
-                    buffer,
-                    memoryview(byte_pixels),
                     self.frame_width,
                     self.frame_height,
+                    buffer,
+                    memoryview(byte_pixels),
                     self.palette,
+                    memoryview(self.palette_bytes),
                     self.color_depth)
 
                 for row in range(0, self.frame_height):

@@ -9,18 +9,28 @@ Image = namedtuple("Image",
             "pixels",
             "pixel_bytes",
             "palette",
+            "palette_bytes",
             "color_depth"
            ]
         )
 
 
-def create_image(image_buffer: framebuf.FrameBuffer, pixel_bytes: bytearray, width: int, height: int, palette, color_depth: int):
+def create_image(
+        width: int,
+        height: int,
+        pixels: framebuf.FrameBuffer,
+        pixel_bytes: bytearray,
+        palette,
+        palette_bytes: bytearray,
+        color_depth: int):
+
     image = Image(
         width,
         height,
-        image_buffer,
+        pixels,
         pixel_bytes,
         palette,
+        palette_bytes,
         color_depth)
 
     return image
