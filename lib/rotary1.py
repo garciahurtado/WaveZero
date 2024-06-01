@@ -67,10 +67,13 @@ def _bound(value, incr, lower_bound, upper_bound):
 
 def _trigger(rotary_instance):
     for listener in rotary_instance._listener:
+        print(listener)
         if type(listener) is tuple:
             meth = listener[0]
             my_self = listener[1]
-            meth(my_self)
+
+            func = getattr(my_self, meth)
+            func(my_self)
         else:
             listener()
 

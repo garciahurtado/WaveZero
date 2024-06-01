@@ -120,9 +120,7 @@ class GameScreen(Screen):
 
 
     def run(self):
-
         self.init_sprites()
-        # self.init_enemies()
         self.init_road_grid()
 
         asyncio.run(self.main_loop())
@@ -155,9 +153,10 @@ class GameScreen(Screen):
         self.camera.horiz_z = self.sprite_max_z
 
     async def main_loop(self):
-        loop = asyncio.get_event_loop()
-        # self.input_task = loop.create_task(self.get_input(self.encoder, self.encoder_last_pos))
+        # loop = asyncio.get_event_loop()
+        # self.input_task = loop.create_task(user_input.get_input(self.encoder, self.encoder_last_pos))
         self.stage.start()
+        self.input_task = make_input_handler(self.bike)
 
         await asyncio.gather(
             self.update_loop(),

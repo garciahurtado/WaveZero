@@ -3,6 +3,8 @@ from rotary_irq import RotaryIRQ
 
 
 class InputHandler:
+    last_pos = 0
+
     def __init__(self, bike):
         self.bike = bike
         self.init_input()
@@ -18,7 +20,7 @@ class InputHandler:
 
     def add_listener(self, listener, my_self=None):
         if my_self:
-            self.encoder.add_listener([listener, my_self])
+            self.encoder.add_listener((listener, my_self))
         else:
             self.encoder.add_listener(listener)
 
@@ -30,24 +32,36 @@ class InputHandler:
                 await asyncio.sleep(1 / fps)
                 continue
 
-            # position = encoder.value()
-            # if position == last_pos['pos']:
-            #     pass
-            # elif position > last_pos['pos']:
-            #     last_pos['pos'] = position
-            #     self.bike.move_left()
-            # elif position < last_pos['pos']:
-            #     last_pos['pos'] = position
-            #     self.bike.move_right()
+            position = encoder.value()
+            if position == last_pos['pos']:
+                pass
+            elif position > last_pos['pos']:
+                last_pos['pos'] = position
+                self.bike.move_left()
+            elif position < last_pos['pos']:
+                last_pos['pos'] = position
+                self.bike.move_right()
 
             await asyncio.sleep(1 / fps)
 
 
-    def read_input(self, value):
-        print(f"Rotary value {value}")
+    def read_input(self, position):
+        if self.bike.moving == True:
+            """ Supress input when the bike is already moving """
+            return False
+
+        position = self.encoder.value()
+        if position == self.last_pos:
+            pass
+        elif position > self.last_pos:
+            self.last_pos = position
+            self.bike.move_right()
+        elif position < self.last_pos:
+            self.last_pos = position
+            self.bike.move_left()
 
 
 def make_input_handler(bike):
     input_handler = InputHandler(bike)
-    input_handler.add_listener(input_handler.read_input, input_handler)
+    input_handler.add_listener("read_input", input_handler)
     return input_handler

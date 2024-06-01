@@ -1,7 +1,7 @@
 import framebuf
 from machine import Pin
 import machine
-from ssd1331_16bit import SSD1331 as SSD
+from ssd1331_16bit import SSD1331
 # from ssd_1331 import SSD1331 as Driver
 
 class ScreenApp:
@@ -24,6 +24,7 @@ class ScreenApp:
         self.setup_display()
 
     def load_screen(self, screen: type):
+        screen.app = self
         self.screens.append(screen)
 
     def run(self):
@@ -42,7 +43,7 @@ class ScreenApp:
 
 
         spi = machine.SPI(0, baudrate=80_000_000, sck=self.pin_sck, mosi=self.pin_sda, miso=None)
-        display = SSD(spi, self.pin_cs, self.pin_dc, self.pin_rst, height=self.screen_height,
+        display = SSD1331(spi, self.pin_cs, self.pin_dc, self.pin_rst, height=self.screen_height,
                   width=self.screen_width)  # Create a display instance
         # display.set_clock_divide(8)
         self.display = display
@@ -52,3 +53,28 @@ class ScreenApp:
         self.display = Driver(pin_cs, pin_dc, pin_rst, pin_sda, pin_sck)
         self.display.begin(False)
         return self.display
+
+class ScreenAppFramebuf(ScreenApp):
+    def __init__(self, screen_height, screen_width):
+        self.screen_height = screen_height
+        self.screen_width = screen_width
+
+        size = screen_width * screen_height * 2
+        self.buffer = bytearray(size)
+
+        self.display = CustomFramebuf(
+            self.buffer,
+            screen_height,
+            screen_width,
+            framebuf.RGB565
+        )
+
+    def setup_display(self):
+        return False
+
+class CustomFramebuf(framebuf.FrameBuffer):
+    buffer: None
+
+    def __init__(self, buffer, height, width, format):
+        self.buffer = buffer
+        super().__init__(buffer, height, width, format)

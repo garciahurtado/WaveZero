@@ -24,6 +24,9 @@ class PlayerSprite(Spritesheet):
         self.half_width = int(self.camera.half_width)
 
     def move_left(self):
+        if self.moving:
+            return
+
         if (self.current_lane == 0):
             return
 
@@ -31,6 +34,9 @@ class PlayerSprite(Spritesheet):
         self.target_lane = self.current_lane - 1
 
     def move_right(self):
+        if self.moving:
+            return
+
         if (self.current_lane == 4):
             return
 

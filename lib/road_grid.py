@@ -39,14 +39,14 @@ class RoadGrid():
         0x01E8F9
     ]
 
-    horizon_palette = [
-        0x0118,
-        0x0130,
-        0x2128,
-        0x2140,
-        0xc939,
-        0xc939,
-    ]
+    # horizon_palette = [
+    #     0x0118,
+    #     0x0130,
+    #     0x2128,
+    #     0x2140,
+    #     0xc939,
+    #     0xc939,
+    # ]
 
     # horizon_palette = [
     #     0xc939,
@@ -63,14 +63,14 @@ class RoadGrid():
     #
 
     #
-    # horizon_palette = [0x000000,
-    #                    0x1D0308,
-    #                    0x290408,
-    #                    0x37030A,
-    #                    0x44050A,
-    #                    0x51040B,
-    #                    0x5F050C,]
-    #
+    horizon_palette = [0x000000,
+                       0x1D0308,
+                       0x290408,
+                       0x37030A,
+                       0x44050A,
+                       0x51040B,
+                       0x5F050C,]
+
 
 
     vert_palette = [0x610070,
@@ -138,7 +138,6 @@ class RoadGrid():
     def init_palettes(self):
         self.num_horiz_colors = len(self.horiz_palette)
         new_palette = []
-
         for i, hex_color in enumerate(self.horiz_palette):
             new_palette.append(colors.hex_to_rgb(hex_color))
 
@@ -154,13 +153,11 @@ class RoadGrid():
         print(f"Adding horizon palette")
         self.check_mem()
 
-        # self.horizon_palette = colors.make_gradient([21,3,8], [105,5,12], 7)
-        # self.horizon_palette.set_rgb(0, [0,0,0]) # Make the first color black
+        new_palette = []
 
-        # for i, hex_color in enumerate(self.horizon_palette):
-        #     self.horizon_palette[i] = colors.hex_to_rgb(hex_color)
-
-        self.horizon_palette = FramebufferPalette(bytearray(self.horizon_palette))
+        for i, hex_color in enumerate(self.horizon_palette):
+            new_palette.append(colors.hex_to_rgb(hex_color))
+        self.horizon_palette = FramebufferPalette(new_palette)
 
 
         """ set up the palettes for line colors """
@@ -219,9 +216,8 @@ class RoadGrid():
 
     def show(self):
         self.update_horiz_lines()
-        # self.draw_horizon()
+        self.draw_horizon()
         self.update_vert_lines()
-        # utime.sleep_ms(1)
         self.last_tick = utime.ticks_ms()
 
 
@@ -382,9 +378,9 @@ class RoadGrid():
         """Draw some static horizontal lines to cover up the seam between vertical and horiz road lines"""
         color: int = 0
 
-        for i in range(0, len(self.horizon_palette)):
-            color = self.horizon_palette[i]
-            start_y = self.horiz_y - 3 + (i*2)
+        for i in range(0, len(self.horizon_palette) - 2):
+            color = self.horizon_palette.get_bytes(i)
+            start_y = self.horiz_y - 2 + (i*2)
             self.display.hline(0, start_y, self.display_width, color)
             self.display.hline(0, start_y + 1, self.display_width, BLACK)
 
