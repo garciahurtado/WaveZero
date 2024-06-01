@@ -1,8 +1,9 @@
 import framebuf
 from machine import Pin
 import machine
-from ssd1331_16bit import SSD1331
+# from ssd1331_16bit import SSD1331
 # from ssd_1331 import SSD1331 as Driver
+from ssd1331_pio import SSD1331PIO as Driver
 
 class ScreenApp:
     display: framebuf.FrameBuffer
@@ -43,8 +44,16 @@ class ScreenApp:
 
 
         spi = machine.SPI(0, baudrate=80_000_000, sck=self.pin_sck, mosi=self.pin_sda, miso=None)
-        display = SSD1331(spi, self.pin_cs, self.pin_dc, self.pin_rst, height=self.screen_height,
-                  width=self.screen_width)  # Create a display instance
+        display = Driver(
+            spi,
+            self.pin_cs,
+            self.pin_dc,
+            self.pin_rst,
+            height=self.screen_height,
+            width=self.screen_width,
+            pin_sck=self.pin_sck,
+            pin_sda=self.pin_sda)
+
         # display.set_clock_divide(8)
         self.display = display
         return display

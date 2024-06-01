@@ -58,7 +58,7 @@ WIDTH: int = const(96)
 class SSD1331(framebuf.FrameBuffer):
     height: int
     width: int
-    buffer: bytearray = bytearray(HEIGHT * WIDTH * 2)
+    buffer: None
 
     # Convert r, g, b in range 0-255 to a 16 bit colour value RGB565
     #  acceptable to hardware: rrrrrggggggbbbbb
@@ -67,27 +67,25 @@ class SSD1331(framebuf.FrameBuffer):
     def rgb(r, g, b):
         return ((b & 0xf8) << 5) | ((g & 0x1c) << 11) | (r & 0xf8) | ((g & 0xe0) >> 5)
 
-    def __init__(self, spi, pincs, pindc, pinrs, height=HEIGHT, width=WIDTH, init_spi=False):
+    def __init__(self, spi, pincs, pindc, pinrs, height=HEIGHT, width=WIDTH):
         self._spi = spi
         self._pincs = pincs
         self._pindc = pindc  # 1 = data 0 = cmd
         self.dc_mode = DC_MODE_CMD
         self.height = height  # Required by Writer class
         self.width = width
-        self._spi_init = init_spi
         mode = framebuf.RGB565
 
+        gc.collect()
+        self.buffer = bytearray(self.height * self.width * 2)  # RGB565 is 2 bytes
         print(f"Buffer size: {len(self.buffer)} bytes")
 
-        gc.collect()
-        #self.buffer = bytearray(self.height * self.width * 2)  # RGB565 is 2 bytes
         super().__init__(self.buffer, self.width, self.height, mode)
         pinrs(0)  # Pulse the reset line
         utime.sleep_ms(1)
         pinrs(1)
         utime.sleep_ms(1)
-        if self._spi_init:  # A callback was passed
-            self._spi_init(spi)  # Bus may be shared
+
         self._write(INIT_BYTES, DC_MODE_CMD)
         self.show()
 

@@ -40,6 +40,7 @@ class TestScreen(Screen):
 
     def run(self):
         #self.check_mem()
+        self.display.start()
         asyncio.run(self.main_loop())
 
     async def main_loop(self):
@@ -49,7 +50,7 @@ class TestScreen(Screen):
 
         await asyncio.gather(
             self.sprite_fps_test(),
-            #self.display_line_test(),
+            # self.display_line_test(),
             self.update_fps()
         )
 
@@ -93,7 +94,7 @@ class TestScreen(Screen):
         while True:
             elapsed = utime.ticks_ms() - self.last_tick
             for i, sprite in enumerate(self.sprites):
-                sprite.z = sprite.z + 6
+                sprite.z = sprite.z + 1
                 sprite.update(elapsed)
             await asyncio.sleep(1 / 90)
 
@@ -121,6 +122,7 @@ class TestScreen(Screen):
             frame_height=22)
         base_enemy2.set_alpha(0)
         base_enemy2.is3d = True
+        far_z = 3
 
         for z in range(num_sprites, 0, -1):
             for row in range(num_sprites, 0, -1):
@@ -132,7 +134,7 @@ class TestScreen(Screen):
 
                     enemy1.x = i * 15 - 90
                     enemy1.y = row * 25 - 60
-                    enemy1.z = z * 15 - 50
+                    enemy1.z = z * 15 - far_z
                     self.sprites.append(enemy1)
 
                     enemy2 = base_enemy2.clone()
@@ -140,7 +142,7 @@ class TestScreen(Screen):
 
                     enemy2.x = i * 15 - 0
                     enemy2.y = row * 25 - 60
-                    enemy2.z = z * 15 - 50
+                    enemy2.z = z * 15 - far_z
                     self.sprites.append(enemy2)
 
 
@@ -175,7 +177,7 @@ class TestScreen(Screen):
 
             #diff = utime.ticks_ms() - start
             #print(f"sprite.show(): {diff}ms")
-            await asyncio.sleep(1/240)
+            await asyncio.sleep(1/20)
 
     def show_lines(self):
         for line in self.lines:
