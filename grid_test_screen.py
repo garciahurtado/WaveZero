@@ -70,34 +70,8 @@ class GridTestScreen(Screen):
 
         asyncio.run(self.main_loop())
 
-    async def init_pio_later(myself, delay):
-        await asyncio.sleep(delay)
-        print("WAITED")
-        print(myself)
-        myself.init_pio_spi()
-
-
-    @rp2.asm_pio(set_init=rp2.PIO.OUT_LOW)
-    def blink_display():
-        # Cycles: 1 + 1 + 6 + 32 * (30 + 1) = 1000
-        irq(rel(0))
-        set(pins, 1)
-        set(x, 1)
-        label("delay_high")
-        nop()[1]
-        jmp(x_dec, "delay_high")
-
-        # Cycles: 1 + 1 + 6 + 32 * (30 + 1) = 1000
-        nop()
-        set(pins, 0)
-        set(x, 1)
-        label("delay_low")
-        nop()[1]
-        jmp(x_dec, "delay_low")
-
-
     @rp2.asm_pio(
-        out_shiftdir=PIO.SHIFT_RIGHT,
+        out_shiftdir=PIO.SHIFT_LEFT,
         set_init=PIO.OUT_LOW,
         sideset_init=rp2.PIO.OUT_LOW,
         out_init=rp2.PIO.OUT_LOW
