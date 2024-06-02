@@ -2,9 +2,9 @@ import gc
 from screen_app import ScreenApp
 
 # from game_screen import GameScreen
-# from grid_test_screen import GridTestScreen
+from grid_test_screen import GridTestScreen
 # from title_screen import TitleScreen
-from test_screen import TestScreen
+# from test_screen import TestScreen
 import micropython
 import time
 # import driver_test
@@ -14,9 +14,9 @@ def main():
 
     app = ScreenApp(96, 64)
     # app.load_screen(GameScreen(app.display))
-    # app.load_screen(GridTestScreen(app.display))
+    app.load_screen(GridTestScreen(app.display))
     # app.load_screen(TitleScreen(app.display))
-    app.load_screen(TestScreen(app.display))
+    # app.load_screen(TestScreen(app.display))
 
     print("After loading screen class")
     app.run()

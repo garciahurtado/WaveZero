@@ -162,7 +162,7 @@ class TestScreen(Screen):
 
     async def refresh_display(self):
 
-        bg_color = colors.rgb_to_565((4, 4, 4))
+        bg_color = colors.rgb_to_565((1, 1, 0))
         while True:
             #start = utime.ticks_ms()
 

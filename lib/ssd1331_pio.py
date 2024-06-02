@@ -23,6 +23,8 @@ class SSD1331PIO(SSD1331):
         self.pin_sda = pin_sda
 
     def start(self):
+        super().show()
+
         self.init_pio_spi()
         self.init_dma()
 
@@ -38,7 +40,7 @@ class SSD1331PIO(SSD1331):
         pin_cs = self._pincs
 
         # Set up the PIO state machine
-        freq = 120 * 1000 * 1000
+        freq = 50 * 1000 * 8
 
         sm = StateMachine(0)
 
@@ -57,7 +59,7 @@ class SSD1331PIO(SSD1331):
         sm.active(1)
 
     @rp2.asm_pio(
-        out_shiftdir=PIO.SHIFT_RIGHT,
+        out_shiftdir=PIO.SHIFT_LEFT,
         set_init=PIO.OUT_LOW,
         sideset_init=PIO.OUT_LOW,
         out_init=PIO.OUT_LOW
@@ -69,7 +71,7 @@ class SSD1331PIO(SSD1331):
         pull(ifempty, block)       .side(1) [1]     # Block with CSn high (minimum 2 cycles)
         nop()                      .side(0)     # CSn front porch
 
-        set(x, 15)                  .side(0)        # Push out 4 bytes per bitloop
+        set(x, 31)                  .side(0)        # Push out 4 bytes per bitloop
         wrap_target()
 
         pull(ifempty, block)        .side(1) [1]
@@ -80,7 +82,7 @@ class SSD1331PIO(SSD1331):
         # irq(1)
         jmp(x_dec, "bitloop")       .side(0) [1]
 
-        set(x, 15)                  .side(1)
+        set(x, 31)                  .side(1)
 
         set(pins, 1)                .side(1) # Pulse the CS pin high (set)
         nop()                       .side(1)
@@ -107,6 +109,7 @@ class SSD1331PIO(SSD1331):
         pio_num = 0 # PIO program number
         sm_num = 0 # State Machine number
         DATA_REQUEST_INDEX = (pio_num << 3) + sm_num
+        # DATA_REQUEST_INDEX = 16
         PIO0_BASE = const(0x50200000)
         PIO0_BASE_TXF0 = const(PIO0_BASE + 0x10)
 
@@ -114,7 +117,9 @@ class SSD1331PIO(SSD1331):
         self.buffer_bytes = int(self.width * self.height * 2)
         print(f"Buffer bytes length: {self.buffer_bytes}")
         self.buffer_end_addr = self.buffer_addr + self.buffer_bytes
-        self.dma_tx_count = self.buffer_bytes // 4
+
+        total_bytes = int(self.width * self.height * 2)
+        self.dma_tx_count = self.width * self.height
 
         # self.debug_dma(buffer_addr, data_bytes)
 
@@ -122,49 +127,60 @@ class SSD1331PIO(SSD1331):
         self.dma0 = DMA()
         self.dma1 = DMA()
         ctrl_block = (self.dma_tx_count << 16) | (self.buffer_addr & 0xFFFF)
-
-        """ Control Channel """
-        ctrl1 = self.dma1.pack_ctrl(
-            size=2,
-            inc_read=True,
-            inc_write=True,
-            irq_quiet=False,
-            # ring_size=3,
-            # ring_sel=True,
-        )
-        self.dma1.config(
-            count=2,
-            read=ctrl_block,
-            write=self.dma0.registers[14:16],
-            ctrl=ctrl1
-        )
+        ctrl_size = 2 # 4 bytes
+        self.ctrl_count = 1
 
         """ Data Channel """
         ctrl0 = self.dma0.pack_ctrl(
-            size=0,
+            size=1,
             inc_read=True,
             inc_write=False,
-            # ring_size=1,
-            # ring_sel=False,
+            # irq_quiet=False,
             treq_sel=DATA_REQUEST_INDEX,
             chain_to=self.dma1.channel
         )
         self.dma0.config(
             count=self.dma_tx_count,
-            read=self.buffer,
+            read=self.buffer_addr,
             write=PIO0_BASE_TXF0,
             ctrl=ctrl0
         )
 
+        """ Control Channel """
+        ctrl1 = self.dma1.pack_ctrl(
+            size=ctrl_size,
+            inc_read=True,
+            inc_write=True,
+            irq_quiet=False,
+            ring_size=2,
+            ring_sel=True,
+        )
+        self.dma1.config(
+            count=self.ctrl_count,
+            read=ctrl_block,
+            write=self.dma0.registers[14],
+            ctrl=ctrl1
+        )
+        self.dma1.irq(handler=self.restart_channels)
+
         print(f"Channel numbers:")
         print(f" - DMA0: {self.dma0.channel} / DMA1: {self.dma1.channel}")
 
-        self.dma0.irq(handler=self.flip_channels)
-        self.dma1.irq(handler=self.flip_channels)
+        # self.dma0.irq(handler=self.flip_channels)
 
         """ Kick it off! """
-        self.dma1.active(1)
-        self.dma1_active = True
+        self.dma0.active(0)
+        self.dma0.active(1)
+        self.dma0_active = True
+
+    def restart_channels(self, event):
+        print("Frame complete. Restarting DMA channels...")
+        self.dma0.count = self.dma_tx_count
+        self.dma0.read = self.buffer_addr
+        self.dma1.count = self.ctrl_count
+        self.dma0.active(0)
+        self.dma0.active(1)
+        pass
 
     def flip_channels(self, event):
         """ Alternate between activating channels 0 and 1 when each finishes their transfers """
@@ -172,9 +188,8 @@ class SSD1331PIO(SSD1331):
         print("FLIP")
         print()
 
-        if self.dma0.active():
+        if self.dma0_active:
             print("DMA0 active")
-            return
 
             while self.dma0.active():
                 pass
@@ -185,12 +200,11 @@ class SSD1331PIO(SSD1331):
             self.dma1.count = self.dma_tx_count
             self.dma1.active(1)
 
-            if self.dma0.read >= self.buffer_end_addr:
+            if self.dma0.read > self.buffer_end_addr:
                 self.dma0.read = self.buffer_addr
 
-        elif self.dma1.active():
+        else:
             print("DMA1 active")
-            return
 
             while self.dma1.active():
                 pass
@@ -198,7 +212,7 @@ class SSD1331PIO(SSD1331):
             self.dma0_active = True
             self.dma1_active = False
 
-            self.dma1.count = self.dma_tx_count
+            self.dma1.count = 2
             self.dma0.active(1)
 
             if self.dma1.read >= self.buffer_end_addr:

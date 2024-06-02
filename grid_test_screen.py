@@ -44,7 +44,7 @@ class GridTestScreen(Screen):
 
         # led = Pin(25, Pin.OUT)
         #
-        self.display.fill(0xFFFF)
+        self.display.fill(0x9999)
         # self.display.show()
 
         """ This will initiate the DMA transfer chain and PIO program to free the CPU from having to deal with the
@@ -82,7 +82,7 @@ class GridTestScreen(Screen):
                 self.grid.speed = self.ground_speed
                 self.total_frames += 1
 
-                if not self.total_frames % self.fps_every_n_frames:
+                if False and not self.total_frames % self.fps_every_n_frames:
                     print(f"FPS: {self.fps.fps()}")
 
                 if not self.total_frames % self.color_shift_every_n_frames:
