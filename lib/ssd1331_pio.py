@@ -1,7 +1,10 @@
+import framebuf
+
 from ssd1331_16bit import SSD1331
 from rp2 import PIO, DMA, StateMachine
 import rp2
 import uctypes
+import gc
 
 class SSD1331PIO(SSD1331):
     """ Display driver that uses DMA to transfer bytes from the memory location of a framebuf to the queue of a PIO
@@ -10,27 +13,51 @@ class SSD1331PIO(SSD1331):
 
     dma0: DMA = None
     dma1: DMA = None
+    dma2: DMA = None
     dma0_active = True
     dma1_active = False
     word_size = 4
     dma_tx_count = 256
     dma_base = 0x50000000
     buffer = None
+    read_buffer = None
+    read_framebuf = None
+    fps = None
+    paused = True
 
     def __init__(self, *args, pin_sck=None, pin_sda=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.pin_sck = pin_sck
         self.pin_sda = pin_sda
 
+        """ Create a second screen buffer to reduce flicker """
+        mode = framebuf.RGB565
+        gc.collect()
+        self.write_buffer = bytearray(self.height * self.width * 2)  # RGB565 is 2 bytes
+        self.write_framebuf = framebuf.FrameBuffer(self.write_buffer, self.width, self.height, mode)
+        self.write_framebuf.fill(0x0)
+        self.read_buffer = self.buffer
+
     def start(self):
         super().show()
 
         self.init_pio_spi()
         self.init_dma()
+        self.paused = False
 
     def show(self):
-        """ Since display refresh is via hardware, this becomes a noop"""
-        pass
+        """ Flip the buffers to make screen refresh faster"""
+        if self.paused:
+            return
+
+        self.paused = True
+        self.do_swap()
+
+        """ Wait until DMA transfer is done"""
+        while self.paused:
+            pass
+
+        return
 
     def init_pio_spi(self):
         # Define the pins
@@ -40,7 +67,7 @@ class SSD1331PIO(SSD1331):
         pin_cs = self._pincs
 
         # Set up the PIO state machine
-        freq = 50 * 1000 * 8
+        freq = 20 * 1000 * 1000
 
         sm = StateMachine(0)
 
@@ -74,19 +101,18 @@ class SSD1331PIO(SSD1331):
         set(x, 31)                  .side(0)        # Push out 4 bytes per bitloop
         wrap_target()
 
-        pull(ifempty, block)        .side(1) [1]
-        set(pins, 0)                .side(0) [1] # pull down CS
+        pull(ifempty, block)        .side(1)
+        set(pins, 0)                .side(0)  # pull down CS
 
         label("bitloop")
-        out(pins, 1)                .side(1) [1]
+        out(pins, 1)                .side(1)
         # irq(1)
-        jmp(x_dec, "bitloop")       .side(0) [1]
+        jmp(x_dec, "bitloop")       .side(0)
 
         set(x, 31)                  .side(1)
 
         set(pins, 1)                .side(1) # Pulse the CS pin high (set)
-        nop()                       .side(1)
-        jmp(not_osre, "bitloop")    .side(0) [1]  # Fallthru if TXF empties
+        jmp(not_osre, "bitloop")    .side(0) # Fallthru if TXF empties
 
         # irq(1)                      .side(0)
         nop()                       .side(0)  # CSn back porch
@@ -110,62 +136,86 @@ class SSD1331PIO(SSD1331):
         sm_num = 0 # State Machine number
         DATA_REQUEST_INDEX = (pio_num << 3) + sm_num
         # DATA_REQUEST_INDEX = 16
+        DMA_BASE = const(0x50000000)
         PIO0_BASE = const(0x50200000)
         PIO0_BASE_TXF0 = const(PIO0_BASE + 0x10)
 
-        self.buffer_addr = uctypes.addressof(self.buffer)
+        self.buffer_addr = uctypes.addressof(self.read_buffer)
+
+        self.read_addr = uctypes.addressof(self.buffer)
+        self.write_addr = uctypes.addressof(self.write_buffer)
+
         self.buffer_bytes = int(self.width * self.height * 2)
         print(f"Buffer bytes length: {self.buffer_bytes}")
-        self.buffer_end_addr = self.buffer_addr + self.buffer_bytes
+        # self.buffer_end_addr = self.buffer_addr + self.buffer_bytes
 
-        total_bytes = int(self.width * self.height * 2)
-        self.dma_tx_count = self.width * self.height
+        total_bytes = (self.width * self.height) * 2
+        self.dma_tx_count = total_bytes // 4
+        print(f"TX count: {self.dma_tx_count}")
 
         # self.debug_dma(buffer_addr, data_bytes)
 
         # Initialize DMA channels
         self.dma0 = DMA()
         self.dma1 = DMA()
-        ctrl_block = (self.dma_tx_count << 16) | (self.buffer_addr & 0xFFFF)
-        ctrl_size = 2 # 4 bytes
-        self.ctrl_count = 1
+        self.dma2 = DMA()
+
+        buf = bytes(self.buffer_addr.to_bytes(4, "little"))
+        self.ctrl_block = bytearray(buf)
+        int_buf = int.from_bytes(self.ctrl_block, "little")
+
+        print(f"CTRL: {int_buf:016X}")
+        # self.ctrl_block = bytearray((self.dma_tx_count << 32) | (self.buffer_addr & 0xFFFFFFFF))
+        self.ctrl_size = 2 # 4 bytes
+
+        print(f"Start Read Addr: {self.buffer_addr:032X}")
 
         """ Data Channel """
         ctrl0 = self.dma0.pack_ctrl(
-            size=1,
+            size=2,
             inc_read=True,
             inc_write=False,
-            # irq_quiet=False,
+            irq_quiet=True,
             treq_sel=DATA_REQUEST_INDEX,
             chain_to=self.dma1.channel
         )
         self.dma0.config(
             count=self.dma_tx_count,
-            read=self.buffer_addr,
+            read=self.write_addr,
             write=PIO0_BASE_TXF0,
             ctrl=ctrl0
         )
 
         """ Control Channel """
         ctrl1 = self.dma1.pack_ctrl(
-            size=ctrl_size,
+            size=self.ctrl_size,
+            inc_read=False,
+            inc_write=False,
+            irq_quiet=True,
+            chain_to=self.dma2.channel
+        )
+        self.dma1.config(
+            count=1,
+            read=uctypes.addressof(self.ctrl_block),
+            write=DMA_BASE + 0x03C, # self.dma0.registers[14] / CH0_AL3_READ_ADDR_TRIG
+            ctrl=ctrl1,
+        )
+        # self.dma1.irq(handler=self.restart_channels)
+
+        """ Buffer Swap Channel, to be triggered as soon as the CPU has finished rendering a frame """
+        ctrl2 = self.dma2.pack_ctrl(
+            size=2,
             inc_read=True,
             inc_write=True,
             irq_quiet=False,
-            ring_size=2,
-            ring_sel=True,
         )
-        self.dma1.config(
-            count=self.ctrl_count,
-            read=ctrl_block,
-            write=self.dma0.registers[14],
-            ctrl=ctrl1
+        self.dma2.config(
+            count=self.dma_tx_count,
+            read=self.read_addr,
+            write=self.write_addr,
+            ctrl=ctrl2,
         )
-        self.dma1.irq(handler=self.restart_channels)
-
-        print(f"Channel numbers:")
-        print(f" - DMA0: {self.dma0.channel} / DMA1: {self.dma1.channel}")
-
+        self.dma2.irq(handler=self.buffer_swap_done)
         # self.dma0.irq(handler=self.flip_channels)
 
         """ Kick it off! """
@@ -173,54 +223,56 @@ class SSD1331PIO(SSD1331):
         self.dma0.active(1)
         self.dma0_active = True
 
+
+    def buffer_swap_done(self, event):
+        self.dma2.read=uctypes.addressof(self.read_buffer)
+        self.dma2.write=self.write_addr
+        self.dma2.count = self.dma_tx_count
+        self.paused = False
+
     def restart_channels(self, event):
-        print("Frame complete. Restarting DMA channels...")
+        print("Channel restart -- ")
+        """ First of all, flip the buffers"""
+        # self.debug_dma()
+
+        # if self.buffer_addr == uctypes.addressof(self.read_buffer):
+        #     tmp = self.buffer_addr
+        #     self.buffer_addr = uctypes.addressof(self.write_buffer)
+        #     self.read_buffer = tmp
+        # else:
+        #     tmp = self.buffer_addr
+        #     self.buffer_addr = uctypes.addressof(self.read_buffer)
+        #     self.write_buffer = tmp
+        self.fps.tick()
+
+        # print("Frame complete. Restarting DMA channels...")
+        # self.buffer = self.read_buffer
         self.dma0.count = self.dma_tx_count
         self.dma0.read = self.buffer_addr
-        self.dma1.count = self.ctrl_count
-        self.dma0.active(0)
+        # self.dma1.count = self.ctrl_count
+        # self.dma1.read = self.ctrl_block
         self.dma0.active(1)
         pass
 
-    def flip_channels(self, event):
-        """ Alternate between activating channels 0 and 1 when each finishes their transfers """
-        print()
-        print("FLIP")
-        print()
+    def debug_dma(self):
+        channels = [self.dma0, self.dma1]
+        print("DMA DEBUG --------------------------")
+        for ch in channels:
+            print(f".DMA Chan. #:{ch.channel}")
+            print(f"  active    :{ch.active()}")
+            print(f"  tx.       :{ch.count}")
+            print(f"  read add. :0x{ch.read:010X}")
+            print(f"  write add.:0x{ch.write:010X}")
+            print()
+        print("DMA DEBUG --------------------------")
 
-        if self.dma0_active:
-            print("DMA0 active")
+    def debug_buffer(self, buffer_addr, data_bytes):
+        print(f"Framebuf addr: {buffer_addr:16x} / len: {len(data_bytes)}")
+        print(f"Contents: ")
 
-            while self.dma0.active():
-                pass
+        for i in range(64):
+            my_str = ''
+            for i in range(0, 32, 1):
+                my_str += f"{data_bytes[i]:02x}"
 
-            self.dma0_active = False
-            self.dma1_active = True
-
-            self.dma1.count = self.dma_tx_count
-            self.dma1.active(1)
-
-            if self.dma0.read > self.buffer_end_addr:
-                self.dma0.read = self.buffer_addr
-
-        else:
-            print("DMA1 active")
-
-            while self.dma1.active():
-                pass
-
-            self.dma0_active = True
-            self.dma1_active = False
-
-            self.dma1.count = 2
-            self.dma0.active(1)
-
-            if self.dma1.read >= self.buffer_end_addr:
-                self.dma1.read = self.buffer_addr
-
-        # print("Channel 0 details:")
-        # print(DMA.unpack_ctrl(self.dma0.ctrl))
-        # print("Channel 1 details:")
-        # print(DMA.unpack_ctrl(self.dma1.ctrl))
-        # print(f"DMA act.: dma0:{self.dma0.active()} dma1:{self.dma1.active()}")
-
+            print(my_str)

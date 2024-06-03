@@ -28,6 +28,7 @@ class Screen:
         self.sprites.append(sprite)
 
     async def refresh_display(self):
+        return False
         try:
             while True:
                 self.do_refresh()
@@ -37,7 +38,7 @@ class Screen:
                     gc.collect()
                     self.last_gc = utime.ticks_ms()
 
-                await asyncio.sleep(1//1000)
+                await asyncio.sleep(1/1000)
         except asyncio.CancelledError:
             return True
 
