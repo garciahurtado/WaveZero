@@ -59,6 +59,7 @@ class Spritesheet(Sprite):
         account 3D coordinates and the camera """
 
         frame_idx = self.get_frame_idx(self.z)
+        # print(f"IDX: {frame_idx}")
         if self.current_frame == frame_idx:
             return False
 
@@ -67,12 +68,15 @@ class Spritesheet(Sprite):
         return True
 
     def get_frame_idx(self, real_z):
+        """ Given the Z coordinate (depth), find the frame ID which best represents the
+        size of the object at that distance """
+
 
         rate = (real_z - self.camera.pos['z']) / 2
         if rate == 0:
             rate = 0.00001 # Avoid divide by zero
 
-        scale = self.half_scale_one_dist / rate
+        scale = abs(self.half_scale_one_dist / rate)
         frame_idx = int(scale * len(self.frames))
         #self.height_2d = scale * self.frame_height
         #self.width_2d = self.ratio * self.height_2d

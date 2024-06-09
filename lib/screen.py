@@ -8,10 +8,11 @@ from fps_counter import FpsCounter
 from sprites.sprite import Sprite
 import micropython
 
-from ssd1331_16bit import SSD1331
+from ssd1331_pio import SSD1331PIO
+
 
 class Screen:
-    display: SSD1331
+    display: SSD1331PIO
     sprites: [Sprite]
     last_tick: int = 0
     last_gc: int = 0
@@ -28,7 +29,6 @@ class Screen:
         self.sprites.append(sprite)
 
     async def refresh_display(self):
-        return False
         try:
             while True:
                 self.do_refresh()

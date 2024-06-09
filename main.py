@@ -1,7 +1,7 @@
 import gc
 from screen_app import ScreenApp
 
-# from game_screen import GameScreen
+from game_screen import GameScreen
 from grid_test_screen import GridTestScreen
 # from title_screen import TitleScreen
 # from test_screen import TestScreen
@@ -9,6 +9,7 @@ import micropython
 import time
 # import driver_test
 # from ssd_1331 import SSD1331
+from test_colors import rgb_test
 
 def main():
 
@@ -24,6 +25,8 @@ def main():
 
 
 if __name__ == "__main__":
+    rgb_test()
+
     time.sleep(2)
     print("======== APP START ========")
 

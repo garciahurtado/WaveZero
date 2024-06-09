@@ -50,33 +50,39 @@ class Writer():
     text_height: int
     text_width: int
     visible = True
+    screen_width: int
+    screen_height: int
 
     @staticmethod
-    def set_textpos(device, row=None, col=None):
+    def set_textpos(device, row=None, col=None, ):
         devid = _get_id(device)
+
         if devid not in Writer.state:
             Writer.state[devid] = DisplayState()
         s = Writer.state[devid]  # Current state
         if row is not None:
-            if row < 0 or row >= device.height:
+            if row < 0 or row >= Writer.screen_height:
                 raise ValueError('row is out of range')
             s.text_row = row
         if col is not None:
-            if col < 0 or col >= device.width:
+            if col < 0 or col >= Writer.screen_width:
                 raise ValueError('col is out of range')
             s.text_col = col
         return s.text_row,  s.text_col
 
-    def __init__(self, device, font, text_width, text_height, verbose=True):
+    def __init__(self, device, font, text_width, text_height, screen_width=None, screen_height=None, verbose=True):
         self.text_height = text_height
         self.text_width = text_width
+
+        Writer.screen_width = screen_width
+        Writer.screen_height = screen_height
 
         self.devid = _get_id(device)
         self.device = device
         if self.devid not in Writer.state:
             Writer.state[self.devid] = DisplayState()
         self.font = font
-        if font.height() >= device.height or font.max_width() >= device.width:
+        if font.height() >= screen_height or font.max_width() >= screen_width:
             raise ValueError('Font too large for screen')
         # Allow to work with reverse or normal font mapping
         if font.hmap():
@@ -87,8 +93,8 @@ class Writer():
             fstr = 'Orientation: Horizontal. Reversal: {}. Width: {}. Height: {}.'
             #print(fstr.format(font.reverse(), device.width, device.height))
             #print('Start row = {} col = {}'.format(self._getstate().text_row, self._getstate().text_col))
-        self.screenwidth = device.width  # In pixels
-        self.screenheight = device.height
+        self.screenwidth = screen_width  # In pixels
+        self.screenheight = screen_height
         self.bgcolor = 0  # Monochrome background and foreground colors
         self.fgcolor = 1
         self.row_clip = False  # Clip or scroll when screen full
@@ -283,11 +289,11 @@ class ColorWriter(Writer):
         ssd.lut[x + 1] = c >> 8
         return idx
 
-    def __init__(self, device, font, text_width, text_height, fgcolor=None, bgcolor=None, verbose=True):
+    def __init__(self, device, font, text_width, text_height, fgcolor=None, bgcolor=None, screen_width=None, screen_height=None, verbose=True):
         if implementation[1] < (1, 17, 0):
             raise OSError('Firmware must be >= 1.17.')
 
-        super().__init__(device, font, text_width, text_height, verbose)
+        super().__init__(device, font, text_width, text_height, screen_width=screen_width, screen_height=screen_height, verbose=verbose)
 
         if bgcolor is not None:  # Assume monochrome.
             self.bgcolor = bgcolor

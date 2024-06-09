@@ -12,7 +12,8 @@ MIDDLE_BLUE = 0x008097
 BLACK = 0x0000
 
 class RoadGrid():
-    horiz_palette = [
+    horiz_palette = None
+    horiz_palette_orig = [
         0x000000,
         0x520014,
         0x500418,
@@ -136,10 +137,11 @@ class RoadGrid():
         self.create_vert_points()
 
     def init_palettes(self):
-        self.num_horiz_colors = len(self.horiz_palette)
+        self.num_horiz_colors = len(self.horiz_palette_orig)
         new_palette = []
-        for i, hex_color in enumerate(self.horiz_palette):
-            new_palette.append(colors.hex_to_rgb(hex_color))
+        for i, hex_color in enumerate(self.horiz_palette_orig):
+            new_col = list(colors.hex_to_rgb(hex_color))
+            new_palette.append(new_col)
 
         palette = FramebufferPalette(new_palette)
         #
@@ -243,7 +245,7 @@ class RoadGrid():
         self.x_start_bottom = - ((num_vert_lines) * lane_width_near // 2) + (lane_width_near // 2)
 
         horiz_y_offset = 4 # Manual adjustment for the start.y of the vertical lines
-        horiz_y = self.horiz_y + horiz_y_offset
+        self.horiz_y = self.horiz_y + horiz_y_offset
 
         # points_start = np.empty([num_vert_lines], dtype=np.int8)
         points_start = []
@@ -310,7 +312,7 @@ class RoadGrid():
                 max=self.height,
                 min=self.horiz_y)
 
-            num_colors = len(self.horiz_palette)
+            num_colors = len(self.horiz_palette_orig)
             if color_idx >= num_colors:
                 color_idx = num_colors - 1
 

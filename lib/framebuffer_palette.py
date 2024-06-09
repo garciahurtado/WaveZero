@@ -10,6 +10,9 @@ class FramebufferPalette(framebuf.FrameBuffer):
 
     # By introducing an offset, we can "rotate" the colors in the palette without changing the data
     index_offset: int = 0
+    RGB565 = 0
+    BGR565 = 1
+    color_mode = BGR565
 
     def __init__(self, palette):
         self.index_offset = 0
@@ -39,6 +42,8 @@ class FramebufferPalette(framebuf.FrameBuffer):
         return self.num_colors
 
     def __add__(self, second_palette):
+        """ Override `+` so that we can merge two palettes easily """
+
         print(f"Adding palettes ... {self.num_colors} + {second_palette.num_colors}")
         total_colors = self.num_colors + second_palette.num_colors
         new_palette = FramebufferPalette(total_colors)
@@ -51,8 +56,28 @@ class FramebufferPalette(framebuf.FrameBuffer):
 
         return new_palette
 
+    def _rgb_to_565(self, r, g, b):
+        return ((b & 0xf8) << 5) | ((g & 0x1c) << 11) | (r & 0xf8) | ((g & 0xe0) >> 5)
+
+    def rgb_to_565(self, rgb):
+        """ Convert RGB values to 5-6-5 bit BGR format (16bit) """
+        if self.color_mode == self.BGR565:
+            r, g, b = rgb[0], rgb[1], rgb[2]
+        else:
+            r, g, b = rgb[2], rgb[1], rgb[0]
+
+        res = (r & 0b11111000) << 8
+        res = res + ((g & 0b11111100) << 3)
+        res = res + (b >> 3)
+
+        return res
+
     def set_rgb(self, index, color):
-        color = colors.rgb_to_565([color[0], color[1], color[2]])  # returns 2 bytes
+        if self.color_mode == self.BGR565:
+            color = self.rgb_to_565([color[1], color[1], color[0]])
+        else:
+            color = self.rgb_to_565([color[0], color[1], color[1]])
+
         self.pixel(index, 0, color)
 
     def get_rgb(self, index):
@@ -75,14 +100,15 @@ class FramebufferPalette(framebuf.FrameBuffer):
     def get_bytes(self, index):
         # index += self.index_offset
         # index = index % self.num_colors
+        # print(f"{index}")
         color = self.pixel(index, 0)
         color_bytes = color.to_bytes(2, 'big')
         color = int.from_bytes(color_bytes, 'little')
         return color
 
     def flip_bytes(self, color):
-        color_bytes = color.to_bytes(2, 'big')
-        color = int.from_bytes(color_bytes, 'little')
+        color_bytes = color.to_bytes(2, 'little')
+        color = int.from_bytes(color_bytes, 'big')
         return color
 
 

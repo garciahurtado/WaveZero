@@ -17,7 +17,10 @@ import color_util as colors
 import random
 
 class TestScreen(Screen):
-    sprite_max_z = const(5000)
+    screen_width = 96
+    screen_height = 64
+
+    sprite_max_z = const(1000)
     display_task = None
     CYAN = (0, 255, 255)
     GREEN = (0, 255, 0)
@@ -44,11 +47,14 @@ class TestScreen(Screen):
         asyncio.run(self.main_loop())
 
     async def main_loop(self):
-        self.create_lines()
+        # self.create_lines()
+        self.create_sprites()
 
         _thread.start_new_thread(self.start_display_loop, [])
 
+
         await asyncio.gather(
+            self.refresh_display(),
             self.sprite_fps_test(),
             # self.display_line_test(),
             self.update_fps()
@@ -66,8 +72,11 @@ class TestScreen(Screen):
 
     def init_fps(self):
         self.fps_text = ColorWriter(
-            self.display,
-            font_vtks, 35, 6, fgcolor=self.GREEN, bgcolor=self.BLACK)
+            self.display.write_framebuf,
+            font_vtks, 35, 6,
+            fgcolor=self.GREEN, bgcolor=self.BLACK,
+            screen_width=self.screen_width, screen_height=self.screen_height)
+
         self.fps_text.text_x = 78
         self.fps_text.text_y = 0
 
@@ -81,30 +90,46 @@ class TestScreen(Screen):
                 pass
             else:
                 fps = int(fps)
-                Writer.set_textpos(self.display, 0, 0)
+                Writer.set_textpos(self.display.write_framebuf, 0, 0)
                 self.fps_text.row_clip = True
                 self.fps_text.printstring("{: >6}".format(fps))
 
             await asyncio.sleep(0.1)
 
+    def sprite_fps_test_wrapper(self):
+
+        while True:
+            self.sprite_fps_test_func()
+            utime.sleep_ms(1)
+
     async def sprite_fps_test(self):
-        self.create_sprites()
+        # self.create_sprites()
         self.last_tick = utime.ticks_ms()
 
         while True:
-            elapsed = utime.ticks_ms() - self.last_tick
-            for i, sprite in enumerate(self.sprites):
-                sprite.z = sprite.z + 1
-                sprite.update(elapsed)
-            await asyncio.sleep(1 / 90)
+            self.sprite_fps_test_func()
+            await asyncio.sleep(1 / 100)
+
+    def sprite_fps_test_func(self):
+        elapsed = utime.ticks_ms() - self.last_tick
+
+        for i, sprite in enumerate(self.sprites):
+            sprite.z = sprite.z + 6
+            sprite.update(elapsed)
+            # print(f"z: {sprite.z}")
+        self.last_tick = utime.ticks_ms()
 
     async def display_line_test(self):
         while True:
+            self.display.fill(0x0)
+            self.show_lines()
+            self.display.show()
+
             await asyncio.sleep(1 / 60)
 
     def create_sprites(self):
         # Create n * n * n sprites
-        num_sprites = 4
+        num_sprites = 2
         print(f"Creating {num_sprites ** 3} sprites")
 
         base_enemy1 = ScaledSprite(
@@ -114,6 +139,8 @@ class TestScreen(Screen):
             frame_height=20)
         base_enemy1.set_alpha(0)
         base_enemy1.is3d = True
+        base_enemy1.active = True
+        base_enemy1.visible = True
 
         base_enemy2 = ScaledSprite(
             camera=self.camera,
@@ -122,7 +149,8 @@ class TestScreen(Screen):
             frame_height=22)
         base_enemy2.set_alpha(0)
         base_enemy2.is3d = True
-        far_z = 3
+        base_enemy2.active = True
+        base_enemy2.visible = True
 
         for z in range(num_sprites, 0, -1):
             for row in range(num_sprites, 0, -1):
@@ -133,23 +161,23 @@ class TestScreen(Screen):
                     enemy1.set_camera(self.camera)
 
                     enemy1.x = i * 15 - 90
-                    enemy1.y = row * 25 - 60
-                    enemy1.z = z * 15 - far_z
+                    enemy1.y = (row * 20) + 0
+                    enemy1.z = z * 15 - self.sprite_max_z
                     self.sprites.append(enemy1)
 
                     enemy2 = base_enemy2.clone()
                     enemy2.set_camera(self.camera)
 
                     enemy2.x = i * 15 - 0
-                    enemy2.y = row * 25 - 60
-                    enemy2.z = z * 15 - far_z
+                    enemy2.y = (row * 20) + 0
+                    enemy2.z = z * 15 - self.sprite_max_z
                     self.sprites.append(enemy2)
-
 
     def init_camera(self):
         # Camera
         horiz_y = 16
         camera_z = 48
+
         self.camera = PerspectiveCamera(
             self.display,
             pos_x=0,
@@ -160,24 +188,22 @@ class TestScreen(Screen):
             vp_y=horiz_y)
         self.camera.horiz_z = self.sprite_max_z
 
+
     async def refresh_display(self):
+        # _thread.start_new_thread(self.sprite_fps_test_wrapper, [])
 
-        bg_color = colors.rgb_to_565((1, 1, 0))
+        bg_color = colors.rgb_to_565((0, 32, 64))
         while True:
-            #start = utime.ticks_ms()
-
             self.display.fill(bg_color)
 
-            # self.refresh_lines()
             for i, sprite in enumerate(self.sprites):
                 sprite.show(self.display)
 
+            # self.show_lines()
             self.fps_text.show(self.display)
             self.do_refresh()
 
-            #diff = utime.ticks_ms() - start
-            #print(f"sprite.show(): {diff}ms")
-            await asyncio.sleep(1/20)
+            await asyncio.sleep(1/100)
 
     def show_lines(self):
         for line in self.lines:

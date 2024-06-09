@@ -87,7 +87,6 @@ class SSD1331(framebuf.FrameBuffer):
         utime.sleep_ms(1)
 
         self._write(INIT_BYTES, DC_MODE_CMD)
-        self.show()
 
     def _write(self, buf, dc):
         self._pincs(1)
@@ -185,7 +184,7 @@ class SSD1331(framebuf.FrameBuffer):
         self._pincs(1)
 
     def _write_cmd(self, cmd):
-        #self._start_cmd()
+        self._start_cmd()
         cmd = self._to_bytes(cmd)
         self._spi.write(cmd)
 

@@ -85,7 +85,8 @@ class GameScreen(Screen):
         self.ui = ui_screen(self.display, self.num_lives)
 
         """ Display Thread """
-        _thread.start_new_thread(self.start_display_loop, [])
+        # _thread.start_new_thread(self.start_display_loop, [])
+        self.start_display_loop()
 
         self.mem_marker('--- Before preload images ---')
         self.preload_images()
@@ -153,8 +154,6 @@ class GameScreen(Screen):
         self.camera.horiz_z = self.sprite_max_z
 
     async def main_loop(self):
-        # loop = asyncio.get_event_loop()
-        # self.input_task = loop.create_task(user_input.get_input(self.encoder, self.encoder_last_pos))
         self.stage.start()
         self.input_task = make_input_handler(self.bike)
 
@@ -215,7 +214,7 @@ class GameScreen(Screen):
                     self.detect_collisions(self.stage.sprites)
 
                 # Wait for next update
-                await asyncio.sleep(1 // 120)
+                await asyncio.sleep(1 // 200)
 
         except asyncio.CancelledError:
             return False
@@ -370,6 +369,8 @@ class GameScreen(Screen):
 
         # if getattr(self, 'display_task', False):
         #     self.display_task.cancel()
+
+        # self.display.start()
 
         # Restart the game display and input
         loop = asyncio.get_event_loop()

@@ -1,6 +1,9 @@
-from tkinter import *
-from tkinter import ttk
+# from tkinter import *
+# from tkinter import ttk
 import lib.color_util as colors
+from framebuffer_palette import FramebufferPalette
+from perspective_camera import PerspectiveCamera
+from road_grid import RoadGrid
 
 def main():
     root = Tk()
@@ -62,6 +65,44 @@ def draw_palette(palette, root):
         labels.append(canvas.create_rectangle(square_size * i, 0, square_size * (i + 1), square_size, fill=my_color))
 
     root.mainloop()
+
+def rgb_test():
+    camera = init_camera()
+
+    """ init grid """
+    grid = RoadGrid(camera, None, 10)
+    color_list = grid.horiz_palette_orig
+    print(color_list)
+
+    """Init palette"""
+    new_palette = []
+    for i, hex_color in enumerate(color_list):
+        new_col = list(colors.hex_to_rgb(hex_color))
+        new_palette.append(new_col)
+
+    palette = FramebufferPalette(new_palette)
+    color_bytes = palette.palette
+
+    for c in range(len(color_list)):
+        rgb = palette.get_rgb(c)
+        color = palette.get_bytes(c)
+        print(f"R:{rgb[0]} G:{rgb[1]} B:{rgb[2]} // {color:04X}")
+
+def init_camera():
+    # Camera
+    horiz_y: int = 16
+    camera_z: int = 64
+    camera = PerspectiveCamera(
+        None,
+        pos_x=0,
+        pos_y=54,
+        pos_z=-camera_z,
+        focal_length=camera_z,
+        vp_x=0,
+        vp_y=horiz_y+2)
+    camera.horiz_z = 10
+
+    return camera
 
 
 if __name__ == '__main__':

@@ -1,5 +1,6 @@
 import uctypes
-from ssd_1331 import SSD1331
+# from ssd_1331 import SSD1331
+from double_buffer_driver import DoubleBufferDriver as Driver
 import micropython
 import utime
 import time
@@ -37,41 +38,47 @@ def test_ssd1331_driver():
     pin_rst = 4
     pin_mosi = 3
     pin_sck = 2
+    COLOR_RGB = 0
+    COLOR_BGR = 1
+    HEIGHT = 64
+    WIDTH = 96
 
     color_list = [0xFFFFFF, 0xFF0000, 0x00FF00, 0x0000FF, 0x00FFFF, 0xFF00FF]
 
-    screen = SSD1331(pin_cs, pin_dc, pin_rst, pin_mosi, pin_sck)
-    screen.set_bitrate(80_000_000)
-    screen.begin(False)
-    screen.fill(0xFFFFFF)
-    screen.pixel(40, 40, 0x000000)
+    disp = Driver(pin_cs, pin_dc, pin_rst, pin_mosi, pin_sck, height=HEIGHT, width=WIDTH)
+    disp.begin()
+
+    disp.set_color_order(COLOR_BGR)
+    disp.set_bitrate(100_000_000)
+    disp.fill(0xFFFFFF)
+    # disp.pixel(40, 40, 0x000000)
 
     # Let's do some fun tests
 
 
     """ Full Screens ----------------------- """
-    # screen_fills(screen, color_list)
+    #screen_fills(disp, color_list)
 
     """ Lines ----------------------- """
 
-    # draw_lines(screen, color_list)
+    # draw_lines(disp, color_list)
 
     """ Rectangles ----------------------- """
 
-    # random_rectangles(screen, color_list)
+    random_rectangles(disp, color_list)
 
     """ End """
 
     """ Matrix -------------------------- """
-    grid_matrix(screen)
+    # grid_matrix(disp)
 
     """ Dots -------------------------- """
-    # dot_fill(screen)
+    #dot_fill(disp)
 
     """ Image -------------------------- """
     start = utime.ticks_ms()
 
-    display_image(screen)
+    # display_image(disp)
 
     end = utime.ticks_ms()
     diff = end - start
@@ -87,13 +94,16 @@ def screen_fills(screen, color_list):
     for j in range(10):
         for i in range(len(color_list)):
             screen.fill(color_list[i])
+            screen.finish_frame()
             utime.sleep_ms(10)
 
     screen.vline(10, 30, 30, 0xFFFFFF)
 
 
 def draw_lines(screen, color_list):
-    for i in range(100):
+    for i in range(10000):
+        screen.fill(0x0)
+
         for y in range(50):
             color = random.choice(color_list)
             color = colors.hex_to_565(color)
@@ -101,8 +111,8 @@ def draw_lines(screen, color_list):
             rand2 = random.randint(-25, +25)
             screen.line(45 + rand1, 0, 45 + rand2, 64, color)
 
-        utime.sleep_ms(7)
-        screen.fill(0x000000)
+        utime.sleep_ms(100)
+        screen.finish_frame()
 
 def random_rectangles(screen, color_list):
     for i in range(50):
@@ -116,7 +126,9 @@ def random_rectangles(screen, color_list):
             rand4 = random.randint(-35, +35)
             screen.fill_rect(45 + rand1, 30 + rand3, 45 + rand2, 30 + rand4, color1)
 
-        # utime.sleep_ms(1)
+        screen.finish_frame()
+
+        utime.sleep_ms(200)
         screen.fill(0x0000)
 
 def grid_matrix(screen):
@@ -138,6 +150,7 @@ def grid_matrix(screen):
             for y in range(offset_y, 64, i):
                 screen.line(0, y, 96, y, color)
 
+            screen.finish_frame()
             utime.sleep_ms(2)
             screen.fill(0x000000)
 
@@ -156,18 +169,19 @@ def dot_fill(screen):
     dots_placed = 0
 
     # Total number of pixels on the screen
-    total_pixels = width * height
+    total_pixels = (width * height) - 2
 
     while dots_placed < total_pixels:
         rand_x = random.randrange(0, width)
         rand_y = random.randrange(0, height)
 
         # Check if the coordinate has already been used
-        # if (rand_x, rand_y) not in used_coords:
-        color = colors.hex_to_565(0x000000)
-        screen.pixel(int(rand_x), int(rand_y), color)
-        # used_coords.add((rand_x, rand_y))
+        if (rand_x, rand_y) not in used_coords:
+            color = colors.hex_to_565(0x000000)
+            screen.pixel(int(rand_x), int(rand_y), color)
+            used_coords.add((rand_x, rand_y))
         # dots_placed += 1
+        screen.finish_frame()
 
 def display_image(screen):
     loader = ImageLoader()
@@ -179,3 +193,5 @@ def display_image(screen):
         x = int(random.randrange(96))
         y = int(random.randrange(64))
         screen.blit_4bit(x, y, img_ptr, 20, 20, palette_ptr)
+        screen.finish_frame()
+

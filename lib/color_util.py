@@ -260,8 +260,8 @@ def byte3_to_byte2(rgb_bytes_array):
         b = rgb_bytes_array[i + 2]
 
         # Convert RGB888 to RGB565
-        # rgb565 = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
-        rgb565 = ((b & 0xf8) << 5) | ((g & 0x1c) << 11) | (r & 0xf8) | ((g & 0xe0) >> 5)
+        rgb565 = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+        # rgb565 = ((b & 0xf8) << 5) | ((g & 0x1c) << 11) | (r & 0xf8) | ((g & 0xe0) >> 5)
 
         # Pack RGB565 into two bytes
         byte2[i // 3 * 2] = rgb565 >> 8
@@ -285,33 +285,17 @@ def make_gradient(start_color: list[int], end_color: list[int], num_colors):
     return palette
 
 
-def make_palette(colors):
-    """Given a list of Hex colors, return a list of RGB565 colors, ready for the display driver """
-
-    new_colors = []
-    for color in colors:
-        color = hex_to_rgb(color)
-        new_color = SSD1331.rgb(color[0], color[1], color[2])
-        new_colors.append(new_color)
-
-    return new_colors
-
-def make_framebuffer_palette(palette):
-    """ Given a list of RGB565 colors, create a FramebufferPalette from it """
-    palette = FramebufferPalette(palette)
-    return palette
-
 
 def color_scale(begin_hsl, end_hsl, nb):
     """Returns a list of nb color HSL tuples between begin_hsl and end_hsl
 
-    >>> from colour import color_scale
+    >> from colour import color_scale
 
-    >>> [rgb2hex(hsl2rgb(hsl)) for hsl in color_scale((0, 1, 0.5),
+    >> [rgb2hex(hsl2rgb(hsl)) for hsl in color_scale((0, 1, 0.5),
     ...                                               (1, 1, 0.5), 3)]
     ['#f00', '#0f0', '#00f', '#f00']
 
-    >>> [rgb2hex(hsl2rgb(hsl))
+    >> [rgb2hex(hsl2rgb(hsl))
     ...  for hsl in color_scale((0, 0, 0),
     ...                         (0, 0, 1),
     ...                         15)]  # doctest: +ELLIPSIS
@@ -319,7 +303,7 @@ def color_scale(begin_hsl, end_hsl, nb):
 
     Of course, asking for negative values is not supported:
 
-    >>> color_scale((0, 1, 0.5), (1, 1, 0.5), -2)
+    >> color_scale((0, 1, 0.5), (1, 1, 0.5), -2)
     Traceback (most recent call last):
     ...
     ValueError: Unsupported negative number of colors (nb=-2).

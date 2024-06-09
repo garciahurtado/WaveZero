@@ -11,7 +11,7 @@ import utime
 
 class GridTestScreen(Screen):
     lane_width: int = const(24)
-    ground_speed: int = const(200)
+    ground_speed: int = const(1000)
     grid: RoadGrid = None
     camera: PerspectiveCamera
     sprites: []
@@ -20,12 +20,10 @@ class GridTestScreen(Screen):
     saved_ground_speed = 0
     lane_width: int = const(24)
     num_lives: int = const(4)
-    crash_y_start = const(48)  # Screen Y of Sprites which will collide with the player
-    crash_y_end = const(62)  # Screen Y of end collision
     total_frames = 0
 
     fps_every_n_frames = 30
-    color_shift_every_n_frames = 1
+    color_shift_every_n_frames = 1000
 
 
     def __init__(self, display, *args, **kwargs):
@@ -37,25 +35,19 @@ class GridTestScreen(Screen):
         """ Display Thread / 2nd core """
 
     def run(self):
-
-
         # led = Pin(25, Pin.OUT)
         #
         self.display.fill(0x9999)
-        # self.display.show()
-
-        """ This will initiate the DMA transfer chain and PIO program to free the CPU from having to deal with the
-        display refresh"""
-        self.display.start()
         utime.sleep_ms(1000)
         self.display.fill(0x0)
-        # START()
+
         print("-- Creating road grid...")
 
         self.grid = RoadGrid(self.camera, self.display, lane_width=self.lane_width)
         self.grid.speed = self.ground_speed
 
         _thread.start_new_thread(self.start_display_loop, [])
+        # self.start_display_loop()
 
         asyncio.run(self.main_loop())
 
@@ -85,7 +77,6 @@ class GridTestScreen(Screen):
 
                 if not self.total_frames % self.fps_every_n_frames:
                     print(f"FPS: {self.fps.fps()}")
-                    self.display.debug_dma()
 
                 if not self.total_frames % self.color_shift_every_n_frames:
                     self.display.fill(0x0)
@@ -96,23 +87,23 @@ class GridTestScreen(Screen):
                     # print(f"Change color to {color}")
                     self.display.fill(int(color))
 
-                await asyncio.sleep(1/30)
+                await asyncio.sleep(1/120)
 
         except asyncio.CancelledError:
             return False
 
     def do_refresh(self):
         """ Overrides parent method """
-        if self.display.paused:
-            return False
 
-        # self.display.fill(0x0)
-        # self.grid.show()
+        """ Wait until the display is done writing to its 2nd buffer"""
+        # while not self.display.can_write():
+        #     pass
+
+        self.display.fill(0x0)
+        self.grid.show()
         self.display.show()
 
-        utime.sleep_ms(1)
-
-        # self.fps.tick()
+        self.fps.tick()
 
     def init_camera(self):
         # Camera

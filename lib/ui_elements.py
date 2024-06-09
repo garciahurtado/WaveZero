@@ -56,8 +56,9 @@ class ui_screen():
     def init_score(self):
 
         self.score_text = ColorWriter(
-            self.display,
-            font_vtks, 35, 6, fgcolor=self.CYAN, bgcolor=self.BLACK)
+            self.display.write_framebuf,
+            font_vtks, 35, 6, fgcolor=self.CYAN, bgcolor=self.BLACK,
+            screen_width=self.display.width, screen_height=self.display.height)
         self.score_text.text_x = 61
         self.score_text.text_y = 0
 
@@ -73,8 +74,8 @@ class ui_screen():
 
     def init_game_over(self):
         game_over_text = ColorWriter(
-            self.display,
-            large_font, 96, 11, fgcolor=self.CYAN, bgcolor=self.BLACK)
+            self.display.write_framebuf,
+            large_font, 96, 11, fgcolor=self.CYAN, bgcolor=self.BLACK, screen_width=self.display.width, screen_height=self.display.height)
         game_over_text.text_x = 3
         game_over_text.text_y = 28
         game_over_text.visible = False
@@ -83,7 +84,7 @@ class ui_screen():
         game_over_text.col_clip = True  # Clip or new line when row is full
         game_over_text.wrap = False  # Word wrap
 
-        Writer.set_textpos(self.display, 0, 0)
+        Writer.set_textpos(self.display.write_framebuf, 0, 0)
         game_over_text.printstring("GAME OVER")
 
         self.game_over_text = game_over_text
@@ -110,7 +111,7 @@ class ui_screen():
             return False
 
         self.score = new_score
-        Writer.set_textpos(self.display, 0, 0)
+        Writer.set_textpos(self.display.write_framebuf, 0, 0)
         self.score_text.printstring(f"{self.score:09}")
 
     def show(self):

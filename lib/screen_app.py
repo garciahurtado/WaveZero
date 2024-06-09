@@ -43,7 +43,7 @@ class ScreenApp:
         # GPIO5 (or any)        DC
 
 
-        spi = machine.SPI(0, baudrate=80_000_000, sck=self.pin_sck, mosi=self.pin_sda, miso=None)
+        spi = machine.SPI(0, baudrate=100_000_000, sck=self.pin_sck, mosi=self.pin_sda, miso=None)
         display = Driver(
             spi,
             self.pin_cs,
@@ -56,12 +56,13 @@ class ScreenApp:
 
         # display.set_clock_divide(8)
         self.display = display
+        self.display.start()
         return display
 
-    def setup_native_display(self, pin_cs, pin_dc, pin_rst, pin_sda, pin_sck):
-        self.display = Driver(pin_cs, pin_dc, pin_rst, pin_sda, pin_sck)
-        self.display.begin(False)
-        return self.display
+    # def setup_native_display(self, pin_cs, pin_dc, pin_rst, pin_sda, pin_sck):
+    #     self.display = Driver(pin_cs, pin_dc, pin_rst, pin_sda, pin_sck)
+    #     self.display.begin(False)
+    #     return self.display
 
 class ScreenAppFramebuf(ScreenApp):
     def __init__(self, screen_height, screen_width):
