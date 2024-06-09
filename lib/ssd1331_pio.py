@@ -145,6 +145,7 @@ class SSD1331PIO():
         remaining_tx = self.dma0.count
         sent_tx = total_tx - remaining_tx
         sent_bytes = sent_tx * self.word_size
+        # self.dma0.active(0)
 
         new_read_addr = self.read_addr
         # self.read_addr_buf = new_read_addr.to_bytes(4, "little")
@@ -166,6 +167,7 @@ class SSD1331PIO():
         self.pin_cs(0)
         self.spi.write(self.INIT_BYTES)
         self.pin_cs(1)
+        self.pin_dc(self.DC_MODE_DATA)
 
 
     def init_pio_spi(self):
@@ -176,7 +178,7 @@ class SSD1331PIO():
         pin_cs = self.pin_cs
 
         # Set up the PIO state machine
-        freq = 100 * 1000 * 1000
+        freq = 120 * 1000 * 1000
 
         sm = StateMachine(0)
 
@@ -204,18 +206,18 @@ class SSD1331PIO():
     def dmi_to_spi():
         """This PIO program is in charge for reading from the TX FIFO and writing to the output pin until it runs out
         of data"""
-        pull(ifempty, block)       .side(1) [1]     # Block with CSn high (minimum 2 cycles)
+        pull(ifempty, block)       .side(1)     # Block with CSn high (minimum 2 cycles)
         nop()                      .side(0)     # CSn front porch
 
-        set(x, 31)                  .side(0)        # Push out 4 bytes per bitloop
+        set(x, 31)                  .side(1)        # Push out 4 bytes per bitloop
         wrap_target()
 
         pull(ifempty, block)        .side(1)
         set(pins, 0)                .side(0)  # pull down CS
 
         label("bitloop")
-        out(pins, 1)                .side(1)
-        jmp(x_dec, "bitloop")       .side(0)
+        out(pins, 1)                .side(0)
+        jmp(x_dec, "bitloop")       .side(1)
 
         set(x, 31)                  .side(1)
 
@@ -276,17 +278,19 @@ class SSD1331PIO():
             inc_read=False,
             inc_write=False,
             irq_quiet=True,
+            chain_to=self.dma0.channel
         )
         # self.dma1.irq(handler=self.buffer_swap_done, hard=False)
 
         offset = (0x040 * self.dma0.channel) + 0x03C                #   CH0_AL3_READ_ADDR_TRIG
-        dma_read_offset = 0x014       #   CH0_AL1_READ_ADDR
+        dma_read_offset = 0x014                                     #   CH0_AL1_READ_ADDR
 
         self.dma1.config(
             count=1,
             read=self.read_addr_buf,
-            write=self.DMA_BASE + offset,
+            write=self.DMA_BASE,
             ctrl=ctrl1,
+
         )
 
         """ Buffer Swap Channel, to be manually triggered as soon as the CPU has finished rendering a frame """

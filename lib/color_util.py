@@ -2,10 +2,8 @@ from framebuffer_palette import FramebufferPalette
 from ssd1331_16bit import SSD1331
 
 FLOAT_ERROR = 0.0000005
-COLOR_FORMAT_RGB = 1
-COLOR_FORMAT_BGR = 2
-
-color_format = COLOR_FORMAT_BGR
+RGB565 = 1
+BGR565 = 2
 
 def color_mix(c1, c2, mix):
     """Returns a 24 bit (true color) bytes array"""
@@ -35,9 +33,9 @@ def _rgb_to_565(rgb):
     rgb565 = (r5 << 11) | (g6 << 5) | b5
     return rgb565
 
-def rgb_to_565(rgb):
+def rgb_to_565(rgb,  format=RGB565):
     """ Convert RGB values to 5-6-5 bit BGR format (16bit) """
-    if color_format == COLOR_FORMAT_RGB:
+    if format == RGB565:
         r, g, b = rgb[0], rgb[1], rgb[2]
     else:
         r, g, b = rgb[2], rgb[1], rgb[0]
@@ -48,7 +46,8 @@ def rgb_to_565(rgb):
 
     return res
 
-def rgb565_to_rgb(rgb565):
+def rgb565_to_rgb(rgb565, format=RGB565):
+
     """
     Convert a 16-bit color in 5-6-5 bit format to RGB values
     """
@@ -64,7 +63,7 @@ def rgb565_to_rgb(rgb565):
     g = (g6 << 2) | (g6 >> 4)
     b = (b5 << 3) | (b5 >> 2)
 
-    if color_format == COLOR_FORMAT_RGB:
+    if format and format == RGB565:
         return r, g, b
     else:
         return b, g, r
@@ -93,13 +92,13 @@ def hex_to_rgb(hex_value):
 
     return (red, green, blue)
 
-def hex_to_565(hex_value):
+def hex_to_565(hex_value, format=None):
     # Extract the red, green, and blue components
     red = (hex_value >> 16) & 0xFF
     green = (hex_value >> 8) & 0xFF
     blue = hex_value & 0xFF
 
-    return rgb_to_565((red, green, blue))
+    return rgb_to_565((red, green, blue), format=format)
 
 
 def rgb_to_hsl(rgb):

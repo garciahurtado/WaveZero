@@ -56,27 +56,11 @@ class FramebufferPalette(framebuf.FrameBuffer):
 
         return new_palette
 
-    def _rgb_to_565(self, r, g, b):
-        return ((b & 0xf8) << 5) | ((g & 0x1c) << 11) | (r & 0xf8) | ((g & 0xe0) >> 5)
-
-    def rgb_to_565(self, rgb):
-        """ Convert RGB values to 5-6-5 bit BGR format (16bit) """
-        if self.color_mode == self.BGR565:
-            r, g, b = rgb[0], rgb[1], rgb[2]
-        else:
-            r, g, b = rgb[2], rgb[1], rgb[0]
-
-        res = (r & 0b11111000) << 8
-        res = res + ((g & 0b11111100) << 3)
-        res = res + (b >> 3)
-
-        return res
-
     def set_rgb(self, index, color):
         if self.color_mode == self.BGR565:
-            color = self.rgb_to_565([color[1], color[1], color[0]])
+            color = colors.rgb_to_565([color[2], color[1], color[0]])
         else:
-            color = self.rgb_to_565([color[0], color[1], color[1]])
+            color = colors.rgb_to_565([color[0], color[1], color[2]])
 
         self.pixel(index, 0, color)
 
@@ -84,7 +68,7 @@ class FramebufferPalette(framebuf.FrameBuffer):
         index += self.index_offset
         index = index % self.num_colors
         color = self.pixel(index, 0)
-        color = colors.rgb565_to_rgb(color)
+        color = colors.rgb565_to_rgb(color, self.color_mode)
         return color
 
     def set_bytes(self, index, color):
@@ -139,7 +123,7 @@ class FramebufferPalette(framebuf.FrameBuffer):
         my_range = max - min
         my_value = value - min
 
-        idx = int((my_value / my_range) * self.num_colors)
+        idx = round((my_value / my_range) * self.num_colors)
         return idx
 
     @staticmethod

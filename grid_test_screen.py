@@ -11,7 +11,7 @@ import utime
 
 class GridTestScreen(Screen):
     lane_width: int = const(24)
-    ground_speed: int = const(1000)
+    ground_speed: int = const(5000)
     grid: RoadGrid = None
     camera: PerspectiveCamera
     sprites: []
@@ -28,6 +28,7 @@ class GridTestScreen(Screen):
 
     def __init__(self, display, *args, **kwargs):
         super().__init__(display, *args, **kwargs)
+
 
         self.init_camera()
         self.display.fps = self.fps
@@ -87,7 +88,7 @@ class GridTestScreen(Screen):
                     # print(f"Change color to {color}")
                     self.display.fill(int(color))
 
-                await asyncio.sleep(1/120)
+                await asyncio.sleep(1/500)
 
         except asyncio.CancelledError:
             return False

@@ -71,21 +71,13 @@ def rgb_test():
 
     """ init grid """
     grid = RoadGrid(camera, None, 10)
-    color_list = grid.horiz_palette_orig
-    print(color_list)
+    color_list = grid.horiz_palette
 
-    """Init palette"""
-    new_palette = []
-    for i, hex_color in enumerate(color_list):
-        new_col = list(colors.hex_to_rgb(hex_color))
-        new_palette.append(new_col)
 
-    palette = FramebufferPalette(new_palette)
-    color_bytes = palette.palette
-
+    # Debug
     for c in range(len(color_list)):
-        rgb = palette.get_rgb(c)
-        color = palette.get_bytes(c)
+        rgb = color_list.get_rgb(c)
+        color = color_list.get_bytes(c)
         print(f"R:{rgb[0]} G:{rgb[1]} B:{rgb[2]} // {color:04X}")
 
 def init_camera():

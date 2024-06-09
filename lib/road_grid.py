@@ -12,8 +12,7 @@ MIDDLE_BLUE = 0x008097
 BLACK = 0x0000
 
 class RoadGrid():
-    horiz_palette = None
-    horiz_palette_orig = [
+    horiz_palette = [
         0x000000,
         0x520014,
         0x500418,
@@ -97,7 +96,7 @@ class RoadGrid():
         self.width = camera.screen_width
         self.height = camera.screen_height
         self.last_horiz_line_ts = 0
-        num_horiz_lines = 20
+        num_horiz_lines = 40
         self.num_vert_lines = 20
         self.vert_points = []
         self.display = display
@@ -137,9 +136,10 @@ class RoadGrid():
         self.create_vert_points()
 
     def init_palettes(self):
-        self.num_horiz_colors = len(self.horiz_palette_orig)
+        self.num_horiz_colors = len(self.horiz_palette)
         new_palette = []
-        for i, hex_color in enumerate(self.horiz_palette_orig):
+
+        for i, hex_color in enumerate(self.horiz_palette):
             new_col = list(colors.hex_to_rgb(hex_color))
             new_palette.append(new_col)
 
@@ -159,6 +159,10 @@ class RoadGrid():
 
         for i, hex_color in enumerate(self.horizon_palette):
             new_palette.append(colors.hex_to_rgb(hex_color))
+
+        for color in new_palette:
+            print(color)
+
         self.horizon_palette = FramebufferPalette(new_palette)
 
 
@@ -210,7 +214,7 @@ class RoadGrid():
         print("After vertical palette")
         self.check_mem()
 
-        self.bright_color = self.vert_palette.flip_bytes(colors.hex_to_565(0x00ffff))
+        self.bright_color = colors.hex_to_565(0x00ffff)
 
         print("After both palettes combined")
         self.check_mem()
@@ -290,7 +294,7 @@ class RoadGrid():
             my_line['y'] = round(y)
 
             # Reached the bottom of the screen, this line is done
-            if my_line['y']  > self.display_height:
+            if my_line['y'] > self.display_height:
                 del self.horiz_lines_data[i]
                 continue
 
@@ -300,25 +304,21 @@ class RoadGrid():
 
             last_y = my_line['y']
 
-            # Avoid drawing out of bounds
-            if my_line['y'] > self.display_height:
-                continue
+            color_idx = self.horiz_palette.pick_from_value(my_line['y'], self.height, self.horiz_y)
 
-            # color_idx = self.horiz_palette.pick_from_value(my_line['y'], self.height, self.horiz_y)
-            #
-            color_idx = FramebufferPalette.pick_from_palette(
-                self.horiz_palette,
-                my_line['y'],
-                max=self.height,
-                min=self.horiz_y)
-
-            num_colors = len(self.horiz_palette_orig)
+            num_colors = len(self.horiz_palette)
             if color_idx >= num_colors:
                 color_idx = num_colors - 1
 
             rgb565 = self.horiz_palette.get_bytes(color_idx)
+            rgb = self.horiz_palette.get_rgb(color_idx)
+
+            # print(f"RGB: {rgb[0]}, {rgb[1]}, {rgb[2]}")
+
             self.display.hline(0, my_line['y'], self.width, rgb565)
             # self.display.rect(0, my_line['y'], self.width - 1, 1, rgb565)
+
+        # print("RGBEND----------RGBEND")
 
 
         """ Remove out of bounds lines """
