@@ -73,12 +73,11 @@ def rgb_test():
     grid = RoadGrid(camera, None, 10)
     color_list = grid.horiz_palette
 
-
     # Debug
-    for c in range(len(color_list)):
-        rgb = color_list.get_rgb(c)
-        color = color_list.get_bytes(c)
-        print(f"R:{rgb[0]} G:{rgb[1]} B:{rgb[2]} // {color:04X}")
+    # for c in range(len(color_list)):
+    #     rgb = color_list.get_rgb(c)
+    #     color = color_list.get_bytes(c)
+    #     print(f"R:{rgb[0]} G:{rgb[1]} B:{rgb[2]} // {color:04X}")
 
 def init_camera():
     # Camera

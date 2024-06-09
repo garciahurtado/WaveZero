@@ -73,28 +73,24 @@ class FramebufferPalette(framebuf.FrameBuffer):
 
     def set_bytes(self, index, color):
         # Convert the color value to bytes
-        color_bytes = color.to_bytes(2, 'little')
-
-        # Convert the flipped bytes back to an integer
-        color = int.from_bytes(color_bytes, 'big')
+        # color_bytes = color.to_bytes(2, 'big')
+        #
+        # # Convert the flipped bytes back to an integer
+        # color = int.from_bytes(color_bytes, 'big')
 
         # Set the color in the underlying data structure
         self.pixel(index, 0, color)
 
-    def get_bytes(self, index):
-        # index += self.index_offset
-        # index = index % self.num_colors
-        # print(f"{index}")
+    def get_bytes(self, index, invert=True):
+        """ Since the palette already stores colors in original screen format, for efficiency,
+        there is no need to convert the color on the way out, presuming its meant for the screen"""
         color = self.pixel(index, 0)
-        color_bytes = color.to_bytes(2, 'big')
-        color = int.from_bytes(color_bytes, 'little')
-        return color
 
-    def flip_bytes(self, color):
-        color_bytes = color.to_bytes(2, 'little')
-        color = int.from_bytes(color_bytes, 'big')
-        return color
+        if invert:
+            color_bytes = color.to_bytes(2, 'big')
+            color = int.from_bytes(color_bytes, 'little')
 
+        return color
 
     def clone(self):
         new_palette = FramebufferPalette(bytearray(self.num_colors * 2))
@@ -107,9 +103,9 @@ class FramebufferPalette(framebuf.FrameBuffer):
     def mirror(self):
         new_palette = FramebufferPalette(self.num_colors)
         for i in range(0, self.num_colors):
-            color = self.get_bytes(i)
+            color = self.get_bytes(i, False)
             j = self.num_colors - i - 1
-            new_palette.set_bytes(j, color)
+            new_palette.pixel(j, 0, color)
 
         return new_palette
 

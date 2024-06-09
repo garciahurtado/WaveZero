@@ -96,7 +96,7 @@ class RoadGrid():
         self.width = camera.screen_width
         self.height = camera.screen_height
         self.last_horiz_line_ts = 0
-        num_horiz_lines = 40
+        num_horiz_lines = 20
         self.num_vert_lines = 20
         self.vert_points = []
         self.display = display
@@ -210,11 +210,12 @@ class RoadGrid():
         # Concatenate the two mirrored palettes into one
         final_palette = vert_palette + vert_palette_2
         self.vert_palette = final_palette
+        self.vert_palette.num_colors = self.vert_palette.num_colors * 2
 
         print("After vertical palette")
         self.check_mem()
 
-        self.bright_color = colors.hex_to_565(0x00ffff)
+        self.bright_color = colors.hex_to_565(0x00ffff, self.vert_palette.color_mode)
 
         print("After both palettes combined")
         self.check_mem()
@@ -310,9 +311,7 @@ class RoadGrid():
             if color_idx >= num_colors:
                 color_idx = num_colors - 1
 
-            rgb565 = self.horiz_palette.get_bytes(color_idx)
-            rgb = self.horiz_palette.get_rgb(color_idx)
-
+            rgb565 = self.horiz_palette.get_bytes(color_idx, True)
             # print(f"RGB: {rgb[0]}, {rgb[1]}, {rgb[2]}")
 
             self.display.hline(0, my_line['y'], self.width, rgb565)
@@ -358,7 +357,7 @@ class RoadGrid():
 
             # color = self.vert_palette.get_bytes(index)
             # color = self.vert_palette[index]
-            color = self.vert_palette.get_bytes(index)
+            color = self.vert_palette.get_bytes(index, False)
 
             # color = 0xFF
             # rgb = colors.rgb_to_hex(rgb)
