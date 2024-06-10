@@ -41,9 +41,9 @@ class FpsCounter():
         else:
             steps = LIST_SIZE - (start - end)
 
-        avg_ms = self.ellapsed // steps
-        
+        avg_ms = self.ellapsed / steps
+
         if avg_ms <= 0:
            return False
-           
-        return 1000 // avg_ms
+
+        return 1000 / avg_ms

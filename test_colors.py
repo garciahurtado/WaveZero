@@ -1,5 +1,7 @@
 # from tkinter import *
 # from tkinter import ttk
+from micropython import const
+
 import lib.color_util as colors
 from framebuffer_palette import FramebufferPalette
 from perspective_camera import PerspectiveCamera
@@ -80,6 +82,8 @@ def rgb_test():
     #     print(f"R:{rgb[0]} G:{rgb[1]} B:{rgb[2]} // {color:04X}")
 
 def init_camera():
+    sprite_max_z: int = const(1300)
+
     # Camera
     horiz_y: int = 16
     camera_z: int = 64
@@ -91,7 +95,7 @@ def init_camera():
         focal_length=camera_z,
         vp_x=0,
         vp_y=horiz_y+2)
-    camera.horiz_z = 10
+    camera.horiz_z = sprite_max_z
 
     return camera
 

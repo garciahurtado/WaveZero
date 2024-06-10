@@ -31,6 +31,8 @@ from title_screen import TitleScreen
 import color_util as colors
 # from primitives.encoder import Encoder
 
+from profiler import Profiler as prof
+
 start_time_ms = 0
 
 class GameScreen(Screen):
@@ -43,7 +45,7 @@ class GameScreen(Screen):
     crash_fx: None
     sprite_max_z: int = const(1301)
     ground_speed = 0
-    ground_max_speed: int = const(300)
+    ground_max_speed: int = const(100)
     saved_ground_speed = 0
     lane_width: int = const(24)
     num_lives: int = const(4)
@@ -85,16 +87,15 @@ class GameScreen(Screen):
         self.ui = ui_screen(self.display, self.num_lives)
 
         """ Display Thread """
-        # _thread.start_new_thread(self.start_display_loop, [])
         self.start_display_loop()
+        # _thread.start_new_thread(self.create_input_handler, [])
+
 
         self.mem_marker('--- Before preload images ---')
         self.preload_images()
         self.mem_marker('--- After preload images ---')
 
         self.bike = PlayerSprite(camera=self.camera)
-        self.handler = make_input_handler(self.bike)
-
 
         self.mem_marker('%%% Before FX init %%%')
         self.crash_fx = Crash(self.display, self.bike)
@@ -154,12 +155,13 @@ class GameScreen(Screen):
         self.camera.horiz_z = self.sprite_max_z
 
     async def main_loop(self):
-        self.stage.start()
+        # self.stage.start()
         self.input_task = make_input_handler(self.bike)
 
         await asyncio.gather(
             self.update_loop(),
             self.update_fps(),
+            self.update_profile(),
         )
 
     async def update_loop(self):
@@ -192,7 +194,10 @@ class GameScreen(Screen):
             while True:
                 self.grid.speed = self.ground_speed
                 # self.stage.event_chain.speed = -self.ground_speed
+
+                prof.start_profile('bike.update()')
                 self.bike.update()
+                prof.end_profile('bike.update()')
 
                 # REFACTOR
                 # used so that 3D sprites will follow the movement of lanes as they change perspective
@@ -211,7 +216,9 @@ class GameScreen(Screen):
 
                 if elapsed:
                     self.stage.update(elapsed)
+                    prof.start_profile('detect_coll()')
                     self.detect_collisions(self.stage.sprites)
+                    prof.end_profile('detect_coll()')
 
                 # Wait for next update
                 await asyncio.sleep(1 // 200)
@@ -310,11 +317,20 @@ class GameScreen(Screen):
     def do_refresh(self):
         """ Overrides parent method """
         self.display.fill(0)
+
+        prof.start_profile('grid.show()')
         if self.grid:
             self.grid.show()
+        prof.end_profile('grid.show()')
 
+        prof.start_profile('draw_sprites()')
         self.draw_sprites()
+        prof.end_profile('draw_sprites()')
+
+        prof.start_profile('display.show()')
         self.display.show()
+        prof.end_profile('display.show()')
+
         self.fps.tick()
         # print(f"Speed: {self.ground_speed}")
 
@@ -380,10 +396,17 @@ class GameScreen(Screen):
         while True:
 
             # Show the FPS in the score label
-            fps = int(self.fps.fps())
-            self.ui.update_score(fps)
+            fps = self.fps.fps()
+            self.ui.update_score(int(fps))
+            # print(f"FPS: {fps:.4}")
 
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.2) # Don't update too often
+
+    async def update_profile(self):
+        while True:
+            await asyncio.sleep(5)
+            prof.dump_profile()
+            prof.profile_clean()
 
     def draw_sprites(self):
         super().draw_sprites()

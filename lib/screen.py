@@ -18,6 +18,7 @@ class Screen:
     last_gc: int = 0
     gc_interval: int = 500 # how often to call the garbage collector (ms)
     app: None # ref to ScreenApp
+    profile_labels = {}
 
     def __init__(self, display=None):
         self.sprites = []
@@ -65,6 +66,3 @@ class Screen:
         gc.collect()
         print(msg)
         print(micropython.mem_info())
-
-
-

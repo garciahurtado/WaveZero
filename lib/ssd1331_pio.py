@@ -106,8 +106,8 @@ class SSD1331PIO():
         return
 
     def swap_buffers(self):
-        # if self.paused:
-        #     return
+        # while self.paused:
+        #     pass
 
         # self.read_buffer, self.write_buffer = self.write_buffer, self.read_buffer
         # self.read_addr, self.write_addr = self.write_addr, self.read_addr
@@ -127,10 +127,6 @@ class SSD1331PIO():
 
         # self.dma1.active(1)
 
-        if self.curr_read_buf == self.read_addr_buf:
-            self.curr_read_buf = self.write_addr_buf
-        else:
-            self.curr_read_buf = self.read_addr_buf
 
         # self.dma1.read = uctypes.addressof(self.curr_read_buf)
 
@@ -140,20 +136,32 @@ class SSD1331PIO():
         # The PIO program might be in the middle of a screen refresh, to we need to add the offset it
         # was reading on the old buffer, to the new
 
+        self.dma0.active(0)
+
         total_bytes = self.height * self.width * 2
         total_tx = int(total_bytes / self.word_size)
         remaining_tx = self.dma0.count
         sent_tx = total_tx - remaining_tx
         sent_bytes = sent_tx * self.word_size
-        # self.dma0.active(0)
 
-        new_read_addr = self.read_addr
-        # self.read_addr_buf = new_read_addr.to_bytes(4, "little")
-        self.dma1.read = uctypes.addressof(self.read_addr_buf)
+        if self.curr_read_buf == self.read_addr_buf:
+            self.curr_read_buf = self.write_addr_buf + sent_bytes.to_bytes(32, 'little')
+        else:
+            self.curr_read_buf = self.read_addr_buf + sent_bytes.to_bytes(32, 'little')
+
+        while self.dma1.active():
+            pass
+
+        self.dma1.read = uctypes.addressof(self.curr_read_buf)
         self.dma1.count = 1
         self.dma1.active(1)
 
-        # self.paused = True
+        while self.dma1.active():
+            pass
+
+        self.paused = True
+        self.dma0.active(1)
+
         # self.debug_dma()
 
     def init_display(self):
@@ -261,7 +269,7 @@ class SSD1331PIO():
             size=2,
             inc_read=True,
             inc_write=False,
-            irq_quiet=True,
+            irq_quiet=False,
             bswap=True,
             treq_sel=DATA_REQUEST_INDEX
         )
@@ -271,16 +279,15 @@ class SSD1331PIO():
             write=PIO0_BASE_TXF0,
             ctrl=ctrl0,
         )
+        self.dma0.irq(handler=self.buffer_swap_done, hard=False)
 
         """ Control Channel """
         ctrl1 = self.dma1.pack_ctrl(
             size=2,
             inc_read=False,
             inc_write=False,
-            irq_quiet=True,
-            chain_to=self.dma0.channel
         )
-        # self.dma1.irq(handler=self.buffer_swap_done, hard=False)
+
 
         offset = (0x040 * self.dma0.channel) + 0x03C                #   CH0_AL3_READ_ADDR_TRIG
         dma_read_offset = 0x014                                     #   CH0_AL1_READ_ADDR
@@ -290,7 +297,6 @@ class SSD1331PIO():
             read=self.read_addr_buf,
             write=self.DMA_BASE,
             ctrl=ctrl1,
-
         )
 
         """ Buffer Swap Channel, to be manually triggered as soon as the CPU has finished rendering a frame """

@@ -11,7 +11,7 @@ import utime
 
 class GridTestScreen(Screen):
     lane_width: int = const(24)
-    ground_speed: int = const(5000)
+    ground_speed: int = const(2000)
     grid: RoadGrid = None
     camera: PerspectiveCamera
     sprites: []
