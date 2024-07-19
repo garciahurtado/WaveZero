@@ -30,7 +30,9 @@ class Sprite:
     has_alpha = False
     alpha_color = None
     alpha_index: int = 0
+    min_x = const(-40)
     max_x = const(200)
+    min_y = const(-40)
     max_y = const(200)
     dot_color: int = 0
     pool = None # The pool that spawned this sprite
@@ -120,6 +122,12 @@ class Sprite:
 
         if y > self.max_y:
             y = self.max_y
+
+        if x < self.min_x:
+            x = self.min_x
+
+        if y < self.min_y:
+            y = self.min_y
 
         return self.do_blit(x, y, display)
 

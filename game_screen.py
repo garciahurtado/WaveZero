@@ -31,7 +31,7 @@ from title_screen import TitleScreen
 import color_util as colors
 # from primitives.encoder import Encoder
 
-from profiler import Profiler as prof
+from profiler import Profiler as prof, timed
 
 start_time_ms = 0
 
@@ -45,10 +45,10 @@ class GameScreen(Screen):
     crash_fx: None
     sprite_max_z: int = const(1301)
     ground_speed = 0
-    ground_max_speed: int = const(100)
+    ground_max_speed: int = const(200)
     saved_ground_speed = 0
     lane_width: int = const(24)
-    num_lives: int = const(4)
+    num_lives: int = 0
     crash_y_start = const(48) # Screen Y of Sprites which will collide with the player
     crash_y_end = const(62) # Screen Y of end collision
 
@@ -87,9 +87,9 @@ class GameScreen(Screen):
         self.ui = ui_screen(self.display, self.num_lives)
 
         """ Display Thread """
-        self.start_display_loop()
+        # self.start_display_loop()
         # _thread.start_new_thread(self.create_input_handler, [])
-
+        _thread.start_new_thread(self.start_display_loop, [])
 
         self.mem_marker('--- Before preload images ---')
         self.preload_images()
@@ -155,13 +155,13 @@ class GameScreen(Screen):
         self.camera.horiz_z = self.sprite_max_z
 
     async def main_loop(self):
-        # self.stage.start()
+        self.stage.start()
         self.input_task = make_input_handler(self.bike)
 
         await asyncio.gather(
             self.update_loop(),
             self.update_fps(),
-            self.update_profile(),
+            # self.update_profile(),
         )
 
     async def update_loop(self):
@@ -192,12 +192,15 @@ class GameScreen(Screen):
         # update loop - will run until task cancellation
         try:
             while True:
+                # Calculate elapsed time
+                now = utime.ticks_ms()
+                elapsed = now - self.last_tick
+                self.last_tick = now
+
                 self.grid.speed = self.ground_speed
                 # self.stage.event_chain.speed = -self.ground_speed
 
-                prof.start_profile('bike.update()')
-                self.bike.update()
-                prof.end_profile('bike.update()')
+                self.bike.update(elapsed)
 
                 # REFACTOR
                 # used so that 3D sprites will follow the movement of lanes as they change perspective
@@ -209,19 +212,12 @@ class GameScreen(Screen):
                 self.camera.pos["x"] = round(self.bike.bike_angle * mult2)
                 sun.x = self.sun_x_start - round(self.bike.bike_angle*4)
 
-                # Calculate elapsed time
-                now = utime.ticks_ms()
-                elapsed = now - self.last_tick
-                self.last_tick = now
-
                 if elapsed:
                     self.stage.update(elapsed)
-                    prof.start_profile('detect_coll()')
                     self.detect_collisions(self.stage.sprites)
-                    prof.end_profile('detect_coll()')
 
                 # Wait for next update
-                await asyncio.sleep(1 // 200)
+                await asyncio.sleep(1 / 1000)
 
         except asyncio.CancelledError:
             return False
@@ -231,60 +227,12 @@ class GameScreen(Screen):
         self.stage = Stage1(
             self.camera,
             lane_width=self.lane_width,
-            speed=self.ground_max_speed,
-            sprite_max_z=self.sprite_max_z
+            speed=self.ground_max_speed / 2,
             )
 
     def init_enemies(self):
         self.enemies = []
 
-        # Create road obstacles
-        num_groups = 0
-        palette_size = 4
-        palette_width = 16
-        num_palettes = int(palette_width / palette_size)
-        # print(f"Creating {num_palettes} palettes")
-
-        # self.enemy_palettes = Spritesheet(filename='/img/enemy_gradients.bmp', frame_width=4, frame_height=1)
-        # self.enemy_palettes.set_frame(0)
-        # all_palettes = []
-        # self.check_mem()
-
-        # print(f"Loaded {len(self.enemy_palettes.frames)} enemy palettes")
-
-        # Split up the palette gradient into individual sub-palettes
-        # for i in range(int(palette_width / palette_size)):
-        #     self.enemy_palettes.set_frame(i)
-        #
-        #     pixels = self.enemy_palettes.frames[0].pixels # Colors for a single group (4 palettes)
-        #
-        #     orig_palette = [
-        #         (0,0,0),
-        #         (0,0,0),
-        #         (255,255,255),
-        #         (0,0,0),
-        #     ]
-        #     for j in range(palette_size):
-        #         print(f"Creating palette {j}")
-        #         new_palette = colors.make_framebuffer_palette(orig_palette)
-        #
-        #         color_idx = pixels.pixel(j, 0)
-        #         color = self.enemy_palettes.palette.get_bytes(color_idx)
-        #         new_palette.set_bytes(0, color)
-        #
-        #         all_palettes.append(new_palette) # We should end up with 16 palettes total
-
-        # print(f"Num enemy palettes: {len(all_palettes)}")
-        # Create enemy / obstacle groups
-
-        for i in range(0, num_groups):
-            print(f"Created group {i}")
-            # Set a random palette
-            # palette_num = random.randrange(0, 4)
-            # print(f"All palettes size: {len(all_palettes)}")
-            # current_enemy_palettes = all_palettes[i*palette_size:(i+1)*palette_size]
-
-            self.create_group(self.base_group, i)
     def detect_collisions(self, colliders):
         if self.bike.visible and self.bike.active:
             for sprite in colliders:
@@ -318,18 +266,14 @@ class GameScreen(Screen):
         """ Overrides parent method """
         self.display.fill(0)
 
-        prof.start_profile('grid.show()')
         if self.grid:
             self.grid.show()
-        prof.end_profile('grid.show()')
 
-        prof.start_profile('draw_sprites()')
+#        prof.start_profile('draw_sprites()')
         self.draw_sprites()
-        prof.end_profile('draw_sprites()')
+#        prof.end_profile('draw_sprites()')
 
-        prof.start_profile('display.show()')
         self.display.show()
-        prof.end_profile('display.show()')
 
         self.fps.tick()
         # print(f"Speed: {self.ground_speed}")
@@ -340,7 +284,7 @@ class GameScreen(Screen):
         white = colors.rgb_to_565(colors.hex_to_rgb(0xFFFFFF))
 
         # Visual flash
-        for i in range(3):
+        for i in range(2):
             self.display.fill(white)
             self.display.show()
             self.do_refresh()
@@ -353,8 +297,8 @@ class GameScreen(Screen):
             self.ui.show_game_over()
             return False
 
-        self.bike.blink = True
-        self.restart_game()
+        # self.bike.blink = True
+        # self.restart_game()
 
     def pause(self):
         self.saved_ground_speed = self.ground_speed
@@ -372,7 +316,7 @@ class GameScreen(Screen):
             group.reset()
 
         loop = asyncio.get_event_loop()
-        loop.create_task(self.bike.stop_blink())  # Will run after a few seconds
+        # loop.create_task(self.bike.stop_blink())  # Will run after a few seconds
         self.unpause()
 
     def start_display_loop(self):
@@ -391,6 +335,7 @@ class GameScreen(Screen):
         # Restart the game display and input
         loop = asyncio.get_event_loop()
         self.display_task = loop.create_task(self.refresh_display())
+        self.update_frames_task = loop.create_task(self.update_frames())
 
     async def update_fps(self):
         while True:
@@ -404,13 +349,19 @@ class GameScreen(Screen):
 
     async def update_profile(self):
         while True:
-            await asyncio.sleep(5)
+            await asyncio.sleep(3)
             prof.dump_profile()
             prof.profile_clean()
 
+    async def update_frames(self):
+        while True:
+            await asyncio.sleep(0.001)
+            self.stage.update_frames()
+
     def draw_sprites(self):
-        super().draw_sprites()
         self.stage.show(self.display)
+        super().draw_sprites()
+
         self.ui.show()
 
 

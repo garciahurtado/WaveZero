@@ -19,31 +19,36 @@ class PlayerSprite(Spritesheet):
         self.has_physics = True
         self.moving = False
         self.bike_angle = 0
-        self.turn_incr = 0.05  # turning speed
+        self.turn_incr = 2.5  # lane switching speed
         self.camera = camera
         self.half_width = int(self.camera.half_width)
 
     def move_left(self):
-        if self.moving:
+        if (self.current_lane == 0):
             return
 
-        if (self.current_lane == 0):
+        if self.moving:
             return
 
         self.moving = True
         self.target_lane = self.current_lane - 1
+        if self.target_lane < 0:
+            self.target_lane = 0
 
     def move_right(self):
-        if self.moving:
+        if (self.current_lane == 4):
             return
 
-        if (self.current_lane == 4):
+        if self.moving:
             return
 
         self.moving = True
         self.target_lane = self.current_lane + 1
 
-    def turn(self, angle):
+        if self.target_lane > 4:
+            self.target_lane = 4
+
+    def pick_frame(self, angle):
         new_frame = round(((angle * 16) + 17) / 2)
         if self.current_frame != new_frame:
             self.set_frame(new_frame)
@@ -51,30 +56,30 @@ class PlayerSprite(Spritesheet):
         line_offset = angle
         return line_offset
 
-    def update(self):
-        # Handle bike swerving
+    def update(self, elapsed):
+        # Handle bike switching lanes (moving left / right)
         target_lane = self.target_lane
         current_lane = self.current_lane
-        target_angle = (target_lane // 2) - 1
+        target_angle = (target_lane / 2) - 1
         bike_angle = self.bike_angle
-        turn_incr = self.turn_incr
+        turn_incr = self.turn_incr * (elapsed / 1000)
 
         if target_lane < current_lane:
             bike_angle = bike_angle - turn_incr
-            if bike_angle < target_angle:
+            if bike_angle <= target_angle:
                 current_lane = target_lane
                 bike_angle = target_angle
                 self.moving = False
 
         elif target_lane > current_lane:
             bike_angle = bike_angle + turn_incr
-            if bike_angle > target_angle:
+            if bike_angle >= target_angle:
                 current_lane = target_lane
                 bike_angle = target_angle
                 self.moving = False
 
         bike_angle = min(bike_angle, 1)  # Clamp the input between -1 and 1
-        line_offset = self.turn(bike_angle)  # bike_angle->(-1,1)
+        line_offset = self.pick_frame(bike_angle)  # bike_angle->(-1,1)
 
         self.x = int((line_offset * 34) + self.half_width - 16)
         self.current_lane = current_lane

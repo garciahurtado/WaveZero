@@ -5,7 +5,6 @@ from stages.events import EventChain, WaitEvent, MoveCircle
 class FlyingTri(ScaledSprite):
     def __init__(self, *args, **kwargs):
         super().__init__(
-            z=200,
             frame_width=20,
             frame_height=20,
             **kwargs)
@@ -16,14 +15,11 @@ class FlyingTri(ScaledSprite):
 
     def reset(self):
         """ initial conditions of the sprite before appearing on screen"""
-        print("Flying tri reset")
         super().reset()
         self.visible = True
         self.active = True
         self.set_alpha(0)
-        self.y = 0
-        self.z = -30
-        self.speed = 6
+        self.speed = -0.5
         
     def update(self, elapsed):
         print(f"Elapsed: {elapsed} / xyz: {self.x} {self.y} {self.z} ")

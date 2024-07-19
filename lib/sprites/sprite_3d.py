@@ -1,12 +1,15 @@
 import framebuf
 from sprites.spritesheet import Spritesheet
+from profiler import Profiler as prof, timed
+
 
 class Sprite3D(Spritesheet):
     """ A Sprite which has an x,y,z location in 3D space, and that can be rendered in a 2D screen with the help
     of a camera."""
 
     z: int = 0
-    horiz_z: int = 0
+    max_z: int = 4000
+    min_z: int = -40
     draw_x: int = 0
     draw_y: int = 0
     lane_num: int = None
@@ -51,7 +54,7 @@ class Sprite3D(Spritesheet):
         if self.speed:
             self.z = self.z + (self.speed * elapsed)
 
-        if self.z > self.horiz_z:
+        if self.z > self.max_z or self.z < self.min_z:
             self.active = False
             self.visible = False
             return False
@@ -59,8 +62,7 @@ class Sprite3D(Spritesheet):
         draw_x, draw_y = self.pos()
         self.draw_x, self.draw_y = int(draw_x), int(draw_y)
 
-        self.update_frame()
-
+    @timed
     def pos(self):
         """Returns the 2D coordinates of the object, calculated from the internal x,y (if 2D) or x,y,z
         (if 3D with perspective camera)

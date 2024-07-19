@@ -1,5 +1,7 @@
 import fonts.vtks_blocketo_6px as font_vtks
 import fonts.bm_japan as large_font
+import utime
+
 from font_writer import Writer, ColorWriter
 
 from sprites.sprite_rect import SpriteRect
@@ -7,6 +9,8 @@ from sprites.sprite import Sprite
 
 from anim.palette_rotate import PaletteRotate
 import asyncio
+from color_util import FramebufferPalette
+import color_util as colors
 
 class ui_screen():
     display: None
@@ -96,15 +100,16 @@ class ui_screen():
 
         # Animate text colors
         text_colors = [0x00FFFF,0x0094FF,0x00FF90,0x4800FF,0x4CFF00,0x21377F]
-        anim = PaletteRotate(
-            self.game_over_text.palette,
-            0,
-            1,
-            text_colors,
-            color_idx=1)
+        text_color_palette = FramebufferPalette(len(text_colors))
+
+        for i, color in enumerate(text_colors):
+            text_color_palette.set_rgb(i, colors.hex_to_rgb(color))
+
+        anim = PaletteRotate(text_color_palette, 300, [0, 6])
 
         loop = asyncio.get_event_loop()
         loop.create_task(anim.run())
+        utime.sleep_ms(10000)
 
     def update_score(self, new_score):
         if new_score == self.score:

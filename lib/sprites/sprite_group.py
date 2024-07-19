@@ -39,8 +39,8 @@ class SpriteGroup(ScaledSprite):
 
     def update(self):
         """ Update the position of all the Sprite instances """
-        if self.grid:
-            self.speed = -self.grid.speed
+        # if self.grid:
+        #     self.speed = -self.grid.speed
 
         super().update()
 

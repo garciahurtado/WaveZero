@@ -1,5 +1,6 @@
 from image_loader import ImageLoader
 from sprites.sprite import Sprite
+from profiler import Profiler as prof, timed
 
 
 class Spritesheet(Sprite):
@@ -10,6 +11,7 @@ class Spritesheet(Sprite):
 
     # Scaled / spritesheet frames
     frames = []
+    num_frames = 0
     current_frame = 0
     frame_width: int = 0
     frame_height: int = 0
@@ -31,6 +33,8 @@ class Spritesheet(Sprite):
     def load_image(self, filename):
         """Overrides parent"""
         self.frames = ImageLoader.load_image(filename, self.frame_width, self.frame_height)
+        self.num_frames = len(self.frames)
+
         print(f"Loaded {len(self.frames)} frames")
         meta = self.frames[0]
 
@@ -58,12 +62,16 @@ class Spritesheet(Sprite):
         """Update the current frame in the spritesheet to the one that represents the correct size when taking into
         account 3D coordinates and the camera """
 
+#        prof.start_profile("sprite.update_frame")
+
         frame_idx = self.get_frame_idx(self.z)
-        # print(f"IDX: {frame_idx}")
+        # print(f"IDX: {frame_idx} / z: {self.z}")
         if self.current_frame == frame_idx:
             return False
 
         self.set_frame(frame_idx)
+
+#        prof.end_profile("sprite.update_frame")
 
         return True
 
@@ -71,18 +79,17 @@ class Spritesheet(Sprite):
         """ Given the Z coordinate (depth), find the frame ID which best represents the
         size of the object at that distance """
 
+        num_frames = self.num_frames
 
         rate = (real_z - self.camera.pos['z']) / 2
         if rate == 0:
-            rate = 0.00001 # Avoid divide by zero
+            rate = 0.0001 # Avoid divide by zero
 
         scale = abs(self.half_scale_one_dist / rate)
-        frame_idx = int(scale * len(self.frames))
-        #self.height_2d = scale * self.frame_height
-        #self.width_2d = self.ratio * self.height_2d
+        frame_idx = int(scale * num_frames)
 
-        if frame_idx > len(self.frames) - 1:
-            frame_idx = len(self.frames) - 1
+        if frame_idx > num_frames - 1:
+            frame_idx = num_frames - 1
 
         if frame_idx < 0:
             frame_idx = 0
@@ -92,6 +99,7 @@ class Spritesheet(Sprite):
     def clone(self):
         new = super().clone()
         new.frames = self.frames
+        new.num_frames = self.num_frames
         new.frame_width = self.frame_width
         new.frame_height = self.frame_height
         new.width = self.width

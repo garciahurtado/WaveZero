@@ -39,7 +39,6 @@ class SpritePool:
         self.reserve_sprites.append(new_sprite)
 
     def get_new(self):
-        # print(f"New sprite from pool [{len(self.reserve_sprites)}]")
         if len(self.reserve_sprites) < 1:
             print("ERROR: NO SPRITES LEFT IN POOL!!!")
             return False
@@ -52,7 +51,6 @@ class SpritePool:
     def activate(self, sprite):
         """ Given a Sprite, make it active and visible, reset it, remove it from the available pool,
         and add it to the active pool"""
-
         sprite.has_physics = True
 
         if sprite in self.reserve_sprites:
@@ -64,19 +62,20 @@ class SpritePool:
             self.active_sprites.append(sprite)
 
         sprite.reset()
-        sprite.z = 0
-
         return sprite
 
     def update(self, elapsed):
         for sprite in self.active_sprites:
-
-            if (sprite.z < self.camera.min_z) or (sprite.z > self.camera.horiz_z):
+            if not sprite.active:
                 sprite.kill()
                 self.active_sprites.remove(sprite)
                 self.add(sprite)
 
             sprite.update(elapsed)
+
+    def update_frames(self):
+        for sprite in self.active_sprites:
+            sprite.update_frames()
 
     def show(self, display):
         for my_sprite in self.active_sprites:

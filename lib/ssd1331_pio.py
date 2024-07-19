@@ -106,9 +106,6 @@ class SSD1331PIO():
         return
 
     def swap_buffers(self):
-        # while self.paused:
-        #     pass
-
         # self.read_buffer, self.write_buffer = self.write_buffer, self.read_buffer
         # self.read_addr, self.write_addr = self.write_addr, self.read_addr
         self.read_addr_buf, self.write_addr_buf = self.write_addr_buf, self.read_addr_buf
@@ -136,31 +133,27 @@ class SSD1331PIO():
         # The PIO program might be in the middle of a screen refresh, to we need to add the offset it
         # was reading on the old buffer, to the new
 
-        self.dma0.active(0)
+        # self.dma0.active(0)
 
-        total_bytes = self.height * self.width * 2
-        total_tx = int(total_bytes / self.word_size)
-        remaining_tx = self.dma0.count
-        sent_tx = total_tx - remaining_tx
-        sent_bytes = sent_tx * self.word_size
+        # total_bytes = self.height * self.width * 2
+        # total_tx = int(total_bytes / self.word_size)
+        # remaining_tx = self.dma0.count
+        # sent_tx = total_tx - remaining_tx
+        # sent_bytes = sent_tx * self.word_size
 
         if self.curr_read_buf == self.read_addr_buf:
-            self.curr_read_buf = self.write_addr_buf + sent_bytes.to_bytes(32, 'little')
+            self.curr_read_buf = self.write_addr_buf
         else:
-            self.curr_read_buf = self.read_addr_buf + sent_bytes.to_bytes(32, 'little')
-
-        while self.dma1.active():
-            pass
+            self.curr_read_buf = self.read_addr_buf
 
         self.dma1.read = uctypes.addressof(self.curr_read_buf)
-        self.dma1.count = 1
-        self.dma1.active(1)
+        # self.dma1.count = 1
+        # self.dma1.active(1)
+        #
+        # while self.dma0.active():
+        #     pass
 
-        while self.dma1.active():
-            pass
-
-        self.paused = True
-        self.dma0.active(1)
+        # self.dma0.active(1)
 
         # self.debug_dma()
 
@@ -271,7 +264,8 @@ class SSD1331PIO():
             inc_write=False,
             irq_quiet=False,
             bswap=True,
-            treq_sel=DATA_REQUEST_INDEX
+            treq_sel=DATA_REQUEST_INDEX,
+            chain_to=self.dma1.channel
         )
         self.dma0.config(
             count=self.dma_tx_count,
@@ -279,15 +273,15 @@ class SSD1331PIO():
             write=PIO0_BASE_TXF0,
             ctrl=ctrl0,
         )
-        self.dma0.irq(handler=self.buffer_swap_done, hard=False)
+        self.dma0.irq(handler=self.render_done, hard=False)
 
         """ Control Channel """
         ctrl1 = self.dma1.pack_ctrl(
             size=2,
             inc_read=False,
             inc_write=False,
+            chain_to=self.dma0.channel
         )
-
 
         offset = (0x040 * self.dma0.channel) + 0x03C                #   CH0_AL3_READ_ADDR_TRIG
         dma_read_offset = 0x014                                     #   CH0_AL1_READ_ADDR
@@ -299,30 +293,13 @@ class SSD1331PIO():
             ctrl=ctrl1,
         )
 
-        """ Buffer Swap Channel, to be manually triggered as soon as the CPU has finished rendering a frame """
-        ctrl2 = self.dma2.pack_ctrl(
-            size=2,
-            inc_read=True,
-            inc_write=True,
-            irq_quiet=False,
-        )
-        self.dma2.config(
-            count=self.dma_tx_count,
-            read=self.write_addr,
-            write=self.read_addr,
-            ctrl=ctrl2,
-        )
-        self.dma2.irq(handler=self.buffer_swap_done)
-
         """ Kick it off! """
         self.dma0.active(1)
         self.dma0_active = True
 
-    def buffer_swap_done(self, event):
-        # print("================= BUFFER SWAP DONE ============")
-        self.paused = False
-        # self.dma2.read=self.write_addr
-        # self.dma2.write=self.read_addr
+    def render_done(self, event):
+        # print("================= Render Done ============")
+        pass
 
     def can_write(self):
         return not self.dma2.active()
@@ -336,6 +313,11 @@ class SSD1331PIO():
 
     def rect(self, x, y, width, height, color, fill=None):
         return self.write_framebuf.rect(x, y, width, height, color, fill)
+
+    """ adapter to work with the software driver """
+    def fill_rect(self, x, y, width, height, color):
+        return self.write_framebuf.fill_rect(x, y, width, height, color)
+
 
     def hline(self, x, y, width, color):
         # print(f"hline color: {color:04X}")

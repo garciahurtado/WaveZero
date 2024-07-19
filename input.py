@@ -26,10 +26,11 @@ class InputHandler:
 
     async def get_input(self, encoder, last_pos):
         fps = 60
+        encoder = self.encoder
         while True:
             if self.bike.moving == True:
                 """ Supress input when the bike is already moving """
-                await asyncio.sleep(1 / fps)
+                await asyncio.sleep(0.01)
                 continue
 
             position = encoder.value()
@@ -42,26 +43,29 @@ class InputHandler:
                 last_pos['pos'] = position
                 self.bike.move_right()
 
-            await asyncio.sleep(1 / fps)
+            await asyncio.sleep(0.01)
 
 
     def read_input(self, position):
-        if self.bike.moving == True:
-            """ Supress input when the bike is already moving """
-            return False
+        # if self.bike.moving == True:
+        #     """ Supress input when the bike is already moving """
+        #     return False
 
-        position = self.encoder.value()
+        position = int(self.encoder.value())
+
+
         if position == self.last_pos:
             pass
         elif position > self.last_pos:
-            self.last_pos = position
             self.bike.move_right()
         elif position < self.last_pos:
-            self.last_pos = position
             self.bike.move_left()
+
+        self.last_pos = position
 
 
 def make_input_handler(bike):
     input_handler = InputHandler(bike)
     input_handler.add_listener("read_input", input_handler)
+    # input_handler.add_listener("get_input", input_handler)
     return input_handler

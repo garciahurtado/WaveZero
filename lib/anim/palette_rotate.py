@@ -41,7 +41,7 @@ class PaletteRotate(Animation):
 
                 rotated_palettes.append(new_palette)
 
-            print(f"Added {len(rotated_palettes)} total palettes")
+            print(f"Added {len(rotated_palettes)} total palettes to rotator")
 
         self.rotated_palettes = rotated_palettes
 
@@ -60,4 +60,4 @@ class PaletteRotate(Animation):
             self.current_idx = 0
 
         # Run 5 times per second
-        await asyncio.sleep(self.interval_ms/1000/5)
+        await asyncio.sleep(self.interval_ms/1000)

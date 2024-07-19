@@ -5,6 +5,7 @@ from sprites.sprite import Sprite
 class RoadBarrier(ScaledSprite):
     def __init__(self, *args, **kwargs):
         super().__init__(
+            *args,
             frame_width=20,
             frame_height=15,
             **kwargs)
@@ -16,6 +17,4 @@ class RoadBarrier(ScaledSprite):
         """ initial conditions of the sprite before appearing on screen"""
         super().reset()
         self.has_alpha = False
-        self.y = 0
-        self.z = 1300
-        self.speed = -100
+        self.speed = -0.5

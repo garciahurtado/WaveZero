@@ -67,7 +67,6 @@ def _bound(value, incr, lower_bound, upper_bound):
 
 def _trigger(rotary_instance):
     for listener in rotary_instance._listener:
-        print(listener)
         if type(listener) is tuple:
             meth = listener[0]
             my_self = listener[1]

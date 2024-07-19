@@ -2,7 +2,8 @@ import framebuf
 import math
 
 import micropython
-from profiler import Profiler as prof
+from profiler import Profiler as prof, timed
+
 
 class PerspectiveCamera():
     def __init__(self, display: framebuf.FrameBuffer, pos_x: int = 0, pos_y: int = 0, pos_z: int = 0, vp_x: int = 0, vp_y: int = 0,
@@ -23,8 +24,8 @@ class PerspectiveCamera():
 
         self.focal_length_x, self.focal_length_y = self.calculate_fov(focal_length)
 
-        self.horiz_z = 5000 # past this point all sprites are considered to be in the horizon line
-        self.min_z = pos_z
+        self.horiz_z = 4000 # past this point all sprites are considered to be in the horizon line
+        self.min_z = pos_z - 20
 
         """In order to simulate yaw of the camera, we will shift objects horizontally between a max and a min"""
         self.min_yaw = 0
@@ -41,33 +42,43 @@ class PerspectiveCamera():
 
         return round(h_fov_deg), round(v_fov_deg)
 
-
-    def to_2d(self, x: int, y: int, z: int):
+    # @micropython.native
+    def to_2d(self, x: int=0, y: int=0, z: int=0):
         """Based on:
         https://forum.gamemaker.io/index.php?threads/basic-pseudo-3d-in-gamemaker.105242/"""
-        z = int(z - self.pos['z'])
+        pos_x = self.pos['x']
+        pos_y = self.pos['y']
+        pos_z = self.pos['z']
+
+        vp_x = self.vp['x']
+        vp_y = self.vp['y']
+
+        z = int(z - pos_z)
         if z == 0:
-            z = 0.0001 # avoid division by zero
+            z = 0.000001 # avoid division by zero
 
-        camera_y = self.pos['y']
-        screen_x = ((x * self.focal_length_x) / (z)) + self.half_width
-        screen_y = (((y - camera_y) * self.focal_length_y) / (z)) + self.half_height
-        screen_x = screen_x - self.pos["x"]
-        screen_y = self.screen_height - screen_y - self.vp['y']
+        camera_y = pos_y
+        screen_x = ((x * self.focal_length_x) / z) + self.half_width
+        screen_y = (((y - camera_y) * self.focal_length_y) / z) + self.half_height
+        screen_x = screen_x - pos_x
+        screen_y = self.screen_height - screen_y - vp_y
 
-        y_factor = (screen_y - self.vp['y']) / (self.screen_height - self.vp['y'])
-        screen_x = screen_x - (self.vp['x'] * y_factor)
+        y_factor = (screen_y - vp_y) / (self.screen_height - vp_y)
+        screen_x = screen_x - (vp_x * y_factor)
+
+        # print(f"x/y : {screen_x} {screen_y}")
 
         return screen_x, screen_y
 
     def to_2d_y(self, x: int, y: int, z: int):
         """Based on:
         https://forum.gamemaker.io/index.php?threads/basic-pseudo-3d-in-gamemaker.105242/"""
-        z = int(z - self.pos['z'])
+        pos = self.pos
+        z = int(z - pos['z'])
         if z == 0:
             z = 0.0001 # avoid division by zero
 
-        camera_y = self.pos['y']
+        camera_y = pos['y']
         screen_y = (((y - camera_y) * self.focal_length_y) / (z)) + self.half_height
         screen_y = self.screen_height - screen_y - self.vp['y']
 

@@ -15,7 +15,6 @@ class PerspectiveSprite():
         self.num_frames = round(self.bitmap.screen_width / sprite_grid.tile_width) - 1
         self.camera = camera
 
-        self.horiz_z = 2000
         self.min_z = 0
         
         self.x = x

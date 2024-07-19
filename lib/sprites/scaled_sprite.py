@@ -140,5 +140,6 @@ class ScaledSprite(Sprite3D):
 
         # Finally, the last frame is the original image at full size
         self.frames.append(self.image)
+        self.num_frames = len(self.frames)
 
 

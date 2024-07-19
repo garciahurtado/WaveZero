@@ -141,14 +141,18 @@ class SpawnEnemyEvent(OneShotEvent):
         self.lane = lane
 
     def do_thing(self):
+        print("-- SPAWN EVENT --")
         sprite = self.dead_pool.get_new()
         if not sprite:
             return False
 
+        sprite.reset()
+
+
         sprite.x = self.x
         sprite.y = self.y
         sprite.z = self.z
-        sprite.reset()
+
         sprite.set_lane(self.lane)
 
         return sprite
