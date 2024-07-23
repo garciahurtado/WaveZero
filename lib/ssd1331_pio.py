@@ -106,40 +106,12 @@ class SSD1331PIO():
         return
 
     def swap_buffers(self):
-        # self.read_buffer, self.write_buffer = self.write_buffer, self.read_buffer
-        # self.read_addr, self.write_addr = self.write_addr, self.read_addr
         self.read_addr_buf, self.write_addr_buf = self.write_addr_buf, self.read_addr_buf
         self.read_framebuf, self.write_framebuf = self.write_framebuf, self.read_framebuf
 
         """ Now that we've flipped the buffers, reprogram the DMA so that it will start reading from the 
         correct buffer (the one that just finished writing) in the next iteration """
 
-        # print(f" <<< SWAPPING BUFFERS >>> addr: {uctypes.addressof(self.read_addr_buf):016X}")
-
-        # mem32[CH1_AL3_READ_ADDR_TRIG] = uctypes.addressof(buf)
-        # self.dma1.count = 1
-
-        # read_addr = self.read_addr
-
-
-        # self.dma1.active(1)
-
-
-        # self.dma1.read = uctypes.addressof(self.curr_read_buf)
-
-        CH1_AL3_READ_ADDR_TRIG = self.DMA_BASE + (0x040 * self.dma1.channel) + 0x03C
-        # mem32[CH1_AL3_READ_ADDR_TRIG] = uctypes.addressof(self.read_addr_buf)
-
-        # The PIO program might be in the middle of a screen refresh, to we need to add the offset it
-        # was reading on the old buffer, to the new
-
-        # self.dma0.active(0)
-
-        # total_bytes = self.height * self.width * 2
-        # total_tx = int(total_bytes / self.word_size)
-        # remaining_tx = self.dma0.count
-        # sent_tx = total_tx - remaining_tx
-        # sent_bytes = sent_tx * self.word_size
 
         if self.curr_read_buf == self.read_addr_buf:
             self.curr_read_buf = self.write_addr_buf
@@ -147,15 +119,7 @@ class SSD1331PIO():
             self.curr_read_buf = self.read_addr_buf
 
         self.dma1.read = uctypes.addressof(self.curr_read_buf)
-        # self.dma1.count = 1
-        # self.dma1.active(1)
-        #
-        # while self.dma0.active():
-        #     pass
 
-        # self.dma0.active(1)
-
-        # self.debug_dma()
 
     def init_display(self):
         self.pin_rs(0)  # Pulse the reset line
@@ -317,7 +281,6 @@ class SSD1331PIO():
     """ adapter to work with the software driver """
     def fill_rect(self, x, y, width, height, color):
         return self.write_framebuf.fill_rect(x, y, width, height, color)
-
 
     def hline(self, x, y, width, color):
         # print(f"hline color: {color:04X}")

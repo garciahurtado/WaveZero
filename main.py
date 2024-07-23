@@ -7,11 +7,13 @@ from game_screen import GameScreen
 # from test_screen import TestScreen
 import micropython
 import time
-# import driver_test
-# from ssd_1331 import SSD1331
-# from test_colors import rgb_test
+import machine
 
 def main():
+    machine.freq(250_000_000)
+    time.sleep(1)
+    current_freq = machine.freq()
+    print(f"CPU: {current_freq / 1_000_000} MHz")
 
     app = ScreenApp(96, 64)
     app.load_screen(GameScreen(app.display))
@@ -25,12 +27,9 @@ def main():
 
 
 if __name__ == "__main__":
-    # rgb_test()
-
     time.sleep(2)
     print("======== APP START ========")
 
     gc.collect()
     print(micropython.mem_info())
     main()
-    # driver_test.test_ssd1331_driver()

@@ -62,7 +62,6 @@ class Sprite3D(Spritesheet):
         draw_x, draw_y = self.pos()
         self.draw_x, self.draw_y = int(draw_x), int(draw_y)
 
-    @timed
     def pos(self):
         """Returns the 2D coordinates of the object, calculated from the internal x,y (if 2D) or x,y,z
         (if 3D with perspective camera)
@@ -70,7 +69,11 @@ class Sprite3D(Spritesheet):
         camera = self.camera
 
         if camera:
-            return camera.to_2d(self.x, self.y + self.frame_height, self.z)
+            int_x: int = int(self.x)
+            int_y: int = int(self.y + self.frame_height)
+            int_z: int = int(self.z)
+
+            return camera.to_2d(int_x, int_y, int_z)
         else:
             return self.x, self.y
 

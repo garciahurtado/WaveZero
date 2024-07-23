@@ -72,10 +72,8 @@ class SpritePool:
                 self.add(sprite)
 
             sprite.update(elapsed)
+            sprite.update_frame()
 
-    def update_frames(self):
-        for sprite in self.active_sprites:
-            sprite.update_frames()
 
     def show(self, display):
         for my_sprite in self.active_sprites:

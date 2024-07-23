@@ -48,7 +48,7 @@ class GameScreen(Screen):
     ground_max_speed: int = const(200)
     saved_ground_speed = 0
     lane_width: int = const(24)
-    num_lives: int = 0
+    num_lives: int = 5
     crash_y_start = const(48) # Screen Y of Sprites which will collide with the player
     crash_y_end = const(62) # Screen Y of end collision
 
@@ -105,7 +105,6 @@ class GameScreen(Screen):
 
         self.sun_x_start = 39
         self.num_lanes = 5
-        self.bike.blink = True
 
         self.loop = asyncio.get_event_loop()
 
@@ -335,7 +334,6 @@ class GameScreen(Screen):
         # Restart the game display and input
         loop = asyncio.get_event_loop()
         self.display_task = loop.create_task(self.refresh_display())
-        self.update_frames_task = loop.create_task(self.update_frames())
 
     async def update_fps(self):
         while True:
@@ -343,7 +341,6 @@ class GameScreen(Screen):
             # Show the FPS in the score label
             fps = self.fps.fps()
             self.ui.update_score(int(fps))
-            # print(f"FPS: {fps:.4}")
 
             await asyncio.sleep(0.2) # Don't update too often
 
@@ -353,10 +350,6 @@ class GameScreen(Screen):
             prof.dump_profile()
             prof.profile_clean()
 
-    async def update_frames(self):
-        while True:
-            await asyncio.sleep(0.001)
-            self.stage.update_frames()
 
     def draw_sprites(self):
         self.stage.show(self.display)

@@ -67,7 +67,7 @@ class Spritesheet(Sprite):
         frame_idx = self.get_frame_idx(self.z)
         # print(f"IDX: {frame_idx} / z: {self.z}")
         if self.current_frame == frame_idx:
-            return False
+            return False 
 
         self.set_frame(frame_idx)
 

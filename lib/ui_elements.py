@@ -22,7 +22,10 @@ class ui_screen():
     sprites = []
     lives_sprites = []
     num_lives: int = 0
-    CYAN = (0, 255, 255)
+    lives_text: None
+    lives_text_str = "x0"
+    ORANGE = (0, 255, 255)
+    CYAN = (255, 255, 0)
     BLACK = (0, 0, 0)
 
     def __init__(self, display, num_lives) -> None:
@@ -37,6 +40,11 @@ class ui_screen():
         self.init_game_over()
 
     def init_lives(self):
+        if self.num_lives < 4:
+            self.has_x_lives = False
+        else:
+            self.has_x_lives = True
+
         for i in range(0, self.num_lives):
             x, y = i * 12, 0
             new_sprite = self.lives_sprite.clone()
@@ -45,23 +53,43 @@ class ui_screen():
             self.sprites.append(new_sprite)
             self.lives_sprites.append(new_sprite)
 
+        self.lives_text = ColorWriter(
+            self.display.write_framebuf,
+            font_vtks, 9, 5, fgcolor=self.CYAN, bgcolor=self.BLACK,
+            screen_width=self.display.width, screen_height=self.display.height)
+        self.lives_text.text_x = 14
+        self.lives_text.text_y = 1
+
+        self.update_lives()
+
     def remove_life(self):
         self.num_lives = self.num_lives - 1
+
         if self.num_lives < 0:
             return False
 
-        self.sprites.remove(self.lives_sprites[-1])
-        del self.lives_sprites[-1]
+        if self.num_lives < 4:
+            self.init_lives()
 
         print(f"{self.num_lives} lives left")
 
         return True
 
+    def update_lives(self):
+        if self.num_lives > 3:
+            self.has_x_lives = True
+            one_sprite = self.lives_sprite.clone()
+            # one_sprite.x = x
+            # one_sprite.y = y
+            self.sprites = [one_sprite]
+            self.lives_text.printstring(f"x {self.num_lives}")
+            self.sprites.append(self.lives_text)
+
     def init_score(self):
 
         self.score_text = ColorWriter(
             self.display.write_framebuf,
-            font_vtks, 35, 6, fgcolor=self.CYAN, bgcolor=self.BLACK,
+            font_vtks, 35, 6, fgcolor=self.ORANGE, bgcolor=self.BLACK,
             screen_width=self.display.width, screen_height=self.display.height)
         self.score_text.text_x = 61
         self.score_text.text_y = 0

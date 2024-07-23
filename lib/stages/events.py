@@ -6,14 +6,15 @@ class Event:
     started_ms: int
     active: bool = False
     finished: bool = False
-    next_event = False
+    next_event = None
     speed: int = 0
     elapsed = 0
     last_tick = 0
 
     def start(self):
         self.started_ms = utime.ticks_ms()
-        self.active: True
+        self.active = True
+        self.finished = False
 
     def update(self):
         """ Override and call from child classes """
@@ -26,30 +27,38 @@ class Event:
         elapsed = utime.ticks_ms() - self.last_tick
         return elapsed
 
-class EventChain:
+    def finish(self):
+        self.finished = True
+        self.active = False
+        return self.on_finish()
+
+    def reset(self):
+        self.finished = True
+        self.active = False
+
+    def on_finish(self):
+        """on_finish handler should be overridden in children classes"""
+        pass
+
+
+class EventChain(Event):
     events: [] = []
     current_event: Event = None
     finished: bool = False
-    running: bool = False
-    fps: int = 0
 
-    def start(self, fps=30):
-        self.fps = fps
-        self.running = True
+    def start(self):
+        super().start()
         self.current_event = self.events[0]
-
+        print(self.current_event)
         self.current_event.start()
 
-        loop = asyncio.get_event_loop()
-        loop.create_task(self.update())
-
     def reset(self):
-        self.running = False
+        self.active = False
         self.current_event = self.events[0]
         # TODO: add task cancellation
 
     def add(self, new_event: Event):
-        """ Chain it to the last event"""
+        """ Chain it to the last event added before this one"""
         if len(self.events) > 0:
             last: Event = self.events[-1]
             last.next_event = new_event
@@ -60,20 +69,18 @@ class EventChain:
         for event in all_events:
             self.add(event)
 
-    async def update(self):
-        while self.running:
-            if self.current_event.finished:
-                if self.current_event.next_event:
-                    self.current_event = self.current_event.next_event
-                    self.current_event.start()
-                else:
-                    self.finished = True
-                    self.running = False
-                    continue
+    def update(self):
+        if not super().update():
+            return False
 
-            self.current_event.update()
+        self.current_event.update()
 
-            await asyncio.sleep(1/self.fps)
+        if self.current_event.finished:
+            if self.current_event.next_event:
+                self.current_event = self.current_event.next_event
+                self.current_event.start()
+            else:
+                self.finish()
 
         return False
 
@@ -84,11 +91,72 @@ class WaitEvent(Event):
     def __init__(self, delay_ms: int):
         self.delay_ms = int(delay_ms)
 
+    def start(self):
+        self.started_ms = utime.ticks_ms()
+        self.active = True
+        self.finished = False
+
     def update(self):
+        if not super().update():
+            return False
+
         now = utime.ticks_ms()
         if self.started_ms + self.delay_ms < now:
-            self.finished = True
-            self.active = False
+            self.finish()
+            return False
+
+
+class MultiEvent(Event):
+    events = []
+    times_max = 0
+    times_count = 0
+
+    """ A class that allows multiple other events to fire off at once
+        `times` allows us to repeat the whole set of events more than once 
+        (once the first set is finished)
+    """
+    def __init__(self, events, times=1):
+        self.events = events
+        self.times_max = times
+
+    def start(self):
+        super().start()
+
+        self.active = True
+        self.finished = False
+
+        for event in self.events:
+            event.start()
+            
+    def finish(self):
+        super().finish()
+
+
+    def update(self):
+        if not super().update():
+            return False
+
+        for event in self.events:
+            if event.finished:
+                continue
+            else:
+                event.update()
+                return True
+
+        """All events finished"""
+        print("ALL EVENTS FINISHED")
+        self.times_count += 1
+        print(f"tc: {self.times_count} max: {self.times_max}")
+
+        for reset_event in self.events:
+            reset_event.reset()
+
+        if (self.times_count >= self.times_max):
+            self.finish()
+            return False
+        else:
+            self.start()
+
 
 class OneShotEvent(Event):
     def __init__(self, *args, **kwargs):
@@ -99,28 +167,13 @@ class OneShotEvent(Event):
 
         self.active = True
         self.do_thing()
-        self.finished = True
-        self.active = False
+        self.finish()
 
     def do_thing(self):
         """ Override """
         pass
 
-class MultiEvent(Event):
-    events = []
-    
-    """ A class that allows multiple other events to fire off at once"""
-    def __init__(self, events):
-        self.events = events
 
-    def start(self):
-        super().start()
-        self.active = True
-        for event in self.events:
-            event.start()
-        self.finished = True
-        self.active = False
-    
 class SpawnEnemyEvent(OneShotEvent):
     dead_pool: None
     active_sprites: None
@@ -141,13 +194,11 @@ class SpawnEnemyEvent(OneShotEvent):
         self.lane = lane
 
     def do_thing(self):
-        print("-- SPAWN EVENT --")
         sprite = self.dead_pool.get_new()
         if not sprite:
             return False
 
         sprite.reset()
-
 
         sprite.x = self.x
         sprite.y = self.y

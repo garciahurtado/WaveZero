@@ -39,7 +39,7 @@ class Screen:
                     gc.collect()
                     self.last_gc = utime.ticks_ms()
 
-                await asyncio.sleep(1/1000)
+                await asyncio.sleep(0.01)
         except asyncio.CancelledError:
             return True
 
@@ -52,11 +52,6 @@ class Screen:
         for my_sprite in self.sprites:
             my_sprite.show(self.display)
 
-    async def update_fps(self):
-        while True:
-            # Show the FPS in the score label
-            fps = int(self.fps.fps())
-            await asyncio.sleep(0.3)
 
     def check_mem(self):
         gc.collect()

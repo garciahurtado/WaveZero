@@ -42,7 +42,6 @@ class PerspectiveCamera():
 
         return round(h_fov_deg), round(v_fov_deg)
 
-    # @micropython.native
     def to_2d(self, x: int=0, y: int=0, z: int=0):
         """Based on:
         https://forum.gamemaker.io/index.php?threads/basic-pseudo-3d-in-gamemaker.105242/"""
