@@ -50,13 +50,6 @@ class Spritesheet(Sprite):
     def update(self):
         super().update()
 
-    def set_frame(self, frame_num):
-        if frame_num >= len(self.frames):
-            raise KeyError(f"Frame {frame_num} is invalid (only {len(self.frames)} frames)")
-
-        # print(f"SET FRAME {frame_num}")
-        self.current_frame = frame_num
-        self.image = self.frames[frame_num]
 
     def update_frame(self):
         """Update the current frame in the spritesheet to the one that represents the correct size when taking into
@@ -74,6 +67,14 @@ class Spritesheet(Sprite):
 #        prof.end_profile("sprite.update_frame")
 
         return True
+
+    def set_frame(self, frame_num):
+        if frame_num >= len(self.frames):
+            raise KeyError(f"Frame {frame_num} is invalid (only {len(self.frames)} frames)")
+
+        # print(f"SET FRAME {frame_num}")
+        self.current_frame = frame_num
+        self.image = self.frames[frame_num]
 
     def get_frame_idx(self, real_z):
         """ Given the Z coordinate (depth), find the frame ID which best represents the

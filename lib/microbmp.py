@@ -170,7 +170,6 @@ class MicroBMP(object):
         self.hres = 2835  # 72 DPI * 39.3701 inches/metre.
         self.vres = 2835
         self.num_colors = 0
-        self.extra = None
 
         self.palette: colors.FramebufferPalette = palette
 
@@ -375,8 +374,6 @@ class MicroBMP(object):
 
         DIB_plt_num_info = unpack("<I", data[28:32])[0]
         DIB_plt_important_num_info = unpack("<I", data[32:36])[0]
-        if self.header_len > 40:
-            self.extra = data[36:]
 
         """ Create and populate palette """
         if self.color_depth <= 8:
@@ -487,7 +484,6 @@ class MicroBMP(object):
         """
         if force_40B_DIB:
             self.header_len = 40
-            self.extra = None
 
         # Only uncompressed image is supported to write.
         self.compression = 0
@@ -517,8 +513,6 @@ class MicroBMP(object):
                 self.num_colors,
             )
         )
-        if self.header_len > 40:
-            bf_io.write(self.extra)
 
         # Palette
         if self.color_depth <= 8:

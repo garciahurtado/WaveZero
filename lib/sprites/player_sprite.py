@@ -12,7 +12,7 @@ class PlayerSprite(Spritesheet):
             frame_width=32,
             frame_height=22
             )
-        self.x = 25
+        self.x = 32
         self.y = 42
         self.set_alpha(0)
         self.set_frame(8)  # middle frame
@@ -57,9 +57,13 @@ class PlayerSprite(Spritesheet):
         return line_offset
 
     def update(self, elapsed):
+        if self.target_lane == self.current_lane:
+            return False
+
         # Handle bike switching lanes (moving left / right)
         target_lane = self.target_lane
         current_lane = self.current_lane
+
         target_angle = (target_lane / 2) - 1
         bike_angle = self.bike_angle
         turn_incr = self.turn_incr * (elapsed / 1000)

@@ -144,9 +144,7 @@ class MultiEvent(Event):
                 return True
 
         """All events finished"""
-        print("ALL EVENTS FINISHED")
         self.times_count += 1
-        print(f"tc: {self.times_count} max: {self.times_max}")
 
         for reset_event in self.events:
             reset_event.reset()

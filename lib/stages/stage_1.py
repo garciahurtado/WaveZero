@@ -70,13 +70,13 @@ class Stage1:
         """ Sprite pools """
 
         self.sprites_pool_barrier = SpritePool(
-            size=20,
+            size=50,
             camera=camera,
             base_sprite=sprite_barrier,
             active_sprites=self.sprites)
 
         self.sprites_pool_barrier_inv = SpritePool(
-            size=20,
+            size=50,
             camera=camera,
             base_sprite=sprite_barrier_inv,
             active_sprites=self.sprites)
@@ -136,50 +136,50 @@ class Stage1:
             ]),
             MultiEvent([
                 self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier, z=spawn_z),
-                self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
-                WaitEvent(wall_wait / 2),
-            ]),
-            MultiEvent([
-                self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier, z=spawn_z),
-                self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
-                WaitEvent(wall_wait / 2),
-            ]),
-            MultiEvent([
-                self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier, z=spawn_z),
-                self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
-                WaitEvent(wall_wait / 2),
-            ]),
-            MultiEvent([
-                self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier, z=spawn_z),
-                self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
-                WaitEvent(wall_wait / 2),
-            ]),
-            MultiEvent([
-                self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier, z=spawn_z),
-                self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
-                WaitEvent(wall_wait / 2),
-            ]),
-            MultiEvent([
-                self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
                 self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier, z=spawn_z),
                 self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier, z=spawn_z),
+                self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
+                WaitEvent(wall_wait / 2),
+            ]),
+            MultiEvent([
+                self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier, z=spawn_z),
+                self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier, z=spawn_z),
+                self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier, z=spawn_z),
+                self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
+                WaitEvent(wall_wait / 2),
+            ]),
+            MultiEvent([
+                self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+                self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier, z=spawn_z),
+                self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier, z=spawn_z),
+                self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
                 WaitEvent(wall_wait / 2),
             ]),
             MultiEvent([
                 self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
                 self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier, z=spawn_z),
+                self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier, z=spawn_z),
+                self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
+                WaitEvent(wall_wait / 2),
+            ]),
+            MultiEvent([
+                self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+                self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+                self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+                self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
+                WaitEvent(wall_wait / 2),
+            ]),
+            MultiEvent([
+                self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+                self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+                self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+                self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+                WaitEvent(wall_wait / 2),
+            ]),
+            MultiEvent([
+                self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+                self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+                self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
                 self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
                 WaitEvent(wall_wait / 2),
             ]),
@@ -358,6 +358,7 @@ class Stage1:
             )
 
     def start(self):
+        gc.collect()
         self.started_ms = utime.ticks_ms()
         self.event_chain.start()
 

@@ -20,7 +20,7 @@ import utime as time
 import uasyncio as asyncio
 
 from anim.anim_attr import AnimAttr
-from player_sprite import PlayerSprite
+from sprites.player_sprite import PlayerSprite
 from fx.crash import Crash
 
 from screen import Screen
@@ -31,7 +31,7 @@ from title_screen import TitleScreen
 import color_util as colors
 # from primitives.encoder import Encoder
 
-from profiler import Profiler as prof, timed
+from profiler import Profiler as prof
 
 start_time_ms = 0
 
@@ -45,7 +45,7 @@ class GameScreen(Screen):
     crash_fx: None
     sprite_max_z: int = const(1301)
     ground_speed = 0
-    ground_max_speed: int = const(200)
+    ground_max_speed: int = const(150)
     saved_ground_speed = 0
     lane_width: int = const(24)
     num_lives: int = 5
@@ -178,12 +178,12 @@ class GameScreen(Screen):
         self.bike.y = 64 # Hide it below the screen
 
         # Animate the road speed from 0 to max
-        self.speed_anim = AnimAttr(self, 'ground_speed', self.ground_max_speed, 1 * 1000)
+        self.speed_anim = AnimAttr(self, 'ground_speed', self.ground_max_speed, 1500)
 
         # Make the bike slide in from the bottom
         anim = AnimAttr(self.bike, 'y', bike_y, 1 * 1000)
-        loop.create_task(self.speed_anim.run(fps=30))
-        loop.create_task(anim.run(fps=30))
+        loop.create_task(self.speed_anim.run(fps=60))
+        loop.create_task(anim.run(fps=60))
 
         if not self.last_tick:
             self.last_tick = utime.ticks_ms()

@@ -25,7 +25,7 @@ class PerspectiveCamera():
         self.focal_length_x, self.focal_length_y = self.calculate_fov(focal_length)
 
         self.horiz_z = 4000 # past this point all sprites are considered to be in the horizon line
-        self.min_z = pos_z - 20
+        self.min_z = pos_z - 40
 
         """In order to simulate yaw of the camera, we will shift objects horizontally between a max and a min"""
         self.min_yaw = 0

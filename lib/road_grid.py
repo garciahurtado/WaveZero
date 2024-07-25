@@ -67,6 +67,7 @@ class RoadGrid():
     bright_color = None
     display_width = const(96)
     display_height = const(64)
+    far_z = 0
 
     def __init__(self, camera, display, lane_width=None):
 
@@ -176,9 +177,9 @@ class RoadGrid():
 
 
     def show(self):
-        self.update_horiz_lines()
+        self.show_horiz_lines()
         self.draw_horizon()
-        self.update_vert_lines()
+        self.show_vert_lines()
 
         self.last_tick = utime.ticks_ms()
 
@@ -227,25 +228,31 @@ class RoadGrid():
         """ Trick the camera during update()"""
         # self.far_z_vert = 10000
 
-    def update_horiz_lines(self):
-        last_y: int = 0
-        far_z = 0 # Keep track of the furthest line, to see if we need new ones
+    def update_horiz_lines(self, ellapsed):
+        self.far_z = 0 # Keep track of the furthest line, to see if we need new ones
         delete_lines = []
-        ellapsed_ticks = utime.ticks_ms() - self.last_tick
 
         for my_line in self.horiz_lines_data:
             if not my_line['z']:
                 my_line['z'] = 0
 
-            # print(f"Z IS {my_line['z']}")
-            my_line['z'] = my_line['z'] - (self.speed * (ellapsed_ticks / 1000))
+            my_line['z'] = my_line['z'] - (self.speed * (ellapsed / 1000))
 
-            if my_line['z'] > far_z:
-                far_z = my_line['z']
+            if my_line['z'] > self.far_z:
+                self.far_z = my_line['z']
             elif my_line['z'] < self.min_z:
                 delete_lines.append(my_line)
                 continue
 
+
+        """ Remove out of bounds lines """
+        for line in delete_lines:
+            self.horiz_lines_data.remove(line)
+
+    def show_horiz_lines(self):
+        last_y: int = 0
+
+        for my_line in self.horiz_lines_data:
             y = self.camera.to_2d_y(0, 0, my_line['z'])
 
             # Reached the bottom of the screen, this line is done
@@ -267,25 +274,19 @@ class RoadGrid():
 
             rgb565 = self.horiz_palette[rel_y]
 
-            # print(f"RGB: {rgb[0]}, {rgb[1]}, {rgb[2]}")
             self.display.hline(0, my_line['y'], self.width, rgb565)
 
             # self.display.rect(0, my_line['y'], self.width - 1, 1, rgb565)
 
-        # print("RGBEND----------RGBEND")
-
-        dist_to_horiz = self.far_z_horiz - far_z
+        dist_to_horiz = self.far_z_horiz - self.far_z
 
         if (dist_to_horiz > self.lane_height) and len(self.horiz_lines_data) < self.num_horiz_lines:
             """ Time to spawn a new line in the horizon"""
-            new_line = {'z': far_z + self.lane_height}
+            new_line = {'z': self.far_z + self.lane_height}
             self.horiz_lines_data.append(new_line)
 
-        """ Remove out of bounds lines """
-        for line in delete_lines:
-            self.horiz_lines_data.remove(line)
 
-    def update_vert_lines(self):
+    def show_vert_lines(self):
         # Calculate the reference points just once
         start_x_far, _ = self.camera.to_2d(0, 0, self.far_z_vert)
         start_x_near, _ = self.camera.to_2d(0, 0, self.near_z)
@@ -294,9 +295,6 @@ class RoadGrid():
 
         top_points, bottom_points = self.vert_points[0], self.vert_points[1]
 
-        # print("COLORS:")
-        # for color in self.vert_palette.palette:
-        #     print(f"{colors.rgb565_to_rgb(color)}")
         index = 0
 
         horiz_y_offset = 0  # Manual adjustment for the start.y of the vertical lines
@@ -304,8 +302,6 @@ class RoadGrid():
         end_y = self.height
 
         for start, end in zip(top_points, bottom_points):
-            # start = top_points[index]
-            # end = bottom_points[index]
             start_x = int(start + start_x_far)
             end_x = int(end + start_x_near)
 

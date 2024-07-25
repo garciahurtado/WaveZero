@@ -70,7 +70,8 @@ class Sprite3D(Spritesheet):
 
         if camera:
             int_x: int = int(self.x)
-            int_y: int = int(self.y + self.frame_height)
+            # int_y: int = int(self.y + self.frame_height) # only needed because the display draws from top to bottom
+            int_y: int = int(self.y)
             int_z: int = int(self.z)
 
             return camera.to_2d(int_x, int_y, int_z)

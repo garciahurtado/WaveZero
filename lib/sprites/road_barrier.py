@@ -17,4 +17,4 @@ class RoadBarrier(ScaledSprite):
         """ initial conditions of the sprite before appearing on screen"""
         super().reset()
         self.has_alpha = False
-        self.speed = -0.1
+        self.speed = -0.06
