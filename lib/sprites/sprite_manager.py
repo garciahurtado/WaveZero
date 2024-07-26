@@ -149,12 +149,17 @@ class SpriteManager:
         self.half_scale_one_dist = abs(self.camera.pos['z']-scale_adj) / 2
 
     def update(self, sprite, elapsed):
+        """The update loop is responsible for killing expired / out of bounds sprites, as well
+        as updating the x and y draw coordinates based on """
         if not sprite['active']:
             return False
 
+        old_z = sprite['z']
         new_z = sprite['z'] + (sprite['speed'] * elapsed)
-        
-        if new_z > 4000 or new_z < -40:  # Using constants from Sprite3D
+        if new_z == old_z:
+            return False
+
+        if new_z > 4000 or new_z < -30:  # Using constants from Sprite3D
             sprite['active'] = False
             sprite['visible'] = False
             return False
@@ -205,7 +210,7 @@ class SpriteManager:
 
     def pos(self, sprite):
         if self.camera:
-            return self.camera.to_2d(int(sprite['x']), int(sprite['y'] + sprite['frame_height']), int(sprite['z']))
+            return self.camera.to_2d_v2(int(sprite['x']), int(sprite['y'] + sprite['frame_height']), int(sprite['z']))
         else:
             return sprite['x'], sprite['y']
 

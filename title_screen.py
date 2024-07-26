@@ -34,7 +34,7 @@ class TitleScreen(Screen):
         """ Sound Thread """
 
         await asyncio.gather(
-            self.main_loop(),
+            self.start_main_loop(),
         )
         # loop.run_until_complete(self.update_fps())
 
@@ -56,7 +56,7 @@ class TitleScreen(Screen):
             self.do_refresh()
             await asyncio.sleep(1 / 60)
 
-    async def main_loop(self):
+    async def start_main_loop(self):
         ms = 1000
         WHITE = colors.hex_to_rgb(0xFFFFFF)
         BLACK = colors.hex_to_rgb(0x000000)

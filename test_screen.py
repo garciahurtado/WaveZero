@@ -44,9 +44,9 @@ class TestScreen(Screen):
     def run(self):
         #self.check_mem()
         self.display.start()
-        asyncio.run(self.main_loop())
+        asyncio.run(self.start_main_loop())
 
-    async def main_loop(self):
+    async def start_main_loop(self):
         # self.create_lines()
         self.create_sprites()
 

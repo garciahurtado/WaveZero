@@ -53,8 +53,8 @@ class GridTestScreen(Screen):
 
         # Register sprite types
         sprites.add_type(SPRITE_TYPE_PLAYER, "/img/bike_sprite.bmp", 5, 32, 22, 4, None)  # Assuming 8-bit color depth
-        sprites.add_type(SPRITE_TYPE_BARRIER_LEFT, "/img/road_barrier_yellow.bmp", -0.3, 20, 15, 4, None)
-        sprites.add_type(SPRITE_TYPE_BARRIER_RIGHT, "/img/road_barrier_yellow_inv.bmp", -0.3, 20, 15, 4, None)
+        sprites.add_type(SPRITE_TYPE_BARRIER_LEFT, "/img/road_barrier_yellow.bmp", -0.15, 24, 15, 4, None)
+        sprites.add_type(SPRITE_TYPE_BARRIER_RIGHT, "/img/road_barrier_yellow_inv.bmp", -0.15, 24, 15, 4, None)
 
         # frame_width = 32,
         # frame_height = 22
@@ -63,30 +63,28 @@ class GridTestScreen(Screen):
         # self.y = 42
         # self.set_alpha(0)
         # self.set_frame(8)  # middle frame
+        self.check_mem()
 
-        start = 1500
-        every = -20
-        for i in range(20):
-            sprites.create(SPRITE_TYPE_BARRIER_RIGHT, x=-45, y=0, z=start + i*every)
-            sprites.create(SPRITE_TYPE_BARRIER_RIGHT, x=-25, y=0, z=start + i*every)
+        start = 2000
+        img_width = 24
+        half_img_width = 12
+        every = -40
+        for i in range(100):
+            rand_x = random.randrange(-30, 20)
+            sprites.create(SPRITE_TYPE_BARRIER_RIGHT, x=-half_img_width+rand_x, y=0, z=start + i*every)
+            # sprites.create(SPRITE_TYPE_BARRIER_RIGHT, x=-(img_width*2)-img_width, y=0, z=start + i*every)
+            # sprites.create(SPRITE_TYPE_BARRIER_RIGHT, x=-img_width-img_width, y=0, z=start + i*every)
+            #
+            # sprites.create(SPRITE_TYPE_BARRIER_LEFT, x=img_width-img_width, y=0, z=start + i*every)
+            # sprites.create(SPRITE_TYPE_BARRIER_LEFT, x=img_width*2-img_width, y=0, z=start + i*every)
 
-            sprites.create(SPRITE_TYPE_BARRIER_LEFT, x=5, y=0, z=start + i*every)
-            sprites.create(SPRITE_TYPE_BARRIER_LEFT, x=25, y=0, z=start + i*every)
-
+        self.check_mem()
 
         """ Display Thread / 2nd core """
         _thread.start_new_thread(self.start_display_loop, [])
 
-        asyncio.run(self.main_loop())
+        asyncio.run(self.start_main_loop())
 
-    def start_display_loop(self):
-        loop = asyncio.get_event_loop()
-        self.display_task = loop.create_task(self.refresh_display())
-
-    async def main_loop(self):
-        await asyncio.gather(
-            self.update_loop(),
-        )
 
     async def update_loop(self):
         start_time_ms = self.last_update_ms = round(utime.ticks_ms())
@@ -148,8 +146,9 @@ class GridTestScreen(Screen):
             pos_z=-camera_z,
             focal_length=camera_z,
             vp_x=0,
-            vp_y=horiz_y+2)
+            vp_y=horiz_y)
         self.camera.horiz_z = self.sprite_max_z
+        self.camera.set_camera_position(0, 60, camera_z)
 
 
 

@@ -44,8 +44,18 @@ class Screen:
         except asyncio.CancelledError:
             return True
 
+    def start_display_loop(self):
+        loop = asyncio.get_event_loop()
+        self.display_task = loop.create_task(self.refresh_display())
+
+    async def start_main_loop(self):
+        await asyncio.gather(
+            self.update_loop(),
+        )
+
     def do_refresh(self):
-        """Synchronous, non-looping, version of refresh_display()"""
+        """blocking, non-looping, version of refresh_display(), for when you need a refresh in a specific
+        place in the code"""
         self.display.show()
         self.last_tick = self.fps.tick()
 
