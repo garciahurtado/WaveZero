@@ -6,7 +6,7 @@ from profiler import Profiler as prof, timed
 class Spritesheet(Sprite):
 
     ratio = 0
-    half_scale_one_dist = 0
+    half_scale_one_dist = 10
     palette = None
 
     # Scaled / spritesheet frames

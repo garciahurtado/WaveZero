@@ -69,9 +69,14 @@ class GridTestScreen(Screen):
         img_width = 24
         half_img_width = 12
         every = -40
-        for i in range(100):
-            rand_x = random.randrange(-30, 20)
-            sprites.create(SPRITE_TYPE_BARRIER_RIGHT, x=-half_img_width+rand_x, y=0, z=start + i*every)
+        for i in range(33):
+            # rand_x = random.randrange(-30, 20)
+            sprites.create(SPRITE_TYPE_BARRIER_RIGHT, x=-37, y=0, z=start + i*every)
+            # sprites.create(SPRITE_TYPE_BARRIER_RIGHT, x=-12, y=0, z=start + i*every)
+            sprites.create(SPRITE_TYPE_BARRIER_RIGHT, x=+12, y=0, z=start + i*every)
+
+            # sprites.create(SPRITE_TYPE_BARRIER_RIGHT, x=-half_img_width+rand_x, y=0, z=start + i*every)
+
             # sprites.create(SPRITE_TYPE_BARRIER_RIGHT, x=-(img_width*2)-img_width, y=0, z=start + i*every)
             # sprites.create(SPRITE_TYPE_BARRIER_RIGHT, x=-img_width-img_width, y=0, z=start + i*every)
             #

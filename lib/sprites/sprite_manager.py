@@ -60,7 +60,7 @@ class SpriteManager:
             speed = metadata.default_speed
 
         if sprite_type not in self.sprite_images:
-            self.sprite_images[sprite_type] = self.create_scaled_frames(metadata, sprite_type)
+            self.sprite_images[sprite_type] = self.create_scaled_frames(metadata, sprite_type, frame_width=metadata.width, frame_height=metadata.height)
 
         sprite = {
             'x': x, 'y': y, 'z': z, 'speed': speed,
@@ -81,7 +81,7 @@ class SpriteManager:
         self.sprites.append(sprite)
         return len(self.sprites) - 1  # Return the index of the new sprite
 
-    def create_scaled_frames(self, metadata, sprite_type):
+    def create_scaled_frames(self, metadata, sprite_type, frame_width=0, frame_height=0):
         orig_img = ImageLoader.load_image(metadata.image_path)
         frames = []
         num_frames = max(metadata.width, metadata.height)
@@ -210,7 +210,7 @@ class SpriteManager:
 
     def pos(self, sprite):
         if self.camera:
-            return self.camera.to_2d_v2(int(sprite['x']), int(sprite['y'] + sprite['frame_height']), int(sprite['z']))
+            return self.camera.to_2d(int(sprite['x']), int(sprite['y']), int(sprite['z']))
         else:
             return sprite['x'], sprite['y']
 
