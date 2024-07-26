@@ -159,7 +159,7 @@ class SpriteManager:
         if new_z == old_z:
             return False
 
-        if new_z > 4000 or new_z < -30:  # Using constants from Sprite3D
+        if new_z < -50:  # Using constants from Sprite3D
             sprite['active'] = False
             sprite['visible'] = False
             return False

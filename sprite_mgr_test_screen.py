@@ -65,15 +65,18 @@ class GridTestScreen(Screen):
         # self.set_frame(8)  # middle frame
         self.check_mem()
 
-        start = 2000
+        start = 3000
         img_width = 24
         half_img_width = 12
+        half_img_height = 7 # Needed because the screenspace Y is at the top, but 3D has Y at the bottom
         every = -40
-        for i in range(33):
+        for i in range(30):
             # rand_x = random.randrange(-30, 20)
-            sprites.create(SPRITE_TYPE_BARRIER_RIGHT, x=-37, y=0, z=start + i*every)
+            sprites.create(SPRITE_TYPE_BARRIER_RIGHT, x=-62, y=half_img_height, z=start + i*every)
+            sprites.create(SPRITE_TYPE_BARRIER_RIGHT, x=-36, y=half_img_height, z=start + i*every)
             # sprites.create(SPRITE_TYPE_BARRIER_RIGHT, x=-12, y=0, z=start + i*every)
-            sprites.create(SPRITE_TYPE_BARRIER_RIGHT, x=+12, y=0, z=start + i*every)
+            sprites.create(SPRITE_TYPE_BARRIER_LEFT, x=+12, y=half_img_height, z=start + i*every)
+            sprites.create(SPRITE_TYPE_BARRIER_LEFT, x=+36, y=half_img_height, z=start + i*every)
 
             # sprites.create(SPRITE_TYPE_BARRIER_RIGHT, x=-half_img_width+rand_x, y=0, z=start + i*every)
 
@@ -143,17 +146,17 @@ class GridTestScreen(Screen):
     def init_camera(self):
         # Camera
         horiz_y: int = 16
-        camera_z: int = 64
+        camera_z: int = 50
+        camera_y: int = -40
         self.camera = PerspectiveCamera(
             self.display,
             pos_x=0,
             pos_y=54,
             pos_z=-camera_z,
-            focal_length=camera_z,
+            focal_length=-camera_y,
             vp_x=0,
             vp_y=horiz_y)
         self.camera.horiz_z = self.sprite_max_z
-        self.camera.set_camera_position(0, 60, camera_z)
 
 
 
