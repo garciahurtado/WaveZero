@@ -1,31 +1,22 @@
 from micropython import const
 from ucollections import namedtuple
 from image_loader import ImageLoader
+from sprites.sprite_types import SpriteData, SpriteMetadata
 import framebuf
 import math
 from ulab import numpy as np
 from indexed_image import Image, create_image
+from profiler import Profiler as prof, timed
 
-# Define the SpriteData namedtuple with additional fields for scaled sprites
-SpriteData = namedtuple('SpriteData', [
-    'x', 'y', 'z', 'speed', 'visible', 'active', 'blink', 'blink_flip',
-    'pos_type', 'event_chain', 'filename', 'frame_width', 'frame_height',
-    'current_frame', 'lane_num', 'draw_x', 'draw_y', 'frames', 'num_frames'
-])
-
-# Define metadata structure
-SpriteMetadata = namedtuple('SpriteMetadata', [
-    'image_path', 'default_speed', 'width', 'height', 'color_depth', 'palette'
-])
 
 class SpriteManager:
     POS_TYPE_FAR = const(0)
     POS_TYPE_NEAR = const(1)
-    
+
     def __init__(self, display: framebuf.FrameBuffer, max_sprites, camera=None, lane_width=None):
         self.display = display
         self.max_sprites = max_sprites
-        self.sprites = []
+        self.active_sprites = []
         self.sprite_images = {}  # Flyweight store for shared image data
         self.sprite_palettes = {}
         self.sprite_metadata = {}  # Store for sprite type metadata
@@ -35,20 +26,24 @@ class SpriteManager:
         if camera:
             self.set_camera(camera)
 
-    def add_type(self, sprite_type, image_path, default_speed, width, height, color_depth, palette):
+    def add_type(self, sprite_type, image_path, default_speed, width, height, color_depth, palette, alpha=None):
+        num_frames = max(width, height)
+
         self.sprite_metadata[sprite_type] = SpriteMetadata(
             image_path=image_path,
             default_speed=default_speed,
             width=width,
             height=height,
             color_depth=color_depth,
-            palette=palette
+            palette=palette,
+            alpha=alpha,
+            frames=[],
+            num_frames=num_frames
         )
 
     def create(self, sprite_type, x=0, y=0, z=0, speed=None):
         # if len(self.sprites) >= self.max_sprites:
         #     return None  # No available sprites in the pool
-
 
         metadata = self.sprite_metadata.get(sprite_type)
         if metadata is None:
@@ -60,26 +55,24 @@ class SpriteManager:
             speed = metadata.default_speed
 
         if sprite_type not in self.sprite_images:
-            self.sprite_images[sprite_type] = self.create_scaled_frames(metadata, sprite_type, frame_width=metadata.width, frame_height=metadata.height)
+            self.sprite_images[sprite_type] = self.create_scaled_frames(metadata, sprite_type,
+                                                                        frame_width=metadata.width,
+                                                                        frame_height=metadata.height)
+        new_sprite = SpriteData(
+            sprite_type=sprite_type,
+            x=x, y=y, z=z,
+            speed=speed,
+            visible=True, active=True,
+            blink=False, blink_flip=1,
+            pos_type=self.POS_TYPE_FAR,
+            event_chain=None,
+            frame_width=metadata.width,
+            frame_height=metadata.height,
+            num_frames=metadata.num_frames,
+        )
 
-        sprite = {
-            'x': x, 'y': y, 'z': z, 'speed': speed,
-            'visible': True, 'active': True,
-            'blink': False, 'blink_flip': 1,
-            'pos_type': self.POS_TYPE_FAR,
-            'event_chain': None,
-            'frame_width': metadata.width,
-            'frame_height': metadata.height,
-            'current_frame': 0,
-            'lane_num': 0,
-            'draw_x': 0, 'draw_y': 0,
-            'num_frames': len(self.sprite_images[sprite_type]),
-            'meta': metadata,
-            'type': sprite_type,
-        }
-
-        self.sprites.append(sprite)
-        return len(self.sprites) - 1  # Return the index of the new sprite
+        self.active_sprites.append(new_sprite)
+        return len(self.active_sprites) - 1  # Return the index of the new sprite
 
     def create_scaled_frames(self, metadata, sprite_type, frame_width=0, frame_height=0):
         orig_img = ImageLoader.load_image(metadata.image_path)
@@ -145,117 +138,120 @@ class SpriteManager:
 
     def set_camera(self, camera):
         self.camera = camera
-        scale_adj = 10 # Increase this value to see bigger sprites when closer to the screen
-        self.half_scale_one_dist = abs(self.camera.pos['z']-scale_adj) / 2
+        scale_adj = 10  # Increase this value to see bigger sprites when closer to the screen
+        self.half_scale_one_dist = abs(self.camera.cam_z - scale_adj) / 2
 
+    # @timed
     def update(self, sprite, elapsed):
         """The update loop is responsible for killing expired / out of bounds sprites, as well
         as updating the x and y draw coordinates based on """
-        if not sprite['active']:
+        if not sprite.active:
             return False
 
-        old_z = sprite['z']
-        new_z = sprite['z'] + (sprite['speed'] * elapsed)
+        old_z = sprite.z
+        new_z = sprite.z + (sprite.speed * (elapsed / 1000))
         if new_z == old_z:
             return False
 
-        if new_z < -50:  # Using constants from Sprite3D
-            sprite['active'] = False
-            sprite['visible'] = False
+        if new_z < self.camera.near:  # Using constants from Sprite3D
+            sprite.active = False
+            sprite.visible = False
             return False
 
         draw_x, draw_y = self.pos(sprite)
         frame_idx = self.get_frame_idx(sprite)
 
-        sprite['z'] = new_z
-        sprite['draw_x'] = int(draw_x)
-        sprite['draw_y'] = int(draw_y)
-        sprite['current_frame'] = frame_idx
+        sprite.z = new_z
+        sprite.draw_x = draw_x
+        sprite.draw_y = draw_y
+        sprite.current_frame = frame_idx
 
-        # if sprite['event_chain']:
-        #     sprite['event_chain'].update()
+        # if sprite.event_chain:
+        #     sprite.event_chain.update()
 
         return True
 
-    def show(self, index, display: framebuf.FrameBuffer):
-        if index >= len(self.sprites):
+    # @timed
+    def show(self, sprite, display: framebuf.FrameBuffer):
+        if not sprite.visible:
             return False
 
-        sprite = self.sprites[index]
-        if not sprite['visible']:
-            return False
-
-        if sprite['blink']:
-            sprite['blink_flip'] = sprite['blink_flip'] * -1
-            if self.sprites[index]['blink_flip'] == -1:
+        if sprite.blink:
+            sprite.blink_flip = sprite.blink_flip * -1
+            if sprite.blink_flip == -1:
                 return False
 
-        type = sprite['type']
+        type = sprite.sprite_type
         palette = self.sprite_palettes[type]
-        frame_id = sprite['current_frame']
+        frame_id = sprite.current_frame
 
         image = self.sprite_images[type][frame_id]
+        alpha = self.get_alpha(type)
 
-        self.do_blit(x=int(sprite['draw_x']), y=int(sprite['draw_y'] - image.height / 2), display=display, frame=image.pixels, palette=palette, alpha=None)
+        self.do_blit(x=int(sprite.draw_x), y=int(sprite.draw_y - image.height / 2), display=display, frame=image.pixels,
+                     palette=palette, alpha=alpha)
         return True
 
+    def get_alpha(self, type):
+        meta = self.sprite_metadata[type]
+        return meta.alpha
+
+    # @timed
     def do_blit(self, x: int, y: int, display: framebuf.FrameBuffer, frame, palette, alpha=None):
         if alpha:
-            #print(f"x/y: {x},{y} / alpha:{self.alpha_color}")
-            display.blit(frame, int(x), int(y), self.alpha_color, palette, alpha=alpha)
+            display.blit(frame, int(x), int(y), alpha, palette)
         else:
             display.blit(frame, int(x), int(y), -1, palette)
 
         return True
 
+    # @timed
     def pos(self, sprite):
         if self.camera:
-            return self.camera.to_2d(int(sprite['x']), int(sprite['y']), int(sprite['z']))
+            return self.camera.to_2d(int(sprite.x), int(sprite.y), int(sprite.z))
         else:
-            return sprite['x'], sprite['y']
+            return sprite.x, sprite.y
 
     def _get_frame_idx_short(self, sprite):
-        rate = (sprite['z'] - self.camera.pos['z']) / 2
+        rate = (sprite.z - self.camera.cam_z) / 2
         if rate == 0:
             rate = 0.0001  # Avoid divide by zero
         scale = abs(self.half_scale_one_dist / rate)
-        frame_idx = int(scale * sprite['num_frames'])
-        return max(0, min(frame_idx, sprite['num_frames'] - 1))
+        frame_idx = int(scale * sprite.num_frames)
+        return max(0, min(frame_idx, sprite.num_frames - 1))
 
     def set_lane(self, index, lane_num):
-        if index >= len(self.sprites):
+        if index >= len(self.active_sprites):
             return
 
-        sprite = self.sprites[index]
+        sprite = self.active_sprites[index]
         lane = lane_num - 2  # [-2,-1,0,1,2]
         new_x = (lane * self.lane_width) - (sprite.frame_width / 2)
-        sprite['lane_num'] = lane_num
-        sprite['x'] = round(new_x)
-        self.sprites[index] = sprite
+        sprite.lane_num = lane_num
+        sprite.x = round(new_x)
+        self.active_sprites[index] = sprite
 
     def update_all(self, elapsed):
 
-        for i, sprite in enumerate(self.sprites):
-            sprite = self.sprites[i]
+        for sprite in self.active_sprites:
             self.update(sprite, elapsed)
             self.update_frame(sprite)
 
-            self.sprites[i] = sprite
-
     def update_frame(self, sprite):
         frame_idx = self.get_frame_idx(sprite)
-        sprite['current_frame'] = frame_idx
+        sprite.current_frame = frame_idx
 
+    # @timed
     def get_frame_idx(self, sprite):
         """ Given the Z coordinate (depth), find the scaled frame number which best represents the
         size of the object at that distance """
 
-        num_frames = sprite['num_frames']
-        real_z = sprite['z']
+        num_frames = sprite.num_frames
+        real_z = sprite.z
 
-        rate = (real_z - self.camera.pos['z']) / 2
+        rate = (real_z - self.camera.cam_z) / 2
         if rate == 0:
-            rate = 0.0001 # Avoid divide by zero
+            rate = 0.0001  # Avoid divide by zero
 
         scale = abs(self.half_scale_one_dist / rate)
         frame_idx = int(scale * num_frames)
@@ -268,14 +264,17 @@ class SpriteManager:
 
         return frame_idx
 
+    # @timed
     def show_all(self, display: framebuf.FrameBuffer):
-        for i in range(len(self.sprites)):
-            self.show(i, display)
+        for sprite in self.active_sprites:
+            self.show(sprite, display)
+
 
 # Usage example
 def main():
     print("Not intended to run standalone")
     exit(1)
+
 
 if __name__ == "__main__":
     main()

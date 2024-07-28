@@ -1,5 +1,4 @@
 from framebuffer_palette import FramebufferPalette
-from ssd1331_16bit import SSD1331
 
 FLOAT_ERROR = 0.0000005
 RGB565 = 1

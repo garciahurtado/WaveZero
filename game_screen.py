@@ -1,7 +1,7 @@
 import gc
 
 from input import make_input_handler
-from stages.stage_1 import Stage1
+# from stages.stage_1 import Stage1
 gc.collect()
 
 from ui_elements import ui_screen
@@ -92,7 +92,7 @@ class GameScreen(Screen):
         _thread.start_new_thread(self.start_display_loop, [])
 
         self.mem_marker('--- Before preload images ---')
-        self.preload_images()
+        # self.preload_images()
         self.mem_marker('--- After preload images ---')
 
         self.bike = PlayerSprite(camera=self.camera)

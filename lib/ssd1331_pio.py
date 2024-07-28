@@ -67,8 +67,7 @@ class SSD1331PIO():
         mode = framebuf.RGB565
         gc.collect()
 
-        # A second buffer, the read buffer, is the one that gets sent to the display
-        # DMA copies the write buffer to this one over time
+        # The first buffer, the one we write to
         self.buffer0 = bytearray(self.height * self.width * 2)  # RGB565 is 2 bytes
         self.framebuf0 = framebuf.FrameBuffer(self.buffer0, self.width, self.height, mode)
         self.framebuf0.fill(0x0)
@@ -112,12 +111,13 @@ class SSD1331PIO():
         """ Now that we've flipped the buffers, reprogram the DMA so that it will start reading from the 
         correct buffer (the one that just finished writing) in the next iteration """
 
-
         if self.curr_read_buf == self.read_addr_buf:
             self.curr_read_buf = self.write_addr_buf
         else:
             self.curr_read_buf = self.read_addr_buf
 
+
+        # Kickoff the DMA channel automatically by assigning it a read address
         self.dma1.read = uctypes.addressof(self.curr_read_buf)
 
 
@@ -134,6 +134,30 @@ class SSD1331PIO():
         self.pin_cs(1)
         self.pin_dc(self.DC_MODE_DATA)
 
+    def direct_hline(self, y, color):
+        """ Draw a line directly onto the display using the graphics acceleration commands
+        """
+        x0 = 0
+        x1 = self.width
+        y0 = y1 = y
+
+        start_line = b'\x21'
+        coords = bytes([int(x0), int(y0), int(x1), int(y1)])
+        color = b'\xFF\xFF'
+
+        self.pin_cs(1)
+        self.pin_dc(self.DC_MODE_CMD)
+        self.pin_cs(0)
+        self.spi.write(start_line)
+        self.pin_cs(1)
+        self.pin_dc(self.DC_MODE_DATA)
+        self.pin_cs(0)
+        self.spi.write(coords)
+        self.spi.write(color)
+
+        # Return to data mode
+        self.pin_cs(1)
+        self.pin_dc(self.DC_MODE_DATA)
 
     def init_pio_spi(self):
         # Define the pins
@@ -169,12 +193,13 @@ class SSD1331PIO():
         )
 
     def dmi_to_spi():
-        """This PIO program is in charge for reading from the TX FIFO and writing to the output pin until it runs out
-        of data"""
+        """This PIO program is in charge for reading from the TX FIFO and writing to the output pin of the display
+        until it runs out of data in the queue"""
+
         pull(ifempty, block)       .side(1)     # Block with CSn high (minimum 2 cycles)
         nop()                      .side(0)     # CSn front porch
 
-        set(x, 31)                  .side(1)        # Push out 4 bytes per bitloop
+        set(x, 31)                  .side(1)    # Push out 4 bytes per bitloop
         wrap_target()
 
         pull(ifempty, block)        .side(1)

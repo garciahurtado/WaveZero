@@ -17,7 +17,7 @@ class PaletteRotate(Animation):
         self.interval_ms = interval
         self.color_idx = 0
         self.current_idx = 0
-        self.ellapsed_ms = 0
+        self.elapsed_ms = 0
         self.running = False
 
         # Build a series of prerotated palettes to swap during runtime

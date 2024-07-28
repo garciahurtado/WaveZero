@@ -88,6 +88,12 @@ class SSD1331(framebuf.FrameBuffer):
 
         self._write(INIT_BYTES, DC_MODE_CMD)
 
+    def start(self):
+        pass
+
+    def begin(self):
+        pass
+
     def _write(self, buf, dc):
         self._pincs(1)
         self._pindc(dc)
@@ -109,17 +115,29 @@ class SSD1331(framebuf.FrameBuffer):
         self._write(CMD_CLOCK_DIVIDE, DC_MODE_CMD)
         self._write(self._to_bytes(int(mul < 5), 1), DC_MODE_CMD)
 
+    def line(self, start_x, start_y, end_x, end_y, color):
+        return self.linev2(self, start_x, start_y, end_x, end_y, color)
 
+    def hline(self, y, end_x, color):
+        return self.linev2(0, y, self.width, y, color)
 
     def linev2(self, x_a, y_a, x_b, y_b, color):
         r, g, b = color[0], color[1], color[2]
 
-        #self._write_start()
+        self._write_start()
         self._write_line(int(x_a), int(y_a), int(x_b), int(y_b))
         self._write_color(r, g, b)
-        #self._write_end()
+        self._write_end()
 
-    def _write_line(self, x_a: int, y_a: int, x_b: int, y_b: int):
+    def xfill(self, color):
+        r, g, b = color[0], color[1], color[2]
+
+        self._write_start()
+        self._write(CMD_FILL, DC_MODE_CMD)
+        self._write_color(r, g, b)
+        self._write_end()
+
+    def _write_line(self, x_a: int, y_a: int, x_b: int, y_b: int, color):
         # self._write_cmd(CMD_DRAWLINE)
         self._write(CMD_DRAWLINE, DC_MODE_CMD)
 

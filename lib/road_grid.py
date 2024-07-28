@@ -6,7 +6,7 @@ from ulab import numpy as np
 
 import color_util as colors
 from framebuffer_palette import FramebufferPalette
-from profiler import Profiler as prof
+from profiler import Profiler as prof, timed
 
 MIDDLE_CYAN = 0x217eff
 MIDDLE_BLUE = 0x008097
@@ -49,8 +49,9 @@ class RoadGrid():
                        0x5F050C,]
     horiz_palette_len = len(horizon_palette) - 2
 
-    vert_palette = [0x610070,
-                    0x5f0083,
+    vert_palette = [
+                    # 0x610070,
+                    # 0x5f0083,
                     0x570097,
                     0x4a00aa,
                     0x3800be,
@@ -63,7 +64,7 @@ class RoadGrid():
     last_tick = 0
 
     # reinforce the edges of the road
-    bright_lines = [7, 12]
+    bright_lines = [5, 10]
     bright_color = None
     display_width = const(96)
     display_height = const(64)
@@ -73,19 +74,18 @@ class RoadGrid():
 
         self.width = camera.screen_width
         self.height = camera.screen_height
-        self.last_horiz_line_ts = 0
         self.num_horiz_lines = 20
-        self.num_vert_lines = 20
+        self.num_vert_lines = 16
         self.vert_points = []
         self.display = display
 
         self.camera = camera
-        self.horiz_y = camera.vp['y'] - 2  # 16
+        self.horiz_y = camera.vp['y']
         print(f"Horizon Y: {self.horiz_y}")
 
-        self.far_z_vert = 1000
+        self.far_z_vert = 2000
         self.near_z = 1
-        self.min_z = -20
+        self.min_z = -10
 
         self.lane_width = lane_width  # width in 3D space
         self.lane_height = lane_width * 2  # length of a grid square along the Z axis
@@ -94,8 +94,6 @@ class RoadGrid():
         self.max_spacing = self.lane_width
 
         self.field_width = 96
-        self.vert_line_start_x = -round((self.field_width - self.width) / 2)
-        self.last_horiz_line_ts = round(utime.ticks_ms())
 
         self.x_start_top = 0
         self.x_start_bottom = 0
@@ -178,8 +176,8 @@ class RoadGrid():
 
     def show(self):
         self.show_horiz_lines()
-        self.draw_horizon()
         self.show_vert_lines()
+        self.draw_horizon()
 
         self.last_tick = utime.ticks_ms()
 
@@ -197,14 +195,17 @@ class RoadGrid():
 
         num_vert_lines = self.num_vert_lines
 
-        lane_width_far, _ = self.camera.to_2d(self.lane_width, 0, self.far_z_vert // 2) # used to measure the lane width in screen space
-        lane_width_far = lane_width_far - self.camera.half_width
+        lane_width_far, _ = self.camera.to_2d(self.lane_width, 0, self.far_z_vert // 2)  # used to measure the lane width in screen space
+        lane_width_far = lane_width_far - self.camera.half_width + 1
 
         lane_width_near, _ = self.camera.to_2d(self.lane_width, 0, self.near_z) # used to measure the lane width in screen space
-        lane_width_near = int(lane_width_near - self.camera.half_width)
+        lane_width_near = lane_width_near - self.camera.half_width
 
-        self.x_start_top = - ((num_vert_lines) * lane_width_far // 2) + (lane_width_far // 2)
-        self.x_start_bottom = - ((num_vert_lines) * lane_width_near // 2) + (lane_width_near // 2)
+        half_top = (num_vert_lines * lane_width_far) // 2
+        half_bottom = (num_vert_lines * lane_width_near) // 2
+
+        self.x_start_top = int(-half_top + (lane_width_far/2))
+        self.x_start_bottom = int(-half_bottom + (lane_width_near/2))
 
         horiz_y_offset = 4 # Manual adjustment for the start.y of the vertical lines
         self.horiz_y = self.horiz_y + horiz_y_offset
@@ -228,7 +229,8 @@ class RoadGrid():
         """ Trick the camera during update()"""
         # self.far_z_vert = 10000
 
-    def update_horiz_lines(self, ellapsed):
+    #@timed
+    def update_horiz_lines(self, elapsed):
         self.far_z = 0 # Keep track of the furthest line, to see if we need new ones
         delete_lines = []
 
@@ -236,7 +238,7 @@ class RoadGrid():
             if not my_line['z']:
                 my_line['z'] = 0
 
-            my_line['z'] = my_line['z'] - (self.speed * (ellapsed / 1000))
+            my_line['z'] = my_line['z'] + (self.speed * (elapsed / 1000))
 
             if my_line['z'] > self.far_z:
                 self.far_z = my_line['z']
@@ -249,16 +251,13 @@ class RoadGrid():
         for line in delete_lines:
             self.horiz_lines_data.remove(line)
 
+    #@timed
     def show_horiz_lines(self):
         last_y: int = 0
 
         for my_line in self.horiz_lines_data:
             y = self.camera.to_2d_y(0, 0, my_line['z'])
-
-            # Reached the bottom of the screen, this line is done
-
-            my_line['y'] = y
-            my_line['y'] = int(my_line['y'])
+            my_line['y'] = int(y)
 
             # Avoid writing a line on the same Y coordinate as the last one we drew
             if my_line['y'] == last_y:
@@ -266,6 +265,7 @@ class RoadGrid():
 
             last_y = my_line['y']
 
+            """ Pick the color from the palette according to the distance"""
             rel_y = my_line['y'] - self.horiz_y + 1
             if rel_y >= len(self.horiz_palette):
                 rel_y = len(self.horiz_palette) - 1
@@ -276,7 +276,6 @@ class RoadGrid():
 
             self.display.hline(0, my_line['y'], self.width, rgb565)
 
-            # self.display.rect(0, my_line['y'], self.width - 1, 1, rgb565)
 
         dist_to_horiz = self.far_z_horiz - self.far_z
 
@@ -286,6 +285,7 @@ class RoadGrid():
             self.horiz_lines_data.append(new_line)
 
 
+    #@timed
     def show_vert_lines(self):
         # Calculate the reference points just once
         start_x_far, _ = self.camera.to_2d(0, 0, self.far_z_vert)
@@ -310,16 +310,16 @@ class RoadGrid():
 
             if index in bright_lines:
                 if index == bright_lines[0]:
-                    self.display.line(start_x, start_y, end_x-1, end_y, bright_color)
-                else:
                     self.display.line(start_x, start_y, end_x+1, end_y, bright_color)
+                else:
+                    self.display.line(start_x, start_y, end_x-1, end_y, bright_color)
 
             index += 1
 
+    #@timed
     def draw_horizon(self):
         """Draw some static horizontal lines to cover up the seam between vertical and horiz road lines"""
-        horizon_offset = -6
-
+        horizon_offset = -8
 
         for i in range(0, self.horiz_palette_len):
             color = self.horizon_palette[i]

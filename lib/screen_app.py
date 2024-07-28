@@ -21,7 +21,6 @@ class ScreenApp:
     def __init__(self, screen_width: int, screen_height: int):
         self.screen_width = screen_width
         self.screen_height = screen_height
-        # self.setup_native_display(1, 5, 4, 3, 2)
         self.setup_display()
 
     def load_screen(self, screen: type):
@@ -41,7 +40,6 @@ class ScreenApp:
         # GPIO3 (SPI0 TX)       SDA
         # GPIO4 (or any)        RES
         # GPIO5 (or any)        DC
-
 
         spi = machine.SPI(0, baudrate=100_000_000, sck=self.pin_sck, mosi=self.pin_sda, miso=None)
         display = Driver(
