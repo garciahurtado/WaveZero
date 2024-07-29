@@ -3,7 +3,7 @@ from screen_app import ScreenApp
 
 from game_screen import GameScreen
 from sprite_mgr_test_screen import GridTestScreen
-# from title_screen import TitleScreen
+from title_screen import TitleScreen
 # from test_screen import TestScreen
 import micropython
 import time

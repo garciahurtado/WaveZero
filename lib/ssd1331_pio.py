@@ -1,3 +1,5 @@
+import asyncio
+
 import framebuf
 import utime
 from micropython import const
@@ -24,7 +26,6 @@ class SSD1331PIO():
     dma2: DMA = None
     dma0_active = True
     dma1_active = False
-    word_size = 4
     dma_tx_count = 256
     buffer0 = None
     buffer1 = None
@@ -34,6 +35,7 @@ class SSD1331PIO():
     write_buffer = None
     write_framebuf = None
     read_framebuf = None
+    swap_ready = False
     fps = None
     paused = True
     curr_read_addr = False
@@ -50,7 +52,7 @@ class SSD1331PIO():
     """
     INIT_BYTES = b'\xAE\xA0\x76\xA1\x00\xA2\x00\xA4\xA8\x3F\xAD\x8E\xB0'\
                  b'\x0B\xB1\x31\xB3\xF0\x8A\x64\x8B\x78\x8C\x64\xBB\x3A\xBE\x3E\x87'\
-                 b'\x06\x81\x91\x82\x50\x83\x7D\xAF'\
+                 b'\x06\x81\xDD\x82\xAA\x83\x88\xAF'\
 
     def __init__(self, spi, pin_cs, pin_dc, pin_rs, pin_sck, pin_sda, height=HEIGHT, width=WIDTH):
         self.spi = spi
@@ -61,8 +63,6 @@ class SSD1331PIO():
         self.pin_sda = pin_sda
         self.height = height
         self.width = width
-
-        self.word_size = 4
 
         mode = framebuf.RGB565
         gc.collect()
@@ -101,7 +101,6 @@ class SSD1331PIO():
     def show(self):
         """ Flip the buffers to make screen refresh faster"""
         self.swap_buffers()
-
         return
 
     def swap_buffers(self):

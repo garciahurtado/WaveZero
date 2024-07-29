@@ -20,6 +20,7 @@ class SpriteManager:
         self.sprite_images = {}  # Flyweight store for shared image data
         self.sprite_palettes = {}
         self.sprite_metadata = {}  # Store for sprite type metadata
+        self.sprite_actions = {}  # Store for sprite type metadata
         self.lane_width = lane_width
         self.half_scale_one_dist = 0  # This should be set based on your camera setup
 
@@ -40,6 +41,12 @@ class SpriteManager:
             frames=[],
             num_frames=num_frames
         )
+
+        width = width,
+        height = height,
+
+    def add_action(self, sprite_type, func):
+        self.sprite_actions[sprite_type] = func
 
     def create(self, sprite_type, x=0, y=0, z=0, speed=None):
         # if len(self.sprites) >= self.max_sprites:
@@ -173,6 +180,7 @@ class SpriteManager:
 
     # @timed
     def show(self, sprite, display: framebuf.FrameBuffer):
+        """Draw a single sprite on the display"""
         if not sprite.visible:
             return False
 
@@ -181,15 +189,21 @@ class SpriteManager:
             if sprite.blink_flip == -1:
                 return False
 
-        type = sprite.sprite_type
-        palette = self.sprite_palettes[type]
+        sprite_type = sprite.sprite_type
+        palette = self.sprite_palettes[sprite_type]
         frame_id = sprite.current_frame
 
-        image = self.sprite_images[type][frame_id]
-        alpha = self.get_alpha(type)
+        image = self.sprite_images[sprite_type][frame_id]
+        alpha = self.get_alpha(sprite_type)
+
+        """Actions?"""
+        if sprite_type in self.sprite_actions.keys():
+            action = self.sprite_actions[sprite_type]
+            action(display, self.camera, sprite.draw_x, sprite.draw_y, sprite.x,  sprite.y,  sprite.z, sprite.frame_width)
 
         self.do_blit(x=int(sprite.draw_x), y=int(sprite.draw_y - image.height / 2), display=display, frame=image.pixels,
                      palette=palette, alpha=alpha)
+
         return True
 
     def get_alpha(self, type):
@@ -198,7 +212,7 @@ class SpriteManager:
 
     # @timed
     def do_blit(self, x: int, y: int, display: framebuf.FrameBuffer, frame, palette, alpha=None):
-        if alpha:
+        if alpha is not None:
             display.blit(frame, int(x), int(y), alpha, palette)
         else:
             display.blit(frame, int(x), int(y), -1, palette)

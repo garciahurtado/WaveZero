@@ -16,7 +16,7 @@ class Screen:
     sprites: [Sprite]
     last_tick: int = 0
     last_gc: int = 0
-    gc_interval: int = 500 # how often to call the garbage collector (ms)
+    gc_interval: int = 1000 # how often to call the garbage collector (ms)
     app: None # ref to ScreenApp
     profile_labels = {}
 

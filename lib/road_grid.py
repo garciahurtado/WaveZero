@@ -69,6 +69,8 @@ class RoadGrid():
     display_width = const(96)
     display_height = const(64)
     far_z = 0
+    speed = 0
+    speed_ms = 0
 
     def __init__(self, camera, display, lane_width=None):
 
@@ -98,7 +100,8 @@ class RoadGrid():
         self.x_start_top = 0
         self.x_start_bottom = 0
 
-        self.speed = 0
+        self.speed = -100
+        self.speed_ms = self.speed / 1000
         self.ground_height = camera.screen_height - self.horiz_y
         self.init_palettes()
 
@@ -110,6 +113,8 @@ class RoadGrid():
         self.create_horiz_lines(self.num_horiz_lines)
         gc.collect()
 
+        horiz_y_offset = 0  # Manual adjustment for the start.y of the vertical lines
+        self.start_y = self.horiz_y + horiz_y_offset
         self.create_vert_points()
 
     def init_palettes(self):
@@ -183,11 +188,11 @@ class RoadGrid():
 
 
     def create_horiz_lines(self, num_lines):
-        start_z = -50
+        start_z = -60
         for i in range(num_lines - 1, 0, -1):
             self.horiz_lines_data.append( {'z': (i * self.lane_height) - start_z} )
 
-        self.far_z_horiz = (num_lines) * self.lane_height
+        self.far_z_horiz = (num_lines) * self.lane_height + 400
 
 
     def create_vert_points(self):
@@ -199,7 +204,7 @@ class RoadGrid():
         lane_width_far = lane_width_far - self.camera.half_width + 1
 
         lane_width_near, _ = self.camera.to_2d(self.lane_width, 0, self.near_z) # used to measure the lane width in screen space
-        lane_width_near = lane_width_near - self.camera.half_width
+        lane_width_near = lane_width_near - self.camera.half_width + 2
 
         half_top = (num_vert_lines * lane_width_far) // 2
         half_bottom = (num_vert_lines * lane_width_near) // 2
@@ -238,7 +243,7 @@ class RoadGrid():
             if not my_line['z']:
                 my_line['z'] = 0
 
-            my_line['z'] = my_line['z'] + (self.speed * (elapsed / 1000))
+            my_line['z'] = my_line['z'] + (self.speed_ms * elapsed)
 
             if my_line['z'] > self.far_z:
                 self.far_z = my_line['z']
@@ -297,8 +302,6 @@ class RoadGrid():
 
         index = 0
 
-        horiz_y_offset = 0  # Manual adjustment for the start.y of the vertical lines
-        start_y = self.horiz_y + horiz_y_offset
         end_y = self.height
 
         for start, end in zip(top_points, bottom_points):
@@ -306,20 +309,20 @@ class RoadGrid():
             end_x = int(end + start_x_near)
 
             color = self.vert_palette[index]
-            self.display.line(start_x, start_y, end_x, end_y, color)
+            self.display.line(start_x, self.start_y, end_x, end_y, color)
 
             if index in bright_lines:
                 if index == bright_lines[0]:
-                    self.display.line(start_x, start_y, end_x+1, end_y, bright_color)
+                    self.display.line(start_x, self.start_y, end_x, end_y, bright_color)
                 else:
-                    self.display.line(start_x, start_y, end_x-1, end_y, bright_color)
+                    self.display.line(start_x, self.start_y, end_x, end_y, bright_color)
 
             index += 1
 
     #@timed
     def draw_horizon(self):
         """Draw some static horizontal lines to cover up the seam between vertical and horiz road lines"""
-        horizon_offset = -8
+        horizon_offset = -10
 
         for i in range(0, self.horiz_palette_len):
             color = self.horizon_palette[i]

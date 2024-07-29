@@ -17,9 +17,9 @@ class PerspectiveCamera():
         # Calculate aspect ratio
         self.aspect_ratio = self.screen_width / self.screen_height
 
-        # Rest of the initialization remains the same
-        self.near = 0
-        self.far = self.horiz_z = 2000  # past this point all sprites are considered to be in the horizon line
+        # Near / far clipping planes
+        self.near = -2
+        self.far = self.horiz_z = 1500  # past this point all sprites are considered to be in the horizon line
 
         self.cam_x = pos_x
         self.cam_y = pos_y
@@ -36,7 +36,7 @@ class PerspectiveCamera():
         self.fov_x = self.fov_y * self.aspect_ratio
 
 
-        self.min_z = pos_z - 40
+        self.min_z = pos_z - 80
         self._y_factor_cache = {}
 
         self.min_yaw = 0

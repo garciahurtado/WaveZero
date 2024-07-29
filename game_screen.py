@@ -1,7 +1,7 @@
 import gc
 
 from input import make_input_handler
-# from stages.stage_1 import Stage1
+from stages.stage_1 import Stage1
 gc.collect()
 
 from ui_elements import ui_screen
@@ -92,7 +92,7 @@ class GameScreen(Screen):
         _thread.start_new_thread(self.start_display_loop, [])
 
         self.mem_marker('--- Before preload images ---')
-        # self.preload_images()
+        self.preload_images()
         self.mem_marker('--- After preload images ---')
 
         self.bike = PlayerSprite(camera=self.camera)
@@ -207,8 +207,8 @@ class GameScreen(Screen):
                 mult1 = self.num_lanes
                 mult2 = self.num_lanes
 
-                self.camera.vp["x"] = round(self.bike.bike_angle * mult1)
-                self.camera.pos["x"] = round(self.bike.bike_angle * mult2)
+                self.camera.vp_x = round(self.bike.bike_angle * mult1)
+                self.camera.pos_x = round(self.bike.bike_angle * mult2)
                 sun.x = self.sun_x_start - round(self.bike.bike_angle*4)
 
                 if elapsed:

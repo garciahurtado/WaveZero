@@ -82,7 +82,7 @@ class Spritesheet(Sprite):
 
         num_frames = self.num_frames
 
-        rate = (real_z - self.camera.pos['z']) / 2
+        rate = (real_z - self.camera.cam_z / 2)
         if rate == 0:
             rate = 0.0001 # Avoid divide by zero
 

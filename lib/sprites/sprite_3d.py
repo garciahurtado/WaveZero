@@ -32,7 +32,7 @@ class Sprite3D(Spritesheet):
     def set_camera(self, camera):
         self.camera = camera
         scale_adj = 10 # Increase this value to see bigger sprites when closer to the screen
-        self.half_scale_one_dist = abs(self.camera.pos['z']-scale_adj) / 2
+        self.half_scale_one_dist = abs(self.camera.cam_z-scale_adj) / 2
 
     def get_draw_xy(self, display: framebuf.FrameBuffer):
         """ Overrides parent """

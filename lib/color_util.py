@@ -4,6 +4,8 @@ FLOAT_ERROR = 0.0000005
 RGB565 = 1
 BGR565 = 2
 
+color_format = RGB565
+
 def color_mix(c1, c2, mix):
     """Returns a 24 bit (true color) bytes array"""
     r1, g1, b1 = c1
@@ -22,17 +24,7 @@ def color_mix(c1, c2, mix):
     return [r, g, b]
 
 
-def _rgb_to_565(rgb):
-    """ Convert RGB values to 5-6-5 bit BGR format (16bit) """
-    r5 = (rgb[2] >> 3) & 0b11111
-    g6 = (rgb[1] >> 2) & 0b111111
-    b5 = (rgb[0] >> 3) & 0b11111
-
-    # Pack the 5-6-5 bit values into a 16-bit integer
-    rgb565 = (r5 << 11) | (g6 << 5) | b5
-    return rgb565
-
-def rgb_to_565(rgb,  format=RGB565):
+def rgb_to_565(rgb, format=color_format):
     """ Convert RGB values to 5-6-5 bit BGR format (16bit) """
     if format == RGB565:
         r, g, b = rgb[0], rgb[1], rgb[2]
@@ -45,7 +37,7 @@ def rgb_to_565(rgb,  format=RGB565):
 
     return res
 
-def rgb565_to_rgb(rgb565, format=RGB565):
+def rgb565_to_rgb(rgb565, format=color_format):
 
     """
     Convert a 16-bit color in 5-6-5 bit format to RGB values
@@ -91,7 +83,7 @@ def hex_to_rgb(hex_value):
 
     return (red, green, blue)
 
-def hex_to_565(hex_value, format=None):
+def hex_to_565(hex_value, format=color_format):
     # Extract the red, green, and blue components
     red = (hex_value >> 16) & 0xFF
     green = (hex_value >> 8) & 0xFF
