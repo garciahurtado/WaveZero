@@ -44,10 +44,12 @@ class RoadGrid():
                        0x1D0308,
                        0x290408,
                        0x37030A,
-                       0x44050A,
-                       0x51040B,
-                       0x5F050C,]
-    horiz_palette_len = len(horizon_palette) - 2
+                       0x5a0052,
+                       0x00687b,
+                       0x570097,
+                       ]
+
+    horiz_palette_len = len(horizon_palette)
 
     vert_palette = [
                     # 0x610070,
@@ -261,7 +263,7 @@ class RoadGrid():
         last_y: int = 0
 
         for my_line in self.horiz_lines_data:
-            y = self.camera.to_2d_y(0, 0, my_line['z'])
+            _, y = self.camera.to_2d(0, 0, my_line['z'])
             my_line['y'] = int(y)
 
             # Avoid writing a line on the same Y coordinate as the last one we drew
@@ -322,13 +324,21 @@ class RoadGrid():
     #@timed
     def draw_horizon(self):
         """Draw some static horizontal lines to cover up the seam between vertical and horiz road lines"""
-        horizon_offset = -10
+        horizon_offset = -9
+        last_few = 3
 
-        for i in range(0, self.horiz_palette_len):
+        for i in range(self.horiz_palette_len):
             color = self.horizon_palette[i]
-            start_y = self.horiz_y + horizon_offset + (i*2)
-            self.display.hline(0, start_y, self.display_width, color)
-            self.display.hline(0, start_y + 1, self.display_width, BLACK)
+
+            if i < self.horiz_palette_len - last_few:
+                start_y = self.horiz_y + horizon_offset + i * 2
+                self.display.hline(0, start_y, self.display_width, color)
+                self.display.hline(0, start_y + 1, self.display_width, BLACK)
+            else:
+                # For the last 3 colors, draw them consecutively without gaps
+                start_y = self.horiz_y + horizon_offset + (self.horiz_palette_len - last_few) * 2 + (
+                            i - (self.horiz_palette_len - last_few))
+                self.display.hline(0, start_y, self.display_width, color)
 
     def check_mem(self):
         print(f"Free memory:  {gc.mem_free():,} bytes")

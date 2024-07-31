@@ -11,12 +11,13 @@ import micropython
 import time
 import asyncio
 import wav.test_wav as wav
+import  machine
 
 def main():
-    # machine.freq(250_000_000)
-    # time.sleep(1)
-    # current_freq = machine.freq()
-    # print(f"CPU: {current_freq / 1_000_000} MHz")
+    machine.freq(250_000_000)
+    time.sleep(1)
+    current_freq = machine.freq()
+    print(f"CPU: {current_freq / 1_000_000} MHz")
 
     check_mem()
 

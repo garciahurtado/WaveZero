@@ -49,7 +49,7 @@ def monitor_directory():
             for root, dirs, files in os.walk(directory_to_monitor):
                 for file in files:
                     # Check if the file has a .py extension
-                    if file.endswith(".py"):
+                    if file.endswith(".py") or file.endswith(".bmp"):
                         file_path = os.path.join(root, file)
 
                         # Get the current modification time of the file

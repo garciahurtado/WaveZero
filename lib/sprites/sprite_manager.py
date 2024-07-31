@@ -168,6 +168,9 @@ class SpriteManager:
             self.active_sprites.remove(sprite)
             return False
 
+        if new_z < self.camera.far and not sprite.visible:
+            sprite.visible = True
+
         draw_x, draw_y = self.pos(sprite)
         num_frames = sprite.num_frames
         real_z = sprite.z
@@ -193,6 +196,9 @@ class SpriteManager:
             sprite.blink_flip = sprite.blink_flip * -1
             if sprite.blink_flip == -1:
                 return False
+
+        if sprite.z > self.camera.far:
+            return False
 
         sprite_type = sprite.sprite_type
         palette = self.sprite_palettes[sprite_type]

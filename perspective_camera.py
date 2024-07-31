@@ -19,7 +19,7 @@ class PerspectiveCamera():
 
         # Near / far clipping planes
         self.near = 0
-        self.far = self.horiz_z = 2000  # past this point all sprites are considered to be in the horizon line
+        self.far = 1000  # past this point all sprites are considered to be in the horizon line
 
         self.cam_x = pos_x
         self.cam_y = pos_y
@@ -109,7 +109,7 @@ class PerspectiveCamera():
 
         # print(f"x/y : {screen_x} {screen_y}")
 
-        return int(screen_x), int(screen_y)
+        return round(screen_x), round(screen_y)
 
     def set_camera_position(self, x, y, z):
         self.camera_x = x

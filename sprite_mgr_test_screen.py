@@ -13,7 +13,7 @@ import utime
 
 from sprites.player_sprite import PlayerSprite
 from sprites.sprite_manager import SpriteManager
-from wav.test_wav import play_music
+# from wav.test_wav import play_music
 import random
 
 SPRITE_TYPE_PLAYER = const(0)
@@ -65,7 +65,7 @@ class SpriteMgrTestScreen(Screen):
         print("-- Creating sprites...")
         sprites = self.sprites
 
-        barrier_speed = self.ground_speed / 2
+        barrier_speed = self.ground_speed
         print(f"Sprite speed: {barrier_speed}")
 
         self.check_mem()
@@ -74,7 +74,7 @@ class SpriteMgrTestScreen(Screen):
         sprites.add_type(SPRITE_TYPE_PLAYER, "/img/bike_sprite.bmp", 5, 32, 22, 4, None)  # Assuming 8-bit color depth
         # sprites.add_type(SPRITE_TYPE_BARRIER_LEFT, "/img/road_barrier_yellow.bmp", -0.15, 24, 15, 4, None)
         # sprites.add_type(SPRITE_TYPE_BARRIER_RIGHT, "/img/road_barrier_yellow_inv.bmp", -0.15, 24, 15, 4, None)
-        # sprites.add_type(SPRITE_TYPE_BARRIER_RED, "/img/road_barrier_red.bmp", barrier_speed, 26, 8, 4, None)
+        sprites.add_type(SPRITE_TYPE_BARRIER_RED, "/img/road_barrier_red.bmp", barrier_speed, 22, 8, 4, None)
         sprites.add_type(SPRITE_TYPE_LASER_ORB, "/img/laser_orb.bmp", barrier_speed * 2, 16, 16, 4, None, 0x0000)
         # sprites.add_action(SPRITE_TYPE_LASER_ORB, actions.ground_laser)
 
@@ -87,25 +87,24 @@ class SpriteMgrTestScreen(Screen):
         # self.set_frame(8)  # middle frame
 
 
-        start = 700
         img_height = 8 # Needed because the screenspace Y is at the top, but 3D has Y at the bottom
 
         """ These numbers were derived by trial and error in order to match up the sprites perspective to the road grid"""
         lane_width = self.lane_width
         half_lane_width = self.lane_width // 2
-        start_x = -half_lane_width -(lane_width*2) + 4
+        start_x = -half_lane_width -(lane_width*2)
 
-        #
-        # every = -50
-        # for i in range(20):
-        #     # rand_x = random.randrange(-30, 20)
-        #     sprites.create(SPRITE_TYPE_BARRIER_RED, x=start_x, y=img_height, z=start + i*every)
-        #     sprites.create(SPRITE_TYPE_BARRIER_RED, x=start_x+lane_width, y=img_height, z=start + i*every)
-        #     sprites.create(SPRITE_TYPE_BARRIER_RED, x=start_x+lane_width*2, y=img_height, z=start + i*every)
-        #     sprites.create(SPRITE_TYPE_BARRIER_RED, x=start_x+lane_width*3, y=img_height, z=start + i*every)
-        #     sprites.create(SPRITE_TYPE_BARRIER_RED, x=start_x+lane_width*4, y=img_height, z=start + i*every)
+        start = 3000
+        every = -50
+        for i in range(20):
+            # rand_x = random.randrange(-30, 20)
+            sprites.create(SPRITE_TYPE_BARRIER_RED, x=start_x, y=img_height, z=start + i*every)
+            sprites.create(SPRITE_TYPE_BARRIER_RED, x=start_x+lane_width, y=img_height, z=start + i*every)
+            # sprites.create(SPRITE_TYPE_BARRIER_RED, x=start_x+lane_width*2, y=img_height, z=start + i*every)
+            sprites.create(SPRITE_TYPE_BARRIER_RED, x=start_x+lane_width*3, y=img_height, z=start + i*every)
+            sprites.create(SPRITE_TYPE_BARRIER_RED, x=start_x+lane_width*4, y=img_height, z=start + i*every)
 
-        # self.check_mem()
+        self.check_mem()
 
         orb_height = 50
         every = -100
@@ -129,16 +128,6 @@ class SpriteMgrTestScreen(Screen):
         #     sprites.create(SPRITE_TYPE_LASER_ORB, x=start_x + lane_width * 4, y=orb_height, z=start_z)
 
         # self.check_mem()
-
-        start = 3000
-        for i in range(20):
-            rand_x = random.randrange(-30, 20)
-            sprites.create(SPRITE_TYPE_BARRIER_RED, x=-half_lane_width+rand_x, y=0, z=start + i*every)
-
-            sprites.create(SPRITE_TYPE_BARRIER_RED, x=-(lane_width*2)-lane_width, y=0, z=start + i*every)
-            sprites.create(SPRITE_TYPE_BARRIER_RED, x=-lane_width-lane_width, y=0, z=start + i*every)
-
-            sprites.create(SPRITE_TYPE_BARRIER_RED, x=lane_width*2-lane_width, y=0, z=start + i*every)
 
         self.check_mem()
 
@@ -214,7 +203,7 @@ class SpriteMgrTestScreen(Screen):
 
     def init_camera(self):
         # Camera
-        horiz_y: int = 16
+        horiz_y: int = 14
         camera_z: int = 60
         camera_y: int = -40
         self.camera = PerspectiveCamera(
