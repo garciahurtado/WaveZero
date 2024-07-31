@@ -1,4 +1,4 @@
-import asyncio
+import uasyncio as asyncio
 from rotary_irq import RotaryIRQ
 
 

@@ -1,4 +1,4 @@
-import asyncio
+import uasyncio as asyncio
 import utime
 
 from anim.animation import Animation

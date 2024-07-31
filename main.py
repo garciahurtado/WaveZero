@@ -9,7 +9,7 @@ from sprite_mgr_test_screen import SpriteMgrTestScreen
 # from test_screen import TestScreen
 import micropython
 import time
-import asyncio
+import uasyncio as asyncio
 import wav.test_wav as wav
 import  machine
 

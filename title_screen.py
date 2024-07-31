@@ -1,4 +1,4 @@
-import asyncio
+import uasyncio as asyncio
 import gc
 
 from machine import Pin

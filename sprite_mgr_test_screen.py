@@ -1,5 +1,4 @@
 import _thread
-
 from micropython import const
 
 from input import make_input_handler
@@ -8,7 +7,7 @@ from perspective_camera import PerspectiveCamera
 import sprites.sprite_actions as actions
 from screen import Screen
 from road_grid import RoadGrid
-import asyncio
+import uasyncio as asyncio
 import utime
 
 from sprites.player_sprite import PlayerSprite
@@ -74,7 +73,7 @@ class SpriteMgrTestScreen(Screen):
         sprites.add_type(SPRITE_TYPE_PLAYER, "/img/bike_sprite.bmp", 5, 32, 22, 4, None)  # Assuming 8-bit color depth
         # sprites.add_type(SPRITE_TYPE_BARRIER_LEFT, "/img/road_barrier_yellow.bmp", -0.15, 24, 15, 4, None)
         # sprites.add_type(SPRITE_TYPE_BARRIER_RIGHT, "/img/road_barrier_yellow_inv.bmp", -0.15, 24, 15, 4, None)
-        sprites.add_type(SPRITE_TYPE_BARRIER_RED, "/img/road_barrier_red.bmp", barrier_speed, 22, 8, 4, None)
+        sprites.add_type(SPRITE_TYPE_BARRIER_RED, "/img/road_barrier_red.bmp", barrier_speed * 2, 22, 8, 4, None)
         sprites.add_type(SPRITE_TYPE_LASER_ORB, "/img/laser_orb.bmp", barrier_speed * 2, 16, 16, 4, None, 0x0000)
         # sprites.add_action(SPRITE_TYPE_LASER_ORB, actions.ground_laser)
 
@@ -94,15 +93,15 @@ class SpriteMgrTestScreen(Screen):
         half_lane_width = self.lane_width // 2
         start_x = -half_lane_width -(lane_width*2)
 
-        start = 3000
+        start = 2000
         every = -50
         for i in range(20):
             # rand_x = random.randrange(-30, 20)
             sprites.create(SPRITE_TYPE_BARRIER_RED, x=start_x, y=img_height, z=start + i*every)
             sprites.create(SPRITE_TYPE_BARRIER_RED, x=start_x+lane_width, y=img_height, z=start + i*every)
-            # sprites.create(SPRITE_TYPE_BARRIER_RED, x=start_x+lane_width*2, y=img_height, z=start + i*every)
-            sprites.create(SPRITE_TYPE_BARRIER_RED, x=start_x+lane_width*3, y=img_height, z=start + i*every)
-            sprites.create(SPRITE_TYPE_BARRIER_RED, x=start_x+lane_width*4, y=img_height, z=start + i*every)
+            # sprites.create(SPRITE_TYPE_LASER_ORB, x=start_x+lane_width*2, y=img_height, z=start + i*every)
+            sprites.create(SPRITE_TYPE_LASER_ORB, x=start_x+lane_width*3, y=img_height, z=start + i*every)
+            sprites.create(SPRITE_TYPE_LASER_ORB, x=start_x+lane_width*4, y=img_height, z=start + i*every)
 
         self.check_mem()
 

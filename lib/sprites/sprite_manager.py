@@ -1,15 +1,16 @@
+import uarray as array
 from micropython import const
 import micropython
 from ucollections import namedtuple
 from image_loader import ImageLoader
-from sprites.sprite_types import SpriteData, SpriteMetadata
+from sprites.sprite_types import create_sprite, SpriteMetadata
 import framebuf
 import math
 from ulab import numpy as np
 import utime
 from indexed_image import Image, create_image
 from profiler import Profiler as prof, timed
-
+from sprites.sprite_list import SpriteList
 
 class SpriteManager:
     POS_TYPE_FAR = const(0)
@@ -18,7 +19,7 @@ class SpriteManager:
     def __init__(self, display: framebuf.FrameBuffer, max_sprites, camera=None, lane_width=None):
         self.display = display
         self.max_sprites = max_sprites
-        self.active_sprites = []
+        self.active_sprites = SpriteList()
         self.sprite_images = {}  # Flyweight store for shared image data
         self.sprite_palettes = {}
         self.sprite_metadata = {}  # Store for sprite type metadata
@@ -63,21 +64,20 @@ class SpriteManager:
 
         if sprite_type not in self.sprite_images:
             self.sprite_images[sprite_type] = self.create_scaled_frames(metadata, sprite_type)
-        new_sprite = SpriteData(
+        new_sprite = create_sprite(
             sprite_type=sprite_type,
             x=x, y=y, z=z,
             speed=speed,
             visible=True, active=True,
             blink=False, blink_flip=1,
             pos_type=self.POS_TYPE_FAR,
-            event_chain=None,
             frame_width=metadata.width,
             frame_height=metadata.height,
             num_frames=metadata.num_frames,
             born_ms=utime.ticks_ms()
         )
 
-        self.active_sprites.append(new_sprite)
+        self.active_sprites.add(new_sprite)
         return len(self.active_sprites) - 1  # Return the index of the new sprite
 
     def create_scaled_frames(self, metadata, sprite_type):
@@ -158,6 +158,8 @@ class SpriteManager:
 
         old_z = sprite.z
         new_z = sprite.z + (sprite.speed * (elapsed / 1000))
+        new_z = int(new_z)
+
         if new_z == old_z:
             return False
 
@@ -165,11 +167,12 @@ class SpriteManager:
             """Past the near clipping plane"""
             sprite.active = False
             sprite.visible = False
+
             self.active_sprites.remove(sprite)
             return False
 
-        if new_z < self.camera.far and not sprite.visible:
-            sprite.visible = True
+        if new_z < self.camera.far and not sprite.active:
+            sprite.active
 
         draw_x, draw_y = self.pos(sprite)
         num_frames = sprite.num_frames
@@ -189,7 +192,7 @@ class SpriteManager:
     # @timed
     def show(self, sprite, display: framebuf.FrameBuffer):
         """Draw a single sprite on the display"""
-        if not sprite.visible:
+        if not sprite.active:
             return False
 
         if sprite.blink:

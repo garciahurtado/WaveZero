@@ -1,15 +1,13 @@
 import gc
-
 import utime
-
-import asyncio
+import uasyncio as asyncio
 
 from fps_counter import FpsCounter
 from sprites.sprite import Sprite
 import micropython
 
 # from ssd1331_pio import SSD1331PIO
-from double_buffer_driver import DoubleBufferDriver
+# from double_buffer_driver import DoubleBufferDriver
 
 class Screen:
     display = None
@@ -30,7 +28,7 @@ class Screen:
         self.sprites.append(sprite)
 
     async def refresh_display(self):
-        wait_s = 1/90
+        wait_s = 1/60
         try:
             while True:
                 self.do_refresh()

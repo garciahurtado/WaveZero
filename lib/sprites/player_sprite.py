@@ -1,4 +1,4 @@
-import asyncio
+import uasyncio as asyncio
 from sprites.spritesheet import Spritesheet
 
 class PlayerSprite(Spritesheet):

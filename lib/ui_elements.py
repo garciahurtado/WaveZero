@@ -8,7 +8,7 @@ from sprites.sprite_rect import SpriteRect
 from sprites.sprite import Sprite
 
 from anim.palette_rotate import PaletteRotate
-import asyncio
+import uasyncio as asyncio
 from color_util import FramebufferPalette
 import color_util as colors
 

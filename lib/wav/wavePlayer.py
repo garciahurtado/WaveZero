@@ -73,7 +73,7 @@ import uctypes
 from wav.myDMA import myDMA
 from wav.myPWM import myPWM
 from machine import Pin
-import asyncio
+import uasyncio as asyncio
 
 
 

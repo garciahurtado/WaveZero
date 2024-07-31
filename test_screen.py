@@ -5,7 +5,7 @@ import utime
 
 from screen import Screen
 
-import asyncio
+import uasyncio as asyncio
 import _thread
 import gc
 from micropython import const
