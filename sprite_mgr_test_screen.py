@@ -1,17 +1,20 @@
-import random
 import _thread
 
 from micropython import const
 
 from input import make_input_handler
 from perspective_camera import PerspectiveCamera
-from sprites.player_sprite import PlayerSprite
+# from sprites.player_sprite import PlayerSprite
+import sprites.sprite_actions as actions
 from screen import Screen
 from road_grid import RoadGrid
 import asyncio
 import utime
+
+from sprites.player_sprite import PlayerSprite
 from sprites.sprite_manager import SpriteManager
-import sprites.sprite_actions as actions
+from wav.test_wav import play_music
+import random
 
 SPRITE_TYPE_PLAYER = const(0)
 SPRITE_TYPE_BARRIER_LEFT = const(1)
@@ -19,9 +22,10 @@ SPRITE_TYPE_BARRIER_RIGHT = const(2)
 SPRITE_TYPE_BARRIER_RED = const(3)
 SPRITE_TYPE_LASER_ORB = const(4)
 
-from profiler import Profiler as prof, timed
+from profiler import Profiler as prof
 
-class GridTestScreen(Screen):
+
+class SpriteMgrTestScreen(Screen):
     ground_speed: int = const(-100)
     grid: RoadGrid = None
     camera: PerspectiveCamera
@@ -40,6 +44,10 @@ class GridTestScreen(Screen):
 
     def __init__(self, display, *args, **kwargs):
         super().__init__(display, *args, **kwargs)
+
+        self.check_mem()
+        # _thread.start_new_thread(self.start_music, [])
+
         self.init_camera()
         self.sprites = SpriteManager(display, 100, self.camera, self.lane_width)
         self.player = PlayerSprite(camera=self.camera)
@@ -64,11 +72,11 @@ class GridTestScreen(Screen):
 
         # Register sprite types
         sprites.add_type(SPRITE_TYPE_PLAYER, "/img/bike_sprite.bmp", 5, 32, 22, 4, None)  # Assuming 8-bit color depth
-        sprites.add_type(SPRITE_TYPE_BARRIER_LEFT, "/img/road_barrier_yellow.bmp", -0.15, 24, 15, 4, None)
-        sprites.add_type(SPRITE_TYPE_BARRIER_RIGHT, "/img/road_barrier_yellow_inv.bmp", -0.15, 24, 15, 4, None)
-        sprites.add_type(SPRITE_TYPE_BARRIER_RED, "/img/road_barrier_red.bmp", barrier_speed, 26, 8, 4, None)
+        # sprites.add_type(SPRITE_TYPE_BARRIER_LEFT, "/img/road_barrier_yellow.bmp", -0.15, 24, 15, 4, None)
+        # sprites.add_type(SPRITE_TYPE_BARRIER_RIGHT, "/img/road_barrier_yellow_inv.bmp", -0.15, 24, 15, 4, None)
+        # sprites.add_type(SPRITE_TYPE_BARRIER_RED, "/img/road_barrier_red.bmp", barrier_speed, 26, 8, 4, None)
         sprites.add_type(SPRITE_TYPE_LASER_ORB, "/img/laser_orb.bmp", barrier_speed * 2, 16, 16, 4, None, 0x0000)
-        sprites.add_action(SPRITE_TYPE_LASER_ORB, actions.ground_laser)
+        # sprites.add_action(SPRITE_TYPE_LASER_ORB, actions.ground_laser)
 
         # frame_width = 32,
         # frame_height = 22
@@ -83,9 +91,9 @@ class GridTestScreen(Screen):
         img_height = 8 # Needed because the screenspace Y is at the top, but 3D has Y at the bottom
 
         """ These numbers were derived by trial and error in order to match up the sprites perspective to the road grid"""
-        lane_width = self.lane_width + 2
+        lane_width = self.lane_width
         half_lane_width = self.lane_width // 2
-        start_x = -half_lane_width -(lane_width*2)
+        start_x = -half_lane_width -(lane_width*2) + 4
 
         #
         # every = -50
@@ -97,35 +105,46 @@ class GridTestScreen(Screen):
         #     sprites.create(SPRITE_TYPE_BARRIER_RED, x=start_x+lane_width*3, y=img_height, z=start + i*every)
         #     sprites.create(SPRITE_TYPE_BARRIER_RED, x=start_x+lane_width*4, y=img_height, z=start + i*every)
 
-        self.check_mem()
+        # self.check_mem()
 
         orb_height = 50
-        every = 50
-        start = 1000
-        for i in range(20):
-            start_z = start + i*every
-            sprites.create(SPRITE_TYPE_LASER_ORB, x=start_x + lane_width * 0, y=orb_height, z=start_z)
-            # sprites.create(SPRITE_TYPE_LASER_ORB, x=start_x + lane_width * 1, y=orb_height, z=start_z)
-            # sprites.create(SPRITE_TYPE_LASER_ORB, x=start_x + lane_width * 3, y=orb_height, z=start_z)
-            sprites.create(SPRITE_TYPE_LASER_ORB, x=start_x + lane_width * 4, y=orb_height, z=start_z)
-
-        self.check_mem()
-
-        # start = 3000
+        every = -100
+        start = 2000
+        #
         # for i in range(20):
-        #     rand_x = random.randrange(-30, 20)
-        #     sprites.create(SPRITE_TYPE_BARRIER_RED, x=-half_lane_width+rand_x, y=0, z=start + i*every)
-        #
-        #     sprites.create(SPRITE_TYPE_BARRIER_RED, x=-(lane_width*2)-lane_width, y=0, z=start + i*every)
-        #     sprites.create(SPRITE_TYPE_BARRIER_RED, x=-lane_width-lane_width, y=0, z=start + i*every)
-        #
-        #     sprites.create(SPRITE_TYPE_BARRIER_RED, x=lane_width-lane_width, y=0, z=start + i*every)
-        #     sprites.create(SPRITE_TYPE_BARRIER_RED, x=lane_width*2-lane_width, y=0, z=start + i*every)
+        #     start_z = start + i*every
+        #     sprites.create(SPRITE_TYPE_LASER_ORB, x=start_x + lane_width * 0, y=orb_height, z=start_z)
+        #     # sprites.create(SPRITE_TYPE_LASER_ORB, x=start_x + lane_width * 1, y=orb_height, z=start_z)
+        #     # sprites.create(SPRITE_TYPE_LASER_ORB, x=start_x + lane_width * 2, y=orb_height, z=start_z)
+        #     # sprites.create(SPRITE_TYPE_LASER_ORB, x=start_x + lane_width * 3, y=orb_height, z=start_z)
+        #     sprites.create(SPRITE_TYPE_LASER_ORB, x=start_x + lane_width * 4, y=orb_height, z=start_z)
+
+        start = 3000
+        # for i in range(5):
+        #     start_z = start + i*every
+        #     sprites.create(SPRITE_TYPE_LASER_ORB, x=start_x + lane_width * 0, y=orb_height, z=start_z)
+        #     sprites.create(SPRITE_TYPE_LASER_ORB, x=start_x + lane_width * 1, y=orb_height, z=start_z)
+        #     sprites.create(SPRITE_TYPE_LASER_ORB, x=start_x + lane_width * 2, y=orb_height, z=start_z)
+        #     sprites.create(SPRITE_TYPE_LASER_ORB, x=start_x + lane_width * 3, y=orb_height, z=start_z)
+        #     sprites.create(SPRITE_TYPE_LASER_ORB, x=start_x + lane_width * 4, y=orb_height, z=start_z)
+
+        # self.check_mem()
+
+        start = 3000
+        for i in range(20):
+            rand_x = random.randrange(-30, 20)
+            sprites.create(SPRITE_TYPE_BARRIER_RED, x=-half_lane_width+rand_x, y=0, z=start + i*every)
+
+            sprites.create(SPRITE_TYPE_BARRIER_RED, x=-(lane_width*2)-lane_width, y=0, z=start + i*every)
+            sprites.create(SPRITE_TYPE_BARRIER_RED, x=-lane_width-lane_width, y=0, z=start + i*every)
+
+            sprites.create(SPRITE_TYPE_BARRIER_RED, x=lane_width*2-lane_width, y=0, z=start + i*every)
 
         self.check_mem()
 
         """ Display Thread / 2nd core """
         # _thread.start_new_thread(self.start_display_loop, [])
+
         self.start_display_loop()
         self.input_task = make_input_handler(self.player)
         asyncio.run(self.start_main_loop())
@@ -142,7 +161,7 @@ class GridTestScreen(Screen):
         try:
             while True:
                 num_lanes = 5
-
+                #
                 self.camera.vp_x = round(self.player.bike_angle * num_lanes)
                 self.camera.cam_x = round(self.player.bike_angle * num_lanes)
 
@@ -176,6 +195,10 @@ class GridTestScreen(Screen):
 
         except asyncio.CancelledError:
             return False
+
+    def start_music(self):
+        loop = asyncio.get_event_loop()
+        loop.create_task( play_music() )
 
     def do_refresh(self):
         """ Overrides parent method """

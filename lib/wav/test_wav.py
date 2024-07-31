@@ -149,4 +149,15 @@ def test_wav():
             player.stop()
     print("wavePlayer terminated")
 
+async def play_music():
+    player = wavePlayer(leftPin=Pin(18, Pin.OUT))
+    wave_folder = "/sound/"
+    filename = wave_folder + "thunder_force_iv_01_8k.wav"
+
+    print(f"--- Playing sound file: {filename}")
+
+    await player.play(filename)
+
+    print("wavePlayer finished")
+
 

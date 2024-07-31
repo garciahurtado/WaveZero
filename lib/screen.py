@@ -16,7 +16,7 @@ class Screen:
     sprites: [Sprite]
     last_tick: int = 0
     last_gc: int = 0
-    gc_interval: int = 1000 # how often to call the garbage collector (ms)
+    gc_interval: int = 3000 # how often to call the garbage collector (ms)
     app: None # ref to ScreenApp
     profile_labels = {}
 
@@ -30,7 +30,7 @@ class Screen:
         self.sprites.append(sprite)
 
     async def refresh_display(self):
-        wait_s = 1/90
+        wait_s = 1/60
         try:
             while True:
                 self.do_refresh()

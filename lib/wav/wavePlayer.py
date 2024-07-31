@@ -73,6 +73,7 @@ import uctypes
 from wav.myDMA import myDMA
 from wav.myPWM import myPWM
 from machine import Pin
+import asyncio
 
 
 
@@ -176,14 +177,13 @@ class wavePlayer:
         self.dmaTimer = dmaTimer
 
 
-    def stop(self):
+    async def stop(self):
         self.dma0.abort()
         self.dma1.abort()
 
-    def play(self,filename):
+    async def play(self, filename):
         # open Audio file and get information
-
-        f = wave.open(filename,'rb')
+        f = wave.open(filename, 'rb')
 
         rate = f.getframerate()
         bytesDepth = f.getsampwidth()
@@ -195,81 +195,71 @@ class wavePlayer:
         nbFrame = 2048
         # adjust down if 1 channel (mono)
         if channels == 1:
-            nbFrame=1024
-        #number of 16bit audio chunks per Frame
-        nbData = nbFrame*2
+            nbFrame = 1024
+        # number of 16bit audio chunks per Frame
+        nbData = nbFrame * 2
+
         # Set DMA channel and timer rate
-        # the divider set the rate at 2Khz (125Mhz//62500)
-        # The multiplier  use the sample rate to adjust it correctly
         if rate == 44100:
-            self.dma0 = myDMA(self.dma0Channel,timer=self.dmaTimer,clock_MUL= 15, clock_DIV=42517)
+            self.dma0 = myDMA(self.dma0Channel, timer=self.dmaTimer, clock_MUL=15, clock_DIV=42517)
         else:
-            self.dma0 = myDMA(self.dma0Channel,timer=self.dmaTimer,clock_MUL= rate // 2000, clock_DIV=62500)
-        self.dma1 = myDMA(self.dma1Channel,timer=self.dmaTimer)  # don't need to set  timer clock
+            self.dma0 = myDMA(self.dma0Channel, timer=self.dmaTimer, clock_MUL=rate // 2000, clock_DIV=62500)
+        self.dma1 = myDMA(self.dma1Channel, timer=self.dmaTimer)  # don't need to set timer clock
 
-        #setup DMA   chain dma0 to dma1 and vice versa
-        self.dma0.setCtrl(src_inc=True, dst_inc=False,data_size=DMAunitSize,chainTo=self.dma1.channel)
-        self.dma1.setCtrl(src_inc=True, dst_inc=False,data_size=DMAunitSize,chainTo=self.dma0.channel)
+        # setup DMA chain dma0 to dma1 and vice versa
+        self.dma0.setCtrl(src_inc=True, dst_inc=False, data_size=DMAunitSize, chainTo=self.dma1.channel)
+        self.dma1.setCtrl(src_inc=True, dst_inc=False, data_size=DMAunitSize, chainTo=self.dma0.channel)
 
-        # need to alternate DMA buffer using a toggle flag
         toggle = True
-        # need to start first frame
         First = True
-        # loop until is done
         frameLeft = frameCount
 
-        while frameLeft>0:
-         # first DMA
+        while frameLeft > 0:
             if frameLeft < nbFrame:
                 nbFrame = frameLeft
-                nbData = nbFrame*2
+                nbData = nbFrame * 2
+
             if toggle:
                 t1 = f.readframes(nbFrame)
-#--- Duplicate mono audio samples to simulate stereo sound (on both channels)
-                if channels ==1:
-                    t3 = bytearray(4096)
-                    interleavebytes(uctypes.addressof(t1),uctypes.addressof(t3),nbFrame)
-                    t1=t3
-#--- make t1 stereo data to PWM compatible
-                convert2PWM(uctypes.addressof(t1), nbData,self.pwmBits)
-                self.dma1.move(uctypes.addressof(t1),self.leftPWM.PWM_CC,nbFrame*DMAunitSize)
-                # check if previous DMA is done
-                while self.dma0.isBusy():
-                     pass
-                # start DMA.
-                # Since they are chained we need to start the first DMA
-                if First:
-                  self.dma1.start()
-                  First = False
-            else:
-                t0 = f.readframes(nbFrame)
-#--- Duplicate mono audio samples to simulate stereo sound (on both channels)
                 if channels == 1:
                     t3 = bytearray(4096)
-                    interleavebytes(uctypes.addressof(t0),uctypes.addressof(t3),nbFrame)
-                    t0=t3
-#--- make t0 stereo data to PWM compatible
-                convert2PWM(uctypes.addressof(t0), nbData,self.pwmBits)
-                self.dma0.move(uctypes.addressof(t0),self.leftPWM.PWM_CC,nbFrame*DMAunitSize)
-                # check if previous DMA is done
+                    interleavebytes(uctypes.addressof(t1), uctypes.addressof(t3), nbFrame)
+                    t1 = t3
+                convert2PWM(uctypes.addressof(t1), nbData, self.pwmBits)
+                self.dma1.move(uctypes.addressof(t1), self.leftPWM.PWM_CC, nbFrame * DMAunitSize)
+                while self.dma0.isBusy():
+                    await asyncio.sleep(0)  # Yield control
+                if First:
+                    self.dma1.start()
+                    First = False
+            else:
+                t0 = f.readframes(nbFrame)
+                if channels == 1:
+                    t3 = bytearray(4096)
+                    interleavebytes(uctypes.addressof(t0), uctypes.addressof(t3), nbFrame)
+                    t0 = t3
+                convert2PWM(uctypes.addressof(t0), nbData, self.pwmBits)
+                self.dma0.move(uctypes.addressof(t0), self.leftPWM.PWM_CC, nbFrame * DMAunitSize)
                 while self.dma1.isBusy():
-                     pass
+                    await asyncio.sleep(0)  # Yield control
+
             toggle = not toggle
             frameLeft -= nbFrame
+            await asyncio.sleep(0)  # Yield control after each iteration
 
         if toggle:
             self.dma1.pause()
             while self.dma0.isBusy():
-                pass
+                await asyncio.sleep(0)  # Yield control
             self.dma0.pause()
         else:
             self.dma0.pause()
             while self.dma1.isBusy():
-                pass
+                await asyncio.sleep(0)  # Yield control
             self.dma1.pause()
-        f.close()
-        self.stop()
 
+        f.close()
+        await self.stop()
 
 if __name__ == "__main__":
 

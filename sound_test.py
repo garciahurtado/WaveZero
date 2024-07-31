@@ -1,10 +1,10 @@
 # SPDX-FileCopyrightText: 2018 Kattni Rembor for Adafruit Industries
 #
 # SPDX-License-Identifier: MIT
+#
+# DEPRECATED
 
 """CircuitPython Essentials Audio Out WAV example"""
-import time
-import digitalio
 from audiocore import WaveFile
 from audiopwmio import PWMAudioOut as AudioOut
 from machine import Pin

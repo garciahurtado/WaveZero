@@ -45,7 +45,7 @@ class SpriteGroup(ScaledSprite):
         super().update()
 
         # Check whether we need to reset
-        if (self.z + self.z_length) < self.camera.cam_z
+        if (self.z + self.z_length) < self.camera.cam_z:
             self.reset()
 
         for i in range(self.num_elements):
@@ -105,7 +105,7 @@ class SpriteEnemyGroup(SpriteGroup):
 
     def update(self):
         # Check whether we need to reset Z to max Z
-        if self.z < self.camera.cam_z
+        if self.z < self.camera.cam_z:
             self.reset()
 
         super().update()

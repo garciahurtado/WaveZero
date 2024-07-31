@@ -60,7 +60,7 @@ class SpriteData:
         self.born_ms = born_ms
 
 
-# Define metadata structure, these values should not change across sprites of this class
+    # Define metadata structure, these values should not change across sprites of this class
 SpriteMetadata = namedtuple('SpriteMetadata', [
     'image_path', 'default_speed', 'width', 'height', 'color_depth', 'palette', 'alpha', 'frames', 'num_frames'
 ])

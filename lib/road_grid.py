@@ -100,6 +100,9 @@ class RoadGrid():
         self.x_start_top = 0
         self.x_start_bottom = 0
 
+        horiz_y_offset = 6 # Manual adjustment for the start.y of the horizontal lines
+        self.horiz_y = self.horiz_y + horiz_y_offset
+
         self.speed = -100
         self.speed_ms = self.speed / 1000
         self.ground_height = camera.screen_height - self.horiz_y
@@ -113,8 +116,8 @@ class RoadGrid():
         self.create_horiz_lines(self.num_horiz_lines)
         gc.collect()
 
-        horiz_y_offset = 0  # Manual adjustment for the start.y of the vertical lines
-        self.start_y = self.horiz_y + horiz_y_offset
+        vert_y_offset = 0  # Manual adjustment for the start.y of the vertical lines
+        self.start_y = self.horiz_y + vert_y_offset
         self.create_vert_points()
 
     def init_palettes(self):
@@ -181,8 +184,8 @@ class RoadGrid():
 
     def show(self):
         self.show_horiz_lines()
-        self.show_vert_lines()
         self.draw_horizon()
+        self.show_vert_lines()
 
         self.last_tick = utime.ticks_ms()
 
@@ -211,9 +214,6 @@ class RoadGrid():
 
         self.x_start_top = int(-half_top + (lane_width_far/2))
         self.x_start_bottom = int(-half_bottom + (lane_width_near/2))
-
-        horiz_y_offset = 4 # Manual adjustment for the start.y of the vertical lines
-        self.horiz_y = self.horiz_y + horiz_y_offset
 
         # points_start = np.empty([num_vert_lines], dtype=np.int8)
         points_start = []
@@ -313,9 +313,9 @@ class RoadGrid():
 
             if index in bright_lines:
                 if index == bright_lines[0]:
-                    self.display.line(start_x, self.start_y, end_x, end_y, bright_color)
+                    self.display.line(start_x-1, self.start_y, end_x-1, end_y, bright_color)
                 else:
-                    self.display.line(start_x, self.start_y, end_x, end_y, bright_color)
+                    self.display.line(start_x+1, self.start_y, end_x+1, end_y, bright_color)
 
             index += 1
 

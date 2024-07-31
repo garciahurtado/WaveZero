@@ -1,10 +1,12 @@
 from micropython import const
+import micropython
 from ucollections import namedtuple
 from image_loader import ImageLoader
 from sprites.sprite_types import SpriteData, SpriteMetadata
 import framebuf
 import math
 from ulab import numpy as np
+import utime
 from indexed_image import Image, create_image
 from profiler import Profiler as prof, timed
 
@@ -22,13 +24,14 @@ class SpriteManager:
         self.sprite_metadata = {}  # Store for sprite type metadata
         self.sprite_actions = {}  # Store for sprite type metadata
         self.lane_width = lane_width
-        self.half_scale_one_dist = 0  # This should be set based on your camera setup
+        self.half_scale_one_dist = int(0)  # This should be set based on your camera setup
+        self.add_frames = 0 # Number of upscaled frames to add
 
         if camera:
             self.set_camera(camera)
 
     def add_type(self, sprite_type, image_path, default_speed, width, height, color_depth, palette, alpha=None):
-        num_frames = max(width, height)
+        num_frames = max(width, height) + self.add_frames
 
         self.sprite_metadata[sprite_type] = SpriteMetadata(
             image_path=image_path,
@@ -41,9 +44,6 @@ class SpriteManager:
             frames=[],
             num_frames=num_frames
         )
-
-        width = width,
-        height = height,
 
     def add_action(self, sprite_type, func):
         self.sprite_actions[sprite_type] = func
@@ -62,9 +62,7 @@ class SpriteManager:
             speed = metadata.default_speed
 
         if sprite_type not in self.sprite_images:
-            self.sprite_images[sprite_type] = self.create_scaled_frames(metadata, sprite_type,
-                                                                        frame_width=metadata.width,
-                                                                        frame_height=metadata.height)
+            self.sprite_images[sprite_type] = self.create_scaled_frames(metadata, sprite_type)
         new_sprite = SpriteData(
             sprite_type=sprite_type,
             x=x, y=y, z=z,
@@ -76,20 +74,23 @@ class SpriteManager:
             frame_width=metadata.width,
             frame_height=metadata.height,
             num_frames=metadata.num_frames,
+            born_ms=utime.ticks_ms()
         )
 
         self.active_sprites.append(new_sprite)
         return len(self.active_sprites) - 1  # Return the index of the new sprite
 
-    def create_scaled_frames(self, metadata, sprite_type, frame_width=0, frame_height=0):
+    def create_scaled_frames(self, metadata, sprite_type):
         orig_img = ImageLoader.load_image(metadata.image_path)
         frames = []
-        num_frames = max(metadata.width, metadata.height)
+        num_frames = metadata.num_frames
 
         for f in range(num_frames - 1):
-            scale = (f + 0.00001) / num_frames  # Avoid division by zero
+            scale = (f + 0.00001) / (num_frames - 1)  # Avoid division by zero
             new_width = math.ceil(metadata.width * scale)
             new_height = math.ceil(metadata.height * scale)
+
+            # print(f"Scale is {scale} / w:{new_width} h:{new_height} ")
 
             if metadata.color_depth == 8:
                 new_frame = self.scale_frame_8bit(orig_img, new_width, new_height, scale)
@@ -133,8 +134,8 @@ class SpriteManager:
 
         for y in range(new_height):
             for x in range(0, new_width, 2):
-                x_1 = min(int(x / scale), orig_img.width - 1)
-                y_1 = min(int(y / scale), orig_img.height - 1)
+                x_1 = int(x / scale)
+                y_1 = int(y / scale)
                 color1 = orig_img.pixels.pixel(x_1, y_1)
                 color2 = orig_img.pixels.pixel(min(x_1 + 1, orig_img.width - 1), y_1)
                 new_buffer.pixel(x, y, color1)
@@ -146,7 +147,7 @@ class SpriteManager:
     def set_camera(self, camera):
         self.camera = camera
         scale_adj = 10  # Increase this value to see bigger sprites when closer to the screen
-        self.half_scale_one_dist = abs(self.camera.cam_z - scale_adj) / 2
+        self.half_scale_one_dist = int(abs(self.camera.cam_z - scale_adj) / 2)
 
     # @timed
     def update(self, sprite, elapsed):
@@ -160,13 +161,17 @@ class SpriteManager:
         if new_z == old_z:
             return False
 
-        if new_z < self.camera.near:  # Using constants from Sprite3D
+        if new_z < self.camera.near:
+            """Past the near clipping plane"""
             sprite.active = False
             sprite.visible = False
+            self.active_sprites.remove(sprite)
             return False
 
         draw_x, draw_y = self.pos(sprite)
-        frame_idx = self.get_frame_idx(sprite)
+        num_frames = sprite.num_frames
+        real_z = sprite.z
+        frame_idx = self.get_frame_idx(real_z, num_frames)
 
         sprite.z = new_z
         sprite.draw_x = draw_x
@@ -252,31 +257,32 @@ class SpriteManager:
             self.update_frame(sprite)
 
     def update_frame(self, sprite):
-        frame_idx = self.get_frame_idx(sprite)
+        frame_idx = self.get_frame_idx(sprite.z, sprite.num_frames)
         sprite.current_frame = frame_idx
 
     # @timed
-    def get_frame_idx(self, sprite):
+    @micropython.native
+    def get_frame_idx(self, z, num_frames):
         """ Given the Z coordinate (depth), find the scaled frame number which best represents the
         size of the object at that distance """
 
-        num_frames = sprite.num_frames
-        real_z = sprite.z
 
-        rate = (real_z - self.camera.cam_z) / 2
-        if rate == 0:
+        rate = (z - self.camera.cam_z) / 2
+        if abs(rate) < 0.0001:  # Use a small threshold instead of exactly 0
             rate = 0.0001  # Avoid divide by zero
 
         scale = abs(self.half_scale_one_dist / rate)
+        if scale > 1:
+            scale = 1
+
         frame_idx = int(scale * num_frames)
 
-        if frame_idx > num_frames - 1:
-            frame_idx = num_frames - 1
-
-        if frame_idx < 0:
-            frame_idx = 0
-
-        return frame_idx
+        if frame_idx >= num_frames:
+            return num_frames - 1
+        elif frame_idx < 0:
+            return 0
+        else:
+            return frame_idx
 
     # @timed
     def show_all(self, display: framebuf.FrameBuffer):
