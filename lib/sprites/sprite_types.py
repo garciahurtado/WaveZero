@@ -2,11 +2,6 @@ from micropython import const
 from ucollections import namedtuple
 import uctypes
 
-# SpriteData = namedtuple('SpriteData', [
-#     'x', 'y', 'z', 'speed', 'visible', 'active', 'blink', 'blink_flip',
-#     'pos_type', 'event_chain', 'filename', 'frame_width', 'frame_height',
-#     'current_frame', 'lane_num', 'draw_x', 'draw_y', 'frames', 'num_frames'
-# ])
 POS_TYPE_FAR = const(0)
 POS_TYPE_NEAR = const(1)
 
@@ -15,24 +10,24 @@ SPRITE_DATA_LAYOUT = {
     "x": uctypes.INT16 | 2,
     "y": uctypes.INT16 | 4,
     "z": uctypes.INT16 | 6,
-    "speed": uctypes.INT16 | 8,
-    "visible": uctypes.INT8 | 10,
-    "active": uctypes.INT8 | 11,
-    "blink": uctypes.INT8 | 12,
-    "blink_flip": uctypes.INT8 | 13,
-    "pos_type": uctypes.UINT8 | 14,
-    "frame_width": uctypes.UINT8 | 15,
-    "frame_height": uctypes.UINT8 | 16,
-    "current_frame": uctypes.UINT8 | 17,
-    "lane_num": uctypes.UINT8 | 18,
-    "draw_x": uctypes.UINT8 | 19,
-    "draw_y": uctypes.UINT8 | 20,
-    "num_frames": uctypes.UINT8 | 21,
+    "speed": uctypes.FLOAT32 | 8,
+    "visible": uctypes.UINT8 | 12,
+    "active": uctypes.UINT8 | 13,
+    "blink": uctypes.UINT8 | 14,
+    "blink_flip": uctypes.UINT8 | 15,
+    "pos_type": uctypes.UINT8 | 16,
+    "frame_width": uctypes.UINT8 | 17,
+    "frame_height": uctypes.UINT8 | 18,
+    "current_frame": uctypes.UINT8 | 19,
+    "lane_num": uctypes.UINT8 | 20,
+    "draw_x": uctypes.INT8 | 21,
+    "draw_y": uctypes.INT8 | 22,
+    "num_frames": uctypes.UINT8 | 23,
     "born_ms": uctypes.UINT32 | 24,
 }
 
 def create_sprite(
-    sprite_type,
+    sprite_type=0,
     x=0,
     y=0,
     z=0,
@@ -51,7 +46,7 @@ def create_sprite(
     num_frames=0,
     born_ms=0
 ):
-    mem = bytearray(28)  # Adjusted size for the new layout
+    mem = bytearray(28)  # Adjusted size for the byte layout
     sprite = uctypes.struct(uctypes.addressof(mem), SPRITE_DATA_LAYOUT)
 
     sprite.sprite_type = sprite_type
@@ -77,6 +72,21 @@ def create_sprite(
 
 
 # Define metadata structure, these values should not change across sprites of this class
-SpriteMetadata = namedtuple('SpriteMetadata', [
-    'image_path', 'default_speed', 'width', 'height', 'color_depth', 'palette', 'alpha', 'frames', 'num_frames'
-])
+class SpriteMetadata:
+    image_path = None
+    speed: int = 0
+    width:int = 0
+    height: int = 0
+    color_depth: int = 0
+    palette = None
+    alpha: int = 0
+    frames = None
+    num_frames: int = 0
+
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+            else:
+                raise AttributeError(f"Object does not have property named '{key}'")
+

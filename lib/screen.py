@@ -1,3 +1,4 @@
+import _thread
 import gc
 import utime
 import uasyncio as asyncio
@@ -28,7 +29,7 @@ class Screen:
         self.sprites.append(sprite)
 
     async def refresh_display(self):
-        wait_s = 1/60
+        wait_s = 1/90
         try:
             while True:
                 self.do_refresh()

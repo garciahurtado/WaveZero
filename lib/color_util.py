@@ -1,5 +1,3 @@
-from framebuffer_palette import FramebufferPalette
-
 FLOAT_ERROR = 0.0000005
 RGB565 = 1
 BGR565 = 2

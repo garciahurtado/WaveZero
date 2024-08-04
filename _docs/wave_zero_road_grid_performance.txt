@@ -101,7 +101,15 @@ to_2d.1                276      0.12           33
 grid.show()            137      27             3.7e+03
 update_vert_lines()    137      6.5            8.9e+02
 to_2d.2                276      0.089          25
-   
 
 
+----
+
+Sprite optimiz.
+
+Start: 
+
+19-21 fps   
+
+12 sprites
 

@@ -1,53 +1,66 @@
-from sprites.sprite_types import SpriteData, SpriteMetadata
+import utime
+from uarray import array
+from sprites.sprite_types import create_sprite
 
 class SpritePool:
-    def __init__(self, pool_size, sprite_types):
+    pool = []
+
+    def __init__(self, pool_size):
         self.pool_size = pool_size
-        self.sprite_types = sprite_types
-        self.pool = [LightSprite() for _ in range(pool_size)]
-        self.active_sprites = []  # New array to store active sprites
-        self.sprite_images = {}  # Flyweight store for shared image data
+        self.sprites = [create_sprite() for _ in range(pool_size)]
+        self.free_indices = array('H', range(pool_size))  # Unsigned short array for indices
+        self.free_count = pool_size
+        self.active_indices = array('H', [0] * pool_size)
+        self.active_count = 0
 
-    def create(self, sprite_type, x, y, z, speed):
-        if len(self.active_sprites) >= self.pool_size:
-            return None  # Pool is full
+    def create(self):
+        new_sprite = create_sprite()
+        self.pool.append(new_sprite)
+        return new_sprite
 
-        for sprite in self.pool:
-            if not sprite.active:
-                sprite.active = True
-                sprite.x = x
-                sprite.y = y
-                sprite.z = z
-                sprite.speed = speed
-                sprite.type = sprite_type
-                sprite.frame = 0
-                self.active_sprites.append(sprite)
-                return sprite
 
-        return None  # This should never happen if active_count is correct
+    def get(self, sprite_type):
+        """Get the first sprite available from the pool and return it"""
+        if self.free_count == 0:
+            raise RuntimeError("Sprite pool is empty. Consider increasing pool size.")
+
+        self.free_count -= 1
+        index = self.free_indices[self.free_count]
+        sprite = self.sprites[index]
+
+        sprite.sprite_type = sprite_type
+        sprite.current_frame = 0
+        sprite.born_ms = utime.ticks_ms() # reset creation timestamp
+
+        sprite.active = True
+        sprite.visible = True
+
+        self.active_indices[self.active_count] = index
+        self.active_count += 1
+
+        return sprite, index
 
     def release(self, sprite):
         if sprite.active:
             sprite.active = False
-            self.active_sprites.remove(sprite)
+            sprite.visible = False
 
-    def update(self, sprite, elapsed):
-        if not sprite.active:
-            return False
+            # Find and remove the sprite from active_indices
+            for i in range(self.active_count):
+                if self.sprites[self.active_indices[i]] is sprite:
+                    self.active_count -= 1
+                    self.active_indices[i] = self.active_indices[self.active_count]
+                    break
 
-        sprite.z += sprite.speed * elapsed
+            # Add the index back to free_indices
+            self.free_indices[self.free_count] = self.sprites.index(sprite)
+            self.free_count += 1
 
-        if sprite.z > 4000 or sprite.z < -40:  # Using constants from Sprite3D
-            self.release(sprite)
-            return False
+    @property
+    def active_sprites(self):
+        """Return a generator of active sprites"""
+        return (self.sprites[i] for i in self.active_indices[:self.active_count])
 
-        sprite.frame = self.get_frame_idx(sprite)
-        return True
-
-    def get_frame_idx(self, sprite):
-        # Simplified frame index calculation
-        # In a real implementation, this would depend on the sprite's z position
-        return (sprite.frame + 1) % len(self.sprite_images[sprite.type])
-
-    def load_sprite_images(self, sprite_type, images):
-        self.sprite_images[sprite_type] = images
+    def __len__(self):
+        """Return the number of active sprites"""
+        return self.active_count

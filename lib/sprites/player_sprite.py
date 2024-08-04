@@ -12,6 +12,7 @@ class PlayerSprite(Spritesheet):
             frame_width=32,
             frame_height=22
             )
+
         self.x = 32
         self.y = 42
         self.set_alpha(0)

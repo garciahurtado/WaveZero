@@ -19,7 +19,7 @@ class PerspectiveCamera():
 
         # Near / far clipping planes
         self.near = -4
-        self.far = 1000  # past this point all sprites are considered to be in the horizon line
+        self.far = 2000  # past this point all sprites are considered to be in the horizon line
 
         self.cam_x = pos_x
         self.cam_y = pos_y
@@ -32,8 +32,12 @@ class PerspectiveCamera():
         self.vp_x = vp_x
         self.vp_y = vp_y
         self.focal_length = focal_length  # Distance from the camera to the projection plane in pixels
+
+        # PreCalculate some values based on constants that will not change
         self.fov_y = self.calculate_fov(focal_length)
         self.fov_x = self.fov_y * self.aspect_ratio
+        self.y_offset = self.screen_height - self.half_height - vp_y
+        self.vp_factor = self.vp_x / (self.screen_height - self.vp_y)
 
 
         self.min_z = pos_z - 80
@@ -76,40 +80,67 @@ class PerspectiveCamera():
         Based on:
         https://forum.gamemaker.io/index.php?threads/basic-pseudo-3d-in-gamemaker.105242/
         """
+        half_width = self.half_width
+        half_height = self.half_width
+        focal_length = self.focal_length
+
+        #prof.start_profile('cam.pos_assign')
         cam_x = self.cam_x
         cam_y = self.cam_y
         cam_z = self.cam_z
+        #prof.end_profile()
 
+        #prof.start_profile('cam.vp_assign')
         vp_x = self.vp_x
         vp_y = self.vp_y
         screen_height = self.screen_height
+        #prof.end_profile()
+
 
         # Adjust for camera position
+        #prof.start_profile('cam.pos_adjust')
         x = x - cam_x
         y = y - cam_y
         z = z - cam_z
+        #prof.end_profile()
 
+        #prof.start_profile('cam.set_z_0')
         if z == 0:
             z = 0.000001 # avoid division by zero
+        #prof.end_profile()
 
+
+        #prof.start_profile('cam.apply_persp_proj')
         # Apply perspective projection
-        screen_x = (x * self.focal_length) / z
-        screen_y = (y * self.focal_length) / z
+        screen_x = (x * focal_length) / z
+        screen_y = (y * focal_length) / z
+        #prof.end_profile()
 
+        #prof.start_profile('cam.apply_asp_ratio')
         # Apply aspect ratio correction
-        screen_x *= self.aspect_ratio
+        screen_x = screen_x * self.aspect_ratio
+        #prof.end_profile()
 
+
+        #prof.start_profile('cam.convert_to_screen')
         # Convert to screen coordinates
-        screen_x = screen_x + self.half_width
-        screen_y = screen_height - (screen_y + self.half_height) - vp_y
+        screen_x = screen_x + half_width
+        screen_y = self.y_offset - screen_y
 
+        #prof.end_profile()
+
+
+        #prof.start_profile('cam.apply_vp')
         # Apply vanishing point adjustment
         y_factor = (screen_y - vp_y) / (screen_height - vp_y)
         screen_x = screen_x - (vp_x * y_factor)
 
+        #prof.end_profile()
+
+
         # print(f"x/y : {screen_x} {screen_y}")
 
-        return round(screen_x), round(screen_y)
+        return int(screen_x), int(screen_y)
 
     def set_camera_position(self, x, y, z):
         self.camera_x = x

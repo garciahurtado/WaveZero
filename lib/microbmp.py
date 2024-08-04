@@ -59,6 +59,7 @@ import framebuf
 from micropython import const
 
 import color_util as colors
+from framebuffer_palette import FramebufferPalette
 
 # Project Version
 __version__ = const("0.3.0")
@@ -385,7 +386,7 @@ class MicroBMP(object):
             # self.palette = [None for i in range(self.num_colors)]
 
             self.palette_bytes = bytearray(self.num_colors*2)
-            self.palette = colors.FramebufferPalette(self.palette_bytes)
+            self.palette = FramebufferPalette(self.palette_bytes)
 
             for color_idx in range(self.num_colors):
                 data = bf_io.read(4)

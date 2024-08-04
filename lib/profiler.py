@@ -1,18 +1,28 @@
 import utime
+from ucollections import OrderedDict
 
 
 class Profiler():
-    profile_labels = {}
+    profile_labels = OrderedDict()
 
     @staticmethod
     def start_profile(label):
+        print(f"Start {label}")
         if label not in Profiler.profile_labels.keys():
             Profiler.profile_labels[label] = [0, 0, 0]  # num calls / start usecs / total time
 
         Profiler.profile_labels[label][1] = utime.ticks_us()  # record the start time
 
     @staticmethod
-    def end_profile(label):
+    def end_profile(label=None):
+        """Use the last label used in start_profile"""
+        if not label:
+            labels = Profiler.profile_labels.keys()
+            labels = list(labels)
+            last = len(labels) - 1
+            label = labels[last]
+            print(f"Assigning label {label}")
+
         if label not in Profiler.profile_labels.keys():
             raise f"Profiling Label '{label}' not found"
 
@@ -38,9 +48,9 @@ class Profiler():
 
     @staticmethod
     def dump_profile():
-        print()
-        print(f"{'func': <32} {'runs': <8} {'avg ms': <14} {'total ms': >20}")
-        print("-------------------------------------------------------------------------------")
+        print("\n")
+        print(f"{'func': <32} {'runs': <8} {'avg ms': <14} {'total ms': >20} ")
+        print("-------------------------------------------------------------------------------\n")
         for label, data in Profiler.profile_labels.items():
             num_runs = data[0]
             total_time = data[2]
@@ -50,6 +60,8 @@ class Profiler():
             total_time_ms = total_time / 1000
 
             print(f"{label: <32} {num_runs: <8} {avg_time_ms: <14.2} {total_time_ms: >20.6}")
+
+        print("\n")
 
 def timed(func, *args, **kwargs):
     parts = str(func).split(' ')
