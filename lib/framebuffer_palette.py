@@ -14,7 +14,10 @@ class FramebufferPalette(framebuf.FrameBuffer):
     BGR565 = 1
     color_mode = BGR565
 
-    def __init__(self, palette):
+    def __init__(self, palette, color_mode=None):
+        if color_mode:
+            self.color_mode = color_mode
+
         self.index_offset = 0
         set_colors = []
 
@@ -57,7 +60,9 @@ class FramebufferPalette(framebuf.FrameBuffer):
         return new_palette
 
     def set_rgb(self, index, color):
-        if self.color_mode == self.BGR565:
+        if isinstance(color, int):
+            pass
+        elif self.color_mode == self.BGR565:
             color = colors.rgb_to_565([color[2], color[1], color[0]])
         else:
             color = colors.rgb_to_565([color[0], color[1], color[2]])
@@ -73,10 +78,10 @@ class FramebufferPalette(framebuf.FrameBuffer):
 
     def set_bytes(self, index, color):
         # Convert the color value to bytes
-        # color_bytes = color.to_bytes(2, 'big')
-        #
-        # # Convert the flipped bytes back to an integer
-        # color = int.from_bytes(color_bytes, 'big')
+        color_bytes = color.to_bytes(2, 'big')
+
+        # Convert the flipped bytes back to an integer
+        color = int.from_bytes(color_bytes, 'big')
 
         # Set the color in the underlying data structure
         self.pixel(index, 0, color)

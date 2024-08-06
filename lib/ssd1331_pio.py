@@ -296,7 +296,7 @@ class SSD1331PIO():
     def fill(self, color):
         return self.write_framebuf.fill(color)
 
-    def blit(self, pixels, x, y, alpha_idx, palette):
+    def blit(self, pixels, x, y, alpha_idx=-1, palette=None):
         return self.write_framebuf.blit(pixels, x, y, alpha_idx, palette)
 
     def rect(self, x, y, width, height, color, fill=None):

@@ -1,12 +1,9 @@
 import gc
 import utime
 from micropython import const
-import struct
-from ulab import numpy as np
 
 import color_util as colors
-from framebuffer_palette import FramebufferPalette
-from profiler import Profiler as prof, timed
+from framebuffer_palette import FramebufferPalette as fp
 
 MIDDLE_CYAN = 0x217eff
 MIDDLE_BLUE = 0x008097
@@ -82,6 +79,7 @@ class RoadGrid():
         self.num_vert_lines = 16
         self.vert_points = []
         self.display = display
+        self.paused = False
 
         self.camera = camera
         self.horiz_y = camera.vp['y']
@@ -130,7 +128,7 @@ class RoadGrid():
             new_col = list(colors.hex_to_rgb(hex_color))
             new_palette.append(new_col)
 
-        tmp_palette = FramebufferPalette(new_palette)
+        tmp_palette = fp(new_palette)
 
         color_list = []
         """ Make an look up table to quickly reference colors by Y coordinate"""
@@ -144,7 +142,7 @@ class RoadGrid():
 
         """ Make static horizon palette """
         self.check_mem()
-        tmp_palette = FramebufferPalette(len(self.horizon_palette))
+        tmp_palette = fp(len(self.horizon_palette))
         color_list = []
 
         for i, hex_color in enumerate(self.horizon_palette):
@@ -162,7 +160,7 @@ class RoadGrid():
         for i, hex_color in enumerate(self.vert_palette):
             new_palette.append(colors.hex_to_rgb(hex_color))
 
-        vert_palette = FramebufferPalette(new_palette)
+        vert_palette = fp(new_palette)
         vert_palette_2 = vert_palette.mirror()
 
         # Concatenate the two mirrored palettes into one
@@ -172,7 +170,7 @@ class RoadGrid():
         for idx in range(final_palette.num_colors):
             tmp_palette.append(final_palette.get_bytes(idx, False))
 
-        self.bright_color = colors.hex_to_565(0x00ffff, final_palette.color_mode)
+        self.bright_color = colors.hex_to_565(0x00ffff, format=colors.RGB565)
 
         # Simplify palette to an array of rgb565 colors, for performance
         self.vert_palette = tmp_palette
@@ -245,7 +243,8 @@ class RoadGrid():
             if not my_line['z']:
                 my_line['z'] = 0
 
-            my_line['z'] = my_line['z'] + (self.speed_ms * elapsed)
+            if not self.paused:
+                my_line['z'] = my_line['z'] + (self.speed_ms * elapsed)
 
             if my_line['z'] > self.far_z:
                 self.far_z = my_line['z']
@@ -339,6 +338,9 @@ class RoadGrid():
                 start_y = self.horiz_y + horizon_offset + (self.horiz_palette_len - last_few) * 2 + (
                             i - (self.horiz_palette_len - last_few))
                 self.display.hline(0, start_y, self.display_width, color)
+
+    def stop(self):
+        self.paused = True
 
     def check_mem(self):
         print(f"Free memory:  {gc.mem_free():,} bytes")

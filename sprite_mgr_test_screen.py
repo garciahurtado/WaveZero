@@ -14,20 +14,20 @@ from sprites.sprite_manager import SpriteManager
 # from wav.test_wav import play_music
 import random
 
-SPRITE_TYPE_PLAYER = const(0)
-SPRITE_TYPE_BARRIER_LEFT = const(1)
-SPRITE_TYPE_BARRIER_RIGHT = const(2)
-SPRITE_TYPE_BARRIER_RED = const(3)
-SPRITE_TYPE_LASER_ORB = const(4)
-SPRITE_TYPE_LASER_WALL = const(5)
-SPRITE_TYPE_LASER_WALL_POST = const(6)
-SPRITE_TYPE_WHITE_DOT = const(7)
+SPRITE_PLAYER = const(0)
+SPRITE_BARRIER_LEFT = const(1)
+SPRITE_BARRIER_RIGHT = const(2)
+SPRITE_BARRIER_RED = const(3)
+SPRITE_LASER_ORB = const(4)
+SPRITE_LASER_WALL = const(5)
+SPRITE_LASER_WALL_POST = const(6)
+SPRITE_WHITE_DOT = const(7)
 
 from profiler import Profiler as prof
 
 
 class SpriteMgrTestScreen(Screen):
-    ground_speed: int = const(-100)
+    ground_speed: int = const(-200)
     grid: RoadGrid = None
     camera: PerspectiveCamera
     sprites: None
@@ -44,6 +44,8 @@ class SpriteMgrTestScreen(Screen):
     crash_y_start = const(48)  # Screen start Y of Sprites which will collide with the player
     crash_y_end = const(62)  # Screen end Y
     death_anim = None
+    paused = False
+    fx_callback = None
 
 
     def __init__(self, display, *args, **kwargs):
@@ -56,7 +58,7 @@ class SpriteMgrTestScreen(Screen):
         self.sprites = SpriteManager(display, 100, self.camera, self.lane_width)
 
         self.player = PlayerSprite(camera=self.camera)
-        self.sprites.death_anim.set_player(self.player)
+        # self.sprites.death_anim.set_player(self.player)
         self.display.fps = self.fps
 
 
@@ -77,14 +79,14 @@ class SpriteMgrTestScreen(Screen):
         self.check_mem()
 
         # Register sprite types
-        sprites.add_type(SPRITE_TYPE_PLAYER, "/img/bike_sprite.bmp", 5, 32, 22, 4, None)  # Assuming 8-bit color depth
+        sprites.add_type(SPRITE_PLAYER, "/img/bike_sprite.bmp", 5, 32, 22, 4, None)  # Assuming 8-bit color depth
         # sprites.add_type(SPRITE_TYPE_BARRIER_LEFT, "/img/road_barrier_yellow.bmp", -0.15, 24, 15, 4, None)
         # sprites.add_type(SPRITE_TYPE_BARRIER_RIGHT, "/img/road_barrier_yellow_inv.bmp", -0.15, 24, 15, 4, None)
         # sprites.add_type(SPRITE_TYPE_BARRIER_RED, "/img/road_barrier_red.bmp", barrier_speed * 2, 22, 8, 4, None)
-        sprites.add_type(SPRITE_TYPE_LASER_WALL, "/img/laser_wall.bmp", barrier_speed*2, 22, 10, 4, None)
-        sprites.add_type(SPRITE_TYPE_LASER_WALL_POST, "/img/laser_wall_post.bmp", barrier_speed, 10, 24, 4, None, 0x0000)
-        sprites.add_type(SPRITE_TYPE_LASER_ORB, "/img/laser_orb.bmp", barrier_speed, 16, 16, 4, None, 0x0000)
-        sprites.add_type(SPRITE_TYPE_WHITE_DOT, "/img/white_dot.bmp", barrier_speed, 4, 4, 4, None)
+        sprites.add_type(SPRITE_LASER_WALL, "/img/laser_wall.bmp", barrier_speed * 2, 22, 10, 4, None)
+        sprites.add_type(SPRITE_LASER_WALL_POST, "/img/laser_wall_post.bmp", barrier_speed, 10, 24, 4, None, 0x0000)
+        sprites.add_type(SPRITE_LASER_ORB, "/img/laser_orb.bmp", barrier_speed, 16, 16, 4, None, 0x0000)
+        sprites.add_type(SPRITE_WHITE_DOT, "/img/white_dot.bmp", barrier_speed, 4, 4, 4, None)
         # sprites.add_action(SPRITE_TYPE_LASER_ORB, actions.ground_laser)
 
         # frame_width = 32,
@@ -102,7 +104,7 @@ class SpriteMgrTestScreen(Screen):
         half_lane_width = self.lane_width // 2
         start_x = -half_lane_width -(lane_width*2)
 
-        start = 2000
+        start = 1500
         every = -100
         # for i in range(50):
         #     # rand_x = random.randrange(-30, 20)
@@ -143,28 +145,28 @@ class SpriteMgrTestScreen(Screen):
         #     new_sprite, idx = sprites.create(SPRITE_TYPE_LASER_WALL, x=start_x + x_offset, y=img_height, z=start + i*every)
         #     sprites.set_lane(new_sprite, 0)
 
-        for i in range(20):
-            new_sprite, idx = sprites.create(SPRITE_TYPE_LASER_WALL, x=start_x, y=img_height,
+        for i in range(10):
+            new_sprite, idx = sprites.create(SPRITE_LASER_WALL, x=start_x, y=img_height,
                                              z=start + i * every)
             sprites.set_lane(new_sprite, 0)
 
-        for i in range(20):
-            new_sprite, idx = sprites.create(SPRITE_TYPE_LASER_WALL, x=start_x, y=img_height,
+        for i in range(10):
+            new_sprite, idx = sprites.create(SPRITE_LASER_WALL, x=start_x, y=img_height,
                                              z=start + i * every)
             sprites.set_lane(new_sprite, 1)
 
-        for i in range(20):
-            new_sprite, idx = sprites.create(SPRITE_TYPE_LASER_WALL, x=start_x, y=img_height,
+        for i in range(10):
+            new_sprite, idx = sprites.create(SPRITE_LASER_WALL, x=start_x, y=img_height,
                                              z=start + i * every)
             sprites.set_lane(new_sprite, 2)
 
-        for i in range(20):
-            new_sprite, idx = sprites.create(SPRITE_TYPE_LASER_WALL, x=start_x, y=img_height,
+        for i in range(10):
+            new_sprite, idx = sprites.create(SPRITE_LASER_WALL, x=start_x, y=img_height,
                                              z=start + i * every)
             sprites.set_lane(new_sprite, 3)
 
-        for i in range(20):
-            new_sprite, idx = sprites.create(SPRITE_TYPE_LASER_WALL, x=start_x, y=img_height,
+        for i in range(10):
+            new_sprite, idx = sprites.create(SPRITE_LASER_WALL, x=start_x, y=img_height,
                                              z=start + i * every)
             sprites.set_lane(new_sprite, 4)
 
@@ -198,26 +200,27 @@ class SpriteMgrTestScreen(Screen):
         # update loop - will run until task cancellation
         try:
             while True:
-                await self.check_collisions(self.sprites.pool.active_sprites)
+                if True:
+                    await self.check_collisions(self.sprites.pool.active_sprites)
 
-                self.camera.vp_x = round(self.player.bike_angle * num_lanes)
-                self.camera.cam_x = round(self.player.bike_angle * num_lanes)
+                    self.camera.vp_x = round(self.player.bike_angle * num_lanes)
+                    self.camera.cam_x = round(self.player.bike_angle * num_lanes)
 
-                # gc.collect()
-                self.grid.speed = self.ground_speed
-                self.grid.speed_ms = self.ground_speed / 1000
-                self.total_frames += 1
+                    # gc.collect()
+                    self.grid.speed = self.ground_speed
+                    self.grid.speed_ms = self.ground_speed / 1000
+                    self.total_frames += 1
 
-                if not self.total_frames % self.fps_every_n_frames:
-                    print(f"FPS: {self.fps.fps()}")
+                    if not self.total_frames % self.fps_every_n_frames:
+                        print(f"FPS: {self.fps.fps()}")
 
-                now = int(utime.ticks_ms())
-                elapsed = now - self.last_update_ms
-                self.last_update_ms = int(utime.ticks_ms())
+                    now = int(utime.ticks_ms())
+                    elapsed = now - self.last_update_ms
+                    self.last_update_ms = int(utime.ticks_ms())
 
-                self.player.update(elapsed)
-                self.sprites.update_all(elapsed)
-                self.grid.update_horiz_lines(elapsed)
+                    self.player.update(elapsed)
+                    self.sprites.update_all(elapsed)
+                    self.grid.update_horiz_lines(elapsed)
 
                 await asyncio.sleep(1/90)
 
@@ -231,10 +234,14 @@ class SpriteMgrTestScreen(Screen):
         self.grid.show()
         self.sprites.show_all(self.display)
         self.player.show(self.display)
+        self.show_fx()
         self.display.show()
 
         # self.show_perf()
         self.fps.tick()
+
+    def show_fx(self):
+        self.sprites.death_anim.update_and_draw()
 
     async def check_collisions(self, colliders):
         if self.player.visible and self.player.active and self.player.has_physics:
@@ -247,13 +254,18 @@ class SpriteMgrTestScreen(Screen):
                         self.player.has_physics):
                     print(f"Crash on {self.player.current_lane}")
                     self.player.active = False
-                    self.sprites.death_anim.animate()
-                    self.player.start_blink()
+                    self.grid.stop()
+                    # self.display_task.cancel()
+                    self.sprites.death_anim.start_animation(self.player)
+                    self.player.visible = False
+
+                    # self.player.start_blink()
 
                     loop = asyncio.get_event_loop()
                     loop.create_task(self.player.stop_blink())
 
                     break  # No need to check other collisions
+
 
     def init_camera(self):
         # Camera

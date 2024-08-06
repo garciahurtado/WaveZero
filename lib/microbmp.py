@@ -382,11 +382,29 @@ class MicroBMP(object):
                 self.num_colors = 2 ** self.color_depth
             else:
                 self.num_colors = DIB_plt_num_info
-            print(f"Num colors: {self.num_colors}")
             # self.palette = [None for i in range(self.num_colors)]
 
-            self.palette_bytes = bytearray(self.num_colors*2)
-            self.palette = FramebufferPalette(self.palette_bytes)
+            color_format = None
+
+            if self.color_depth == 16:
+                color_format = framebuf.RGB565
+                num_bytes = self.num_colors * 2
+            elif self.color_depth == 8:
+                num_bytes = self.num_colors
+                color_format = framebuf.GS8
+            elif self.color_depth == 4:
+                num_bytes = math.ceil(self.num_colors / 2)
+                color_format = framebuf.GS4_HMSB
+            elif self.color_depth == 2:
+                num_bytes = math.ceil(self.num_colors / 4)
+                color_format = framebuf.GS2_HMSB
+            elif self.color_depth == 1:
+                num_bytes = math.ceil(self.num_colors / 8)
+                color_format = framebuf.MONO_HLSB
+
+            print(f"Num bytes: {num_bytes}")
+            self.palette_bytes = bytearray(num_bytes)
+            self.palette = FramebufferPalette(int(self.num_colors))
 
             for color_idx in range(self.num_colors):
                 data = bf_io.read(4)
@@ -412,7 +430,7 @@ class MicroBMP(object):
             num_frames = math.floor(self.height / self.frame_height)
             frame_size = self.frame_width * self.frame_height
 
-            print(f"Creating {num_frames} frames of {self.frame_width}x{self.frame_height} ")
+            # print(f"Creating {num_frames} frames of {self.frame_width}x{self.frame_height} ")
 
             if self.color_depth == 8:
                 format = framebuf.GS8
@@ -426,6 +444,7 @@ class MicroBMP(object):
             for frame_idx in range(num_frames):
                 byte_pixels = bytearray(frame_size)
                 # print(f"Creating frame of size {frame_size} format: {format} {framebuf.GS4_HMSB} ({self.frame_width}x{self.frame_height})")
+
                 buffer = framebuf.FrameBuffer(
                     byte_pixels,
                     self.frame_width,

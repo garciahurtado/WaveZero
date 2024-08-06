@@ -16,9 +16,11 @@ class Spritesheet(Sprite):
     frame_width: int = 0
     frame_height: int = 0
 
-    def __init__(self, frame_width: int = 0, frame_height: int = 0,  *args, **kwargs):
+    def __init__(self, frame_width: int = 0, frame_height: int = 0, color_depth=8, *args, **kwargs):
         self.frame_width = frame_width
         self.frame_height = frame_height
+        self.color_depth = color_depth
+
         if 'width' not in kwargs:
             self.width = frame_width
             self.height = frame_height
@@ -32,7 +34,8 @@ class Spritesheet(Sprite):
 
     def load_image(self, filename):
         """Overrides parent"""
-        self.frames = ImageLoader.load_image(filename, self.frame_width, self.frame_height)
+        color_depth = self.color_depth
+        self.frames = ImageLoader.load_image(filename, self.frame_width, self.frame_height, color_depth)
         self.num_frames = len(self.frames)
 
         print(f"Loaded {len(self.frames)} frames")
@@ -96,6 +99,9 @@ class Spritesheet(Sprite):
             frame_idx = 0
 
         return frame_idx
+
+    def __len__(self):
+        return self.num_frames
 
     def clone(self):
         new = super().clone()

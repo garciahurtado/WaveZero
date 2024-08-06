@@ -57,6 +57,31 @@ def rgb565_to_rgb(rgb565, format=color_format):
     else:
         return b, g, r
 
+def rgb_to_565_v2(rgb):
+    """
+    Converts a list of RGB pixels into an RGB565 encoded byte array.
+
+
+    Returns:
+        bytes: An RGB565 encoded byte array.
+    """
+    rgb565_buffer = bytearray(2)  # Pre-allocate the buffer
+    (r, g, b) = rgb
+
+    # Convert RGB values to 5-6-5 bit format
+    r5 = (r >> 3) & 0b11111
+    g6 = (g >> 2) & 0b111111
+    b5 = (b >> 3) & 0b11111
+
+    # Pack the 5-6-5 bit values into a 16-bit integer
+    rgb565 = (r5 << 11) | (g6 << 5) | b5
+
+    # Write the 16-bit integer to the buffer
+    rgb565_buffer[0] = (rgb565 >> 8) & 0xFF
+    rgb565_buffer[1] = rgb565 & 0xFF
+
+    return rgb565_buffer
+
 
 def rgb_to_hex(rgb):
     """
