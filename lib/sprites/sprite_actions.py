@@ -10,7 +10,7 @@ def ground_laser(display, camera, from_x, from_y, x, y, z, sprite_width):
 
         id = random.randrange(0, 4)
 
-        line_color = colors.rgb_to_565(colors.hex_to_rgb(line_colors[id]), format=colors.RGB565)
+        line_color = colors.rgb_to_565(colors.hex_to_rgb(line_colors[id]), color_format=colors.RGB565)
         half_width = sprite_width // 2
         [to_x, to_y] = camera.to_2d(x+half_width, 0, z)
 
@@ -18,7 +18,7 @@ def ground_laser(display, camera, from_x, from_y, x, y, z, sprite_width):
         display.line(to_x-1, int(from_y), to_x+2, to_y, line_color)
 
         """Sparks"""
-        color = colors.rgb_to_565(colors.hex_to_rgb(0xFFFF00), format=colors.RGB565)
+        color = colors.rgb_to_565(colors.hex_to_rgb(0xFFFF00), color_format=colors.RGB565)
 
         x_offset = random.randrange(-4,+4)
         display.line(to_x, to_y, to_x+5+x_offset, to_y-7, color)

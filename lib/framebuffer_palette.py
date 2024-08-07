@@ -86,6 +86,9 @@ class FramebufferPalette(framebuf.FrameBuffer):
         # Set the color in the underlying data structure
         self.pixel(index, 0, color)
 
+    def set_int(self, index, color):
+        self.pixel(index, 0, color)
+
     def get_bytes(self, index, invert=True):
         """ Since the palette already stores colors in original screen format, for efficiency,
         there is no need to convert the color on the way out, presuming its meant for the screen"""

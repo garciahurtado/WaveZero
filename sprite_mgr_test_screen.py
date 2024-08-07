@@ -1,18 +1,16 @@
 import _thread
 from micropython import const
+from sprites.player_sprite import PlayerSprite
+from road_grid import RoadGrid
 
 from input import make_input_handler
 from perspective_camera import PerspectiveCamera
-from death_anim import DeathAnim
 from screen import Screen
-from road_grid import RoadGrid
 import uasyncio as asyncio
 import utime
 
-from sprites.player_sprite import PlayerSprite
 from sprites.sprite_manager import SpriteManager
 # from wav.test_wav import play_music
-import random
 
 SPRITE_PLAYER = const(0)
 SPRITE_BARRIER_LEFT = const(1)
@@ -24,7 +22,6 @@ SPRITE_LASER_WALL_POST = const(6)
 SPRITE_WHITE_DOT = const(7)
 
 from profiler import Profiler as prof
-
 
 class SpriteMgrTestScreen(Screen):
     ground_speed: int = const(-200)
@@ -256,7 +253,7 @@ class SpriteMgrTestScreen(Screen):
                     self.player.active = False
                     self.grid.stop()
                     # self.display_task.cancel()
-                    self.sprites.death_anim.start_animation(self.player)
+                    self.sprites.death_anim.start_animation(self.player.x, self.player.y)
                     self.player.visible = False
 
                     # self.player.start_blink()

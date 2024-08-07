@@ -9,13 +9,11 @@ from sprite_mgr_test_screen import SpriteMgrTestScreen
 # from test_screen import TestScreen
 import micropython
 import time
-import uasyncio as asyncio
-import wav.test_wav as wav
 import  machine
 
 def main():
     machine.freq(250_000_000)
-    time.sleep(1)
+    time.sleep(2)
     current_freq = machine.freq()
     print(f"CPU: {current_freq / 1_000_000} MHz")
 
@@ -38,6 +36,6 @@ if __name__ == "__main__":
     time.sleep(1)
     print("======== APP START ========")
 
-    gc.collect()
+    # gc.collect()
     print(micropython.mem_info())
     main()

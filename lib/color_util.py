@@ -22,18 +22,29 @@ def color_mix(c1, c2, mix):
     return [r, g, b]
 
 
-def rgb_to_565(rgb, format=color_format):
+def rgb_to_565(rgb, color_format=color_format):
     """ Convert RGB values to 5-6-5 bit BGR format (16bit) """
-    if format == RGB565:
+    if color_format == RGB565:
         r, g, b = rgb[0], rgb[1], rgb[2]
     else:
         r, g, b = rgb[2], rgb[1], rgb[0]
 
-    res = (r & 0b11111000) << 8
-    res = res + ((g & 0b11111100) << 3)
-    res = res + (b >> 3)
+    rgb565_buffer = bytearray(2)  # Pre-allocate the buffer
 
-    return res
+    # Convert RGB values to 5-6-5 bit format
+    r5 = (r >> 3) & 0b11111
+    g6 = (g >> 2) & 0b111111
+    b5 = (b >> 3) & 0b11111
+
+    # Pack the 5-6-5 bit values into a 16-bit integer
+    rgb565 = (r5 << 11) | (g6 << 5) | b5
+
+    # Write the 16-bit integer to the buffer
+    rgb565_buffer[0] = (rgb565 >> 8) & 0xFF
+    rgb565_buffer[1] = rgb565 & 0xFF
+
+    rgb565 = int.from_bytes(rgb565_buffer, 'big')
+    return rgb565
 
 def rgb565_to_rgb(rgb565, format=color_format):
 
@@ -112,7 +123,7 @@ def hex_to_565(hex_value, format=color_format):
     green = (hex_value >> 8) & 0xFF
     blue = hex_value & 0xFF
 
-    return rgb_to_565((red, green, blue), format=format)
+    return rgb_to_565((red, green, blue), color_format=format)
 
 
 def rgb_to_hsl(rgb):
