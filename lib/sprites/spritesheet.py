@@ -1,6 +1,5 @@
-from image_loader import ImageLoader
+from images.image_loader import ImageLoader
 from sprites.sprite import Sprite
-from profiler import Profiler as prof, timed
 
 
 class Spritesheet(Sprite):

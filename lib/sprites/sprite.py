@@ -4,8 +4,8 @@ from micropython import const
 
 import color_util as colors
 from framebuffer_palette import FramebufferPalette
-from image_loader import ImageLoader
-from indexed_image import Image
+from images.image_loader import ImageLoader
+from images.indexed_image import Image
 
 class Sprite:
     """ Represents a sprite which is loaded from disk in BMP format, and stored in memory as an RGB565 framebuffer"""
@@ -30,6 +30,8 @@ class Sprite:
     has_alpha = False
     alpha_color = None
     alpha_index: int = 0
+    min_x = const(-40)
+    max_x = const(200)
     min_y = const(-40)
     max_y = const(200)
     dot_color: int = 0

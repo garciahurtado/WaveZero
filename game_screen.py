@@ -11,7 +11,7 @@ gc.collect()
 
 import utime
 
-from image_loader import ImageLoader
+from images.image_loader import ImageLoader
 
 import _thread
 
@@ -37,12 +37,12 @@ start_time_ms = 0
 
 class GameScreen(Screen):
     display: framebuf.FrameBuffer
-    grid: RoadGrid = None
+    grid: RoadGrid
     camera: PerspectiveCamera
     sprites: []
     enemies: []
     ui: ui_screen
-    crash_fx: None
+    crash_fx: Crash
     sprite_max_z: int = const(1301)
     ground_speed = 0
     ground_max_speed: int = const(150)
@@ -61,17 +61,19 @@ class GameScreen(Screen):
     encoder_last_pos = {'pos': 0}
 
     # Threading
-    update_task: None
-    display_task: None
-    input_task: None
-    speed_anim: None
+    update_task = None
+    display_task = None
+    input_task = None
+    speed_anim: AnimAttr
 
     refresh_lock: None
     sprite_lock: None
-    loop: None
-    stage: None
-    sun_x_start: 0
-    handler: None
+    loop = None
+    stage = None
+    sun_x_start:int = 0
+    handler = None
+    fps_every_n_frames:int = 30
+    total_frames:int = 0
 
     def __init__(self, display, *args, **kwargs):
         gc.collect()
@@ -156,7 +158,7 @@ class GameScreen(Screen):
     async def start_main_loop(self):
         self.stage.start()
         self.input_task = make_input_handler(self.bike)
-
+        self.bike.has_physics = False
         await asyncio.gather(
             self.update_loop(),
             self.update_fps(),
@@ -216,7 +218,12 @@ class GameScreen(Screen):
                     self.detect_collisions(self.stage.sprites)
 
                 # Wait for next update
-                await asyncio.sleep(1 / 1000)
+                self.total_frames += 1
+
+                if not self.total_frames % self.fps_every_n_frames:
+                    print(f"FPS: {self.fps.fps()}")
+
+                await asyncio.sleep(1 / 120)
 
         except asyncio.CancelledError:
             return False

@@ -3,7 +3,7 @@ import math
 from sprites.sprite_3d import Sprite3D
 import framebuf
 from ulab import numpy as np
-from indexed_image import Image, create_image
+from images.indexed_image import Image, create_image
 
 class ScaledSprite(Sprite3D):
     """ A Scaled Sprite works similarly to a spritesheet in that it has multiple frames. These frames are generated

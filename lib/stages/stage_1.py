@@ -34,10 +34,10 @@ class Stage1:
         """ Init sprites """
 
         self.sprites = []
-        sprite_tri = FlyingTri(
-            filename="/img/laser_tri.bmp",
-            lane_width=self.lane_width
-        )
+        # sprite_tri = FlyingTri(
+        #     filename="/img/laser_tri.bmp",
+        #     lane_width=self.lane_width
+        # )
 
         sprite_barrier = RoadBarrier(
             filename="/img/road_barrier_yellow.bmp",
@@ -48,9 +48,9 @@ class Stage1:
             lane_width=self.lane_width
         )
 
-        plasma_circle = PlasmaCircle(
-            lane_width=self.lane_width
-        )
+        # plasma_circle = PlasmaCircle(
+        #     lane_width=self.lane_width
+        # )
 
         # sprite_barrier = ScaledSprite(
         #     filename="/img/road_wall_single.bmp",
@@ -80,18 +80,18 @@ class Stage1:
             camera=camera,
             base_sprite=sprite_barrier_inv,
             active_sprites=self.sprites)
-
-        self.sprites_pool_tris = SpritePool(
-            size=1,
-            camera=camera,
-            base_sprite=sprite_tri,
-            active_sprites=self.sprites)
-
-        self.sprites_pool_circles = SpritePool(
-            size=1,
-            camera=camera,
-            base_sprite=plasma_circle,
-            active_sprites=self.sprites)
+        #
+        # self.sprites_pool_tris = SpritePool(
+        #     size=1,
+        #     camera=camera,
+        #     base_sprite=sprite_tri,
+        #     active_sprites=self.sprites)
+        #
+        # self.sprites_pool_circles = SpritePool(
+        #     size=1,
+        #     camera=camera,
+        #     base_sprite=plasma_circle,
+        #     active_sprites=self.sprites)
 
 
         self.event_chain = EventChain()
@@ -108,88 +108,87 @@ class Stage1:
             MultiEvent([
                 self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
                 self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+                self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
                 self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier, z=spawn_z),
                 self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
                 WaitEvent(wall_wait),
-            ], times=3),
+            ]),
             MultiEvent([
                 self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
                 self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+                self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
                 self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier, z=spawn_z),
                 self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
                 WaitEvent(wall_wait/2),
-            ], times=3),
+            ]),
             MultiEvent([
                 self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
                 self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+                self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
                 self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier, z=spawn_z),
                 self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
                 WaitEvent(wall_wait / 4),
-            ], times=3),
+            ]),
             WaitEvent(wall_wait),
             MultiEvent([
                 self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
                 self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+                self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
                 self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier, z=spawn_z),
                 self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
                 WaitEvent(wall_wait / 2),
             ]),
             MultiEvent([
                 self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+                self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
                 self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier, z=spawn_z),
                 self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier, z=spawn_z),
                 self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
                 WaitEvent(wall_wait / 2),
             ]),
             MultiEvent([
+                self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier, z=spawn_z),
                 self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier, z=spawn_z),
                 self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier, z=spawn_z),
                 self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier, z=spawn_z),
                 self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
                 WaitEvent(wall_wait / 2),
             ]),
-            MultiEvent([
-                self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier, z=spawn_z),
-                self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier, z=spawn_z),
-                self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
-                WaitEvent(wall_wait / 2),
-            ]),
-            MultiEvent([
-                self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier, z=spawn_z),
-                self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
-                WaitEvent(wall_wait / 2),
-            ]),
-            MultiEvent([
-                self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
-                WaitEvent(wall_wait / 2),
-            ]),
-            MultiEvent([
-                self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                WaitEvent(wall_wait / 2),
-            ]),
-            MultiEvent([
-                self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
-                WaitEvent(wall_wait / 2),
-            ]),
-            MultiEvent([
-                self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
-                self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier, z=spawn_z),
-                self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
-                WaitEvent(wall_wait / 2),
-            ]),
+            # MultiEvent([
+            #     self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+            #     self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+            #     self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier, z=spawn_z),
+            #     self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier, z=spawn_z),
+            #     self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
+            #     WaitEvent(wall_wait / 2),
+            # ]),
+            # MultiEvent([
+            #     self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+            #     self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+            #     self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+            #     self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier, z=spawn_z),
+            #     self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
+            #     WaitEvent(wall_wait / 2),
+            # ]),
+            # MultiEvent([
+            #     self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+            #     self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+            #     self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+            #     self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+            #     self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier, z=spawn_z),
+            #     WaitEvent(wall_wait / 2),
+            # ]),
+            # MultiEvent([
+            #     self.spawn_one(lane=0, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+            #     self.spawn_one(lane=1, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+            #     self.spawn_one(lane=2, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+            #     self.spawn_one(lane=3, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+            #     self.spawn_one(lane=4, dead_pool=self.sprites_pool_barrier_inv, z=spawn_z),
+            #     WaitEvent(wall_wait / 2),
+            # ]),
+
+            # --- 10
+
 
             #
             # WaitEvent(wall_wait),
@@ -366,13 +365,16 @@ class Stage1:
         # print(f"Sprite pools: 1:{len(self.sprites_pool)} / 2:{len(self.sprites_pool_tris)}")
         self.event_chain.update()
         self.sprites_pool_barrier.update(elapsed)
-        self.sprites_pool_tris.update(elapsed)
-        self.sprites_pool_circles.update(elapsed)
+        self.sprites_pool_barrier_inv.update(elapsed)
+
+        # self.sprites_pool_tris.update(elapsed)
+        # self.sprites_pool_circles.update(elapsed)
 
     def show(self, display):
         self.sprites_pool_barrier.show(display)
-        self.sprites_pool_tris.show(display)
-        self.sprites_pool_circles.show(display)
+        self.sprites_pool_barrier_inv.show(display)
+        # self.sprites_pool_tris.show(display)
+        # self.sprites_pool_circles.show(display)
 
 
 

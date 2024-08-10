@@ -4,7 +4,7 @@ import random
 
 import framebuf
 
-from color_util import FramebufferPalette
+from framebuffer_palette import FramebufferPalette
 from fx.scanline_fade import ScanlineFade
 from sprites.spritesheet import Spritesheet
 import color_util as colors

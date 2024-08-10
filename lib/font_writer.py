@@ -25,6 +25,7 @@ import framebuf
 from uctypes import bytearray_at, addressof
 from sys import implementation
 import color_util as colors
+from framebuffer_palette import FramebufferPalette
 
 __version__ = (0, 5, 1)
 
@@ -39,8 +40,8 @@ class DisplayState():
         self.text_col = 0
 
 def _get_id(device):
-    if not isinstance(device, framebuf.FrameBuffer):
-        raise ValueError('Device must be derived from FrameBuffer.')
+    # if not isinstance(device, framebuf.FrameBuffer):
+    #     raise ValueError('Device must be derived from FrameBuffer.')
     return id(device)
 
 # Basic Writer class for monochrome displays
@@ -302,7 +303,7 @@ class ColorWriter(Writer):
         self.def_bgcolor = self.bgcolor
         self.def_fgcolor = self.fgcolor
 
-        my_palette = colors.FramebufferPalette(bytearray(2*2))
+        my_palette = FramebufferPalette(bytearray(2*2))
         for i, new_color in enumerate([bgcolor, fgcolor]):
             my_palette.pixel(i, 0, colors.bytearray_to_int(colors.byte3_to_byte2(new_color)))
 

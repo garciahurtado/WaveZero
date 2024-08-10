@@ -1,4 +1,4 @@
-import utime
+import utime as time
 from micropython import const
 
 LIST_SIZE = const(40)
@@ -11,7 +11,7 @@ class FpsCounter():
     def tick(self):
         """ Get current timestamp at the time of rendering one frame, to calculate FPS later
         """
-        self.ticks[self.index] = utime.ticks_ms()
+        self.ticks[self.index] = time.ticks_ms()
         self.index = self.index + 1
         if self.index >= LIST_SIZE:
             self.index = 0
@@ -30,7 +30,10 @@ class FpsCounter():
         if self.ticks[start] == 0 or self.ticks[end] == 0:
             return 0
 
-        self.elapsed = self.ticks[end] - self.ticks[start]
+
+        # self.elapsed = self.ticks[end] - self.ticks[start]
+        self.elapsed = time.ticks_diff(self.ticks[end], self.ticks[start])
+
         if self.elapsed <= 0:
             return 0
 

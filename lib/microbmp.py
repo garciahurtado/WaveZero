@@ -65,7 +65,7 @@ from framebuffer_palette import FramebufferPalette
 __version__ = const("0.3.0")
 __all__ = const("MicroBMP")
 
-from indexed_image import create_image
+from images.indexed_image import create_image
 
 class MicroBMP(object):
     """MicroBMP class.

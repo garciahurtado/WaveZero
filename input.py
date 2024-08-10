@@ -1,12 +1,15 @@
 import uasyncio as asyncio
 from rotary_irq import RotaryIRQ
-
+from micropython import const
 
 class InputHandler:
-    last_pos = 0
+    LEFT = const(0)
+    RIGHT = const(1)
+    ACTION = const(2)
 
-    def __init__(self, bike):
-        self.bike = bike
+    def __init__(self, player):
+        self.player = player
+        self.last_pos = 0
         self.init_input()
 
     def init_input(self):
@@ -16,56 +19,29 @@ class InputHandler:
             half_step=False,
             incr=1
         )
-        print("Created input handler")
+        print("--- Created input handler ---")
 
+    def read_input(self, position):
+        if self.player.moving:
+            """Suppress input when the player is already moving"""
+            return
+
+        position = int(self.encoder.value())
+
+        if position != self.last_pos:
+            if position > self.last_pos:
+                self.player.move_right()
+            elif position < self.last_pos:
+                self.player.move_left()
+            self.last_pos = position
     def add_listener(self, listener, my_self=None):
         if my_self:
             self.encoder.add_listener((listener, my_self))
         else:
             self.encoder.add_listener(listener)
 
-    async def get_input(self, encoder, last_pos):
-        fps = 60
-        encoder = self.encoder
-        while True:
-            if self.bike.moving == True:
-                """ Supress input when the bike is already moving """
-                await asyncio.sleep(0.01)
-                continue
-
-            position = encoder.value()
-            if position == last_pos['pos']:
-                pass
-            elif position > last_pos['pos']:
-                last_pos['pos'] = position
-                self.bike.move_left()
-            elif position < last_pos['pos']:
-                last_pos['pos'] = position
-                self.bike.move_right()
-
-            await asyncio.sleep(0.01)
-
-
-    def read_input(self, position):
-        # if self.bike.moving == True:
-        #     """ Supress input when the bike is already moving """
-        #     return False
-
-        position = int(self.encoder.value())
-
-
-        if position == self.last_pos:
-            pass
-        elif position > self.last_pos:
-            self.bike.move_right()
-        elif position < self.last_pos:
-            self.bike.move_left()
-
-        self.last_pos = position
-
 
 def make_input_handler(bike):
     input_handler = InputHandler(bike)
     input_handler.add_listener("read_input", input_handler)
-    # input_handler.add_listener("get_input", input_handler)
     return input_handler

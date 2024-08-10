@@ -2,16 +2,13 @@ from micropython import const
 import micropython
 
 from death_anim import DeathAnim
-from image_loader import ImageLoader
-from sprites.sprite_types import create_sprite, SpriteMetadata
+from images.image_loader import ImageLoader
+from sprites2.sprite_types import SpriteType
 import framebuf
 import math
-from ulab import numpy as np
-from indexed_image import Image, create_image
-from profiler import Profiler as prof, timed
-from sprites.sprite_pool_lite import SpritePool
+from images.indexed_image import Image, create_image
+from sprites2.sprite_pool_lite import SpritePool
 from typing import Dict, List
-from uarray import array
 
 class SpriteManager:
     POS_TYPE_FAR = const(0)
@@ -20,7 +17,7 @@ class SpriteManager:
     max_sprites: int = 0
     sprite_images: Dict[str, List[Image]] = {}
     sprite_palettes: Dict[str, bytes] = {}
-    sprite_metadata: Dict[str, SpriteMetadata] = {}
+    sprite_metadata: Dict[str, SpriteType] = {}
     sprite_actions = {}
     lane_width: int = 0
     half_scale_one_dist = int(0)  # This should be set based on your camera setup
@@ -54,7 +51,7 @@ class SpriteManager:
              'num_frames': num_frames
              }
 
-        self.sprite_metadata[sprite_type] = SpriteMetadata(**init_values)
+        self.sprite_metadata[sprite_type] = SpriteType(**init_values)
         print(str(self.sprite_metadata[sprite_type].image_path))
 
     def add_action(self, sprite_type, func):
@@ -82,7 +79,6 @@ class SpriteManager:
             self.sprite_images[sprite_type] = self.load_img_and_scale(type_meta, sprite_type)
 
         new_sprite.active = True
-        new_sprite.visible = True
 
         return new_sprite, idx
 
@@ -99,13 +95,7 @@ class SpriteManager:
 
             # print(f"Scale is {scale} / w:{new_width} h:{new_height} ")
 
-            if metadata.color_depth == 8:
-                new_frame = self.scale_frame_8bit(orig_img, new_width, new_height, scale)
-            elif metadata.color_depth == 4:
-                new_frame = self.scale_frame_4bit(orig_img, new_width, new_height, scale)
-            else:
-                raise ValueError(f"Unsupported color depth: {metadata.color_depth}")
-
+            new_frame = self.scale_frame(orig_img, new_width, new_height, metadata.color_depth)
             frames.append(new_frame)
 
         frames.append(orig_img)  # Add original image as the last frame
@@ -113,57 +103,41 @@ class SpriteManager:
 
         return frames
 
-    def scale_frame_8bit(self, orig_img, new_width, new_height, scale):
-        orig_pixels = np.frombuffer(orig_img.pixel_bytes, dtype=np.uint8)
-        orig_pixels = orig_pixels.reshape((orig_img.height, orig_img.width))
+    def scale_frame(self, orig_img, new_width, new_height, color_depth):
+        if color_depth not in [4, 8]:
+            raise ValueError(f"Unsupported color depth: {color_depth}")
 
-        new_bytes = bytearray(new_width * new_height)
-        new_buffer = framebuf.FrameBuffer(new_bytes, new_width, new_height, framebuf.GS8)
-        new_pixels = np.frombuffer(new_bytes, dtype=np.uint8)
-        new_pixels = new_pixels.reshape((new_height, new_width))
-
-        for y in range(new_height):
-            for x in range(new_width):
-                y_1 = min(int(y / scale), orig_img.height - 1)
-                x_1 = min(int(x / scale), orig_img.width - 1)
-                new_pixels[y][x] = orig_pixels[y_1][x_1]
-
-        return create_image(new_width, new_height, new_buffer, memoryview(new_bytes),
-                            orig_img.palette, orig_img.palette_bytes, 8)
-
-    def scale_frame_4bit(self, orig_img, new_width, new_height, scale):
-        if new_width % 2: # Width must always be a multiple of two to that the BMP reader doesn't freak out
+        if new_width % 2 and color_depth == 4:  # Width must be even for 4-bit images
             new_width += 1
 
-        # print(f"rescale: {new_width}x{new_height} scale: {scale:.4f}")
-
-        byte_size = math.floor((new_width * new_height) / 2)
+        byte_size = (new_width * new_height) // (8 // color_depth)
         new_bytes = bytearray(byte_size)
 
-        new_buffer = framebuf.FrameBuffer(new_bytes, new_width, new_height, framebuf.GS4_HMSB)
+        if color_depth == 4:
+            buffer_format = framebuf.GS4_HMSB
+        else:  # 8-bit
+            buffer_format = framebuf.GS8
+
+        new_buffer = framebuf.FrameBuffer(new_bytes, new_width, new_height, buffer_format)
 
         x_ratio = orig_img.width / new_width
         y_ratio = orig_img.height / new_height
 
         for y in range(new_height):
-            for x in range(0, new_width, 2):
-                x_1 = int(x * x_ratio)
-                y_1 = int(y * y_ratio)
-                x_2 = int((x + 1) * x_ratio)
-
-                # Ensure we don't go out of bounds
-                x_1 = min(x_1, orig_img.width - 1)
-                x_2 = min(x_2, orig_img.width - 1)
-                y_1 = min(y_1, orig_img.height - 1)
+            for x in range(0, new_width, 2 if color_depth == 4 else 1):
+                x_1 = min(int(x * x_ratio), orig_img.width - 1)
+                y_1 = min(int(y * y_ratio), orig_img.height - 1)
 
                 color1 = orig_img.pixels.pixel(x_1, y_1)
-                color2 = orig_img.pixels.pixel(x_2, y_1)
-
                 new_buffer.pixel(x, y, color1)
-                new_buffer.pixel(x + 1, y, color2)
+
+                if color_depth == 4:
+                    x_2 = min(int((x + 1) * x_ratio), orig_img.width - 1)
+                    color2 = orig_img.pixels.pixel(x_2, y_1)
+                    new_buffer.pixel(x + 1, y, color2)
 
         return create_image(new_width, new_height, new_buffer, memoryview(new_bytes),
-                            orig_img.palette, orig_img.palette_bytes, 4)
+                            orig_img.palette, orig_img.palette_bytes, color_depth)
 
     def set_camera(self, camera):
         self.camera = camera
@@ -172,8 +146,9 @@ class SpriteManager:
 
     # @timed
     def update(self, sprite, meta, elapsed):
-        """The update loop is responsible for killing expired / out of bounds sprites, as well
-        as updating the x and y draw coordinates based on """
+        """The update function only applies to a single sprite at a time, and it is responsible for killing expired
+        / out of bounds sprites, as well as updating the x and y draw coordinates based on the 3D position and camera view
+        """
         if not sprite.active:
             return False
 
@@ -182,10 +157,19 @@ class SpriteManager:
         new_z = sprite.z + (sprite.speed * elapsed)
         new_z = int(new_z)
         # prof.end_profile('update_z_speed')
-        # print(f"new z={new_z}")
-
+        #
         if new_z == old_z:
-            return False
+            return True
+
+        sprite.z = new_z
+
+        if new_z < self.camera.far and not sprite.visible:
+            sprite.visible = True
+
+        """ The rest of the calculations are only relevant for visible sprites"""
+
+        if not sprite.visible:
+            return True
 
         if new_z < self.camera.near:
             """Past the near clipping plane"""
@@ -193,11 +177,18 @@ class SpriteManager:
                 self.pool.release(sprite)
             return False
 
-        if new_z < self.camera.far and not sprite.active:
-            sprite.active = True
+        scale = self.camera.calculate_scale(sprite.z)
+
+        if scale > 1:
+            scale = 1
+        sprite.scale = scale
+
+        # print(f"Scale: {scale}")
 
         # prof.start_profile('cam_pos')
         draw_x, draw_y = self.to_2d(sprite.x, sprite.y + meta.height, sprite.z)
+        # draw_x_2 = int(self.camera.half_width - (sprite.x * scale))
+        # print(f"Draw X 2: {draw_x_2}")
         # prof.end_profile('cam_pos')
 
         num_frames = sprite.num_frames
@@ -242,17 +233,14 @@ class SpriteManager:
 
     # @timed
     def show(self, sprite, display: framebuf.FrameBuffer):
-        """Draw a single sprite on the display"""
-        if not sprite.active:
+        """Draw a single sprite on the display (or several, if multisprites)"""
+        if not sprite.visible:
             return False
 
         if sprite.blink:
             sprite.blink_flip = sprite.blink_flip * -1
             if sprite.blink_flip == -1:
                 return False
-
-        if sprite.z > self.camera.far:
-            return False
 
         sprite_type = sprite.sprite_type
         palette = self.sprite_palettes[sprite_type]
@@ -286,7 +274,8 @@ class SpriteManager:
 
     # @timed
     def to_2d(self, x, y, z):
-        if self.camera:
+        camera = self.camera
+        if camera:
             return self.camera.to_2d(x, y, z)
         else:
             return x, y
@@ -309,7 +298,7 @@ class SpriteManager:
         # Calculate the center of the sprite
         sprite_center = sprite.x + (sprite.frame_width / 2)
 
-        # Calculate which lane the sprite is in
+        # Calculate which lane the center of the sprite is in
         lane = round(sprite_center / self.lane_width)
 
         # Convert lane to lane_num (add 2 to shift from [-2,-1,0,1,2] to [0,1,2,3,4])

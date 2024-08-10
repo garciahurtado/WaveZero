@@ -1,11 +1,11 @@
-import math
+import asyncio
 import random
 import framebuf
+import time
 import utime
 from framebuffer_palette import FramebufferPalette
 from sprites.spritesheet import Spritesheet
 import color_util as colors
-import uarray as array
 
 class DeathAnim:
     def __init__(self, display):
@@ -15,13 +15,13 @@ class DeathAnim:
         self.player = None
         self.elapsed_time = 0
         self.total_duration = 2000  # Total animation duration in milliseconds
-        self.debris_count: int = 50
+        self.debris_count: int = 100
         self.debris = [None] * self.debris_count
         self.explosion_center = None
         self.animation_started = False
         self.start_time = 0
         self.speed = 300
-        self.gravity = 0.0015  # Gravity (pixels per millisecond^2)
+        self.gravity = 0.0012  # Gravity (pixels per millisecond^2)
         self.base_x = 0
         self.base_y = 0
 
@@ -52,7 +52,7 @@ class DeathAnim:
             self.debris_palettes.append(palette)
 
 
-    def start_animation(self, x, y):
+    async def start_animation(self, x, y):
         self.elapsed_time = 0
         self.start_time = utime.ticks_ms()
         self.explosion_center = (x + 16, y + 10)
@@ -148,22 +148,6 @@ class DeathAnim:
     def is_animating(self):
         return self.animation_started and self.elapsed_time < self.total_duration
 
-    # @DeprecationWarning
-    def set_player(self, player):
-        # Load existing player bike sprite in two halves
-        self.bike_palette = FramebufferPalette(4)
-        self.bike_palette.set_rgb(0, [0, 0, 0])
-        self.bike_palette.set_rgb(1, [194, 0, 255])
-        self.bike_palette.set_rgb(2, [117, 0, 255])
-        self.bike_palette.set_rgb(3, [0, 17, 255])
-
-        self.bike_sprite = player.image.pixels
-        self.bike_half_left = self.create_bike_half()
-        self.bike_half_right = self.create_bike_half()
-        self.bike_half_left.blit(self.bike_sprite, 0, 0, 0, self.bike_palette)
-        self.bike_half_right.blit(self.bike_sprite, 16, 0, 0, self.bike_palette)
-
-        self.player = player
 
     def create_bike_half(self):
         # Placeholder: Replace with actual left half of bike sprite loading

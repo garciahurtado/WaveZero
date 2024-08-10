@@ -1,5 +1,6 @@
 import fonts.vtks_blocketo_6px as font_vtks
 import fonts.bm_japan as large_font
+import framebuf
 import utime
 
 from font_writer import Writer, ColorWriter
@@ -9,11 +10,17 @@ from sprites.sprite import Sprite
 
 from anim.palette_rotate import PaletteRotate
 import uasyncio as asyncio
-from color_util import FramebufferPalette
+from framebuffer_palette import FramebufferPalette
+
 import color_util as colors
 
+ORANGE = b'\x00\xFF\xFF'
+CYAN = b'\xFF\xFF\x00'
+BLACK = b'\x00\x00\x00'
+WHITE = b'\xFF\xFF\xFF'
+
 class ui_screen():
-    display: None
+    display = None
     lives_sprite: Sprite
     score: int = 0
     score_text = None
@@ -22,11 +29,9 @@ class ui_screen():
     sprites = []
     lives_sprites = []
     num_lives: int = 0
-    lives_text: None
+    lives_text = None
     lives_text_str = "x0"
-    ORANGE = (0, 255, 255)
-    CYAN = (255, 255, 0)
-    BLACK = (0, 0, 0)
+    dirty = True
 
     def __init__(self, display, num_lives) -> None:
         self.display = display
@@ -38,6 +43,15 @@ class ui_screen():
         self.init_score()
         self.init_big_text_bg()
         self.init_game_over()
+
+        num_bytes = (self.display.width * 8) // 4
+
+        self.cached_img = framebuf.FrameBuffer(bytearray(num_bytes), self.display.width, 8, framebuf.GS2_HMSB)
+        self.palette = FramebufferPalette(4, color_mode=FramebufferPalette.RGB565)
+        self.palette.set_rgb(0, BLACK)
+        self.palette.set_rgb(1, ORANGE)
+        self.palette.set_rgb(2, WHITE)
+        self.palette.set_rgb(3, CYAN)
 
     def init_lives(self):
         if self.num_lives < 4:
@@ -54,8 +68,8 @@ class ui_screen():
             self.lives_sprites.append(new_sprite)
 
         self.lives_text = ColorWriter(
-            self.display.write_framebuf,
-            font_vtks, 9, 5, fgcolor=self.CYAN, bgcolor=self.BLACK,
+            self.display,
+            font_vtks, 9, 5, fgcolor=CYAN, bgcolor=BLACK,
             screen_width=self.display.width, screen_height=self.display.height)
         self.lives_text.text_x = 14
         self.lives_text.text_y = 1
@@ -72,10 +86,16 @@ class ui_screen():
             self.init_lives()
 
         print(f"{self.num_lives} lives left")
+        self.dirty = True
 
         return True
 
     def update_lives(self):
+        if not self.dirty:
+            print("CLEAN")
+            return False
+
+        print("DIRTY")
         if self.num_lives > 3:
             self.has_x_lives = True
             one_sprite = self.lives_sprite.clone()
@@ -88,8 +108,8 @@ class ui_screen():
     def init_score(self):
 
         self.score_text = ColorWriter(
-            self.display.write_framebuf,
-            font_vtks, 35, 6, fgcolor=self.ORANGE, bgcolor=self.BLACK,
+            self.display,
+            font_vtks, 35, 6, fgcolor=ORANGE, bgcolor=BLACK,
             screen_width=self.display.width, screen_height=self.display.height)
         self.score_text.text_x = 61
         self.score_text.text_y = 0
@@ -107,7 +127,7 @@ class ui_screen():
     def init_game_over(self):
         game_over_text = ColorWriter(
             self.display.write_framebuf,
-            large_font, 96, 11, fgcolor=self.CYAN, bgcolor=self.BLACK, screen_width=self.display.width, screen_height=self.display.height)
+            large_font, 96, 11, fgcolor=CYAN, bgcolor=BLACK, screen_width=self.display.width, screen_height=self.display.height)
         game_over_text.text_x = 3
         game_over_text.text_y = 28
         game_over_text.visible = False
@@ -116,7 +136,7 @@ class ui_screen():
         game_over_text.col_clip = True  # Clip or new line when row is full
         game_over_text.wrap = False  # Word wrap
 
-        Writer.set_textpos(self.display.write_framebuf, 0, 0)
+        Writer.set_textpos(self.display, 0, 0)
         game_over_text.printstring("GAME OVER")
 
         self.game_over_text = game_over_text
@@ -144,16 +164,24 @@ class ui_screen():
             return False
 
         self.score = new_score
-        Writer.set_textpos(self.display.write_framebuf, 0, 0)
-        self.score_text.printstring(f"{self.score:09}")
+        self.dirty = True
 
     def show(self):
-        self.draw_sprites()
+        if self.dirty:
+            # must update the cached image
+            self.draw_sprites(self.cached_img)
+            self.dirty = False
 
-    def draw_sprites(self):
+        self.display.blit(self.cached_img, 0, 0, -1, self.palette)
+        self.dirty = False
+
+    def draw_sprites(self, canvas):
         for my_sprite in self.sprites:
-            my_sprite.show(self.display)
+            my_sprite.show(canvas)
 
-        self.score_text.show(self.display)
+        Writer.set_textpos(self.display, 0, 0)
+        self.score_text.printstring(f"{self.score:09}")
+        self.score_text.show(canvas)
+
 
 

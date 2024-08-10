@@ -10,20 +10,21 @@ SPRITE_DATA_LAYOUT = {
     "x": uctypes.INT16 | 2,
     "y": uctypes.INT16 | 4,
     "z": uctypes.INT16 | 6,
-    "speed": uctypes.FLOAT32 | 8,
-    "visible": uctypes.UINT8 | 12,
-    "active": uctypes.UINT8 | 13,
-    "blink": uctypes.UINT8 | 14,
-    "blink_flip": uctypes.UINT8 | 15,
-    "pos_type": uctypes.UINT8 | 16,
-    "frame_width": uctypes.UINT8 | 17,
-    "frame_height": uctypes.UINT8 | 18,
-    "current_frame": uctypes.UINT8 | 19,
-    "lane_num": uctypes.UINT8 | 20,
-    "draw_x": uctypes.INT8 | 21,
-    "draw_y": uctypes.INT8 | 22,
-    "num_frames": uctypes.UINT8 | 23,
-    "born_ms": uctypes.UINT32 | 24,
+    "scale": uctypes.FLOAT32 | 8,
+    "speed": uctypes.FLOAT32 | 12,
+    "visible": uctypes.UINT8 | 16,
+    "active": uctypes.UINT8 | 17,
+    "blink": uctypes.UINT8 | 18,
+    "blink_flip": uctypes.UINT8 | 19,
+    "pos_type": uctypes.UINT8 | 20,
+    "frame_width": uctypes.UINT8 | 21,
+    "frame_height": uctypes.UINT8 | 22,
+    "current_frame": uctypes.UINT8 | 23,
+    "lane_num": uctypes.UINT8 | 24,
+    "draw_x": uctypes.INT8 | 25,
+    "draw_y": uctypes.INT8 | 26,
+    "num_frames": uctypes.UINT8 | 27,
+    "born_ms": uctypes.UINT32 | 28,
 }
 
 def create_sprite(
@@ -31,6 +32,7 @@ def create_sprite(
     x=0,
     y=0,
     z=0,
+    scale=1,
     speed=0,
     visible=False,
     active=False,
@@ -44,15 +46,16 @@ def create_sprite(
     draw_x=0,
     draw_y=0,
     num_frames=0,
-    born_ms=0
+    born_ms=0,
 ):
-    mem = bytearray(28)  # Adjusted size for the byte layout
+    mem = bytearray(32)  # Adjusted size for the byte layout
     sprite = uctypes.struct(uctypes.addressof(mem), SPRITE_DATA_LAYOUT)
 
     sprite.sprite_type = sprite_type
     sprite.x = x
     sprite.y = y
     sprite.z = z
+    sprite.scale = scale
     sprite.speed = speed
     sprite.visible = int(visible)
     sprite.active = int(active)
@@ -72,18 +75,22 @@ def create_sprite(
 
 
 # Define metadata structure, these values should not change across sprites of this class
-class SpriteMetadata:
-    image_path = None
-    speed: int = 0
-    width:int = 0
-    height: int = 0
-    color_depth: int = 0
-    palette = None
-    alpha: int = 0
-    frames = None
-    num_frames: int = 0
-
+class SpriteType:
     def __init__(self, **kwargs):
+        self.image_path = None
+        self.speed: int = 0
+        self.width: int = 0
+        self.height: int = 0
+        self.color_depth: int = 0
+        self.palette = None
+        self.alpha: int = 0
+        self.frames = None
+        self.num_frames: int = 0
+        self.update_func = None
+        self.render_func = None
+        self.repeats: int = 0
+        self.repeat_spacing: int = 0
+
         for key, value in kwargs.items():
             if hasattr(self, key):
                 setattr(self, key, value)

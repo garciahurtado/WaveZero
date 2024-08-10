@@ -67,7 +67,15 @@ class SSD1331(framebuf.FrameBuffer):
     def rgb(r, g, b):
         return ((b & 0xf8) << 5) | ((g & 0x1c) << 11) | (r & 0xf8) | ((g & 0xe0) >> 5)
 
-    def __init__(self, spi, pincs, pindc, pinrs, height=HEIGHT, width=WIDTH):
+    @staticmethod
+    def unrgb(color):
+        r = (color & 0xF800) >> 8
+        g = ((color & 0x07E0) >> 3) | ((color & 0x0600) >> 9)
+        b = (color & 0x001F) << 3
+        return r, g, b
+
+    def __init__(self, spi, pincs, pindc, pinrs, height=HEIGHT, width=WIDTH, pin_sck=None,
+            pin_sda=None):
         self._spi = spi
         self._pincs = pincs
         self._pindc = pindc  # 1 = data 0 = cmd
@@ -79,6 +87,8 @@ class SSD1331(framebuf.FrameBuffer):
         gc.collect()
         self.buffer = bytearray(self.height * self.width * 2)  # RGB565 is 2 bytes
         print(f"Buffer size: {len(self.buffer)} bytes")
+
+        self.write_framebuf = self.buffer
 
         super().__init__(self.buffer, self.width, self.height, mode)
         pinrs(0)  # Pulse the reset line
@@ -116,13 +126,13 @@ class SSD1331(framebuf.FrameBuffer):
         self._write(self._to_bytes(int(mul < 5), 1), DC_MODE_CMD)
 
     def line(self, start_x, start_y, end_x, end_y, color):
-        return self.linev2(self, start_x, start_y, end_x, end_y, color)
+        return self.linev2(start_x, start_y, end_x, end_y, color)
 
-    def hline(self, y, end_x, color):
+    def hline(self, y, end_x, color, format=None):
         return self.linev2(0, y, self.width, y, color)
 
     def linev2(self, x_a, y_a, x_b, y_b, color):
-        r, g, b = color[0], color[1], color[2]
+        r, g, b = self.unrgb(color)
 
         self._write_start()
         self._write_line(int(x_a), int(y_a), int(x_b), int(y_b))
@@ -137,7 +147,7 @@ class SSD1331(framebuf.FrameBuffer):
         self._write_color(r, g, b)
         self._write_end()
 
-    def _write_line(self, x_a: int, y_a: int, x_b: int, y_b: int, color):
+    def _write_line(self, x_a: int, y_a: int, x_b: int, y_b: int):
         # self._write_cmd(CMD_DRAWLINE)
         self._write(CMD_DRAWLINE, DC_MODE_CMD)
 

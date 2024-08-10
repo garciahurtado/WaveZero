@@ -1,6 +1,6 @@
 import utime
 from uarray import array
-from sprites.sprite_types import create_sprite
+from sprites2.sprite_types import create_sprite
 
 class SpritePool:
     pool = []
@@ -20,6 +20,10 @@ class SpritePool:
 
 
     def get(self, sprite_type):
+        """ TODO: theres a problem here with the fact that we have two ways to determine a sprite is active:
+        - sprite.active = True
+        - belongs to self.active_indices
+        """
         """Get the first sprite available from the pool and return it"""
         if self.free_count == 0:
             raise RuntimeError("Sprite pool is empty. Consider increasing pool size.")
@@ -33,7 +37,7 @@ class SpritePool:
         sprite.born_ms = utime.ticks_ms() # reset creation timestamp
 
         sprite.active = True
-        sprite.visible = True
+        sprite.visible = False
 
         self.active_indices[self.active_count] = index
         self.active_count += 1

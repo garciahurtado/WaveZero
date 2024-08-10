@@ -33,6 +33,9 @@ class PerspectiveCamera():
         self.vp_y = vp_y
         self.focal_length = focal_length  # Distance from the camera to the projection plane in pixels
 
+        # Pre-multiply focal_length and aspect_ratio
+        self.focal_length_aspect = self.focal_length * self.aspect_ratio
+
         # PreCalculate some values based on constants that will not change
         self.fov_y = self.calculate_fov(focal_length)
         self.fov_x = self.fov_y * self.aspect_ratio
@@ -121,6 +124,8 @@ class PerspectiveCamera():
         screen_x = screen_x * self.aspect_ratio
         #prof.end_profile()
 
+        # print(f"Screen x: {screen_x}")
+
 
         #prof.start_profile('cam.convert_to_screen')
         # Convert to screen coordinates
@@ -159,4 +164,15 @@ class PerspectiveCamera():
         screen_y = self.screen_height - screen_y - self.vp_y
 
         return screen_y
+
+    def calculate_scale(self, z):
+        relative_z = z - self.cam_z
+
+        if relative_z <= self.near:
+            relative_z = self.near + 0.000001
+
+        # Use pre-multiplied focal_length_aspect
+        scale = self.focal_length_aspect / relative_z
+
+        return scale
 

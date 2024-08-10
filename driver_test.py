@@ -6,7 +6,7 @@ import utime
 import time
 import random
 import color_util as colors
-from image_loader import ImageLoader
+from images.image_loader import ImageLoader
 
 def test_ssd1331_driver():
     print("One second pause...")

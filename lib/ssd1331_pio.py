@@ -46,13 +46,14 @@ class SSD1331PIO():
     DC_MODE_CMD = 0x00
     DC_MODE_DATA = 0x01
 
+
     """ 
     xA0 x72 -> RGB
     xA0 x76 -> BGR
     """
     INIT_BYTES = b'\xAE\xA0\x76\xA1\x00\xA2\x00\xA4\xA8\x3F\xAD\x8E\xB0'\
                  b'\x0B\xB1\x31\xB3\xF0\x8A\x64\x8B\x78\x8C\x64\xBB\x3A\xBE\x3E\x87'\
-                 b'\x06\x81\xAA\x82\xAA\x83\xDD\xAF'\
+                 b'\x06\x81\x91\x82\x50\x83\x7D\xAF'\
 
     def __init__(self, spi, pin_cs, pin_dc, pin_rs, pin_sck, pin_sda, height=HEIGHT, width=WIDTH):
         self.spi = spi
@@ -167,6 +168,7 @@ class SSD1331PIO():
 
         # Set up the PIO state machine
         freq = 120 * 1000 * 1000
+        freq = 62500000
 
         sm = StateMachine(0)
 
@@ -293,6 +295,12 @@ class SSD1331PIO():
         return not self.dma2.active()
 
     """ DRAWING FUNCTIONS """
+    def pixel(self, x, y, color=None):
+        if color:
+            return self.write_framebuf.pixel(x, y, color)
+        else:
+            return self.write_framebuf.pixel(x, y)
+
     def fill(self, color):
         return self.write_framebuf.fill(color)
 

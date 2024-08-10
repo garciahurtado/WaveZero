@@ -8,7 +8,6 @@ from sprites.sprite import Sprite
 import micropython
 
 # from ssd1331_pio import SSD1331PIO
-# from double_buffer_driver import DoubleBufferDriver
 
 class Screen:
     display = None
