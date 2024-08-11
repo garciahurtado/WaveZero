@@ -84,34 +84,23 @@ class PerspectiveCamera():
         https://forum.gamemaker.io/index.php?threads/basic-pseudo-3d-in-gamemaker.105242/
         """
         half_width = self.half_width
-        half_height = self.half_width
         focal_length = self.focal_length
 
         #prof.start_profile('cam.pos_assign')
-        cam_x = self.cam_x
         cam_y = self.cam_y
         cam_z = self.cam_z
         #prof.end_profile()
 
         #prof.start_profile('cam.vp_assign')
         vp_x = self.vp_x
-        vp_y = self.vp_y
-        screen_height = self.screen_height
         #prof.end_profile()
 
 
         # Adjust for camera position
         #prof.start_profile('cam.pos_adjust')
-        # x = x - cam_x
         y = y - cam_y
         z = z - cam_z
         #prof.end_profile()
-
-        #prof.start_profile('cam.set_z_0')
-        # if z == 0:
-        #     z = 0.000001 # avoid division by zero
-        #prof.end_profile()
-
 
         #prof.start_profile('cam.apply_persp_proj')
         # Apply perspective projection

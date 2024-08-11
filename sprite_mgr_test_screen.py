@@ -1,3 +1,4 @@
+import _thread
 import random
 
 import color_util as colors
@@ -52,6 +53,7 @@ class SpriteMgrTestScreen(Screen):
     fx_callback = None
     ui = None
     collider = None
+    display_lock = _thread.allocate_lock()
 
     def __init__(self, display, *args, **kwargs):
         super().__init__(display, *args, **kwargs)
@@ -147,19 +149,18 @@ class SpriteMgrTestScreen(Screen):
         self.check_mem()
 
         """ Display Thread / 2nd core """
-        # _thread.start_new_thread(self.start_display_loop, [])
+        _thread.start_new_thread(self.start_display_loop, ())
 
-        self.start_display_loop()
-        self.input_task = make_input_handler(self.player)
         loop = asyncio.get_event_loop()
+        self.input_task = make_input_handler(self.player)
         self.update_score_task = loop.create_task(self.mock_update_score())
 
         # Start the speed-up task
         self.speed_anim = AnimAttr(self, 'ground_speed', self.max_ground_speed, 1500, easing=AnimAttr.ease_in_out_sine)
         loop.create_task(self.speed_anim.run(fps=60))
+        # loop.run_forever()
 
-
-        asyncio.run(self.start_main_loop())
+        asyncio.run(self.update_loop())
 
 
     async def update_loop(self):
@@ -196,8 +197,8 @@ class SpriteMgrTestScreen(Screen):
                     self.sprites.update_all(elapsed)
                     self.collider.is_collision(self.sprites.pool.active_sprites)
 
-                await self.show_perf()
-                await asyncio.sleep(1/60)
+                # await self.show_perf()
+                await asyncio.sleep(1/90)
 
         except asyncio.CancelledError:
             return False
@@ -207,8 +208,10 @@ class SpriteMgrTestScreen(Screen):
 
         self.display.fill(0x0000)
         self.grid.show()
-        self.sprites.show_all(self.display)
-        self.player.show(self.display)
+        with self.display_lock:
+            self.sprites.show_all(self.display)
+        with self.display_lock:
+            self.player.show(self.display)
         self.show_fx()
         self.ui.show()
 

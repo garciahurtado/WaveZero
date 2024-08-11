@@ -16,6 +16,9 @@ class Screen:
     gc_interval: int = 3000 # how often to call the garbage collector (ms)
     app: None # ref to ScreenApp
     profile_labels = {}
+    display_loop_wait = 5 # ms for the display loop to wait between refreshes
+    fps = 0
+    target_fps = 30
 
     def __init__(self, display=None):
         self.sprites = []
@@ -42,8 +45,9 @@ class Screen:
             return True
 
     def start_display_loop(self):
-        loop = asyncio.get_event_loop()
-        self.display_task = loop.create_task(self.refresh_display())
+        while True:
+            self.do_refresh()
+            utime.sleep_ms(5)
 
     async def start_main_loop(self):
         await asyncio.gather(
@@ -53,8 +57,21 @@ class Screen:
     def do_refresh(self):
         """blocking, non-looping, version of refresh_display(), for when you need a refresh in a specific
         place in the code"""
-        self.display.show()
         self.last_tick = self.fps.tick()
+        # display_loop_wait = self.display_loop_wait
+        # step = 10
+        # if self.fps > self.target_fps:
+        #     display_loop_wait += step
+        #     if display_loop_wait > 60:
+        #         display_loop_wait = 60
+        # elif self.fps < self.target_fps:
+        #     display_loop_wait -= step
+        #     if display_loop_wait < 1:
+        #         display_loop_wait = 1
+        #
+        # self.display_loop_wait = display_loop_wait
+
+        self.display.show()
 
     def draw_sprites(self):
         for my_sprite in self.sprites:

@@ -1,3 +1,4 @@
+import _thread
 import gc
 import utime
 from micropython import const
@@ -70,6 +71,7 @@ class RoadGrid():
     far_z = 0
     speed = 0
     speed_ms = 0
+    horiz_lines_lock = _thread.allocate_lock()
 
     def __init__(self, camera, display, lane_width=None):
 
@@ -239,18 +241,19 @@ class RoadGrid():
         self.far_z = 0 # Keep track of the furthest line, to see if we need new ones
         delete_lines = []
 
-        for my_line in self.horiz_lines_data:
-            if not my_line['z']:
-                my_line['z'] = 0
+        with self.horiz_lines_lock:
+            for my_line in self.horiz_lines_data:
+                if not my_line['z']:
+                    my_line['z'] = 0
 
-            if not self.paused:
-                my_line['z'] = my_line['z'] + (self.speed_ms * elapsed)
+                if not self.paused:
+                    my_line['z'] = my_line['z'] + (self.speed_ms * elapsed)
 
-            if my_line['z'] > self.far_z:
-                self.far_z = my_line['z']
-            elif my_line['z'] < self.min_z:
-                delete_lines.append(my_line)
-                continue
+                if my_line['z'] > self.far_z:
+                    self.far_z = my_line['z']
+                elif my_line['z'] < self.min_z:
+                    delete_lines.append(my_line)
+                    continue
 
 
         """ Remove out of bounds lines """
