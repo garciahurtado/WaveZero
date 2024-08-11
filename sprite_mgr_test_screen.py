@@ -95,13 +95,15 @@ class SpriteMgrTestScreen(Screen):
 
         # Register sprite types
         sprites.add_type(SPRITE_PLAYER, "/img/bike_sprite.bmp", 5, 32, 22, 4, None)  # Assuming 8-bit color depth
-        sprites.add_type(SPRITE_BARRIER_LEFT, "/img/road_barrier_yellow.bmp", barrier_speed, 24, 15, 4, None)
-        sprites.add_type(SPRITE_BARRIER_RIGHT, "/img/road_barrier_yellow_inv.bmp", barrier_speed, 24, 15, 4, None)
+        sprites.add_type(SPRITE_BARRIER_LEFT, "/img/road_barrier_yellow.bmp", barrier_speed, 24, 15, 4, None, repeats=4, repeat_spacing=25)
+        # sprites.add_type(SPRITE_BARRIER_RIGHT, "/img/road_barrier_yellow_inv.bmp", barrier_speed, 24, 15, 4, None, repeats=2, repeat_spacing=22)
+
+
         # sprites.add_type(SPRITE_TYPE_BARRIER_RED, "/img/road_barrier_red.bmp", barrier_speed * 2, 22, 8, 4, None)
-        sprites.add_type(SPRITE_LASER_WALL, "/img/laser_wall.bmp", barrier_speed * 2, 22, 10, 4, None)
-        sprites.add_type(SPRITE_LASER_WALL_POST, "/img/laser_wall_post.bmp", barrier_speed, 10, 24, 4, None, 0x0000)
-        sprites.add_type(SPRITE_LASER_ORB, "/img/laser_orb.bmp", barrier_speed, 16, 16, 4, None, 0x0000)
-        sprites.add_type(SPRITE_WHITE_DOT, "/img/white_dot.bmp", barrier_speed, 4, 4, 4, None)
+        # sprites.add_type(SPRITE_LASER_WALL, "/img/laser_wall.bmp", barrier_speed * 2, 22, 10, 4, None)
+        # sprites.add_type(SPRITE_LASER_WALL_POST, "/img/laser_wall_post.bmp", barrier_speed, 10, 24, 4, None, 0x0000)
+        # sprites.add_type(SPRITE_LASER_ORB, "/img/laser_orb.bmp", barrier_speed, 16, 16, 4, None, 0x0000)
+        # sprites.add_type(SPRITE_WHITE_DOT, "/img/white_dot.bmp", barrier_speed, 4, 4, 4, None)
         # sprites.add_action(SPRITE_TYPE_LASER_ORB, actions.ground_laser)
 
         """ These numbers were derived by trial and error in order to match up the sprites perspective to the road grid"""
@@ -115,32 +117,32 @@ class SpriteMgrTestScreen(Screen):
         img_height = 15
         start = 2000
         every = +100
-        num_rows = 10
+        num_rows = 100
 
         for i in range(num_rows):
-            new_sprite, idx = sprites.create(SPRITE_BARRIER_RIGHT, x=start_x, y=img_height,
-                                             z=start + i * every)
-            sprites.set_lane(new_sprite, 0)
-
-        for i in range(num_rows):
-            new_sprite, idx = sprites.create(SPRITE_BARRIER_RIGHT, x=start_x, y=img_height,
+            new_sprite, idx = sprites.create(SPRITE_BARRIER_LEFT, x=start_x, y=img_height,
                                              z=start + i * every)
             sprites.set_lane(new_sprite, 1)
+        #
+        # for i in range(num_rows):
+        #     new_sprite, idx = sprites.create(SPRITE_BARRIER_RIGHT, x=start_x, y=img_height,
+        #                                      z=start + i * every)
+        #     sprites.set_lane(new_sprite, 1)
 
         # for i in range(6):
         #     new_sprite, idx = sprites.create(SPRITE_LASER_WALL, x=start_x, y=img_height,
         #                                      z=start + i * every)
         #     sprites.set_lane(new_sprite, 2)
+        #
+        # for i in range(num_rows):
+        #     new_sprite, idx = sprites.create(SPRITE_BARRIER_LEFT, x=start_x, y=img_height,
+        #                                      z=start + i * every)
+        #     sprites.set_lane(new_sprite, 3)
 
-        for i in range(num_rows):
-            new_sprite, idx = sprites.create(SPRITE_BARRIER_LEFT, x=start_x, y=img_height,
-                                             z=start + i * every)
-            sprites.set_lane(new_sprite, 3)
-
-        for i in range(num_rows):
-            new_sprite, idx = sprites.create(SPRITE_BARRIER_LEFT, x=start_x, y=img_height,
-                                             z=start + i * every)
-            sprites.set_lane(new_sprite, 4)
+        # for i in range(num_rows):
+        #     new_sprite, idx = sprites.create(SPRITE_BARRIER_LEFT, x=start_x, y=img_height,
+        #                                      z=start + i * every)
+        #     sprites.set_lane(new_sprite, 4)
 
         self.check_mem()
 
@@ -155,6 +157,7 @@ class SpriteMgrTestScreen(Screen):
         # Start the speed-up task
         self.speed_anim = AnimAttr(self, 'ground_speed', self.max_ground_speed, 1500, easing=AnimAttr.ease_in_out_sine)
         loop.create_task(self.speed_anim.run(fps=60))
+
 
         asyncio.run(self.start_main_loop())
 

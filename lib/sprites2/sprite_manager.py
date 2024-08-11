@@ -36,19 +36,21 @@ class SpriteManager:
         if camera:
             self.set_camera(camera)
 
-    def add_type(self, sprite_type, image_path, speed, width, height, color_depth, palette, alpha=None):
+    def add_type(self, sprite_type, image_path, speed, width, height, color_depth, palette, alpha=None, repeats=0, repeat_spacing=0):
         num_frames = max(width, height) + self.add_frames
         speed = speed / 1000
         init_values = \
-            {'image_path': image_path,
-             'speed': speed,
-             'width': width,
-             'height': height,
-             'color_depth': color_depth,
-             'palette': palette,
-             'alpha': alpha,
-             'frames': [],
-             'num_frames': num_frames
+            {   'image_path': image_path,
+                'speed': speed,
+                'width': width,
+                'height': height,
+                'color_depth': color_depth,
+                'palette': palette,
+                'alpha': alpha,
+                'frames': [],
+                'num_frames': num_frames,
+                'repeats': repeats,
+                'repeat_spacing': repeat_spacing,
              }
 
         self.sprite_metadata[sprite_type] = SpriteType(**init_values)
@@ -226,8 +228,7 @@ class SpriteManager:
                     self.pool.release(sprite)
 
     def update_frame(self, sprite):
-        frame_idx = self.get_frame_idx(int(sprite.z), int(self.camera.cam_z), int(sprite.num_frames),
-                                       int(self.half_scale_one_dist))
+        frame_idx = self.get_frame_idx2(int(sprite.num_frames),sprite.scale)
         sprite.current_frame = frame_idx
 
 
@@ -248,14 +249,27 @@ class SpriteManager:
 
         image = self.sprite_images[sprite_type][frame_id]
         alpha = self.get_alpha(sprite_type)
+        meta = self.sprite_metadata[sprite_type]
 
         """Actions?"""
         if sprite_type in self.sprite_actions.keys():
             action = self.sprite_actions[sprite_type]
             action(display, self.camera, sprite.draw_x, sprite.draw_y, sprite.x, sprite.y, sprite.z, sprite.frame_width)
 
-        self.do_blit(x=int(sprite.draw_x), y=int(sprite.draw_y - image.height / 2), display=display, frame=image.pixels,
-                     palette=palette, alpha=alpha)
+        if meta.repeats < 2:
+            self.do_blit(x=int(sprite.draw_x), y=int(sprite.draw_y), display=display, frame=image.pixels,
+                         palette=palette, alpha=alpha)
+        else:
+            """Draw horizontal clones of this sprite"""
+            start_x = sprite.draw_x
+            start_y = sprite.draw_y
+            for i in range(0, meta.repeats):
+                x = start_x + (meta.repeat_spacing * sprite.scale * i)
+                self.do_blit(x=int(x), y=int(start_y), display=display, frame=image.pixels,palette=palette, alpha=alpha)
+
+        # else:
+        #     for i in range(meta.repeats):
+        #
 
         return True
 
