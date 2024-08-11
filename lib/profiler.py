@@ -1,79 +1,104 @@
 import utime
 from ucollections import OrderedDict
-
+import asyncio
 
 class Profiler():
     profile_labels = OrderedDict()
+    _task_local = {}
+    enabled = False
+
+    @staticmethod
+    def _get_current_task():
+        try:
+            return asyncio.current_task()
+        except RuntimeError:
+            return None  # We're not in an asyncio event loop
 
     @staticmethod
     def start_profile(label):
-        print(f"Start {label}")
-        if label not in Profiler.profile_labels.keys():
-            Profiler.profile_labels[label] = [0, 0, 0]  # num calls / start usecs / total time
+        if not Profiler.enabled:
+            return False
+
+        task = Profiler._get_current_task()
+        if task:
+            if task not in Profiler._task_local:
+                Profiler._task_local[task] = []
+            Profiler._task_local[task].append(label)
+
+        if label not in Profiler.profile_labels:
+            Profiler.profile_labels[label] = [0, 0, 0, label]  # num calls / start usecs / total time / label
 
         Profiler.profile_labels[label][1] = utime.ticks_us()  # record the start time
 
     @staticmethod
     def end_profile(label=None):
-        """Use the last label used in start_profile"""
-        if not label:
-            labels = Profiler.profile_labels.keys()
-            labels = list(labels)
-            last = len(labels) - 1
-            label = labels[last]
-            print(f"Assigning label {label}")
+        if not Profiler.enabled:
+            return False
+        task = Profiler._get_current_task()
+        if task:
+            if not label:
+                if task not in Profiler._task_local or not Profiler._task_local[task]:
+                    return
+                label = Profiler._task_local[task].pop()
+            elif task in Profiler._task_local and Profiler._task_local[task] and Profiler._task_local[task][
+                -1] == label:
+                Profiler._task_local[task].pop()
+        elif not label:
+            return
 
-        if label not in Profiler.profile_labels.keys():
-            raise f"Profiling Label '{label}' not found"
+        if label not in Profiler.profile_labels:
+            return
 
         record = Profiler.profile_labels[label]
-
         if not record[1]:
-            raise AttributeError(f"Profiling label {label} is missing a start_profile")
+            return
 
         end_time = utime.ticks_us()
-        start_time = record[1]
-        elapsed = utime.ticks_diff(end_time, start_time)
+        elapsed = utime.ticks_diff(end_time, record[1])
 
-        """ Increase count by one, reset the start time to zero, and add the time to the total runtime"""
-        record[0] = record[0] + 1
-        record[1] = 0
-        record[2] = record[2] + elapsed
+        record[0] += 1  # Increment call count
+        record[1] = 0  # Reset start time
+        record[2] += elapsed  # Add to total time
 
     @staticmethod
-    def profile_clean():
-        for key in Profiler.profile_labels:
-            data = Profiler.profile_labels[key]
-            data[0], data[1], data[2] = 0, 0, 0
+    async def profile_clean():
+        Profiler.profile_labels.clear()
+        Profiler._task_local.clear()
 
     @staticmethod
     def dump_profile():
+        if not Profiler.enabled:
+            return False
+
         print("\n")
         print(f"{'func': <32} {'runs': <8} {'avg ms': <14} {'total ms': >20} ")
         print("-------------------------------------------------------------------------------\n")
-        for label, data in Profiler.profile_labels.items():
-            num_runs = data[0]
-            total_time = data[2]
-            avg_time = total_time / num_runs if num_runs else 0
 
-            avg_time_ms = avg_time / 1000
-            total_time_ms = total_time / 1000
+        if not Profiler.profile_labels:
+            print("No profiling data available.")
+        else:
+            sorted_labels = sorted(Profiler.profile_labels.items(), key=lambda x: x[1][2], reverse=True)
 
-            print(f"{label: <32} {num_runs: <8} {avg_time_ms: <14.2} {total_time_ms: >20.6}")
+            for record in sorted_labels:
+                record = record[1]
+                num_runs, _, total_time, label = record
+                if num_runs == 0:
+                    print(f"{label: <32} {'N/A': <8} {'N/A': <14} {'N/A': >20}")
+                else:
+                    avg_time = total_time / num_runs
+                    avg_time_ms = avg_time / 1000
+                    total_time_ms = total_time / 1000
+                    print(f"{label: <32} {num_runs: <8} {avg_time_ms: <14.4f} {total_time_ms: >20.2f}")
 
         print("\n")
 
-def timed(func, *args, **kwargs):
-    parts = str(func).split(' ')
-    if len(parts) > 1:
-        myname = parts[1]
-    else:
-        myname = parts[0]
-
-    def new_func(*args, **kwargs):
-        Profiler.start_profile(myname)
-        result = func(*args, **kwargs)
-        Profiler.end_profile(myname)
-
-        return result
-    return new_func
+def timed():
+    def decorator(func):
+        async def wrapper(*args, **kwargs):
+            await Profiler.start_profile(func.__name__)
+            try:
+                return await func(*args, **kwargs)
+            finally:
+                await Profiler.end_profile(func.__name__)
+        return wrapper
+    return decorator

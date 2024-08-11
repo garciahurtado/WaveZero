@@ -65,6 +65,7 @@ class SpritePool:
         return sprite
 
     def update(self, elapsed):
+        print("DEPRECATED: spritePool.update()")
         for sprite in self.active_sprites:
             if not sprite.active:
                 sprite.kill()

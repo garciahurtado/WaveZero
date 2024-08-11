@@ -1,4 +1,3 @@
-import _thread
 import gc
 import utime
 import uasyncio as asyncio

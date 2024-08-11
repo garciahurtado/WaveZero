@@ -104,7 +104,7 @@ class RoadGrid():
         self.horiz_y = self.horiz_y + horiz_y_offset
 
         self.speed = -100
-        self.speed_ms = self.speed / 1000
+        self.speed_ms = self.speed
         self.ground_height = camera.screen_height - self.horiz_y
         self.init_palettes()
 

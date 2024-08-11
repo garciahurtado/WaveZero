@@ -9,6 +9,7 @@ import math
 from images.indexed_image import Image, create_image
 from sprites2.sprite_pool_lite import SpritePool
 from typing import Dict, List
+from profiler import Profiler as prof
 
 class SpriteManager:
     POS_TYPE_FAR = const(0)
@@ -38,7 +39,7 @@ class SpriteManager:
 
     def add_type(self, sprite_type, image_path, speed, width, height, color_depth, palette, alpha=None, repeats=0, repeat_spacing=0):
         num_frames = max(width, height) + self.add_frames
-        speed = speed / 1000
+        speed = speed
         init_values = \
             {   'image_path': image_path,
                 'speed': speed,
@@ -154,16 +155,21 @@ class SpriteManager:
         if not sprite.active:
             return False
 
-        # prof.start_profile('update_z_speed')
-        old_z = sprite.z
-        new_z = sprite.z + (sprite.speed * elapsed)
-        new_z = int(new_z)
-        # prof.end_profile('update_z_speed')
-        #
-        if new_z == old_z:
-            return True
+        if not sprite.speed:
+            return False
 
-        sprite.z = new_z
+        #prof.start_profile('update_z_speed')
+        new_z = sprite.z + (sprite.speed * elapsed)
+        #prof.end_profile('update_z_speed')
+
+        # print(f"speed:{sprite.speed} / {elapsed}")
+
+        if new_z == sprite.z:
+            return False
+
+        sprite.z = int(new_z)
+        if sprite.z == 0:
+            sprite.z = 1
 
         if new_z < self.camera.far and not sprite.visible:
             sprite.visible = True
@@ -187,24 +193,23 @@ class SpriteManager:
 
         # print(f"Scale: {scale}")
 
-        # prof.start_profile('cam_pos')
+        #prof.start_profile('cam_pos')
         draw_x, draw_y = self.to_2d(sprite.x, sprite.y + meta.height, sprite.z)
         # draw_x_2 = int(self.camera.half_width - (sprite.x * scale))
         # print(f"Draw X 2: {draw_x_2}")
-        # prof.end_profile('cam_pos')
+        #prof.end_profile('cam_pos')
 
         num_frames = sprite.num_frames
 
         real_z = sprite.z
 
-        # prof.start_profile('get_frame_idx')
-        frame_idx = self.get_frame_idx(int(real_z), int(self.camera.cam_z), int(num_frames),
-                                       int(self.half_scale_one_dist))
-        # prof.end_profile('get_frame_idx')
+        #prof.start_profile('get_frame_idx')
+        frame_idx = self.get_frame_idx(real_z, int(self.camera.cam_z), num_frames,
+                                       self.half_scale_one_dist)
+        #prof.end_profile('get_frame_idx')
 
-        sprite.z = new_z
-        sprite.draw_x = draw_x
-        sprite.draw_y = draw_y
+        sprite.draw_x = int(draw_x)
+        sprite.draw_y = int(draw_y)
         sprite.current_frame = frame_idx
 
         # if sprite.event_chain:
@@ -222,10 +227,9 @@ class SpriteManager:
             if self.update(sprite, meta, elapsed):
                 self.update_frame(sprite)
                 i += 1
-            else:
-                # Sprite is no longer active
-                if sprite.active:
-                    self.pool.release(sprite)
+
+            if not sprite.active:
+                self.pool.release(sprite)
 
     def update_frame(self, sprite):
         frame_idx = self.get_frame_idx(int(sprite.z), int(self.camera.cam_z), int(sprite.num_frames),
@@ -260,6 +264,7 @@ class SpriteManager:
         start_y = int(sprite.draw_y)
         start_x = sprite.draw_x
 
+        """ Drawing a single image or a row of them? """
         if meta.repeats < 2:
             self.do_blit(x=int(sprite.draw_x), y=start_y, display=display, frame=image.pixels,
                          palette=palette, alpha=alpha)
@@ -268,10 +273,6 @@ class SpriteManager:
             for i in range(0, meta.repeats):
                 x = start_x + (meta.repeat_spacing * sprite.scale * i)
                 self.do_blit(x=int(x), y=start_y, display=display, frame=image.pixels,palette=palette, alpha=alpha)
-
-        # else:
-        #     for i in range(meta.repeats):
-        #
 
         return True
 
@@ -330,18 +331,24 @@ class SpriteManager:
         """ Given the Z coordinate (depth), find the scaled frame number which best represents the
         size of the object at that distance """
 
+        #prof.start_profile('frame.calc_rate')
         rate: int = int(z - cam_z)
         if (rate >= -1) and (rate <= 1):  # Use a small threshold instead of exactly 0
             rate = 2 if rate >= 0 else -2  # Avoid divide by zero
+        #prof.end_profile()
 
+        #prof.start_profile('frame.calc_scale')
         # Use multiplication instead of division
         scale: int = abs(int(scale_dist) * 2)
         if scale > abs(rate):
             scale = abs(rate)
+        #prof.end_profile()
 
-        temp: int = abs(int(rate))
-        scale_num: int = int(int(scale) * int(num_frames))
-        frame_idx: int = int(int(scale_num) // int(temp))
+        #prof.start_profile('frame.calc_frame_idx')
+        temp = abs((rate))
+        scale_num = int(scale) * (num_frames)
+        frame_idx: int = (scale_num) // int(temp)
+        #prof.end_profile()
 
         if frame_idx >= num_frames:
             return int(num_frames - 1)

@@ -1,4 +1,3 @@
-import _thread
 import gc
 
 from utime import sleep

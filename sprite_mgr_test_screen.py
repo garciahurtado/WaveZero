@@ -31,7 +31,7 @@ from profiler import Profiler as prof
 
 class SpriteMgrTestScreen(Screen):
     ground_speed: int = const(-0)
-    max_ground_speed: int = const(-150)
+    max_ground_speed: int = const(-1500)
     grid: RoadGrid = None
     camera: PerspectiveCamera
     sprites: SpriteManager = None
@@ -74,7 +74,7 @@ class SpriteMgrTestScreen(Screen):
     async def mock_update_score(self):
         while True:
             now = random.randrange(0, 100000)
-            self.ui.update_score(int(now))
+            self.ui.update_score(now)
             await asyncio.sleep(1)
 
     def run(self):
@@ -88,19 +88,19 @@ class SpriteMgrTestScreen(Screen):
         print("-- Creating sprites...")
         sprites = self.sprites
 
-        barrier_speed = self.max_ground_speed
+        barrier_speed = self.max_ground_speed / 10
         print(f"Sprite speed: {barrier_speed}")
 
         self.check_mem()
 
         # Register sprite types
         sprites.add_type(SPRITE_PLAYER, "/img/bike_sprite.bmp", 5, 32, 22, 4, None)  # Assuming 8-bit color depth
-        sprites.add_type(SPRITE_BARRIER_LEFT, "/img/road_barrier_yellow.bmp", barrier_speed, 24, 15, 4, None, repeats=4, repeat_spacing=25)
+        sprites.add_type(SPRITE_BARRIER_LEFT, "/img/road_barrier_yellow.bmp", barrier_speed, 24, 15, 4, None, repeats=4, repeat_spacing=26)
         # sprites.add_type(SPRITE_BARRIER_RIGHT, "/img/road_barrier_yellow_inv.bmp", barrier_speed, 24, 15, 4, None, repeats=2, repeat_spacing=22)
 
 
-        # sprites.add_type(SPRITE_TYPE_BARRIER_RED, "/img/road_barrier_red.bmp", barrier_speed * 2, 22, 8, 4, None)
-        # sprites.add_type(SPRITE_LASER_WALL, "/img/laser_wall.bmp", barrier_speed * 2, 22, 10, 4, None)
+        # sprites.add_type(SPRITE_BARRIER_RED, "/img/road_barrier_red.bmp", barrier_speed * 2, 22, 8, 4, None, repeats=4, repeat_spacing=25)
+        sprites.add_type(SPRITE_LASER_WALL, "/img/laser_wall.bmp", barrier_speed, 22, 10, 4, None,  repeats=4, repeat_spacing=22)
         # sprites.add_type(SPRITE_LASER_WALL_POST, "/img/laser_wall_post.bmp", barrier_speed, 10, 24, 4, None, 0x0000)
         # sprites.add_type(SPRITE_LASER_ORB, "/img/laser_orb.bmp", barrier_speed, 16, 16, 4, None, 0x0000)
         # sprites.add_type(SPRITE_WHITE_DOT, "/img/white_dot.bmp", barrier_speed, 4, 4, 4, None)
@@ -115,9 +115,9 @@ class SpriteMgrTestScreen(Screen):
         self.check_mem()
 
         img_height = 15
-        start = 2000
+        start = 3000
         every = +100
-        num_rows = 100
+        num_rows = 20
 
         for i in range(num_rows):
             new_sprite, idx = sprites.create(SPRITE_BARRIER_LEFT, x=start_x, y=img_height,
@@ -173,12 +173,13 @@ class SpriteMgrTestScreen(Screen):
         # update loop - will run until task cancellation
         try:
             while True:
+                # Optimize: precompute num_lanes * bike_angle when bike_angle is being set
                 self.camera.vp_x = round(self.player.bike_angle * num_lanes)
                 self.camera.cam_x = round(self.player.bike_angle * num_lanes)
 
                 # gc.collect()
                 self.grid.speed = self.ground_speed
-                self.grid.speed_ms = self.ground_speed / 1000
+                self.grid.speed_ms = self.ground_speed / 10
                 self.total_frames += 1
 
                 if not self.total_frames % self.fps_every_n_frames:
@@ -186,7 +187,8 @@ class SpriteMgrTestScreen(Screen):
 
                 now = utime.ticks_ms()
                 elapsed = utime.ticks_diff(now, self.last_update_ms)
-                self.last_update_ms = utime.ticks_ms()
+                elapsed = elapsed / 1000
+                self.last_update_ms = now
 
                 if not self.paused:
                     self.grid.update_horiz_lines(elapsed)
@@ -194,7 +196,8 @@ class SpriteMgrTestScreen(Screen):
                     self.sprites.update_all(elapsed)
                     self.collider.is_collision(self.sprites.pool.active_sprites)
 
-                await asyncio.sleep(1/120)
+                await self.show_perf()
+                await asyncio.sleep(1/60)
 
         except asyncio.CancelledError:
             return False
@@ -211,7 +214,6 @@ class SpriteMgrTestScreen(Screen):
 
         self.display.show()
 
-        # self.show_perf()
         self.fps.tick()
 
     def show_fx(self):
@@ -291,8 +293,8 @@ class SpriteMgrTestScreen(Screen):
             vp_x=0,
             vp_y=horiz_y)
 
-    def show_perf(self):
-        interval = 2000 # Every 2 secs
+    async def show_perf(self):
+        interval = 5000 # Every 5 secs
 
         now = int(utime.ticks_ms())
         elapsed = now - self.last_perf_dump_ms

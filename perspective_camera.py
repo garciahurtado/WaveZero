@@ -14,6 +14,7 @@ class PerspectiveCamera():
         self.screen_width = display.width
         self.screen_height = display.height
 
+
         # Calculate aspect ratio
         self.aspect_ratio = self.screen_width / self.screen_height
 
@@ -29,8 +30,8 @@ class PerspectiveCamera():
         self.half_height = int(self.screen_height / 2)
 
         self.vp = {"x": vp_x, "y": vp_y}  # vanishing point
-        self.vp_x = vp_x
-        self.vp_y = vp_y
+        self.vp_x = int(vp_x)
+        self.vp_y = int(vp_y)
         self.focal_length = focal_length  # Distance from the camera to the projection plane in pixels
 
         # Pre-multiply focal_length and aspect_ratio
@@ -41,13 +42,12 @@ class PerspectiveCamera():
         self.fov_x = self.fov_y * self.aspect_ratio
         self.y_offset = self.screen_height - self.half_height - vp_y
         self.vp_factor = self.vp_x / (self.screen_height - self.vp_y)
-
+        self.vp_factor_y = 1 / (self.screen_height - self.vp_y)
 
         self.min_z = pos_z - 80
         self._y_factor_cache = {}
 
-        self.min_yaw = 0
-        self.max_yaw = -100
+        self.vp_factor_y = 1 / (self.screen_height - vp_y)
 
     def calculate_fov(self, focal_length: float) -> float:
         # Calculate the vertical FOV
@@ -102,14 +102,14 @@ class PerspectiveCamera():
 
         # Adjust for camera position
         #prof.start_profile('cam.pos_adjust')
-        x = x - cam_x
+        # x = x - cam_x
         y = y - cam_y
         z = z - cam_z
         #prof.end_profile()
 
         #prof.start_profile('cam.set_z_0')
-        if z == 0:
-            z = 0.000001 # avoid division by zero
+        # if z == 0:
+        #     z = 0.000001 # avoid division by zero
         #prof.end_profile()
 
 
@@ -127,23 +127,23 @@ class PerspectiveCamera():
 
         #prof.start_profile('cam.convert_to_screen')
         # Convert to screen coordinates
-        screen_x = screen_x + half_width
-        screen_y = self.y_offset - screen_y
+        screen_x = int(screen_x + half_width)
+        screen_y = int(self.y_offset - screen_y)
 
         #prof.end_profile()
 
 
         #prof.start_profile('cam.apply_vp')
         # Apply vanishing point adjustment
-        y_factor = (screen_y - vp_y) / (screen_height - vp_y)
-        screen_x = screen_x - (vp_x * y_factor)
+        screen_x = screen_x - vp_x
 
         #prof.end_profile()
 
 
         # print(f"x/y : {screen_x} {screen_y}")
 
-        return int(screen_x), int(screen_y)
+        return screen_x, screen_y
+
 
     def set_camera_position(self, x, y, z):
         self.camera_x = x

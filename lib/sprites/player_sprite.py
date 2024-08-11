@@ -20,7 +20,7 @@ class PlayerSprite(Spritesheet):
         self.has_physics = True
         self.moving = False
         self.bike_angle = 0
-        self.turn_incr = 2.5  # lane switching speed
+        self.turn_incr = 2500  # lane switching speed
         self.camera = camera
         self.half_width = int(self.camera.half_width)
 

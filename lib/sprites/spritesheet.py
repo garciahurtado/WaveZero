@@ -66,7 +66,7 @@ class Spritesheet(Sprite):
 
         self.set_frame(frame_idx)
 
-#        prof.end_profile("sprite.update_frame")
+        prof.end_profile("sprite.update_frame")
 
         return True
 

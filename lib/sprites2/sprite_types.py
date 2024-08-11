@@ -56,7 +56,7 @@ def create_sprite(
     sprite.y = y
     sprite.z = z
     sprite.scale = scale
-    sprite.speed = speed
+    sprite.speed = int(speed)
     sprite.visible = int(visible)
     sprite.active = int(active)
     sprite.blink = int(blink)
