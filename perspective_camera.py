@@ -124,8 +124,6 @@ class PerspectiveCamera():
         screen_x = screen_x * self.aspect_ratio
         #prof.end_profile()
 
-        # print(f"Screen x: {screen_x}")
-
 
         #prof.start_profile('cam.convert_to_screen')
         # Convert to screen coordinates
@@ -175,4 +173,3 @@ class PerspectiveCamera():
         scale = self.focal_length_aspect / relative_z
 
         return scale
-

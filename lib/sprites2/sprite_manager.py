@@ -228,7 +228,8 @@ class SpriteManager:
                     self.pool.release(sprite)
 
     def update_frame(self, sprite):
-        frame_idx = self.get_frame_idx2(int(sprite.num_frames),sprite.scale)
+        frame_idx = self.get_frame_idx(int(sprite.z), int(self.camera.cam_z), int(sprite.num_frames),
+                                       int(self.half_scale_one_dist))
         sprite.current_frame = frame_idx
 
 
@@ -256,16 +257,17 @@ class SpriteManager:
             action = self.sprite_actions[sprite_type]
             action(display, self.camera, sprite.draw_x, sprite.draw_y, sprite.x, sprite.y, sprite.z, sprite.frame_width)
 
+        start_y = int(sprite.draw_y)
+        start_x = sprite.draw_x
+
         if meta.repeats < 2:
-            self.do_blit(x=int(sprite.draw_x), y=int(sprite.draw_y), display=display, frame=image.pixels,
+            self.do_blit(x=int(sprite.draw_x), y=start_y, display=display, frame=image.pixels,
                          palette=palette, alpha=alpha)
         else:
             """Draw horizontal clones of this sprite"""
-            start_x = sprite.draw_x
-            start_y = sprite.draw_y
             for i in range(0, meta.repeats):
                 x = start_x + (meta.repeat_spacing * sprite.scale * i)
-                self.do_blit(x=int(x), y=int(start_y), display=display, frame=image.pixels,palette=palette, alpha=alpha)
+                self.do_blit(x=int(x), y=start_y, display=display, frame=image.pixels,palette=palette, alpha=alpha)
 
         # else:
         #     for i in range(meta.repeats):
