@@ -1,3 +1,5 @@
+import gc
+
 from micropython import const
 import micropython
 
@@ -25,14 +27,18 @@ class SpriteManager:
     add_frames = 0  # Number of upscaled frames to add
     pool = None
     death_anim = None
+    grid = None
 
-    def __init__(self, display: framebuf.FrameBuffer, max_sprites, camera=None, lane_width=None):
+    def __init__(self, display: framebuf.FrameBuffer, max_sprites, camera=None, lane_width=None, grid=None):
         self.display = display
         self.death_anim = DeathAnim(display)
 
         self.max_sprites = max_sprites
         self.lane_width = lane_width
-        self.pool = SpritePool(200)
+        self.grid = grid
+
+        self.check_mem()
+        self.pool = SpritePool(self.max_sprites)
 
         if camera:
             self.set_camera(camera)
@@ -87,6 +93,9 @@ class SpriteManager:
 
     def load_img_and_scale(self, metadata, sprite_type):
         orig_img = ImageLoader.load_image(metadata.image_path)
+        if isinstance(orig_img, list):
+            orig_img = orig_img[0]
+
         frames = []
         num_frames = metadata.num_frames
 
@@ -310,6 +319,9 @@ class SpriteManager:
         new_x = (lane * self.lane_width) - (sprite.frame_width / 2)
         sprite.lane_num = lane_num
         sprite.x = round(new_x)
+        meta = self.sprite_metadata[sprite.sprite_type]
+
+        # self.grid.set_lane_mask(sprite, meta.repeats, meta.repeat_spacing)
 
     def get_lane(self, sprite):
         # Calculate the center of the sprite
@@ -362,6 +374,10 @@ class SpriteManager:
         for i in range(self.pool.active_count):
             sprite = self.pool.sprites[self.pool.active_indices[i]]
             self.show(sprite, display)
+
+    def check_mem(self):
+        gc.collect()
+        print(micropython.mem_info())
 
 
 # Usage example

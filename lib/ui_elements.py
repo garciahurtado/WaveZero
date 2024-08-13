@@ -92,10 +92,8 @@ class ui_screen():
 
     def update_lives(self):
         if not self.dirty:
-            print("CLEAN")
             return False
 
-        print("DIRTY")
         if self.num_lives > 3:
             self.has_x_lives = True
             one_sprite = self.lives_sprite.clone()

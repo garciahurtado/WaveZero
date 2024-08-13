@@ -6,57 +6,55 @@ POS_TYPE_FAR = const(0)
 POS_TYPE_NEAR = const(1)
 
 SPRITE_DATA_LAYOUT = {
-    "sprite_type": uctypes.UINT8 | 0,
-    "x": uctypes.INT16 | 2,
-    "y": uctypes.INT16 | 4,
-    "z": uctypes.INT16 | 6,
-    "scale": uctypes.FLOAT32 | 8,
-    "speed": uctypes.FLOAT32 | 12,
-    "visible": uctypes.UINT8 | 16,
-    "active": uctypes.UINT8 | 17,
-    "blink": uctypes.UINT8 | 18,
-    "blink_flip": uctypes.UINT8 | 19,
-    "pos_type": uctypes.UINT8 | 20,
-    "frame_width": uctypes.UINT8 | 21,
-    "frame_height": uctypes.UINT8 | 22,
-    "current_frame": uctypes.UINT8 | 23,
-    "lane_num": uctypes.UINT8 | 24,
-    "draw_x": uctypes.INT8 | 25,
-    "draw_y": uctypes.INT8 | 26,
-    "num_frames": uctypes.UINT8 | 27,
-    "born_ms": uctypes.UINT32 | 28,
+    # 4-byte (32-bit) fields
+    "scale": uctypes.FLOAT32 | 0,        # 4 bytes at offset 0
+    "speed": uctypes.FLOAT32 | 4,        # 4 bytes at offset 4
+    "born_ms": uctypes.UINT32 | 8,       # 4 bytes at offset 8
+
+    # 2-byte (16-bit) fields
+    "x": uctypes.INT16 | 12,             # 2 bytes at offset 12
+    "y": uctypes.INT16 | 14,             # 2 bytes at offset 14
+    "z": uctypes.INT16 | 16,             # 2 bytes at offset 16
+
+    # 1-byte (8-bit) fields
+    "sprite_type": uctypes.UINT8 | 18,   # 1 byte at offset 18
+    "visible": uctypes.UINT8 | 19,       # 1 byte at offset 19
+    "active": uctypes.UINT8 | 20,        # 1 byte at offset 20
+    "blink": uctypes.UINT8 | 21,         # 1 byte at offset 21
+    "blink_flip": uctypes.UINT8 | 22,    # 1 byte at offset 22
+    "pos_type": uctypes.UINT8 | 23,      # 1 byte at offset 23
+    "frame_width": uctypes.UINT8 | 24,   # 1 byte at offset 24
+    "frame_height": uctypes.UINT8 | 25,  # 1 byte at offset 25
+    "current_frame": uctypes.UINT8 | 26, # 1 byte at offset 26
+    "num_frames": uctypes.UINT8 | 27,    # 1 byte at offset 27
+    "lane_num": uctypes.INT8 | 28,       # 1 byte at offset 28
+    "lane_mask": uctypes.UINT8 | 29,     # 1 byte at offset 29
+    "draw_x": uctypes.INT8 | 30,         # 1 byte at offset 30
+    "draw_y": uctypes.INT8 | 31,         # 1 byte at offset 31
 }
 
 def create_sprite(
-    sprite_type=0,
-    x=0,
-    y=0,
-    z=0,
-    scale=1,
-    speed=0,
-    visible=False,
-    active=False,
-    blink=False,
-    blink_flip=False,
-    pos_type=POS_TYPE_FAR,
-    frame_width=0,
-    frame_height=0,
-    current_frame=0,
-    lane_num=0,
-    draw_x=0,
-    draw_y=0,
-    num_frames=0,
-    born_ms=0,
+    x=0, y=0, z=0, scale=1.0, speed=0.0, born_ms=0, sprite_type=0,
+    visible=False, active=False, blink=False, blink_flip=False,
+    pos_type=POS_TYPE_FAR, frame_width=0, frame_height=0,
+    current_frame=0, num_frames=0, lane_num=0, lane_mask=0,
+    draw_x=0, draw_y=0
 ):
-    mem = bytearray(32)  # Adjusted size for the byte layout
+    mem = bytearray(32)
     sprite = uctypes.struct(uctypes.addressof(mem), SPRITE_DATA_LAYOUT)
 
-    sprite.sprite_type = sprite_type
+    # Set 4-byte fields
+    sprite.scale = scale
+    sprite.speed = speed
+    sprite.born_ms = born_ms
+
+    # Set 2-byte fields
     sprite.x = x
     sprite.y = y
     sprite.z = z
-    sprite.scale = scale
-    sprite.speed = int(speed)
+
+    # Set 1-byte fields
+    sprite.sprite_type = sprite_type
     sprite.visible = int(visible)
     sprite.active = int(active)
     sprite.blink = int(blink)
@@ -65,11 +63,11 @@ def create_sprite(
     sprite.frame_width = frame_width
     sprite.frame_height = frame_height
     sprite.current_frame = current_frame
+    sprite.num_frames = num_frames
     sprite.lane_num = lane_num
+    sprite.lane_mask = lane_mask
     sprite.draw_x = draw_x
     sprite.draw_y = draw_y
-    sprite.num_frames = num_frames
-    sprite.born_ms = born_ms
 
     return sprite
 

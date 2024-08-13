@@ -3,7 +3,7 @@ from ucollections import namedtuple
 
 
 Image = namedtuple("Image",
-           [
+           (
             "width",
             "height",
             "pixels",
@@ -11,7 +11,7 @@ Image = namedtuple("Image",
             "palette",
             "palette_bytes",
             "color_depth"
-           ]
+           )
         )
 
 

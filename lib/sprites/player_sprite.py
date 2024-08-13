@@ -4,6 +4,7 @@ from sprites.spritesheet import Spritesheet
 class PlayerSprite(Spritesheet):
     target_lane = 2
     current_lane = 2
+    lane_mask = 0
     bike_angle = 0
 
     def __init__(self, camera=None, *args, **kwargs):
@@ -74,6 +75,8 @@ class PlayerSprite(Spritesheet):
             if bike_angle <= target_angle:
                 current_lane = target_lane
                 bike_angle = target_angle
+                self.lane_mask = 1 << current_lane
+
                 self.moving = False
 
         elif target_lane > current_lane:
@@ -81,12 +84,14 @@ class PlayerSprite(Spritesheet):
             if bike_angle >= target_angle:
                 current_lane = target_lane
                 bike_angle = target_angle
+                self.lane_mask = 1 << current_lane
+
                 self.moving = False
 
         bike_angle = min(bike_angle, 1)  # Clamp the input between -1 and 1
         line_offset = self.pick_frame(bike_angle)  # bike_angle->(-1,1)
 
-        self.x = int((line_offset * 34) + self.half_width - 16)
+        self.x = (line_offset * 34) + self.half_width - 15
         self.current_lane = current_lane
         self.bike_angle = bike_angle
 

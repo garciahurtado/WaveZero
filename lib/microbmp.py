@@ -384,7 +384,7 @@ class MicroBMP(object):
                 self.num_colors = DIB_plt_num_info
             # self.palette = [None for i in range(self.num_colors)]
 
-            color_format = None
+            print(f"BMP Palette has {self.num_colors} colors")
 
             if self.color_depth == 16:
                 color_format = framebuf.RGB565
@@ -401,8 +401,9 @@ class MicroBMP(object):
             elif self.color_depth == 1:
                 num_bytes = math.ceil(self.num_colors / 8)
                 color_format = framebuf.MONO_HLSB
+            else:
+                raise AttributeError(f"Color depth {self.color_depth} not supported")
 
-            print(f"Num bytes: {num_bytes}")
             self.palette_bytes = bytearray(num_bytes)
             self.palette = FramebufferPalette(int(self.num_colors))
 
@@ -430,17 +431,7 @@ class MicroBMP(object):
             num_frames = math.floor(self.height / self.frame_height)
             frame_size = self.frame_width * self.frame_height
 
-            # print(f"Creating {num_frames} frames of {self.frame_width}x{self.frame_height} ")
-
-            if self.color_depth == 8:
-                format = framebuf.GS8
-            elif self.color_depth == 4:
-                format = framebuf.GS4_HMSB
-                frame_size = int(frame_size / 2)
-            else:
-                format = framebuf.GS2_HMSB
-                frame_size = int(frame_size / 4)
-
+            print(f"Making frame of: {self.frame_width} x {self.frame_height} / num frames: {num_frames} bytes: {frame_size} / format: {color_format}")
             for frame_idx in range(num_frames):
                 byte_pixels = bytearray(frame_size)
                 # print(f"Creating frame of size {frame_size} format: {format} {framebuf.GS4_HMSB} ({self.frame_width}x{self.frame_height})")
@@ -449,7 +440,7 @@ class MicroBMP(object):
                     byte_pixels,
                     self.frame_width,
                     self.frame_height,
-                    format
+                    color_format
                 )
 
                 frame = create_image(

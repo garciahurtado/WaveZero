@@ -1,6 +1,10 @@
+import sys
+
 import framebuf
 from machine import Pin
 import machine
+
+from sprites2.sprite_pool_lite import SpritePool
 # from ssd1331_16bit import SSD1331 as Driver
 from ssd1331_pio import SSD1331PIO as Driver
 
@@ -61,27 +65,4 @@ class ScreenApp:
     #     self.display.begin(False)
     #     return self.display
 
-class ScreenAppFramebuf(ScreenApp):
-    def __init__(self, screen_height, screen_width):
-        self.screen_height = screen_height
-        self.screen_width = screen_width
 
-        size = screen_width * screen_height * 2
-        self.buffer = bytearray(size)
-
-        self.display = CustomFramebuf(
-            self.buffer,
-            screen_height,
-            screen_width,
-            framebuf.RGB565
-        )
-
-    def setup_display(self):
-        return False
-
-class CustomFramebuf(framebuf.FrameBuffer):
-    buffer: None
-
-    def __init__(self, buffer, height, width, format):
-        self.buffer = buffer
-        super().__init__(buffer, height, width, format)

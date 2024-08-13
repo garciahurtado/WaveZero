@@ -1,10 +1,12 @@
 import _thread
 import random
+import sys
 
 import color_util as colors
 from micropython import const
 
 from anim.anim_attr import AnimAttr
+from images.image_loader import ImageLoader
 from sprites.player_sprite import PlayerSprite
 from road_grid import RoadGrid
 
@@ -15,6 +17,7 @@ import uasyncio as asyncio
 import utime
 
 from sprites2.sprite_manager import SpriteManager
+from sprites2.sprite_pool_lite import SpritePool
 from ui_elements import ui_screen
 from collider import Collider
 # from wav.test_wav import play_music
@@ -53,21 +56,30 @@ class SpriteMgrTestScreen(Screen):
     fx_callback = None
     ui = None
     collider = None
-    display_lock = _thread.allocate_lock()
+    # display_lock = _thread.allocate_lock()
 
     def __init__(self, display, *args, **kwargs):
         super().__init__(display, *args, **kwargs)
+        self.init_camera()
 
         self.check_mem()
-        self.ui = ui_screen(self.display, self.num_lives)
-
-        # _thread.start_new_thread(self.start_music, [])
-
-        self.init_camera()
-        self.sprites = SpriteManager(display, 100, self.camera, self.lane_width)
-
+        print("-- Creating player sprite...")
         self.player = PlayerSprite(camera=self.camera)
         self.display.fps = self.fps
+
+        # print("-- Preloading images...")
+        # self.preload_images()
+        self.check_mem()
+
+        print("-- Creating road grid...")
+        self.grid = RoadGrid(self.camera, self.display, lane_width=self.lane_width)
+
+        self.check_mem()
+        print("-- Creating Sprite Manager...")
+        self.sprites = SpriteManager(display, 80, self.camera, self.lane_width, grid=self.grid)
+
+        print("-- Creating UI...")
+        self.ui = ui_screen(self.display, self.num_lives)
 
         self.collider = Collider(self.player, self.sprites)
         self.collider.add_callback(self.do_crash)
@@ -79,13 +91,23 @@ class SpriteMgrTestScreen(Screen):
             self.ui.update_score(now)
             await asyncio.sleep(1)
 
+    def preload_images(self):
+        images = [
+            # {"name": "laser_tri.bmp", "width": 20, "height": 20, "color_depth": 4},
+            {"name": "road_barrier_yellow.bmp", "width": 24, "height": 15, "color_depth": 4},
+            {"name": "bike_sprite.bmp", "width": 32, "height": 22, "color_depth": 4},
+            {"name": "sunset.bmp"},
+            {"name": "life.bmp"},
+            {"name": "debris_bits.bmp", "width": 4, "height": 4, "color_depth": 1},
+            {"name": "debris_large.bmp", "width": 8, "height": 6, "color_depth": 1},
+        ]
+
+        ImageLoader.load_images(images, self.display)
+
     def run(self):
         self.display.fill(0x9999)
         utime.sleep_ms(1000)
         self.display.fill(0x0)
-        print("-- Creating road grid...")
-
-        self.grid = RoadGrid(self.camera, self.display, lane_width=self.lane_width)
 
         print("-- Creating sprites...")
         sprites = self.sprites
@@ -96,13 +118,12 @@ class SpriteMgrTestScreen(Screen):
         self.check_mem()
 
         # Register sprite types
-        sprites.add_type(SPRITE_PLAYER, "/img/bike_sprite.bmp", 5, 32, 22, 4, None)  # Assuming 8-bit color depth
+        #sprites.add_type(SPRITE_PLAYER, "/img/bike_sprite.bmp", 5, 32, 22, 4, None)  # Assuming 8-bit color depth
         sprites.add_type(SPRITE_BARRIER_LEFT, "/img/road_barrier_yellow.bmp", barrier_speed, 24, 15, 4, None, repeats=4, repeat_spacing=26)
         # sprites.add_type(SPRITE_BARRIER_RIGHT, "/img/road_barrier_yellow_inv.bmp", barrier_speed, 24, 15, 4, None, repeats=2, repeat_spacing=22)
 
-
         # sprites.add_type(SPRITE_BARRIER_RED, "/img/road_barrier_red.bmp", barrier_speed * 2, 22, 8, 4, None, repeats=4, repeat_spacing=25)
-        sprites.add_type(SPRITE_LASER_WALL, "/img/laser_wall.bmp", barrier_speed, 22, 10, 4, None,  repeats=4, repeat_spacing=22)
+        # sprites.add_type(SPRITE_LASER_WALL, "/img/laser_wall.bmp", barrier_speed, 22, 10, 4, None,  repeats=4, repeat_spacing=22)
         # sprites.add_type(SPRITE_LASER_WALL_POST, "/img/laser_wall_post.bmp", barrier_speed, 10, 24, 4, None, 0x0000)
         # sprites.add_type(SPRITE_LASER_ORB, "/img/laser_orb.bmp", barrier_speed, 16, 16, 4, None, 0x0000)
         # sprites.add_type(SPRITE_WHITE_DOT, "/img/white_dot.bmp", barrier_speed, 4, 4, 4, None)
@@ -111,19 +132,17 @@ class SpriteMgrTestScreen(Screen):
         """ These numbers were derived by trial and error in order to match up the sprites perspective to the road grid"""
         lane_width = self.lane_width
         half_lane_width = self.lane_width // 2
-        start_x = -half_lane_width -(lane_width*2)
-
 
         self.check_mem()
 
         img_height = 15
         start = 3000
-        every = +100
-        num_rows = 20
+        every = +50
+        num_rows = 80
 
         for i in range(num_rows):
-            new_sprite, idx = sprites.create(SPRITE_BARRIER_LEFT, x=start_x, y=img_height,
-                                             z=start + i * every)
+            new_sprite, idx = sprites.create(SPRITE_BARRIER_LEFT, x=0, y=int(img_height),
+                                             z=int(start + i * every))
             sprites.set_lane(new_sprite, 1)
         #
         # for i in range(num_rows):
@@ -158,9 +177,10 @@ class SpriteMgrTestScreen(Screen):
         # Start the speed-up task
         self.speed_anim = AnimAttr(self, 'ground_speed', self.max_ground_speed, 1500, easing=AnimAttr.ease_in_out_sine)
         loop.create_task(self.speed_anim.run(fps=60))
-        # loop.run_forever()
 
-        asyncio.run(self.update_loop())
+        print("-- Starting update_loop")
+
+        asyncio.run(self.start_main_loop())
 
 
     async def update_loop(self):
@@ -208,10 +228,8 @@ class SpriteMgrTestScreen(Screen):
 
         self.display.fill(0x0000)
         self.grid.show()
-        with self.display_lock:
-            self.sprites.show_all(self.display)
-        with self.display_lock:
-            self.player.show(self.display)
+        self.sprites.show_all(self.display)
+        self.player.show(self.display)
         self.show_fx()
         self.ui.show()
 

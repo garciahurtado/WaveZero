@@ -1,5 +1,7 @@
 import _thread
 import gc
+import math
+
 import utime
 from micropython import const
 
@@ -341,6 +343,52 @@ class RoadGrid():
                 start_y = self.horiz_y + horizon_offset + (self.horiz_palette_len - last_few) * 2 + (
                             i - (self.horiz_palette_len - last_few))
                 self.display.hline(0, start_y, self.display_width, color)
+
+
+    def set_lane_mask(self, sprite, repeats, repeat_spacing):
+        """
+        Calculate a bitmask representing occupied lanes for a sprite.
+
+        This method computes a bitmask where each bit represents a lane.
+        A set bit (1) indicates the lane is occupied or partially occupied by the sprite.
+
+        Args:
+            lane_num (int): The primary lane number of the sprite (-2 to 2).
+            repeats (int): Number of repetitions (absolute value is used).
+            repeat_spacing (float): The spacing between repeats. Positive for right, negative for left.
+
+        Returns:
+            int: A bitmask where set bits represent occupied lanes.
+
+        Note:
+            Lanes are numbered from -2 to 2, with 0 being the center lane.
+            The returned bitmask uses bits 0-4 to represent lanes -2 to 2 respectively.
+            Partially occupied lanes are considered fully occupied.
+        """
+
+        lane_num = sprite.lane_num
+
+        lane_to_bit = {-2: 0, -1: 1, 0: 2, 1: 3, 2: 4}
+        num_lanes = 5
+
+        # Calculate total width based on repeats and repeat_spacing
+        total_width = abs(repeats) * abs(repeat_spacing) + self.lane_width
+
+        # Calculate how many lanes the sprite occupies
+        lanes_occupied = math.ceil(total_width / self.lane_width)
+
+        # Set the bit for the primary lane
+        mask = 1 << lane_to_bit[lane_num]
+
+        # Determine direction based on sign of repeat_spacing
+        direction = 1 if repeat_spacing > 0 else -1
+
+        for i in range(1, lanes_occupied):
+            adjacent_lane = (lane_num + i * direction) % num_lanes - 2
+            if -2 <= adjacent_lane <= 2:  # Ensure we're within valid lane numbers
+                mask |= 1 << lane_to_bit[adjacent_lane]
+
+        return mask
 
     def stop(self):
         self.paused = True

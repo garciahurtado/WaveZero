@@ -3,7 +3,7 @@ from micropython import const
 class Collider:
     on_crash_callback = None
 
-    def __init__(self, player, sprite_manager, crash_y_start=const(48), crash_y_end=const(62)):
+    def __init__(self, player, sprite_manager, crash_y_start=const(46), crash_y_end=const(62)):
         self.player = player
         self.sprite_manager = sprite_manager
         self.crash_y_start = crash_y_start
@@ -11,7 +11,7 @@ class Collider:
 
     def is_collision(self, colliders):
         """
-        Check for collisions between the player and other sprites.
+        Check for collisions between the player and other sprites using lane bitmasks.
 
         :param colliders: List of active sprites to check for collisions.
         :return: True if a collision occurred, False otherwise.
@@ -19,27 +19,19 @@ class Collider:
         if not self.player.visible or not self.player.active or not self.player.has_physics:
             return False
 
+        player_lane_mask = self.player.lane_mask
+
         for sprite in colliders:
-            if (
-                    (sprite.draw_y >= self.crash_y_start) and
-                    (sprite.draw_y < self.crash_y_end) and
-                    (self.sprite_manager.get_lane(sprite) == self.player.current_lane) and
-                    self.player.has_physics
-            ):
-                print(f"Crash on {self.player.current_lane}")
-                self.on_crash_callback()
-                return True
+            if (self.crash_y_start <= sprite.draw_y < self.crash_y_end and
+                sprite.lane_mask & player_lane_mask):  # Bitwise AND to check lane overlap
+
+                    print(f"Crash detected. Player lane: {self.player.current_lane}, ")
+                    print(f"Sprite lanes: {bin(sprite.lane_mask)}")
+                    self.on_crash_callback()
+                    return True
 
         return False
 
-    def _is_collision(self, sprite):
-        """
-        Check if a specific sprite collides with the player.
-
-        :param sprite: The sprite to check for collision.
-        :return: True if there's a collision, False otherwise.
-        """
-        return
 
     def add_callback(self, callback):
         self.on_crash_callback = callback

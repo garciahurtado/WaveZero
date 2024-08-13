@@ -25,8 +25,8 @@ class DeathAnim:
         self.base_x = 0
         self.base_y = 0
 
-        self.debris_sprites = Spritesheet(filename='/img/debris_bits.bmp', frame_width=4, frame_height=4, color_depth=1).frames
-        self.debris_large = Spritesheet(filename='/img/debris_large.bmp', frame_width=8, frame_height=6, color_depth=1).frames
+        self.debris_sprites = Spritesheet(filename='/img/debris_bits.bmp', frame_width=4, frame_height=4).frames
+        self.debris_large = Spritesheet(filename='/img/debris_large.bmp', frame_width=8, frame_height=6).frames
 
         # Define blue and cyan colors in RGB format
         self.debris_colors_rgb = [
