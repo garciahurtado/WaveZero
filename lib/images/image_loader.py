@@ -33,7 +33,7 @@ class ImageLoader():
             gc.collect()
 
             file = image['name']
-            print(f"Loading {file}")
+            print(f"Loading {file} of {image['width']}x{image['height']}")
 
             image_path = f"{ImageLoader.img_dir}/{file}"
             color_depth = image['color_depth'] if 'color_depth' in image else None
@@ -75,15 +75,20 @@ class ImageLoader():
         print(f"Loading BMP: {filename}")
 
         reader = ImageLoader.bmp_reader
-        reader.frame_width = reader.width = frame_width
-        reader.frame_height = reader.height = frame_height
+        if frame_width and frame_height:
+            reader.frame_width = reader.width = frame_width
+            reader.frame_height = reader.height = frame_height
+        else:
+            reader.frame_width = reader.width
+            reader.frame_height = reader.height
         reader.color_depth = color_depth
         reader._init()
 
         gc.collect()
         reader.load(filename)
 
-        print(reader)  # Show metadata
+        print(f"BMP loaded: {reader}")  # Show metadata
+        print(f"file {filename} of {frame_width}x{frame_height}")
 
         if frame_width and frame_height:
             # This is a spritesheet, so lets make frames from the pixel data without allocating new memory

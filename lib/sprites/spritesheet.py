@@ -31,7 +31,7 @@ class Spritesheet(Sprite):
         #     print(f"Spritesheet init'd with {len(self.frames)} frames")
 
 
-    def load_image(self, filename):
+    def load_imagex(self, filename):
         """Overrides parent"""
         color_depth = self.color_depth
         self.frames = ImageLoader.load_image(filename, self.frame_width, self.frame_height, color_depth)

@@ -9,7 +9,8 @@ from sprite_mgr_test_screen import SpriteMgrTestScreen
 # from test_screen import TestScreen
 import micropython
 import time
-import  machine
+import machine
+import test_midi as midi
 
 def main():
     machine.freq(250_000_000)
@@ -18,6 +19,7 @@ def main():
     print(f"CPU: {current_freq / 1_000_000} MHz")
 
     check_mem()
+    print("Compiler opt level: " + str(micropython.opt_level()))
 
     app = ScreenApp(96, 64)
     # app.load_screen(GameScreen(app.display))
@@ -35,7 +37,5 @@ def check_mem():
 if __name__ == "__main__":
     time.sleep(1)
     print("======== APP START ========")
-
-    # gc.collect()
     print(micropython.mem_info())
-    main()
+    midi.run()

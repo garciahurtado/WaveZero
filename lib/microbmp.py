@@ -429,6 +429,7 @@ class MicroBMP(object):
         if self.compression == 0:
             # BI_RGB
             num_frames = math.floor(self.height / self.frame_height)
+            print(f"in BMP loader: {self.height} / {self.frame_height}")
             frame_size = self.frame_width * self.frame_height
 
             print(f"Making frame of: {self.frame_width} x {self.frame_height} / num frames: {num_frames} bytes: {frame_size} / format: {color_format}")

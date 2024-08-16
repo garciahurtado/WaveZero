@@ -5,6 +5,15 @@ import uctypes
 POS_TYPE_FAR = const(0)
 POS_TYPE_NEAR = const(1)
 
+SPRITE_PLAYER = const(0)
+SPRITE_BARRIER_LEFT = const(1)
+SPRITE_BARRIER_RIGHT = const(2)
+SPRITE_BARRIER_RED = const(3)
+SPRITE_LASER_ORB = const(4)
+SPRITE_LASER_WALL = const(5)
+SPRITE_LASER_WALL_POST = const(6)
+SPRITE_WHITE_DOT = const(7)
+
 SPRITE_DATA_LAYOUT = {
     # 4-byte (32-bit) fields
     "scale": uctypes.FLOAT32 | 0,        # 4 bytes at offset 0
@@ -74,6 +83,20 @@ def create_sprite(
 
 # Define metadata structure, these values should not change across sprites of this class
 class SpriteType:
+    image_path = None
+    speed: int = 0
+    width: int = 0
+    height: int = 0
+    color_depth: int = 0
+    palette = None
+    alpha: int = 0
+    frames = None
+    num_frames: int = 0
+    update_func = None
+    render_func = None
+    repeats: int = 0
+    repeat_spacing: int = 0
+
     def __init__(self, **kwargs):
         self.image_path = None
         self.speed: int = 0

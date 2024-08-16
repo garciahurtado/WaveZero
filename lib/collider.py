@@ -21,6 +21,9 @@ class Collider:
 
         player_lane_mask = self.player.lane_mask
 
+        binary = bin(player_lane_mask)[2:]
+        # print(f"lane mask: {binary}")
+
         for sprite in colliders:
             if (self.crash_y_start <= sprite.draw_y < self.crash_y_end and
                 sprite.lane_mask & player_lane_mask):  # Bitwise AND to check lane overlap

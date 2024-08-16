@@ -76,6 +76,9 @@ class PlayerSprite(Spritesheet):
                 current_lane = target_lane
                 bike_angle = target_angle
                 self.lane_mask = 1 << current_lane
+                # mask = bin(self.lane_mask)
+                # mask = '0' * (7 - len(mask)) + mask
+                # print(f"lane mask: {mask}")
 
                 self.moving = False
 
@@ -85,6 +88,9 @@ class PlayerSprite(Spritesheet):
                 current_lane = target_lane
                 bike_angle = target_angle
                 self.lane_mask = 1 << current_lane
+                # mask = bin(self.lane_mask)
+                # mask = '0' * (7 - len(mask)) + mask
+                # print(f"lane mask: {mask}")
 
                 self.moving = False
 

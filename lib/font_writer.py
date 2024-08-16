@@ -310,7 +310,6 @@ class ColorWriter(Writer):
         self.palette = my_palette
 
         pixels = bytearray(self.text_width * self.text_height)
-        print(f"COLOR MAP: {self.map}")
         self.pixels = framebuf.FrameBuffer(pixels, self.text_width, self.text_height, self.map)
 
     def _printchar(self, char, invert=False, recurse=False):

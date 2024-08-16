@@ -36,7 +36,7 @@ class ui_screen():
     def __init__(self, display, num_lives) -> None:
         self.display = display
         self.num_lives = num_lives
-        self.lives_sprite = Sprite("/img/life.bmp")
+        self.lives_sprite = Sprite("/img/life.bmp", width=12, height=8)
         self.lives_sprite.set_alpha(0)
 
         self.init_lives()

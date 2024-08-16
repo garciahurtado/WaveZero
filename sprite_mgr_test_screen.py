@@ -21,15 +21,8 @@ from sprites2.sprite_pool_lite import SpritePool
 from ui_elements import ui_screen
 from collider import Collider
 # from wav.test_wav import play_music
-
-SPRITE_PLAYER = const(0)
-SPRITE_BARRIER_LEFT = const(1)
-SPRITE_BARRIER_RIGHT = const(2)
-SPRITE_BARRIER_RED = const(3)
-SPRITE_LASER_ORB = const(4)
-SPRITE_LASER_WALL = const(5)
-SPRITE_LASER_WALL_POST = const(6)
-SPRITE_WHITE_DOT = const(7)
+from sprites2.sprite_types import *
+from sprites2.warning_wall import WarningWall
 
 from profiler import Profiler as prof
 
@@ -76,7 +69,7 @@ class SpriteMgrTestScreen(Screen):
 
         self.check_mem()
         print("-- Creating Sprite Manager...")
-        self.sprites = SpriteManager(display, 80, self.camera, self.lane_width, grid=self.grid)
+        self.sprites = SpriteManager(display, 100, self.camera, self.lane_width, grid=self.grid)
 
         print("-- Creating UI...")
         self.ui = ui_screen(self.display, self.num_lives)
@@ -119,8 +112,8 @@ class SpriteMgrTestScreen(Screen):
 
         # Register sprite types
         #sprites.add_type(SPRITE_PLAYER, "/img/bike_sprite.bmp", 5, 32, 22, 4, None)  # Assuming 8-bit color depth
-        sprites.add_type(SPRITE_BARRIER_LEFT, "/img/road_barrier_yellow.bmp", barrier_speed, 24, 15, 4, None, repeats=4, repeat_spacing=26)
-        # sprites.add_type(SPRITE_BARRIER_RIGHT, "/img/road_barrier_yellow_inv.bmp", barrier_speed, 24, 15, 4, None, repeats=2, repeat_spacing=22)
+        sprites.add_type(SPRITE_BARRIER_LEFT, WarningWall, "/img/road_barrier_yellow.bmp", barrier_speed, 24, 15, 4, None, None, repeats=4, repeat_spacing=26)
+        # sprites.add_type(SPRITE_BARRIER_RIGHT, "/img/road_barrier_yellow_inv.bmp", barrier_speed, 24, 15, 4, None, None, repeats=2, repeat_spacing=22)
 
         # sprites.add_type(SPRITE_BARRIER_RED, "/img/road_barrier_red.bmp", barrier_speed * 2, 22, 8, 4, None, repeats=4, repeat_spacing=25)
         # sprites.add_type(SPRITE_LASER_WALL, "/img/laser_wall.bmp", barrier_speed, 22, 10, 4, None,  repeats=4, repeat_spacing=22)
@@ -177,6 +170,8 @@ class SpriteMgrTestScreen(Screen):
         # Start the speed-up task
         self.speed_anim = AnimAttr(self, 'ground_speed', self.max_ground_speed, 1500, easing=AnimAttr.ease_in_out_sine)
         loop.create_task(self.speed_anim.run(fps=60))
+
+        self.player.has_physics = True
 
         print("-- Starting update_loop")
 

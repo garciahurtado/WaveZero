@@ -5,7 +5,7 @@ import micropython
 
 from death_anim import DeathAnim
 from images.image_loader import ImageLoader
-from sprites2.sprite_types import SpriteType
+from sprites2.sprite_types import SpriteType, SPRITE_DATA_LAYOUT
 import framebuf
 import math
 from images.indexed_image import Image, create_image
@@ -21,6 +21,7 @@ class SpriteManager:
     sprite_images: Dict[str, List[Image]] = {}
     sprite_palettes: Dict[str, bytes] = {}
     sprite_metadata: Dict[str, SpriteType] = {}
+    sprite_classes: Dict[int, SpriteType] = {}
     sprite_actions = {}
     lane_width: int = 0
     half_scale_one_dist = int(0)  # This should be set based on your camera setup
@@ -43,8 +44,9 @@ class SpriteManager:
         if camera:
             self.set_camera(camera)
 
-    def add_type(self, sprite_type, image_path, speed, width, height, color_depth, palette, alpha=None, repeats=0, repeat_spacing=0):
+    def add_type(self, sprite_type, sprite_class, image_path, speed, width, height, color_depth, palette, alpha=None, repeats=0, repeat_spacing=0):
         num_frames = max(width, height) + self.add_frames
+
         speed = speed
         init_values = \
             {   'image_path': image_path,
@@ -54,27 +56,48 @@ class SpriteManager:
                 'color_depth': color_depth,
                 'palette': palette,
                 'alpha': alpha,
-                'frames': [],
                 'num_frames': num_frames,
                 'repeats': repeats,
                 'repeat_spacing': repeat_spacing,
              }
 
+
+        self.sprite_classes[sprite_type] = sprite_class
         self.sprite_metadata[sprite_type] = SpriteType(**init_values)
-        print(str(self.sprite_metadata[sprite_type].image_path))
+
+        print("Sprite registered: " + str(self.sprite_metadata[sprite_type].image_path))
 
     def add_action(self, sprite_type, func):
         self.sprite_actions[sprite_type] = func
+
+    def get_class_properties(self, cls):
+        props = {}
+        names = [attr for attr in dir(cls)
+                if not callable(getattr(cls, attr))
+                and not attr.startswith("__")]
+
+        for name in names:
+            props[name] = getattr(cls, name)
+
+        return props
 
 
     def create(self, sprite_type, **kwargs):
         new_sprite, idx = self.pool.get(sprite_type)
 
-        type_meta = self.sprite_metadata[sprite_type]
-        new_sprite.speed = type_meta.speed
-        new_sprite.frame_width = type_meta.width
-        new_sprite.frame_height = type_meta.height
-        new_sprite.num_frames = type_meta.num_frames
+        class_name = self.sprite_classes[sprite_type]
+        class_attrs = self.get_class_properties(class_name)
+        class_meta = self.sprite_metadata[sprite_type]
+
+        # Set defaults for properties both in the sprite class as well as in the sprite entity
+        for name, val in class_attrs.items():
+            if name in SPRITE_DATA_LAYOUT.keys():
+                print(f"SET: {name} to {val}")
+                setattr(new_sprite, name, val)
+            # new_sprite.speed = class_meta.speed
+            # new_sprite.frame_width = class_meta.width
+            # new_sprite.frame_height = class_meta.height
+            # new_sprite.num_frames = class_meta.num_frames
 
         #Set user values passed to the function
         for key, value in kwargs.items():
@@ -85,14 +108,14 @@ class SpriteManager:
 
         #Create images and frames
         if sprite_type not in self.sprite_images:
-            self.sprite_images[sprite_type] = self.load_img_and_scale(type_meta, sprite_type)
+            self.sprite_images[sprite_type] = self.load_img_and_scale(class_name, sprite_type)
 
         new_sprite.active = True
 
         return new_sprite, idx
 
     def load_img_and_scale(self, metadata, sprite_type):
-        orig_img = ImageLoader.load_image(metadata.image_path)
+        orig_img = ImageLoader.load_image(metadata.image_path, metadata.width, metadata.height)
         if isinstance(orig_img, list):
             orig_img = orig_img[0]
 
@@ -235,10 +258,12 @@ class SpriteManager:
 
             if self.update(sprite, meta, elapsed):
                 self.update_frame(sprite)
-                i += 1
 
             if not sprite.active:
                 self.pool.release(sprite)
+
+            i += 1
+
 
     def update_frame(self, sprite):
         frame_idx = self.get_frame_idx(int(sprite.z), int(self.camera.cam_z), int(sprite.num_frames),
@@ -259,16 +284,18 @@ class SpriteManager:
 
         sprite_type = sprite.sprite_type
         palette = self.sprite_palettes[sprite_type]
-        frame_id = sprite.current_frame
+        frame_id = sprite.current_frame # 255 ???
+        # frame_id = 0
 
+        # print(f"TYpe: {sprite_type} id: {frame_id} ")
         image = self.sprite_images[sprite_type][frame_id]
         alpha = self.get_alpha(sprite_type)
         meta = self.sprite_metadata[sprite_type]
 
         """Actions?"""
-        if sprite_type in self.sprite_actions.keys():
-            action = self.sprite_actions[sprite_type]
-            action(display, self.camera, sprite.draw_x, sprite.draw_y, sprite.x, sprite.y, sprite.z, sprite.frame_width)
+        # if sprite_type in self.sprite_actions.keys():
+        #     action = self.sprite_actions[sprite_type]
+        #     action(display, self.camera, sprite.draw_x, sprite.draw_y, sprite.x, sprite.y, sprite.z, sprite.frame_width)
 
         start_y = int(sprite.draw_y)
         start_x = sprite.draw_x
@@ -362,7 +389,9 @@ class SpriteManager:
         frame_idx: int = (scale_num) // int(temp)
         #prof.end_profile()
 
-        if frame_idx >= num_frames:
+        print(f"z: {z} / frame idx: {frame_idx} / num_frames: {num_frames}")
+
+        if frame_idx >= num_frames and num_frames > 0:
             return int(num_frames - 1)
         elif frame_idx < 0:
             return 0

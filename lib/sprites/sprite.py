@@ -42,10 +42,13 @@ class Sprite:
     POS_TYPE_NEAR = const(1)
     event_chain = None
 
-    def __init__(self, filename=None, x=0, y=0, speed=0, pos_type=None):
+    def __init__(self, filename=None, x=0, y=0, speed=0, pos_type=None, width=None, height=None):
+        if width and height:
+            self.width = width
+            self.height = height
 
         if filename:
-            self.load_image(filename)
+            self.load_image(filename, width, height)
             self.filename = filename
 
         self.x = x
@@ -67,9 +70,9 @@ class Sprite:
         if self.event_chain:
             self.event_chain.start()
 
-    def load_image(self, filename):
+    def load_image_old(self, filename, width, height):
         self.filename = filename
-        self.image = ImageLoader.load_image(filename)
+        self.image = ImageLoader.load_image(filename, frame_width=width, frame_height=height)
 
         meta = self.image
 
@@ -79,6 +82,29 @@ class Sprite:
         self.num_colors = meta.palette.num_colors
 
         self.visible = True
+
+        return meta
+
+    def load_image(self, filename, frame_width, frame_height):
+        # color_depth = self.color_depth
+        # if not frame_height or not frame_height:
+        #     frame_width=self.width
+        #     frame_height=self.height
+
+        self.frames = ImageLoader.load_image(filename, frame_width=frame_width, frame_height=frame_height)
+        self.num_frames = len(self.frames)
+
+        print(f"Loaded {len(self.frames)} frames")
+        meta = self.frames[0]
+
+        # self.width = meta.width
+        # self.height = meta.height
+        self.palette = meta.palette
+        self.dot_color = self.palette.get_bytes(1)
+        self.num_colors = meta.palette.num_colors
+        self.visible = True
+
+        self.set_frame(0)
 
 
     def set_alpha(self, alpha_index=0):
