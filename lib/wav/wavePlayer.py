@@ -76,14 +76,17 @@ from machine import Pin
 import uasyncio as asyncio
 
 
+'''
+Registers:
 
-#r0 buffer address
-#r1 number of word to do
-#r2 8 or 10 bit PWM
-#then r2 hold data reference by r0
-#r3 = 32768 to convert (-32768..32767) to (0..65535)
-#r4 hold 255 or 1023 (8 or 10 bits)
-#r5  hold /64  or /256 ( 6 or 8 bit shift)
+r0: buffer address
+r1: number of word to do
+r2: 8 or 10 bit PWM, then r2 hold data reference by r0
+r3: 32768 to convert (-32768..32767) to (0..65535)
+r4: hold 255 or 1023 (8 or 10 bits)
+r5:  hold /64  or /256 ( 6 or 8 bit shift)
+'''
+
 @micropython.asm_thumb
 def convert2PWM(r0,r1,r2):
     #r3=32768

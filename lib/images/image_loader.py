@@ -1,7 +1,9 @@
 import gc
 import uos
-from microbmp import MicroBMP as microbmp
+from new_bmp_reader import NewBMPReader as microbmp
 import color_util as colors
+from images.indexed_image import Image
+from framebuf import *
 
 class ImageLoader():
     """Preloads a list of images in order to cache their framebuffers (as RGB565) to later be used by Sprites"""
@@ -66,38 +68,40 @@ class ImageLoader():
         display.show()
 
     @staticmethod
-    def load_image(filename, frame_width=0, frame_height=0, color_depth=8):
+    def load_image(filename, frame_width=0, frame_height=0, color_depth=GS4_HMSB) -> Image:
         # First of all, check the cache
         if filename in ImageLoader.images.keys():
-            frames = ImageLoader.images[filename]
-            return frames
-
-        print(f"Loading BMP: {filename}")
+            image = ImageLoader.images[filename]
+            return image
 
         reader = ImageLoader.bmp_reader
-        if frame_width and frame_height:
-            reader.frame_width = reader.width = frame_width
-            reader.frame_height = reader.height = frame_height
-        else:
-            reader.frame_width = reader.width
-            reader.frame_height = reader.height
         reader.color_depth = color_depth
         reader._init()
 
-        gc.collect()
-        reader.load(filename)
-
-        print(f"BMP loaded: {reader}")  # Show metadata
-        print(f"file {filename} of {frame_width}x{frame_height}")
-
         if frame_width and frame_height:
-            # This is a spritesheet, so lets make frames from the pixel data without allocating new memory
-            ImageLoader.images[filename] = reader.frames
-            return reader.frames
+            """ Image is a spritesheet"""
+            reader.frame_width = reader.width = frame_width
+            reader.frame_height = reader.height = frame_height
+            image = reader.load(filename, reader.frame_width, reader.frame_height)
 
         else:
-            ImageLoader.images[filename] = reader.frames[0]
-            return reader.frames[0]
+            reader.frame_width = reader.width
+            reader.frame_height = reader.height
+            image = reader.load(filename)
+
+        gc.collect()
+
+        ImageLoader.images[filename] = image
+        return image
+
+        # if frame_width and frame_height:
+        #     # This is a spritesheet, so lets make frames from the pixel data without allocating new memory
+        #     ImageLoader.images[filename] = reader.frames
+        #     return reader.frames
+        #
+        # else:
+        #     ImageLoader.images[filename] = reader.frames[0]
+        #     return reader.frames[0]
 
 
     @staticmethod

@@ -59,5 +59,5 @@ def debug_tones():
     player.reset()  # Clean up PWM
 
 if __name__ != '__main__':
-    debug_tones()
+    # debug_tones()
     sys.exit(1)

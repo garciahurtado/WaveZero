@@ -23,7 +23,6 @@ class SSD1331PIO():
 
     dma0: DMA = None
     dma1: DMA = None
-    dma2: DMA = None
     dma0_active = True
     dma1_active = False
     dma_tx_count = 256
@@ -79,7 +78,7 @@ class SSD1331PIO():
         self.framebuf1 = framebuf.FrameBuffer(self.buffer1, self.width, self.height, mode)
         self.framebuf1.fill(0x0)
 
-        # Set starting alias to each buffer
+        # Set starting alias to each buffer, so that we can easily flip them
         self.write_buffer = self.buffer0
         self.read_buffer = self.buffer1
 
@@ -243,7 +242,6 @@ class SSD1331PIO():
         # Initialize DMA channels
         self.dma0 = DMA()
         self.dma1 = DMA()
-        self.dma2 = DMA()
 
         # print(f"Start Read Addr: {self.read_addr:032X}")
 
@@ -292,7 +290,7 @@ class SSD1331PIO():
         pass
 
     def can_write(self):
-        return not self.dma2.active()
+        return not self.dma1.active()
 
     """ DRAWING FUNCTIONS """
     def pixel(self, x, y, color=None):

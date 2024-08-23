@@ -54,6 +54,7 @@ class SpriteMgrTestScreen(Screen):
     def __init__(self, display, *args, **kwargs):
         super().__init__(display, *args, **kwargs)
         self.init_camera()
+        self.preload_images()
 
         self.check_mem()
         print("-- Creating player sprite...")
@@ -86,11 +87,10 @@ class SpriteMgrTestScreen(Screen):
 
     def preload_images(self):
         images = [
-            # {"name": "laser_tri.bmp", "width": 20, "height": 20, "color_depth": 4},
             {"name": "road_barrier_yellow.bmp", "width": 24, "height": 15, "color_depth": 4},
             {"name": "bike_sprite.bmp", "width": 32, "height": 22, "color_depth": 4},
-            {"name": "sunset.bmp"},
-            {"name": "life.bmp"},
+            {"name": "sunset.bmp", "width": 20, "height": 10},
+            {"name": "life.bmp", "width": 12, "height": 8},
             {"name": "debris_bits.bmp", "width": 4, "height": 4, "color_depth": 1},
             {"name": "debris_large.bmp", "width": 8, "height": 6, "color_depth": 1},
         ]
@@ -112,11 +112,11 @@ class SpriteMgrTestScreen(Screen):
 
         # Register sprite types
         #sprites.add_type(SPRITE_PLAYER, "/img/bike_sprite.bmp", 5, 32, 22, 4, None)  # Assuming 8-bit color depth
-        sprites.add_type(SPRITE_BARRIER_LEFT, WarningWall, "/img/road_barrier_yellow.bmp", barrier_speed, 24, 15, 4, None, None, repeats=4, repeat_spacing=26)
+        # sprites.add_type(SPRITE_BARRIER_LEFT, WarningWall, "/img/road_barrier_yellow.bmp", barrier_speed, 24, 15, 4, None, None, repeats=4, repeat_spacing=26)
         # sprites.add_type(SPRITE_BARRIER_RIGHT, "/img/road_barrier_yellow_inv.bmp", barrier_speed, 24, 15, 4, None, None, repeats=2, repeat_spacing=22)
 
         # sprites.add_type(SPRITE_BARRIER_RED, "/img/road_barrier_red.bmp", barrier_speed * 2, 22, 8, 4, None, repeats=4, repeat_spacing=25)
-        # sprites.add_type(SPRITE_LASER_WALL, "/img/laser_wall.bmp", barrier_speed, 22, 10, 4, None,  repeats=4, repeat_spacing=22)
+        sprites.add_type(SPRITE_LASER_WALL, "/img/laser_wall.bmp", barrier_speed, 22, 10, 4, None, 1, repeats=4, repeat_spacing=22)
         # sprites.add_type(SPRITE_LASER_WALL_POST, "/img/laser_wall_post.bmp", barrier_speed, 10, 24, 4, None, 0x0000)
         # sprites.add_type(SPRITE_LASER_ORB, "/img/laser_orb.bmp", barrier_speed, 16, 16, 4, None, 0x0000)
         # sprites.add_type(SPRITE_WHITE_DOT, "/img/white_dot.bmp", barrier_speed, 4, 4, 4, None)
@@ -131,22 +131,22 @@ class SpriteMgrTestScreen(Screen):
         img_height = 15
         start = 3000
         every = +50
-        num_rows = 80
+        num_rows = 60
 
-        for i in range(num_rows):
-            new_sprite, idx = sprites.create(SPRITE_BARRIER_LEFT, x=0, y=int(img_height),
-                                             z=int(start + i * every))
-            sprites.set_lane(new_sprite, 1)
+        # for i in range(num_rows):
+        #     new_sprite, idx = sprites.create(SPRITE_BARRIER_LEFT, x=0, y=int(img_height),
+        #                                      z=int(start + i * every))
+        #     sprites.set_lane(new_sprite, 1)
         #
         # for i in range(num_rows):
         #     new_sprite, idx = sprites.create(SPRITE_BARRIER_RIGHT, x=start_x, y=img_height,
         #                                      z=start + i * every)
         #     sprites.set_lane(new_sprite, 1)
 
-        # for i in range(6):
-        #     new_sprite, idx = sprites.create(SPRITE_LASER_WALL, x=start_x, y=img_height,
-        #                                      z=start + i * every)
-        #     sprites.set_lane(new_sprite, 2)
+        for i in range(num_rows):
+            new_sprite, idx = sprites.create(SPRITE_LASER_WALL, x=start_x, y=img_height,
+                                             z=start + i * every)
+            sprites.set_lane(new_sprite, 2)
         #
         # for i in range(num_rows):
         #     new_sprite, idx = sprites.create(SPRITE_BARRIER_LEFT, x=start_x, y=img_height,

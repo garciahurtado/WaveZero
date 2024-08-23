@@ -31,20 +31,24 @@ class Spritesheet(Sprite):
         #     print(f"Spritesheet init'd with {len(self.frames)} frames")
 
 
-    def load_imagex(self, filename):
+    def load_image(self, filename, frame_width, frame_height):
         """Overrides parent"""
         color_depth = self.color_depth
-        self.frames = ImageLoader.load_image(filename, self.frame_width, self.frame_height, color_depth)
-        self.num_frames = len(self.frames)
+        image = ImageLoader.load_image(filename, frame_width, frame_height, color_depth)
+        if image.frames:
+            self.num_frames = len(image.frames)
+            self.frames = image.frames
+        else:
+            self.num_frames = 0
+
 
         print(f"Loaded {len(self.frames)} frames")
-        meta = self.frames[0]
 
         # self.width = meta.width
         # self.height = meta.height
-        self.palette = meta.palette
+        self.palette = image.palette
         self.dot_color = self.palette.get_bytes(1)
-        self.num_colors = meta.palette.num_colors
+        self.num_colors = image.palette.num_colors
         self.visible = True
 
         self.set_frame(0)
@@ -66,11 +70,14 @@ class Spritesheet(Sprite):
 
         self.set_frame(frame_idx)
 
-        prof.end_profile("sprite.update_frame")
+        # prof.end_profile("sprite.update_frame")
 
         return True
 
     def set_frame(self, frame_num):
+        if self.num_frames < 1:
+            return False
+
         if frame_num >= len(self.frames):
             raise KeyError(f"Frame {frame_num} is invalid (only {len(self.frames)} frames)")
 

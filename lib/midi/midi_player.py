@@ -9,7 +9,7 @@ from midi.synth import Synthesizer
 class MidiPlayer:
     def __init__(self, output_pin=18):
         self.output_pin = Pin(output_pin)
-        self.sound_out = PIOSoundPlayer(self.output_pin, sample_rate=SAMPLE_RATE)
+        self.sound_out = PIOSoundPlayer()
         self.play_speed = 100  # 100 percent. Anything lower will slow it down, higher will speed it up
 
         # Create an ADSR envelope
@@ -19,6 +19,7 @@ class MidiPlayer:
         self.set_instrument('piano')
         self.synth = Synthesizer(max_voices=4)
 
+        self.sound_out.test_sequence()
         self.sound_out.test_tone()
 
 

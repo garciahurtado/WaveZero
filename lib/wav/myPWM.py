@@ -1,4 +1,5 @@
 from machine import PWM, Pin, mem32
+import utime
 
 
 class myPWM(PWM):
@@ -17,7 +18,7 @@ class myPWM(PWM):
         self.top = top
 
         super().__init__(pin)
-        super().freq(122_000)
+        super().freq(122_000_000)
         super().duty_u16(32768)
         # set memory base
         self.PWM_BASE = 0x4005_0000 + (self.channel * 0x14)
@@ -46,6 +47,7 @@ class myPWM(PWM):
     def duty(self, value):
         if value > self.top:
             value = self.top
+        # print("setting to ")
         reg = mem32[self.PWM_CC]
         if self.A_B == 0:
             # ok change channel A
@@ -55,20 +57,24 @@ class myPWM(PWM):
             mem32[self.PWM_CC] = (reg & 0xffff) | (value << 16)
 
 
-if __name__ == "__main__":
-    import utime
+if __name__ == '__main__' or True:
 
-    pwm = myPWM(Pin(15))
+    pwm = myPWM(Pin(18), divider=16, top=1024)
     try:
-        value = 0
-        increment = 1
+        value = start = 2000
+        increment = 50
         while True:
-            value = value % 256
+            value = value % 15000
+            # print(f"Setting PWM to {value}")
             pwm.duty(value)
-            if value == 0:
+
+            # utime.sleep_ms(10)
+
+            if value == start:
                 increment = increment * (-1)
             value += increment
-            utime.sleep_ms(1)
+            # utime.sleep_us(1)
+
     except KeyboardInterrupt:
         pwm.deinit()
 

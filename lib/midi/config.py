@@ -1,2 +1,2 @@
-# SAMPLE_RATE = 44100  # 44.1 kHz, CD quality
-SAMPLE_RATE = 22050
+SAMPLE_RATE = 44100  # 44.1 kHz, CD quality
+# SAMPLE_RATE = 22050

@@ -92,7 +92,7 @@ class SpriteManager:
         # Set defaults for properties both in the sprite class as well as in the sprite entity
         for name, val in class_attrs.items():
             if name in SPRITE_DATA_LAYOUT.keys():
-                print(f"SET: {name} to {val}")
+                # print(f"SET: {name} to {val}")
                 setattr(new_sprite, name, val)
             # new_sprite.speed = class_meta.speed
             # new_sprite.frame_width = class_meta.width
@@ -389,7 +389,7 @@ class SpriteManager:
         frame_idx: int = (scale_num) // int(temp)
         #prof.end_profile()
 
-        print(f"z: {z} / frame idx: {frame_idx} / num_frames: {num_frames}")
+        # print(f"z: {z} / frame idx: {frame_idx} / num_frames: {num_frames}")
 
         if frame_idx >= num_frames and num_frames > 0:
             return int(num_frames - 1)

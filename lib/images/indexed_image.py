@@ -10,7 +10,8 @@ Image = namedtuple("Image",
             "pixel_bytes",
             "palette",
             "palette_bytes",
-            "color_depth"
+            "color_depth",
+            "frames"
            )
         )
 
@@ -22,7 +23,8 @@ def create_image(
         pixel_bytes: bytearray,
         palette,
         palette_bytes: bytearray,
-        color_depth: int):
+        color_depth: int,
+        frames: []):
 
     image = Image(
         width,
@@ -31,7 +33,8 @@ def create_image(
         pixel_bytes,
         palette,
         palette_bytes,
-        color_depth)
+        color_depth,
+        frames)
 
     return image
 

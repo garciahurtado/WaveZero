@@ -91,20 +91,24 @@ class Sprite:
         #     frame_width=self.width
         #     frame_height=self.height
 
-        self.frames = ImageLoader.load_image(filename, frame_width=frame_width, frame_height=frame_height)
-        self.num_frames = len(self.frames)
+        image = ImageLoader.load_image(filename, frame_width=frame_width, frame_height=frame_height)
+        self.frames = image.frames
 
-        print(f"Loaded {len(self.frames)} frames")
-        meta = self.frames[0]
+        if image.frames:
+            self.num_frames = len(image.frames)
+        else:
+            self.num_frames = 0
+
+        print(f"Loaded {self.num_frames} frames")
+
 
         # self.width = meta.width
         # self.height = meta.height
-        self.palette = meta.palette
+        self.image = image.pixels
+        self.palette = image.palette
         self.dot_color = self.palette.get_bytes(1)
-        self.num_colors = meta.palette.num_colors
+        self.num_colors = image.palette.num_colors
         self.visible = True
-
-        self.set_frame(0)
 
 
     def set_alpha(self, alpha_index=0):
@@ -161,9 +165,9 @@ class Sprite:
     def do_blit(self, x: int, y: int, display: framebuf.FrameBuffer):
         if self.has_alpha:
             #print(f"x/y: {x},{y} / alpha:{self.alpha_color}")
-            display.blit(self.image.pixels, int(x), int(y), self.alpha_color, self.palette)
+            display.blit(self.image, int(x), int(y), self.alpha_color, self.palette)
         else:
-            display.blit(self.image.pixels, int(x), int(y), -1, self.palette)
+            display.blit(self.image, int(x), int(y), -1, self.palette)
 
         return True
 

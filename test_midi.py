@@ -38,6 +38,8 @@ def run():
     print("Testing MIDI")
 
     player = MidiPlayer()
+
+
     # synth = Synthesizer(max_voices=4)
     #
     # # Play a chord with effects
@@ -45,7 +47,7 @@ def run():
     # for freq in frequencies:
     #     synth.add_voice(freq)
 
-    melody = get_melody()
+    # melody = get_melody()
     # print(f"- Playing voices @ {SAMPLE_RATE}")
     # for note, dur in melody:
     #     note = note * SAMPLE_RATE
@@ -60,7 +62,7 @@ def run():
     # synth.cleanup()
 
 
-    player.play_melody(get_melody())
+    # player.play_melody(get_melody())
     finish(player)
 
     # Play a simple melody
