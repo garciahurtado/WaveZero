@@ -73,7 +73,6 @@ class RoadGrid():
     far_z = 0
     speed = 0
     speed_ms = 0
-    horiz_lines_lock = _thread.allocate_lock()
 
     def __init__(self, camera, display, lane_width=None):
 
@@ -243,19 +242,18 @@ class RoadGrid():
         self.far_z = 0 # Keep track of the furthest line, to see if we need new ones
         delete_lines = []
 
-        with self.horiz_lines_lock:
-            for my_line in self.horiz_lines_data:
-                if not my_line['z']:
-                    my_line['z'] = 0
+        for my_line in self.horiz_lines_data:
+            if not my_line['z']:
+                my_line['z'] = 0
 
-                if not self.paused:
-                    my_line['z'] = my_line['z'] + (self.speed_ms * elapsed)
+            if not self.paused:
+                my_line['z'] = my_line['z'] + (self.speed_ms * elapsed)
 
-                if my_line['z'] > self.far_z:
-                    self.far_z = my_line['z']
-                elif my_line['z'] < self.min_z:
-                    delete_lines.append(my_line)
-                    continue
+            if my_line['z'] > self.far_z:
+                self.far_z = my_line['z']
+            elif my_line['z'] < self.min_z:
+                delete_lines.append(my_line)
+                continue
 
 
         """ Remove out of bounds lines """
@@ -353,7 +351,7 @@ class RoadGrid():
         A set bit (1) indicates the lane is occupied or partially occupied by the sprite.
 
         Args:
-            lane_num (int): The primary lane number of the sprite (-2 to 2).
+            lane_num (int): The lane number of the root sprite
             repeats (int): Number of repetitions (absolute value is used).
             repeat_spacing (float): The spacing between repeats. Positive for right, negative for left.
 
@@ -361,14 +359,13 @@ class RoadGrid():
             int: A bitmask where set bits represent occupied lanes.
 
         Note:
-            Lanes are numbered from -2 to 2, with 0 being the center lane.
-            The returned bitmask uses bits 0-4 to represent lanes -2 to 2 respectively.
+            Lanes are numbered from 0/5, with 2 being the center lane. (NO LONGER)
+            The returned bitmask uses bits 0-4 to represent lanes 0 to 5 respectively.
             Partially occupied lanes are considered fully occupied.
         """
 
         lane_num = sprite.lane_num
 
-        lane_to_bit = {-2: 0, -1: 1, 0: 2, 1: 3, 2: 4}
         num_lanes = 5
 
         # Calculate total width based on repeats and repeat_spacing
@@ -378,16 +375,17 @@ class RoadGrid():
         lanes_occupied = math.ceil(total_width / self.lane_width)
 
         # Set the bit for the primary lane
-        mask = 1 << lane_to_bit[lane_num]
+        mask = 1 << lane_num
 
         # Determine direction based on sign of repeat_spacing
         direction = 1 if repeat_spacing > 0 else -1
 
         for i in range(1, lanes_occupied):
-            adjacent_lane = (lane_num + i * direction) % num_lanes - 2
-            if -2 <= adjacent_lane <= 2:  # Ensure we're within valid lane numbers
-                mask |= 1 << lane_to_bit[adjacent_lane]
+            adjacent_lane = (lane_num + i * direction)
+            if 0 <= adjacent_lane <= 4:  # Ensure we're within valid lane numbers
+                mask |= 1 << adjacent_lane
 
+        sprite.lane_mask = mask
         return mask
 
     def stop(self):

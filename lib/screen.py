@@ -30,24 +30,24 @@ class Screen:
         self.sprites.append(sprite)
 
     async def refresh_display(self):
-        wait_s = 1/90
+        wait_s = 1/90 # max FPS
         try:
             while True:
                 self.do_refresh()
                 now = utime.ticks_ms()
 
                 if (now - self.last_gc) > self.gc_interval:
-                    gc.collect()
+                    # gc.collect()
                     self.last_gc = utime.ticks_ms()
 
                 await asyncio.sleep(wait_s)
         except asyncio.CancelledError:
             return True
 
-    def start_display_loop(self):
+    async def start_display_loop(self):
         while True:
             self.do_refresh()
-            utime.sleep_ms(5)
+            await asyncio.sleep(5/1000)
 
     async def start_main_loop(self):
         await asyncio.gather(
@@ -58,6 +58,7 @@ class Screen:
         """blocking, non-looping, version of refresh_display(), for when you need a refresh in a specific
         place in the code"""
         self.last_tick = self.fps.tick()
+
         # display_loop_wait = self.display_loop_wait
         # step = 10
         # if self.fps > self.target_fps:
@@ -81,6 +82,7 @@ class Screen:
     def check_mem(self):
         gc.collect()
         print(f"Free memory: {gc.mem_free():,} bytes")
+        print(micropython.mem_info())
 
     def mem_marker(self, msg=None):
         gc.collect()

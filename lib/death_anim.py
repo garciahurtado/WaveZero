@@ -100,7 +100,7 @@ class DeathAnim:
 
             size = int(radius - ((self.elapsed_time / 700) * (random.random()/2)))
             if size > 0:
-                self.display.fill_rect(x1 - size // 4, y1 - size // 2, size // 2, size, color)
+                self.display.fill_rect(int(x1 - size // 4), int(y1 - size // 2), int(size // 2), size, color)
 
     def draw_debris(self, x, y, sprite, palette):
         self.display.blit(sprite, x, y, 0, palette)
@@ -137,7 +137,7 @@ class DeathAnim:
             palette = self.debris_palettes[d['palette_id']]
 
             if 0 <= d['x'] < self.width and 0 <= d['y'] < self.height:
-                self.draw_debris(int(d['x']), int(d['y']), d['sprite'].pixels, palette)
+                self.draw_debris(int(d['x']), int(d['y']), d['sprite'], palette)
 
         self.speed = self.speed - 6
         if self.speed < 20:

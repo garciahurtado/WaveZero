@@ -3,26 +3,28 @@ import fonts.bm_japan as large_font
 import framebuf
 import utime
 
-from font_writer import Writer, ColorWriter
+# from font_writer import Writer, ColorWriter
+from font_writer_new import ColorWriter, FontRenderer
+from font_writer_new import MonochromeWriter as Writer
 
 from sprites.sprite_rect import SpriteRect
 from sprites.sprite import Sprite
 
 from anim.palette_rotate import PaletteRotate
 import uasyncio as asyncio
-from framebuffer_palette import FramebufferPalette
+from framebuffer_palette import FramebufferPalette as fp
 
 import color_util as colors
 
-ORANGE = b'\x00\xFF\xFF'
-CYAN = b'\xFF\xFF\x00'
-BLACK = b'\x00\x00\x00'
-WHITE = b'\xFF\xFF\xFF'
+ORANGE = 0x00FFFF
+CYAN = 0xFFFF00
+BLACK = 0x000000
+WHITE = 0xFFFFFF
 
 class ui_screen():
     display = None
     lives_sprite: Sprite
-    score: int = 0
+    score = ''
     score_text = None
     game_over_text = None
     big_text_bg = None
@@ -47,11 +49,11 @@ class ui_screen():
         num_bytes = (self.display.width * 8) // 4
 
         self.cached_img = framebuf.FrameBuffer(bytearray(num_bytes), self.display.width, 8, framebuf.GS2_HMSB)
-        self.palette = FramebufferPalette(4, color_mode=FramebufferPalette.RGB565)
-        self.palette.set_rgb(0, BLACK)
-        self.palette.set_rgb(1, ORANGE)
-        self.palette.set_rgb(2, WHITE)
-        self.palette.set_rgb(3, CYAN)
+        self.palette = fp(4, color_mode=fp.BGR565)
+        self.palette.set_bytes(0, BLACK)
+        self.palette.set_bytes(1, ORANGE)
+        self.palette.set_bytes(2, WHITE)
+        self.palette.set_bytes(3, CYAN)
 
     def init_lives(self):
         if self.num_lives < 4:
@@ -69,10 +71,22 @@ class ui_screen():
 
         self.lives_text = ColorWriter(
             self.display,
-            font_vtks, 9, 5, fgcolor=CYAN, bgcolor=BLACK,
-            screen_width=self.display.width, screen_height=self.display.height)
-        self.lives_text.text_x = 14
-        self.lives_text.text_y = 1
+            font_vtks, 9, 5,
+            CYAN, BLACK)
+
+        # def __init__(self, device, font, text_width, text_height, screen_width=None, screen_height=None, verbose=True):
+        # self.lives_text = ColorWriter(
+        #     self.display,
+        #     font_vtks,
+        #     9,5,
+        #     self.display.width,
+        #     self.display.height,
+        #     CYAN,
+        #     BLACK,
+        #     )
+
+        self.lives_text.orig_x = 14
+        self.lives_text.orig_y = 1
 
         self.update_lives()
 
@@ -100,17 +114,19 @@ class ui_screen():
             # one_sprite.x = x
             # one_sprite.y = y
             self.sprites = [one_sprite]
-            self.lives_text.printstring(f"x {self.num_lives}")
+            self.lives_text.render_text(f"x {self.num_lives}")
             self.sprites.append(self.lives_text)
 
     def init_score(self):
 
         self.score_text = ColorWriter(
             self.display,
-            font_vtks, 35, 6, fgcolor=ORANGE, bgcolor=BLACK,
-            screen_width=self.display.width, screen_height=self.display.height)
-        self.score_text.text_x = 61
-        self.score_text.text_y = 0
+            font_vtks,
+            35, 6,
+            ORANGE, BLACK,
+            )
+        self.score_text.orig_x = 61
+        self.score_text.orig_y = 0
 
         return self.score_text
 
@@ -125,17 +141,19 @@ class ui_screen():
     def init_game_over(self):
         game_over_text = ColorWriter(
             self.display.write_framebuf,
-            large_font, 96, 11, fgcolor=CYAN, bgcolor=BLACK, screen_width=self.display.width, screen_height=self.display.height)
-        game_over_text.text_x = 3
-        game_over_text.text_y = 28
+            large_font, 96, 11,
+            CYAN, BLACK
+        )
+        game_over_text.orig_x = 3
+        game_over_text.orig_y = 28
         game_over_text.visible = False
 
         game_over_text.row_clip = True  # Clip or scroll when screen full
         game_over_text.col_clip = True  # Clip or new line when row is full
         game_over_text.wrap = False  # Word wrap
 
-        Writer.set_textpos(self.display, 0, 0)
-        game_over_text.printstring("GAME OVER")
+        # ColorWriter.set_textpos(self.display, 0, 0)
+        game_over_text.render_text("GAME OVER")
 
         self.game_over_text = game_over_text
         self.sprites.append(game_over_text)
@@ -146,7 +164,7 @@ class ui_screen():
 
         # Animate text colors
         text_colors = [0x00FFFF,0x0094FF,0x00FF90,0x4800FF,0x4CFF00,0x21377F]
-        text_color_palette = FramebufferPalette(len(text_colors))
+        text_color_palette = fp(len(text_colors))
 
         for i, color in enumerate(text_colors):
             text_color_palette.set_rgb(i, colors.hex_to_rgb(color))
@@ -177,8 +195,9 @@ class ui_screen():
         for my_sprite in self.sprites:
             my_sprite.show(canvas)
 
-        Writer.set_textpos(self.display, 0, 0)
-        self.score_text.printstring(f"{self.score:09}")
+        # ColorWriter.set_textpos(self.display, 0, 0)
+        print(f"SCORE: {self.score:09} / {self.score_text.orig_x},{self.score_text.orig_y}")
+        self.score_text.render_text(f"{self.score:09}")
         self.score_text.show(canvas)
 
 

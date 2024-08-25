@@ -7,7 +7,7 @@ from framebuffer_palette import FramebufferPalette
 from images.indexed_image import Image, create_image
 import color_util as colors
 
-class NewBMPReader():
+class BMPReader():
     color_mode_map = {
             1 : MONO_HMSB,
             2 : GS2_HMSB,

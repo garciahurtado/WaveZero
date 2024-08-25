@@ -100,7 +100,7 @@ class Writer():
         self.fgcolor = 1
         self.row_clip = False  # Clip or scroll when screen full
         self.col_clip = False  # Clip or new line when row is full
-        self.wrap = True  # Word wrap
+        self.wrap = False  # Word wrap
         self.cpos = 0
         self.tab = 4
 
@@ -138,55 +138,109 @@ class Writer():
     def height(self):  # Property for consistency with device
         return self.font.height()
 
-    def printstring(self, string, invert=False):
-        # word wrapping. Assumes words separated by single space.
-        q = string.split('\n')
-        last = len(q) - 1
-        for n, s in enumerate(q):
-            if s:
-                self._printline(s, invert)
-            if n != last:
-                self._printchar('\n')
+    def _printstring(self, string, invert=False):
+        print("In WRITER printstring")
 
-    def _printline(self, string, invert):
-        rstr = None
-        if self.wrap and self.stringlen(string, True):  # Length > self.screenwidth
-            pos = 0
-            lstr = string[:]
-            while self.stringlen(lstr, True):  # Length > self.screenwidth
-                pos = lstr.rfind(' ')
-                lstr = lstr[:pos].rstrip()
-            if pos > 0:
-                rstr = string[pos + 1:]
-                string = lstr
-                
-        for char in string:
-            self._printchar(char, invert)
-        if rstr is not None:
-            self._printchar('\n')
-            self._printline(rstr, invert)  # Recurse
+        # word wrapping. Assumes words separated by single space.
+        lines = string.split('\n')
+        last = len(lines) - 1
+        for n, s in enumerate(lines):
+            if s:
+                self.render_text(s, invert)
+            if n != last:
+                self.render_char('\n')
+
+    def _render_text(self, text, is_inverted):
+        """
+        Render a line of text, wrapping if enabled and necessary.
+
+        :param text: The text to render
+        :param is_inverted: Whether to invert the text colors
+        """
+        print(f"Rendering text: {text}")
+
+        remaining_text = None
+        if self.wrap and self.is_text_wider_than_screen(text):
+            wrap_position = self.find_wrap_position(text)
+            if wrap_position > 0:
+                remaining_text = text[wrap_position + 1:]
+                text = text[:wrap_position].rstrip()
+
+        for character in text:
+            self.render_char(character, is_inverted)
+
+        if remaining_text:
+            self.render_char('\n')
+            self.render_text(remaining_text, is_inverted)  # Recursive call for remaining text
+
+    def is_text_wider_than_screen(self, text, check_overflow=False):
+        """
+        Calculate if the text width exceeds the screen width.
+
+        :param text: The text to measure
+        :param check_overflow: If True, return as soon as width exceeds screen
+        :return: Boolean if check_overflow, else pixel width of text
+        """
+        if not text:
+            return 0
+
+        start_column = self._getstate().text_col
+        screen_width = self.screenwidth
+        total_width = 0
+
+        for character in text:
+            _, _, char_width = self.font.get_ch(character)
+            total_width += char_width
+            if check_overflow and total_width + start_column > screen_width:
+                return True
+
+        # Adjust width calculation for the last character if necessary
+        if check_overflow and total_width + start_column > screen_width:
+            total_width += self.get_char_width(text[-1]) - char_width
+
+        return total_width + start_column > screen_width if check_overflow else total_width
+
+    def find_wrap_position(self, text):
+        """
+        Find the position to wrap the text to fit the screen width.
+
+        :param text: The text to wrap
+        :return: The position to wrap the text
+        """
+        wrap_text = text[:]
+        while self.is_text_wider_than_screen(wrap_text, True):
+            wrap_position = wrap_text.rfind(' ')
+            wrap_text = wrap_text[:wrap_position].rstrip()
+        return wrap_position if wrap_position > 0 else 0
 
     def stringlen(self, string, oh=False):
-        if not len(string):
+        if not string:
             return 0
         sc = self._getstate().text_col  # Start column
         wd = self.screenwidth
         l = 0
-        for char in string[:-1]:
+
+        for char in string:
             _, _, char_width = self.font.get_ch(char)
             l += char_width
             if oh and l + sc > wd:
                 return True  # All done. Save time.
-        char = string[-1]
-        _, _, char_width = self.font.get_ch(char)
-        if oh and l + sc + char_width > wd:
-            l += self._truelen(char)  # Last char might have blank cols on RHS
-        else:
-            l += char_width  # Public method. Return same value as old code.
+
+        # Handle last character specially if needed
+        if string and oh and l + sc > wd:
+            l += self.get_char_width(string[-1]) - char_width
+
         return l + sc > wd if oh else l
 
     # Return the printable width of a glyph less any blank columns on RHS
-    def _truelen(self, char):
+    def get_char_width(self, char):
+        """
+        Get the true width of a character, accounting for trailing spaces.
+
+        :param char: The character to measure
+        :return: The true width of the character
+        """
+
         glyph, ht, wd = self.font.get_ch(char)
         div, mod = divmod(wd, 8)
         gbytes = div + 1 if mod else div  # No. of bytes per row of glyph
@@ -204,10 +258,10 @@ class Writer():
                     break
             if mc + 1 == wd:
                 break  # All done: no trailing space
-        # print('Truelen', char, wd, mc + 1)  # TEST 
+        # print('Truelen', char, wd, mc + 1)  # TEST
         return mc + 1
 
-    def _get_char(self, char, recurse):
+    def get_char(self, char, recurse):
         if not recurse:  # Handle tabs
             if char == '\n':
                 self.cpos = 0
@@ -217,7 +271,7 @@ class Writer():
                     nspaces = self.tab
                 while nspaces:
                     nspaces -= 1
-                    self._printchar(' ', recurse=True)
+                    self.render_char(' ', recurse=True)
                 self.glyph = None  # All done
                 return
 
@@ -244,12 +298,12 @@ class Writer():
         self.char_height = char_height
         self.char_width = char_width
         self.clip_width = char_width if np is None else np
-        
+
     # Method using blitting. Efficient rendering for monochrome displays.
     # Tested on SSD1306. Invert is for black-on-white rendering.
-    def _printchar(self, char, invert=False, recurse=False):
+    def _render_char(self, char, invert=False, recurse=False):
         s = self._getstate()
-        self._get_char(char, recurse)
+        self.get_char(char, recurse)
         if self.glyph is None:
             return  # All done
         buf = bytearray(self.glyph)
@@ -290,31 +344,100 @@ class ColorWriter(Writer):
         ssd.lut[x + 1] = c >> 8
         return idx
 
-    def __init__(self, device, font, text_width, text_height, fgcolor=None, bgcolor=None, screen_width=None, screen_height=None, verbose=True):
-        if implementation[1] < (1, 17, 0):
-            raise OSError('Firmware must be >= 1.17.')
+    def __init__(self, device, font, text_width, text_height, screen_width=None, screen_height=None, verbose=True):
+        self.text_height = text_height
+        self.text_width = text_width
 
-        super().__init__(device, font, text_width, text_height, screen_width=screen_width, screen_height=screen_height, verbose=verbose)
+        ColorWriter.screen_width = screen_width
+        ColorWriter.screen_height = screen_height
 
-        if bgcolor is not None:  # Assume monochrome.
-            self.bgcolor = bgcolor
-        if fgcolor is not None:
-            self.fgcolor = fgcolor
-        self.def_bgcolor = self.bgcolor
-        self.def_fgcolor = self.fgcolor
+        self.devid = _get_id(device)
+        self.device = device
+        if self.devid not in Writer.state:
+            ColorWriter.state[self.devid] = DisplayState()
+        self.font = font
+        if (font.height() >= screen_height or
+                font.max_width() >= screen_width):
+            raise ValueError('Font too large for screen')
+
+        # Allow to work with reverse or normal font mapping
+        if font.hmap():
+            self.map = framebuf.MONO_HMSB if font.reverse() else framebuf.MONO_HLSB
+        else:
+            raise ValueError('Font must be horizontally mapped.')
+        if verbose:
+            fstr = 'Orientation: Horizontal. Reversal: {}. Width: {}. Height: {}.'
+            # print(fstr.format(font.reverse(), device.width, device.height))
+            # print('Start row = {} col = {}'.format(self._getstate().text_row, self._getstate().text_col))
+        self.screenwidth = screen_width  # In pixels
+        self.screenheight = screen_height
+        self.bgcolor = 0  # Monochrome background and foreground colors
+        self.fgcolor = 1
+        self.row_clip = False  # Clip or scroll when screen full
+        self.col_clip = False  # Clip or new line when row is full
+        self.wrap = False  # Word wrap
+        self.cpos = 0
+        self.tab = 4
+
+        self.glyph = None  # Current char
+        self.char_height = 0
+        self.char_width = 0
+        self.clip_width = 0
+
+        self.default_bgcolor = self.bgcolor
+        self.default_fgcolor = self.fgcolor
 
         my_palette = FramebufferPalette(bytearray(2*2))
-        for i, new_color in enumerate([bgcolor, fgcolor]):
-            my_palette.pixel(i, 0, colors.bytearray_to_int(colors.byte3_to_byte2(new_color)))
-
         self.palette = my_palette
 
         pixels = bytearray(self.text_width * self.text_height)
         self.pixels = framebuf.FrameBuffer(pixels, self.text_width, self.text_height, self.map)
 
-    def _printchar(self, char, invert=False, recurse=False):
+    def set_colors(self, fgcolor, bgcolor):
+        self.fgcolor = fgcolor
+        self.bgcolor = bgcolor
+
+        for i, new_color in enumerate([bgcolor, fgcolor]):
+            self.palette.pixel(i, 0, colors.bytearray_to_int(colors.byte3_to_byte2(new_color)))
+
+    def printstring(self, string, invert=False):
+        print("In COLORWRITER printstring")
+
+        # word wrapping. Assumes words separated by single space.
+        lines = string.split('\n')
+        last = len(lines) - 1
+        for n, s in enumerate(lines):
+            if s:
+                self.render_text(s, invert)
+            if n != last:
+                self.render_char('\n')
+
+    def render_text(self, text, is_inverted):
+        """
+        Render a line of text, wrapping if enabled and necessary.
+
+        :param text: The text to render
+        :param is_inverted: Whether to invert the text colors
+        """
+        print(f"Rendering text: {text}")
+
+        remaining_text = None
+        if self.wrap and self.is_text_wider_than_screen(text):
+            wrap_position = self.find_wrap_position(text)
+            if wrap_position > 0:
+                remaining_text = text[wrap_position + 1:]
+                text = text[:wrap_position].rstrip()
+
+        for character in text:
+            self.render_char(character, is_inverted)
+
+        if remaining_text:
+            self.render_char('\n')
+            self.render_text(remaining_text, is_inverted)  # Recursive call for remaining text
+
+    def render_char(self, char, invert=False, recurse=False):
         s = self._getstate()
-        self._get_char(char, recurse)
+        self.get_char(char, recurse)
         if self.glyph is None:
             return  # All done
         buf = bytearray_at(addressof(self.glyph), len(self.glyph))
@@ -333,8 +456,8 @@ class ColorWriter(Writer):
 
     def setcolor(self, fgcolor=None, bgcolor=None):
         if fgcolor is None and bgcolor is None:
-            self.fgcolor = self.def_fgcolor
-            self.bgcolor = self.def_bgcolor
+            self.fgcolor = self.default_fgcolor
+            self.bgcolor = self.default_bgcolor
         else:
             if fgcolor is not None:
                 self.fgcolor = fgcolor

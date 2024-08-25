@@ -209,9 +209,9 @@ class GameScreen(Screen):
                 mult1 = self.num_lanes
                 mult2 = self.num_lanes
 
-                self.camera.vp_x = round(self.bike.bike_angle * mult1)
-                self.camera.pos_x = round(self.bike.bike_angle * mult2)
-                sun.x = self.sun_x_start - round(self.bike.bike_angle*4)
+                self.camera.vp_x = round(self.bike.turn_angle * mult1)
+                self.camera.pos_x = round(self.bike.turn_angle * mult2)
+                sun.x = self.sun_x_start - round(self.bike.turn_angle * 4)
 
                 if elapsed:
                     self.stage.update(elapsed)
@@ -222,6 +222,7 @@ class GameScreen(Screen):
 
                 if not self.total_frames % self.fps_every_n_frames:
                     print(f"FPS: {self.fps.fps()}")
+
 
                 await asyncio.sleep(1 / 120)
 

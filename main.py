@@ -24,7 +24,7 @@ import machine
 from machine import Pin
 
 def main():
-    machine.freq(250_000_000)
+    # machine.freq(250_000_000)
     time.sleep(2)
     current_freq = machine.freq()
     print(f"CPU: {current_freq / 1_000_000} MHz")

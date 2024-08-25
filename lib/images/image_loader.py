@@ -1,6 +1,6 @@
 import gc
 import uos
-from new_bmp_reader import NewBMPReader as microbmp
+from images.bmp_reader import BMPReader
 import color_util as colors
 from images.indexed_image import Image
 from framebuf import *
@@ -9,7 +9,7 @@ class ImageLoader():
     """Preloads a list of images in order to cache their framebuffers (as RGB565) to later be used by Sprites"""
     img_dir = "/img"
     images = {}
-    bmp_reader = microbmp()
+    bmp_reader = BMPReader()
 
     @staticmethod
     def load_images(images, display):

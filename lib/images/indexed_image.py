@@ -24,7 +24,7 @@ def create_image(
         palette,
         palette_bytes: bytearray,
         color_depth: int,
-        frames: []):
+        frames=None):
 
     image = Image(
         width,

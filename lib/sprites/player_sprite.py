@@ -5,7 +5,7 @@ class PlayerSprite(Spritesheet):
     target_lane = 2
     current_lane = 2
     lane_mask = 0
-    bike_angle = 0
+    turn_angle = 0
 
     def __init__(self, camera=None, *args, **kwargs):
         super().__init__(
@@ -20,10 +20,11 @@ class PlayerSprite(Spritesheet):
         self.set_frame(8)  # middle frame
         self.has_physics = True
         self.moving = False
-        self.bike_angle = 0
-        self.turn_incr = 2500  # lane switching speed
+        self.turn_angle = 0
+        self.turn_incr = 2500  # lane switching speed / turning speed
         self.camera = camera
         self.half_width = int(self.camera.half_width)
+        self.set_layer_mask(self.current_lane)
 
     def move_left(self):
         if (self.current_lane == 0):
@@ -58,7 +59,7 @@ class PlayerSprite(Spritesheet):
         line_offset = angle
         return line_offset
 
-    def update(self, elapsed):
+    def update(self, elapsed=None):
         if self.target_lane == self.current_lane:
             return False
 
@@ -67,7 +68,7 @@ class PlayerSprite(Spritesheet):
         current_lane = self.current_lane
 
         target_angle = (target_lane / 2) - 1
-        bike_angle = self.bike_angle
+        bike_angle = self.turn_angle
         turn_incr = self.turn_incr * (elapsed / 1000)
 
         if target_lane < current_lane:
@@ -75,31 +76,33 @@ class PlayerSprite(Spritesheet):
             if bike_angle <= target_angle:
                 current_lane = target_lane
                 bike_angle = target_angle
-                self.lane_mask = 1 << current_lane
-                # mask = bin(self.lane_mask)
-                # mask = '0' * (7 - len(mask)) + mask
-                # print(f"lane mask: {mask}")
-
+                self.set_layer_mask(current_lane)
                 self.moving = False
+
+            self.adjust_pos(bike_angle)
 
         elif target_lane > current_lane:
             bike_angle = bike_angle + turn_incr
             if bike_angle >= target_angle:
                 current_lane = target_lane
                 bike_angle = target_angle
-                self.lane_mask = 1 << current_lane
-                # mask = bin(self.lane_mask)
-                # mask = '0' * (7 - len(mask)) + mask
-                # print(f"lane mask: {mask}")
-
+                self.set_layer_mask(current_lane)
                 self.moving = False
 
+            self.adjust_pos(bike_angle)
+
+        self.turn_angle = bike_angle
+        self.current_lane = current_lane
+
+
+    def set_layer_mask(self, lane):
+        self.lane_mask = 1 << lane
+
+    def adjust_pos(self, bike_angle):
         bike_angle = min(bike_angle, 1)  # Clamp the input between -1 and 1
         line_offset = self.pick_frame(bike_angle)  # bike_angle->(-1,1)
 
         self.x = (line_offset * 34) + self.half_width - 15
-        self.current_lane = current_lane
-        self.bike_angle = bike_angle
 
     def start_blink(self):
         self.blink = True

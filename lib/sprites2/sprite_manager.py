@@ -94,10 +94,10 @@ class SpriteManager:
             if name in SPRITE_DATA_LAYOUT.keys():
                 # print(f"SET: {name} to {val}")
                 setattr(new_sprite, name, val)
-            # new_sprite.speed = class_meta.speed
-            # new_sprite.frame_width = class_meta.width
-            # new_sprite.frame_height = class_meta.height
-            # new_sprite.num_frames = class_meta.num_frames
+            new_sprite.speed = class_meta.speed
+            new_sprite.frame_width = class_meta.width
+            new_sprite.frame_height = class_meta.height
+            new_sprite.num_frames = class_meta.num_frames
 
         #Set user values passed to the function
         for key, value in kwargs.items():
@@ -108,9 +108,12 @@ class SpriteManager:
 
         #Create images and frames
         if sprite_type not in self.sprite_images:
-            self.sprite_images[sprite_type] = self.load_img_and_scale(class_name, sprite_type)
+            self.sprite_images[sprite_type] = self.load_img_and_scale(class_meta, sprite_type)
 
         new_sprite.active = True
+
+        lane = self.get_lane(new_sprite)
+        self.set_lane(new_sprite, lane)
 
         return new_sprite, idx
 
@@ -180,7 +183,7 @@ class SpriteManager:
         self.half_scale_one_dist = int(abs(self.camera.cam_z - scale_adj) / 2)
 
     # @timed
-    def update(self, sprite, meta, elapsed):
+    def update_sprite(self, sprite, meta, elapsed):
         """The update function only applies to a single sprite at a time, and it is responsible for killing expired
         / out of bounds sprites, as well as updating the x and y draw coordinates based on the 3D position and camera view
         """
@@ -221,9 +224,8 @@ class SpriteManager:
 
         if scale > 1:
             scale = 1
-        sprite.scale = scale
 
-        # print(f"Scale: {scale}")
+        sprite.scale = scale
 
         #prof.start_profile('cam_pos')
         draw_x, draw_y = self.to_2d(sprite.x, sprite.y + meta.height, sprite.z)
@@ -231,7 +233,7 @@ class SpriteManager:
         # print(f"Draw X 2: {draw_x_2}")
         #prof.end_profile('cam_pos')
 
-        num_frames = sprite.num_frames
+        num_frames = meta.num_frames
 
         real_z = sprite.z
 
@@ -242,6 +244,7 @@ class SpriteManager:
 
         sprite.draw_x = int(draw_x)
         sprite.draw_y = int(draw_y)
+
         sprite.current_frame = frame_idx
 
         # if sprite.event_chain:
@@ -249,14 +252,14 @@ class SpriteManager:
 
         return True
 
-    def update_all(self, elapsed):
+    def update(self, elapsed):
         metas = self.sprite_metadata
         i = 0
         while i < self.pool.active_count:
             sprite = self.pool.sprites[self.pool.active_indices[i]]
             meta = metas[sprite.sprite_type]
 
-            if self.update(sprite, meta, elapsed):
+            if self.update_sprite(sprite, meta, elapsed):
                 self.update_frame(sprite)
 
             if not sprite.active:
@@ -272,8 +275,9 @@ class SpriteManager:
 
 
     # @timed
-    def show(self, sprite, display: framebuf.FrameBuffer):
+    def show_sprite(self, sprite, display: framebuf.FrameBuffer):
         """Draw a single sprite on the display (or several, if multisprites)"""
+
         if not sprite.visible:
             return False
 
@@ -287,7 +291,6 @@ class SpriteManager:
         frame_id = sprite.current_frame # 255 ???
         # frame_id = 0
 
-        # print(f"TYpe: {sprite_type} id: {frame_id} ")
         image = self.sprite_images[sprite_type][frame_id]
         alpha = self.get_alpha(sprite_type)
         meta = self.sprite_metadata[sprite_type]
@@ -342,30 +345,41 @@ class SpriteManager:
         return max(0, min(frame_idx, sprite.num_frames - 1))
 
     def set_lane(self, sprite, lane_num):
-        lane = lane_num - 2  # [-2,-1,0,1,2]
-        new_x = (lane * self.lane_width) - (sprite.frame_width / 2)
+        # lane = lane_num - 2  # [-2,-1,0,1,2]
+        half_field = self.lane_width * 2.5
+
+        new_x = (lane_num * self.lane_width) + (self.lane_width / 2) - (sprite.frame_width / 2)
         sprite.lane_num = lane_num
-        sprite.x = round(new_x)
+        sprite.x = round(new_x - half_field)
         meta = self.sprite_metadata[sprite.sprite_type]
 
-        # self.grid.set_lane_mask(sprite, meta.repeats, meta.repeat_spacing)
+        if meta.repeats:
+            """Multi image sprite"""
+            self.grid.set_lane_mask(sprite, meta.repeats, meta.repeat_spacing)
+        else:
+            sprite.lane_mask = 1 << lane_num
 
     def get_lane(self, sprite):
+        """
+        Return the lane a sprite is in, based on its X coordinate.
+        Values returned are in range [0,1,2,3,4]
+        """
+        norm_x = (self.lane_width * 2.5) - sprite.x
         # Calculate the center of the sprite
-        sprite_center = sprite.x + (sprite.frame_width / 2)
+        sprite_center = norm_x - (sprite.frame_width / 2)
 
         # Calculate which lane the center of the sprite is in
-        lane = round(sprite_center / self.lane_width)
+        lane_num = round(sprite_center / self.lane_width)
 
         # Convert lane to lane_num (add 2 to shift from [-2,-1,0,1,2] to [0,1,2,3,4])
-        lane_num = lane + 2
+        # lane_num = lane + 2
 
         # Ensure lane_num is within valid range
         return max(0, min(4, lane_num))
 
 
     # @timed
-    @micropython.viper
+    # @micropython.viper
     def get_frame_idx(self, z: int, cam_z: int, num_frames: int, scale_dist: int) -> int:
         """ Given the Z coordinate (depth), find the scaled frame number which best represents the
         size of the object at that distance """
@@ -399,10 +413,13 @@ class SpriteManager:
             return int(frame_idx)
 
     # @timed
-    def show_all(self, display: framebuf.FrameBuffer):
+    def show(self, display: framebuf.FrameBuffer):
+        """ Display all the active sprites """
         for i in range(self.pool.active_count):
             sprite = self.pool.sprites[self.pool.active_indices[i]]
-            self.show(sprite, display)
+
+            if sprite.visible:
+                self.show_sprite(sprite, display)
 
     def check_mem(self):
         gc.collect()

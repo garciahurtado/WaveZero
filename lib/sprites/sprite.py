@@ -175,7 +175,7 @@ class Sprite:
         x, y = self.x, self.y
         return x, y
 
-    def update(self):
+    def update(self, elapsed=None):
         """ Meant to be overridden in child class"""
         if not self.active:
             return False
