@@ -19,19 +19,18 @@ import machine
 # import wav.myPWM
 # import midi.midi_player_2 as midi
 # from midi.simple_pwm_player import SimplePwmPlayer
-# import lib.pwm_with_trigger_pin_scratch
+# import lib.pwm_with_trigger_pin_scratch as pwm_player
 
 from machine import Pin
 
 def main():
-    # machine.freq(250_000_000)
+    machine.freq(250_000_000)
     time.sleep(2)
     current_freq = machine.freq()
     print(f"CPU: {current_freq / 1_000_000} MHz")
 
     check_mem()
     print("Compiler opt level: " + str(micropython.opt_level()))
-
 
     app = ScreenApp(96, 64)
     # app.load_screen(GameScreen(app.display))
@@ -47,7 +46,7 @@ def check_mem():
     print(micropython.mem_info())
 
 def midi_test():
-    player = SimplePwmPlayer(Pin(18))
+    player = pwm_player.audio_pwmSimplePwmPlayer(Pin(18))
 
     print("Play 440")
     player.play(440, 2)

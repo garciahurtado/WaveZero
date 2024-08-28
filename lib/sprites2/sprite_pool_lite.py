@@ -1,6 +1,6 @@
 import utime
 from uarray import array
-from sprites2.sprite_types import create_sprite, SPRITE_DATA_LAYOUT
+from sprites2.sprite_types import create_sprite, SPRITE_DATA_LAYOUT, SPRITE_DATA_SIZE
 import uctypes
 
 class SpritePool:
@@ -8,11 +8,25 @@ class SpritePool:
 
     def __init__(self, pool_size):
         self.pool_size = pool_size
-        print("About to create sprite pool")
-        self.sprite_memory = bytearray(32 * pool_size)
-        self.sprites = [uctypes.struct(uctypes.addressof(self.sprite_memory) + i * 32, SPRITE_DATA_LAYOUT) for i in
-                        range(pool_size)]
+        print(f"About to create sprite pool of {pool_size}")
+
+        chunk_size = min(pool_size, 25)  # Size in number of objects. Adjust this value based on available memory
+        self.sprite_memory = []
+        for i in range(0, pool_size, chunk_size):
+            chunk = bytearray(SPRITE_DATA_SIZE * min(chunk_size, pool_size - i))
+            self.sprite_memory.append(chunk)
+
+        # Create sprite structures
+        self.sprites = []
+        for i, chunk in enumerate(self.sprite_memory):
+            for j in range(len(chunk) // SPRITE_DATA_SIZE):
+                addr = uctypes.addressof(chunk) + j * SPRITE_DATA_SIZE
+                self.sprites.append(uctypes.struct(addr, SPRITE_DATA_LAYOUT))
+
         print("After creating sprite pool")
+
+        # Use a single array for tracking free and active sprites
+        # self.sprite_status = array('B', [0] * pool_size)  # 0 = free, 1 = active
 
         self.free_indices = array('H', range(pool_size))  # Unsigned short array for indices
         self.free_count = int(pool_size)

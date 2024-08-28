@@ -56,8 +56,9 @@ class PaletteRotate(Animation):
         self.palette.__init__(new_bytearray)
 
         self.current_idx += 1
-        if self.current_idx >= len(self.rotated_palettes):
-            self.current_idx = 0
+        self.current_idx %= len(self.rotated_palettes)
+        # if self.current_idx >= len(self.rotated_palettes):
+        #     self.current_idx = 0
 
         # Run 5 times per second
         await asyncio.sleep(self.interval_ms/1000)

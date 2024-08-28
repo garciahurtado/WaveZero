@@ -15,18 +15,18 @@ class Spritesheet(Sprite):
     frame_width: int = 0
     frame_height: int = 0
 
-    def __init__(self, frame_width: int = 0, frame_height: int = 0, color_depth=8, *args, **kwargs):
+    def __init__(self, frame_width, frame_height, color_depth=8, *args, **kwargs):
         self.frame_width = frame_width
         self.frame_height = frame_height
         self.color_depth = color_depth
 
         if 'width' not in kwargs:
-            self.width = frame_width
-            self.height = frame_height
+            kwargs['width'] = frame_width
+            kwargs['height'] = frame_height
 
         self.frames = []
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         # if 'filename' in kwargs:
         #     print(f"Spritesheet init'd with {len(self.frames)} frames")
 

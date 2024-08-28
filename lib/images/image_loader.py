@@ -1,4 +1,6 @@
 import gc
+
+import time
 import uos
 from images.bmp_reader import BMPReader
 import color_util as colors
@@ -10,6 +12,9 @@ class ImageLoader():
     img_dir = "/img"
     images = {}
     bmp_reader = BMPReader()
+
+    progress_loaded = 0
+    progress_total = 0
 
     @staticmethod
     def load_images(images, display):
@@ -26,27 +31,33 @@ class ImageLoader():
 
             # https://docs.pycom.io/firmwareapi/micropython/uos/
             total_size += ImageLoader.get_size(filename)
-        loaded_size = 0
 
-        # print(f"Loading {total_size:,} bytes of images")
+        ImageLoader.progress_total = total_size
+        ImageLoader.progress_loaded = 0
+
+        print(f"Loading {total_size:,} bytes of images")
         print(f"Before loading all images: {gc.mem_free():,} bytes")
 
         for image in images:
             gc.collect()
 
             file = image['name']
-            print(f"Loading {file} of {image['width']}x{image['height']}")
+            print(f"Loading {file} ({image['width']}x{image['height']})")
 
             image_path = f"{ImageLoader.img_dir}/{file}"
             color_depth = image['color_depth'] if 'color_depth' in image else None
 
-            if 'width' in image and 'height' in image:
-                ImageLoader.load_image(image_path, frame_width=image['width'], frame_height=image['height'], color_depth=color_depth)
-            else:
-                ImageLoader.load_image(image_path, color_depth=color_depth)
+            image_size = ImageLoader.get_size(image_path)
+            callback = lambda percent: ImageLoader.update_progress(display, percent, image_size)
 
-            loaded_size += ImageLoader.get_size(image_path)
-            ImageLoader.update_progress(display, loaded_size, total_size)
+            if 'width' in image and 'height' in image:
+                ImageLoader.load_image(image_path, frame_width=image['width'], frame_height=image['height'], color_depth=color_depth, progress_callback=callback)
+            else:
+                ImageLoader.load_image(image_path, color_depth=color_depth, progress_callback=callback)
+
+            ImageLoader.progress_loaded += image_size
+            ImageLoader.update_progress(display)
+
 
     @staticmethod
     def get_size(filename):
@@ -57,9 +68,20 @@ class ImageLoader():
         return size
 
     @staticmethod
-    def update_progress(display, loaded_size, total_size):
+    def update_progress(display, ratio=1, image_size=0):
+        delta = ratio * image_size
+        if delta == 0:
+            return False
+
+        progress_loaded = ImageLoader.progress_loaded + delta
+        progress_total = ImageLoader.progress_total
+        if progress_total == 0:
+            progress_total = 0.001
+
         bar_width = 76
-        filled_width = (loaded_size / total_size) * bar_width
+        filled_width = int((progress_loaded / progress_total) * bar_width)
+        filled_width = filled_width if filled_width < bar_width else bar_width
+
         my_color = colors.rgb_to_565([64, 64, 64])
 
         display.fill(0)
@@ -68,7 +90,7 @@ class ImageLoader():
         display.show()
 
     @staticmethod
-    def load_image(filename, frame_width=0, frame_height=0, color_depth=GS4_HMSB) -> Image:
+    def load_image(filename, frame_width=0, frame_height=0, color_depth=GS4_HMSB, progress_callback=None) -> Image:
         # First of all, check the cache
         if filename in ImageLoader.images.keys():
             image = ImageLoader.images[filename]
@@ -80,16 +102,9 @@ class ImageLoader():
 
         if frame_width and frame_height:
             """ Image is a spritesheet"""
-            reader.frame_width = reader.width = frame_width
-            reader.frame_height = reader.height = frame_height
-            image = reader.load(filename, reader.frame_width, reader.frame_height)
-
+            image = reader.load(filename, frame_width, frame_height, progress_callback=progress_callback)
         else:
-            reader.frame_width = reader.width
-            reader.frame_height = reader.height
-            image = reader.load(filename)
-
-        gc.collect()
+            image = reader.load(filename, progress_callback=progress_callback)
 
         ImageLoader.images[filename] = image
         return image

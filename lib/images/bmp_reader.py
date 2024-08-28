@@ -16,11 +16,13 @@ class BMPReader():
             16: RGB565,
         }
 
+    frames = None
+
     def __init__(self, basedir:str=None):
         self.basedir:str = basedir
         pass
 
-    def load(self, filename:str, frame_width=None, frame_height=None, color_mode=GS4_HMSB):
+    def load(self, filename:str, frame_width=None, frame_height=None, color_mode=GS4_HMSB, progress_callback=None):
         """
         Load a BMP file and return an Image object.
 
@@ -46,14 +48,12 @@ class BMPReader():
 
             palette = self._read_palette(file, header)
 
-            maybe_frames = self._read_pixels(file, header, frame_height)
+            maybe_frames = self._read_pixels(file, header, frame_width, frame_height, progress_callback)
 
             """ We have multiple frames"""
             if type(maybe_frames) is list:
                 frames = maybe_frames
                 pixels = frames[0]
-                header.width = frame_width
-                header.height = frame_height
             else:
                 frames = None
                 pixels = maybe_frames
@@ -125,8 +125,7 @@ class BMPReader():
         else:
             raise TypeError(f"Invalid color depth:{color_depth}")
 
-
-    def _read_pixels(self, file, meta, frame_height=None) -> [Image]:
+    def _read_pixels(self, file, meta, frame_width=None, frame_height=None, progress_callback=None) -> [Image]:
         """
         Read pixel data from the file, handling both single images and sprite sheets.
 
@@ -136,23 +135,31 @@ class BMPReader():
         :return: List of FrameBuffer objects for sprite sheets, or a single FrameBuffer for regular images
         """
 
-        if frame_height and frame_height < meta.height:
-            frames = []
+        if (frame_width and frame_height) and frame_height < meta.height:
+            """ This is a spritesheet"""
+
+            self.frames = []
             num_frames = math.floor(meta.height / frame_height)
 
             for frame_idx in range(num_frames):
-                frame_buffer, byte_data = self._create_frame_buffer(meta.width, frame_height, meta.color_format)
+                frame_buffer, byte_data = self._create_frame_buffer(frame_width, frame_height, meta.color_format)
                 self._read_frame_data(file, frame_buffer, meta, frame_height)
-                frames.append(frame_buffer)
+                self.frames.append(frame_buffer)
+
+                if progress_callback:
+                    """ Call with the ratio of the image loaded"""
+                    progress_callback((frame_idx)/num_frames)
 
             if not meta.is_top_down:
-                frames.reverse()
+                self.frames.reverse()
 
-            return frames
+            return self.frames
 
         else:
+            """ normal sprite """
             frame_buffer, _bytes = self._create_frame_buffer(meta.width, meta.height, meta.color_format)
             self._read_frame_data(file, frame_buffer, meta, meta.height)
+
             return frame_buffer
 
 
@@ -227,7 +234,6 @@ class BMPReader():
                 None,
                 color_depth,
                 frames)
-
         return new_image
 
 

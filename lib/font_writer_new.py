@@ -115,8 +115,7 @@ class MonochromeWriter(FontRenderer):
 
 class ColorWriter():
     def __init__(self, device: framebuf.FrameBuffer, font,
-                 text_width: int, text_height: int,
-                 fgcolor: int, bgcolor: int):
+                 text_width: int, text_height: int, palette, fixed_width: int = None):
 
         self.device = device
         self.font = font
@@ -126,32 +125,19 @@ class ColorWriter():
         self.orig_y = 0
         self.text_x = 0
         self.text_y = 0
-        self.fgcolor = fgcolor
-        self.bgcolor = bgcolor
         self.visible = True
+        self.palette = palette
+        self.fixed_width = fixed_width
 
-        print(f"WRITER WITH x{fgcolor:#06x} and x{bgcolor:#06x}")
+        # print(f"WRITER WITH COLORS: x{palette[0]:#06x} and x{palette[1]:#06x}")
         if font.hmap():
             self.color_format = framebuf.MONO_HMSB if font.reverse() else framebuf.MONO_HLSB
         else:
             raise ValueError('Font must be horizontally mapped.')
 
 
-        self.palette_16bit = FramebufferPalette(2, color_mode=framebuf.RGB565)
-        self.palette_1bit = FramebufferPalette(2, color_mode=framebuf.MONO_HLSB)
-        self.palette_2bit = FramebufferPalette(2, color_mode=framebuf.GS2_HMSB)
-
-
-        for i, new_color in enumerate([fgcolor, bgcolor]):
-            self.palette_16bit.pixel(i, 0)
-
-            self.palette_16bit.set_bytes(i, new_color)
-            self.palette_1bit.set_bytes(i, new_color)
-            self.palette_2bit.set_bytes(i, new_color)
-
-
-        # print(self.palette_16bit.pixel(0,0))
-        # print(self.palette_16bit.pixel(1,0))
+        # print(self.palette.pixel(0,0))
+        # print(self.palette.pixel(1,0))
         self.pixels = framebuf.FrameBuffer(bytearray(self.text_width * self.text_height),
                                            self.text_width, self.text_height, self.color_format)
 
@@ -172,17 +158,20 @@ class ColorWriter():
         self.text_y = self.orig_y
 
     def render_char(self, char: str, invert: bool = False) -> None:
-        print(f"RENDER {char}")
         glyph, height, width = self.font.get_ch(char)
-        
-        # if self.text_x + width > self.text_width:
-        #     self.newline()
-        # if self.text_y + height > self.text_height:
-        #     return  # No space left in the buffer
+        if self.fixed_width:
+            width = self.fixed_width
+
+        # print(f"RENDER {char}(w:{width}) at {self.text_x},{self.text_y} (on {self.text_width}x{self.text_height})")
+
+        if self.text_x + width > self.text_width:
+            self.newline()
+        if self.text_y + height > self.text_height:
+            return  # No space left in the buffer
 
         buffer = bytearray(glyph)
         fb = framebuf.FrameBuffer(buffer, width, height, self.color_format)
-        self.pixels.blit(fb, self.text_x, self.text_y)
+        self.pixels.blit(fb, self.text_x, self.text_y, -1, self.palette)
         self.text_x += width
 
     def newline(self) -> None:
@@ -195,11 +184,14 @@ class ColorWriter():
             # Clear the new line
             # self.pixels.fill_rect(0, self.text_y, self.text_width, self.font.height(), 1)
 
-    def show(self, display):
+    def show(self, display, palette=None):
         if not self.visible:
             return False
 
-        display.blit(self.pixels, self.orig_x, self.orig_y, -1, self.palette_16bit)
+        if not palette:
+            palette = self.palette
+
+        display.blit(self.pixels, self.orig_x, self.orig_y, -1, palette)
 
     def set_clip(self, row_clip: bool, col_clip: bool, wrap: bool) -> Tuple[bool, bool, bool]:
         self.row_clip = row_clip

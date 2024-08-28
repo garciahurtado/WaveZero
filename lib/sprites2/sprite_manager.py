@@ -12,6 +12,7 @@ from images.indexed_image import Image, create_image
 from sprites2.sprite_pool_lite import SpritePool
 from typing import Dict, List
 from profiler import Profiler as prof
+import utime as time
 
 class SpriteManager:
     POS_TYPE_FAR = const(0)
@@ -44,7 +45,7 @@ class SpriteManager:
         if camera:
             self.set_camera(camera)
 
-    def add_type(self, sprite_type, sprite_class, image_path, speed, width, height, color_depth, palette, alpha=None, repeats=0, repeat_spacing=0):
+    def add_type(self, sprite_type, sprite_class, image_path, speed, width, height, color_depth, palette, alpha_index, alpha_color=0, repeats=0, repeat_spacing=0):
         num_frames = max(width, height) + self.add_frames
 
         speed = speed
@@ -55,7 +56,8 @@ class SpriteManager:
                 'height': height,
                 'color_depth': color_depth,
                 'palette': palette,
-                'alpha': alpha,
+                'alpha_index': alpha_index,
+                'alpha_color': alpha_color,
                 'num_frames': num_frames,
                 'repeats': repeats,
                 'repeat_spacing': repeat_spacing,
@@ -63,7 +65,9 @@ class SpriteManager:
 
 
         self.sprite_classes[sprite_type] = sprite_class
-        self.sprite_metadata[sprite_type] = SpriteType(**init_values)
+        # names = init_values.values()
+        type_obj = sprite_class(**(init_values))
+        self.sprite_metadata[sprite_type] = type_obj
 
         print("Sprite registered: " + str(self.sprite_metadata[sprite_type].image_path))
 
@@ -84,6 +88,9 @@ class SpriteManager:
 
     def create(self, sprite_type, **kwargs):
         new_sprite, idx = self.pool.get(sprite_type)
+
+        if sprite_type not in self.sprite_classes.keys():
+            raise IndexError(f"Sprite type {sprite_type} is not defined")
 
         class_name = self.sprite_classes[sprite_type]
         class_attrs = self.get_class_properties(class_name)
@@ -138,6 +145,8 @@ class SpriteManager:
 
         frames.append(orig_img)  # Add original image as the last frame
         self.sprite_palettes[sprite_type] = orig_img.palette
+        metadata.palette = orig_img.palette
+        self.set_alpha_color(metadata)
 
         return frames
 
@@ -277,6 +286,7 @@ class SpriteManager:
     # @timed
     def show_sprite(self, sprite, display: framebuf.FrameBuffer):
         """Draw a single sprite on the display (or several, if multisprites)"""
+        sprite_type = sprite.sprite_type
 
         if not sprite.visible:
             return False
@@ -286,14 +296,15 @@ class SpriteManager:
             if sprite.blink_flip == -1:
                 return False
 
-        sprite_type = sprite.sprite_type
+        meta = self.sprite_metadata[sprite_type]
+        alpha = meta.alpha_color
+
         palette = self.sprite_palettes[sprite_type]
+
         frame_id = sprite.current_frame # 255 ???
         # frame_id = 0
 
         image = self.sprite_images[sprite_type][frame_id]
-        alpha = self.get_alpha(sprite_type)
-        meta = self.sprite_metadata[sprite_type]
 
         """Actions?"""
         # if sprite_type in self.sprite_actions.keys():
@@ -314,10 +325,6 @@ class SpriteManager:
                 self.do_blit(x=int(x), y=start_y, display=display, frame=image.pixels,palette=palette, alpha=alpha)
 
         return True
-
-    def get_alpha(self, type):
-        meta = self.sprite_metadata[type]
-        return meta.alpha
 
     # @timed
     def do_blit(self, x: int, y: int, display: framebuf.FrameBuffer, frame, palette, alpha=None):
@@ -377,6 +384,15 @@ class SpriteManager:
         # Ensure lane_num is within valid range
         return max(0, min(4, lane_num))
 
+    def set_alpha_color(self, sprite_type: SpriteType):
+        """Get the value of the color to be used as an alpha channel when drawing the sprite
+        into the display framebuffer """
+
+        if sprite_type.alpha_index is None:
+            return False
+
+        alpha_color = sprite_type.palette.get_bytes(sprite_type.alpha_index)
+        sprite_type.alpha_color = alpha_color
 
     # @timed
     # @micropython.viper

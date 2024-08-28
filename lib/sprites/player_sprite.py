@@ -7,7 +7,7 @@ class PlayerSprite(Spritesheet):
     lane_mask = 0
     turn_angle = 0
 
-    def __init__(self, camera=None, *args, **kwargs):
+    def __init__(self, camera=None):
         super().__init__(
             filename="/img/bike_sprite.bmp",
             frame_width=32,

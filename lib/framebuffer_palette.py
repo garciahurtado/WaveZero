@@ -59,6 +59,9 @@ class FramebufferPalette(framebuf.FrameBuffer):
 
         return new_palette
 
+    def __getitem__(self, index):
+        return self.get_bytes(index)
+
     def set_rgb(self, index, color):
         if isinstance(color, int):
             pass
