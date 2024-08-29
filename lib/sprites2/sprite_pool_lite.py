@@ -2,6 +2,7 @@ import utime
 from uarray import array
 from sprites2.sprite_types import create_sprite, SPRITE_DATA_LAYOUT, SPRITE_DATA_SIZE
 import uctypes
+POOL_CHUNK_SIZE = 20
 
 class SpritePool:
     pool = []
@@ -10,7 +11,7 @@ class SpritePool:
         self.pool_size = pool_size
         print(f"About to create sprite pool of {pool_size}")
 
-        chunk_size = min(pool_size, 25)  # Size in number of objects. Adjust this value based on available memory
+        chunk_size = min(pool_size, POOL_CHUNK_SIZE)  # Size in number of objects. Adjust this value based on available memory
         self.sprite_memory = []
         for i in range(0, pool_size, chunk_size):
             chunk = bytearray(SPRITE_DATA_SIZE * min(chunk_size, pool_size - i))

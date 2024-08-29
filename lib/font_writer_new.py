@@ -145,19 +145,19 @@ class ColorWriter():
         self.text_x = self.orig_x
         self.text_y = self.orig_y
 
-        # for char in text:
-        #     if char == '\n':
-        #         self.newline()
-        #     else:
-        #         self.render_char(char, invert)
+        # Use a memoryview to avoid creating new objects for each character
+        text_view = memoryview(text.encode('ascii'))
 
-        for char in text:
-            self.render_char(char, invert)
+        for char_byte in text_view:
+            # Pass the byte directly to render_char
+            self.render_char(char_byte, invert)
 
         self.text_x = self.orig_x
         self.text_y = self.orig_y
 
     def render_char(self, char: str, invert: bool = False) -> None:
+        # char = ord(char)
+
         glyph, height, width = self.font.get_ch(char)
         if self.fixed_width:
             width = self.fixed_width

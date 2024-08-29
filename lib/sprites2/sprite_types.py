@@ -1,3 +1,5 @@
+import asyncio
+
 from micropython import const
 from ucollections import namedtuple
 import uctypes
@@ -105,6 +107,7 @@ class SpriteType:
     render_func = None
     repeats: int = 0
     repeat_spacing: int = 0
+    animations = []
 
     def __init__(self, **kwargs):
         self.rotate_pal_last_change = 0
@@ -124,4 +127,8 @@ class SpriteType:
 
         alpha_color = self.palette.get_bytes(self.alpha_index)
         self.alpha_color = alpha_color
+
+    def start_anim(self):
+        for anim in self.animations:
+            asyncio.run(anim.run())
 

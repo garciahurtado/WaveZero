@@ -437,6 +437,12 @@ class SpriteManager:
             if sprite.visible:
                 self.show_sprite(sprite, display)
 
+    def start_anims(self):
+        """ Start the animations of all the registered sprite types"""
+        for _, type in self.sprite_classes.items():
+            if type.animations:
+                type.start_anim()
+
     def check_mem(self):
         gc.collect()
         print(micropython.mem_info())

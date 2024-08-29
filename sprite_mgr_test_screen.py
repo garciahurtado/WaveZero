@@ -18,12 +18,12 @@ from game_screen import Screen
 import uasyncio as asyncio
 import utime
 
+from sprites2.sprite_manager import SpriteManager
 from collider import Collider
 from sprites2.sprite_types import *
 # from sprites2.warning_wall import WarningWall
 from sprites2.laser_wall import LaserWall
 # from sprites2.holo_tri import HoloTri
-from sprites2.sprite_manager import SpriteManager
 
 from profiler import Profiler as prof
 
@@ -52,12 +52,16 @@ class SpriteMgrTestScreen(Screen):
     fx_callback = None
     ui = None
     collider = None
+    score = 0
 
     def __init__(self, display, *args, **kwargs):
         # Sets up display
         super().__init__(display, *args, **kwargs)
 
         self.init_camera()
+
+        print("-- Creating UI...")
+        self.ui = ui_screen(self.display, self.num_lives)
 
         print("-- Preloading images...")
         self.preload_images()
@@ -66,9 +70,6 @@ class SpriteMgrTestScreen(Screen):
         self.check_mem()
         print("-- Creating player sprite...")
         self.player = PlayerSprite(camera=self.camera)
-
-        print("-- Creating UI...")
-        self.ui = ui_screen(self.display, self.num_lives)
 
         self.collider = Collider(self.player, self.enemies, self.crash_y_start, self.crash_y_end)
         self.collider.add_callback(self.do_crash)
@@ -88,8 +89,8 @@ class SpriteMgrTestScreen(Screen):
 
     async def mock_update_score(self):
         while True:
-            score = random.randrange(0, 100000)
-            self.ui.update_score(score)
+            self.score += random.randrange(0, 100000)
+            self.ui.update_score(self.score)
             await asyncio.sleep(1)
 
     def preload_images(self):

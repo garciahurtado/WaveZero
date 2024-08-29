@@ -2,6 +2,7 @@ import asyncio
 
 from anim.anim_attr import AnimAttr
 from anim.palette_rotate import PaletteRotate
+from anim.palette_rotate_one import PaletteRotateOne
 from sprites2.sprite_types import SpriteType
 from sprites2.sprite_types import *
 from framebuffer_palette import FramebufferPalette
@@ -18,7 +19,9 @@ class LaserWall(SpriteType):
     repeats = 3
     repeat_spacing = 22
 
-    rotate_palette = [
+    rotate_change_index = 1
+    rotate_pal_index = 0
+    rotate_new_palette = [
         0xff0500,
         0xff4200,
         0xff5e00,
@@ -34,13 +37,29 @@ class LaserWall(SpriteType):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        new_palette = FramebufferPalette(len(self.rotate_palette))
-        for i, color in enumerate(self.rotate_palette):
+        new_palette = FramebufferPalette(len(self.rotate_new_palette))
+        for i, color in enumerate(self.rotate_new_palette):
             rgb = colors.hex_to_rgb(color)
             new_palette.set_rgb(i, rgb)
 
         self.rotate_palette = new_palette
-        #
-        # loop = asyncio.get_event_loop()
-        # anim = PaletteRotate(self.rotate_palette, 500, [0,1])
-        # self.rotate_task = loop.create_task(anim.run())
+
+        anim = PaletteRotateOne(self.palette, self.rotate_palette, 500, 1)
+        self.animations.append(anim)
+
+    def rotate_palette(self):
+        if not self.palette or not self.rotate_new_palette:
+            return False
+
+        new_palette = self.rotate_new_palette
+
+        num_colors = len(new_palette)
+        source_idx = self.rotate_pal_index
+        target_idx = self.rotate_change_index
+        new_color = new_palette.get_bytes(source_idx)
+        self.palette.set_bytes(target_idx, new_color)
+
+        self.rotate_pal_index = (source_idx + 1) % num_colors
+
+
+
