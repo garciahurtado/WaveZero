@@ -12,13 +12,13 @@ from sprites.sprite import Sprite
 
 from anim.palette_rotate import PaletteRotate
 import uasyncio as asyncio
-from framebuffer_palette import FramebufferPalette as fp
-
+from framebuffer_palette import FramebufferPalette as fp, FramebufferPalette
+import framebuf as fb
+from framebuf import FrameBuffer as FrameBuffer
 import color_util as colors
-
-ORANGE = 0x00FFFF
-CYAN = 0xFFFF00
 BLACK = 0x000000
+CYAN = 0x00FFFF
+YELLOW = 0xFF0067
 WHITE = 0xFFFFFF
 
 class ui_screen():
@@ -32,7 +32,6 @@ class ui_screen():
     lives_sprites = []
     num_lives: int = 0
     lives_text = None
-    lives_text_str = "x0"
     dirty = True
 
     def __init__(self, display, num_lives) -> None:
@@ -43,44 +42,65 @@ class ui_screen():
         self.life_sprite.visible = False
         self.life_sprite.set_alpha(0)
 
-        self.palette1 = fp(2, color_mode=fp.BGR565)
-        self.palette1.set_bytes(0, BLACK)
-        self.palette1.set_bytes(1, ORANGE)
 
-        self.palette2 = fp(2, color_mode=fp.BGR565)
-        self.palette2.set_bytes(0, BLACK)
-        self.palette2.set_bytes(1, WHITE)
+        num_colors = 2
+        # buffer = bytearray(num_colors // 2)
+        # self.palette1 = FrameBuffer(buffer, 2, 1, framebuf.GS4_HMSB)
+        # self.palette1.pixel(0, BLACK)
+        # self.palette1.pixel(1, CYAN)
+        #
+        # buffer = bytearray(num_colors // 2)
+        # self.palette2 = FrameBuffer(buffer, 2, 1, framebuf.GS4_HMSB)
+        # self.palette2.pixel(0, BLACK)
+        # self.palette2.pixel(1, ORANGE)
+        #
+        # buffer = bytearray(num_colors // 2)
+        # self.palette3 = FrameBuffer(buffer, 2, 1, framebuf.GS4_HMSB)
+        # self.palette3.pixel(0, BLACK)
+        # self.palette2.pixel(1, WHITE)
 
-        self.palette3 = fp(2, color_mode=fp.BGR565)
-        self.palette3.set_bytes(0, BLACK)
-        self.palette3.set_bytes(1, CYAN)
+        # Create palettes for different text elements
+        self.score_palette = FramebufferPalette(16, color_mode=fb.GS4_HMSB)
+        self.score_palette.set_bytes(0, 0)
+        self.score_palette.set_bytes(1, 1)
 
-        self.palette_all = fp(4, color_mode=fp.BGR565)
-        self.palette_all.set_bytes(0, BLACK)
-        self.palette_all.set_bytes(1, CYAN)
-        self.palette_all.set_bytes(2, ORANGE)
-        self.palette_all.set_bytes(3, WHITE)
+        self.lives_palette = FramebufferPalette(16, color_mode=fb.GS4_HMSB)
 
+        for i in range(16):
+            if i == 0:
+                self.lives_palette.set_bytes(i, 0)
+            elif i == 1:
+                self.lives_palette.set_bytes(i, 2)
+            else:
+                self.lives_palette.set_bytes(i, 2)
+
+        self.life_sprite.palette = self.lives_palette
+
+        self.palette_all = FramebufferPalette(4, color_mode=fb.RGB565)
+        self.palette_all.set_bytes(0, colors.hex_to_565(BLACK, format=colors.RGB565))
+        self.palette_all.set_bytes(1, colors.hex_to_565(YELLOW , format=colors.RGB565))
+        self.palette_all.set_bytes(2, colors.hex_to_565(CYAN, format=colors.RGB565))
+        self.palette_all.set_bytes(3, colors.hex_to_565(WHITE, format=colors.RGB565))
 
         self.init_lives()
         self.init_score()
         self.init_big_text_bg()
         self.init_game_over()
 
-        num_bytes = (self.display.width * 8) // 4
+        num_bytes = (self.display.width * 8) // 2
 
-        self.cached_img = framebuf.FrameBuffer(bytearray(num_bytes), self.display.width, 8, framebuf.GS2_HMSB)
-
-        self.lives_text.palette = self.palette3
+        self.cached_img = framebuf.FrameBuffer(bytearray(num_bytes), self.display.width, 8, framebuf.GS4_HMSB)
 
     def init_lives(self):
         self.lives_text = ColorWriter(
             self.display,
-            font_vtks, 14, 6,
-            self.palette1)
+            font_vtks,
+            40, 15,
+            self.lives_palette,
+            color_format=fb.GS4_HMSB)
 
-        self.lives_text.orig_x = 14
-        self.lives_text.orig_y = 1
+        self.lives_text.orig_x = 7
+        self.lives_text.orig_y = 0
 
         self.refresh_lives()
 
@@ -89,8 +109,9 @@ class ui_screen():
             self.display,
             font_vtks,
             36, 6,
-            self.palette2,
-            fixed_width=4
+            self.score_palette,
+            fixed_width=4,
+            color_format=fb.GS4_HMSB
             )
         self.score_text.orig_x = 61
         self.score_text.orig_y = 0
@@ -102,6 +123,7 @@ class ui_screen():
         self.num_lives = self.num_lives - 1
 
         if self.num_lives < 0:
+            self.num_lives = 0
             return False
 
         if self.num_lives < 4:
@@ -114,14 +136,15 @@ class ui_screen():
 
     def refresh_lives(self):
         if self.num_lives > 3:
-            """ Show 'icon x4' type lives"""
-            self.render_life_icons(1)
-            self.lives_text.render_text(f"x_{self.num_lives}")
+            """ Show '<icon> x4' type lives"""
             self.lives_text.visible = True
+            self.lives_text.render_text(f"x {self.num_lives}")
+            self.render_life_icons(1)
+
         else:
-            """ Show 'icon icon icon' type lives"""
-            self.render_life_icons(self.num_lives)
+            """ Show '<icon> <icon> <icon>' type lives"""
             self.lives_text.visible = False
+            self.render_life_icons(self.num_lives)
 
         self.dirty = True
 
@@ -129,7 +152,7 @@ class ui_screen():
         self.lives_sprites = []
 
         for i in range(0, num):
-            x, y = i * 12, 0
+            x, y = i * 12, -1
             new_sprite = self.life_sprite.clone()
             new_sprite.x = x
             new_sprite.y = y
@@ -163,11 +186,12 @@ class ui_screen():
         game_over_text = ColorWriter(
             self.display.write_framebuf,
             large_font, 96, 11,
-            self.palette1
+            self.lives_palette
         )
         game_over_text.orig_x = 3
         game_over_text.orig_y = 28
         game_over_text.visible = False
+        game_over_text.fgcolor = 2
 
         game_over_text.row_clip = True  # Clip or scroll when screen full
         game_over_text.col_clip = True  # Clip or new line when row is full
@@ -183,6 +207,7 @@ class ui_screen():
         self.big_text_bg.visible = True
         self.game_over_text.visible = True
 
+        print("IN SHOW GAME OVER")
         # Animate text colors
         text_colors = [0x00FFFF,0x0094FF,0x00FF90,0x4800FF,0x4CFF00,0x21377F]
         text_color_palette = fp(len(text_colors))
@@ -194,30 +219,35 @@ class ui_screen():
 
         loop = asyncio.get_event_loop()
         loop.create_task(anim.run())
-        utime.sleep_ms(10000)
+
+        print("END OF SHOW GAME OVER")
+        # utime.sleep_ms(10000)
+        return True
 
     def show(self):
         if self.dirty:
             # must update the cached image
-            self.draw_sprites(self.cached_img)
+            self.refresh_canvas(self.cached_img)
             self.dirty = False
 
         self.display.blit(self.cached_img, 0, 0, -1, self.palette_all)
         self.dirty = False
 
-    def draw_sprites(self, canvas):
+    def refresh_canvas(self, canvas):
         for my_sprite in self.sprites:
-            my_sprite.show(canvas)
-
-        for my_sprite in self.lives_sprites:
             my_sprite.show(canvas)
 
         # ColorWriter.set_textpos(self.display, 0, 0)
         # print(f"SCORE: {self.score:09} / {self.score_text.orig_x},{self.score_text.orig_y}")
+
+        self.refresh_lives()
+        self.lives_text.show(canvas)
+
+        for life in self.lives_sprites:
+            life.show(canvas)
+
         self.score_text.render_text(f"{self.score:09}")
         self.score_text.show(canvas)
-        self.lives_text.render_text("TEST")
-        self.lives_text.show(canvas)
 
 
 

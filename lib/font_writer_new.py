@@ -2,6 +2,7 @@ import framebuf
 from typing import Tuple, Optional
 
 from framebuffer_palette import FramebufferPalette
+import framebuf as fb
 import color_util as colors
 
 class FontRenderer():
@@ -15,6 +16,8 @@ class FontRenderer():
         self.col_clip = False
         self.wrap = False
         self.visible = True
+        # Preallocate character framebuffer so we dont end up creating tons of ephemeral objects while rendering
+        self.char_framebuf = framebuf.FrameBuffer(bytearray(4), 8, 8, framebuf.MONO_HLSB)
 
     @staticmethod
     def set_textpos(device: framebuf.FrameBuffer, row: Optional[int] = None, col: Optional[int] = None) -> Tuple[
@@ -109,13 +112,13 @@ class MonochromeWriter(FontRenderer):
             return False
 
         x, y = self.orig_x, self.orig_y
-        print(f"BLIT AT {x}, {y}")
+        # print(f"BLIT AT {x}, {y}")
         canvas.blit(self.pixels, x, y, -1, self.palette)
 
 
 class ColorWriter():
     def __init__(self, device: framebuf.FrameBuffer, font,
-                 text_width: int, text_height: int, palette, fixed_width: int = None):
+                 text_width: int, text_height: int, palette, fixed_width: int = None, color_format: int = fb.GS4_HMSB):
 
         self.device = device
         self.font = font
@@ -128,17 +131,21 @@ class ColorWriter():
         self.visible = True
         self.palette = palette
         self.fixed_width = fixed_width
+        self.bgcolor = 0
+        self.fgcolor = 1
 
         # print(f"WRITER WITH COLORS: x{palette[0]:#06x} and x{palette[1]:#06x}")
-        if font.hmap():
-            self.color_format = framebuf.MONO_HMSB if font.reverse() else framebuf.MONO_HLSB
+        if color_format:
+            self.color_format = color_format
         else:
-            raise ValueError('Font must be horizontally mapped.')
+            if font.hmap():
+                self.color_format = framebuf.MONO_HMSB if font.reverse() else framebuf.MONO_HLSB
+            else:
+                raise ValueError('Font must be horizontally mapped.')
 
-
-        # print(self.palette.pixel(0,0))
-        # print(self.palette.pixel(1,0))
-        self.pixels = framebuf.FrameBuffer(bytearray(self.text_width * self.text_height),
+        # Create a GS4_HMSB framebuffer for the text
+        buffer_size = (text_width * text_height) // 2  # 4 bits per pixel
+        self.pixels = framebuf.FrameBuffer(bytearray(buffer_size),
                                            self.text_width, self.text_height, self.color_format)
 
     def render_text(self, text: str, invert: bool = False) -> None:
@@ -156,22 +163,35 @@ class ColorWriter():
         self.text_y = self.orig_y
 
     def render_char(self, char: str, invert: bool = False) -> None:
-        # char = ord(char)
+        if isinstance(char, str):
+            char_idx = ord(char)
+        elif isinstance(char, int):
+            char_idx = char
+        else:
+            raise TypeError("char must be a string or integer")
 
-        glyph, height, width = self.font.get_ch(char)
+        glyph, height, width = self.font.get_ch(char_idx)
         if self.fixed_width:
             width = self.fixed_width
 
-        # print(f"RENDER {char}(w:{width}) at {self.text_x},{self.text_y} (on {self.text_width}x{self.text_height})")
+        # print(f"RENDER {char}(w:{width}) at {self.text_x},{self.text_y} (on {self.text_width}x{self.text_height}) -GLYPH: {glyph}")
 
         if self.text_x + width > self.text_width:
             self.newline()
         if self.text_y + height > self.text_height:
+            pass
             return  # No space left in the buffer
 
-        buffer = bytearray(glyph)
-        fb = framebuf.FrameBuffer(buffer, width, height, self.color_format)
-        self.pixels.blit(fb, self.text_x, self.text_y, -1, self.palette)
+        self.char_framebuf = framebuf.FrameBuffer(bytearray(glyph), width, height, framebuf.MONO_HLSB)
+
+        # Render the character to our GS4_HMSB buffer
+        for y in range(height):
+            for x in range(width):
+                pixel = self.char_framebuf.pixel(x, y)
+                if pixel:  # If the pixel is set in the original glyph
+                    self.pixels.pixel(self.text_x + x, self.text_y + y, 1)
+
+        self.pixels.blit(self.char_framebuf, self.text_x, self.text_y, -1, self.palette)
         self.text_x += width
 
     def newline(self) -> None:

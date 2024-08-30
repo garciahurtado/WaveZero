@@ -1,7 +1,4 @@
-import _thread
-import gc
 import random
-import sys
 
 from sprites.sprite import Sprite
 from ui_elements import ui_screen
@@ -21,15 +18,13 @@ import utime
 from sprites2.sprite_manager import SpriteManager
 from collider import Collider
 from sprites2.sprite_types import *
-# from sprites2.warning_wall import WarningWall
 from sprites2.laser_wall import LaserWall
-# from sprites2.holo_tri import HoloTri
 
 from profiler import Profiler as prof
 
 class SpriteMgrTestScreen(Screen):
     ground_speed: int = const(-0)
-    max_ground_speed: int = const(-1500)
+    max_ground_speed: int = const(-2000)
     grid: RoadGrid = None
     sun: Sprite = None
     sun_start_x = None
@@ -41,13 +36,12 @@ class SpriteMgrTestScreen(Screen):
     total_frames = 0
     last_update_ms = 0
     fps_every_n_frames = 30
-    color_shift_every_n_frames = 1000
     player = None
     last_perf_dump_ms = 0
     input_task = None
     crash_y_start = const(46)  # Screen start Y of Sprites which will collide with the player
     crash_y_end = const(62)  # Screen end Y
-    death_anim = None
+    death_task = None
     paused = False
     fx_callback = None
     ui = None
@@ -59,6 +53,7 @@ class SpriteMgrTestScreen(Screen):
         super().__init__(display, *args, **kwargs)
 
         self.init_camera()
+        self.check_mem()
 
         print("-- Creating UI...")
         self.ui = ui_screen(self.display, self.num_lives)
@@ -96,7 +91,7 @@ class SpriteMgrTestScreen(Screen):
     def preload_images(self):
         images = [
             {"name": "bike_sprite.bmp", "width": 32, "height": 22, "color_depth": 4},
-            {"name": "holo_tri.bmp", "width": 20, "height": 20, "color_depth": 4},
+            # {"name": "holo_tri.bmp", "width": 20, "height": 20, "color_depth": 4},
             # {"name": "laser_wall.bmp", "width": 22, "height": 10, "color_depth": 4},
             {"name": "sunset.bmp", "width": 20, "height": 10, "color_depth": 8},
             {"name": "life.bmp", "width": 12, "height": 8},
@@ -264,6 +259,7 @@ class SpriteMgrTestScreen(Screen):
         self.enemies.death_anim.update_and_draw()
 
     def check_collisions(self, colliders):
+        raise RuntimeError("This method is not supposed to be called")
         if self.player.visible and self.player.active and self.player.has_physics:
             for sprite in colliders:
 
@@ -306,16 +302,7 @@ class SpriteMgrTestScreen(Screen):
         #     await asyncio.sleep(2)
         #
 
-        # ms = 1000
-        # for i in range(0, 3):
-        #     self.display.fill(0xFFFF)
-        #     self.do_refresh()
-        #     await asyncio.sleep(100 / ms)
-        #     self.display.fill(0x0000)
-        #     self.do_refresh()
-        #     await asyncio.sleep(100 / ms)
 
-        self.player.visible = False
 
         # self.player.start_blink()
 

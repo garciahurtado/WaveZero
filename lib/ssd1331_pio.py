@@ -26,8 +26,6 @@ class SSD1331PIO():
     dma0_active = True
     dma1_active = False
     dma_tx_count = 256
-    buffer0 = None
-    buffer1 = None
     framebuf0 = None
     framebuf1 = None
     read_buffer = None
@@ -45,6 +43,8 @@ class SSD1331PIO():
     DC_MODE_CMD = 0x00
     DC_MODE_DATA = 0x01
 
+    buffer0 = bytearray(HEIGHT * WIDTH * 2)  # RGB565 is 2 bytes
+    buffer1 = bytearray(HEIGHT * WIDTH * 2)  # RGB565 is 2 bytes
 
     """ 
     xA0 x72 -> RGB
@@ -68,13 +68,11 @@ class SSD1331PIO():
         gc.collect()
 
         # The first buffer, the one we write to
-        self.buffer0 = bytearray(self.height * self.width * 2)  # RGB565 is 2 bytes
         self.framebuf0 = framebuf.FrameBuffer(self.buffer0, self.width, self.height, mode)
         self.framebuf0.fill(0x0)
 
         # A second buffer, the read buffer, is the one that gets sent to the display
         # DMA copies the write buffer to this one over time
-        self.buffer1 = bytearray(self.height * self.width * 2)  # RGB565 is 2 bytes
         self.framebuf1 = framebuf.FrameBuffer(self.buffer1, self.width, self.height, mode)
         self.framebuf1.fill(0x0)
 

@@ -1,4 +1,5 @@
 import framebuf
+import framebuf as fb
 import color_util as colors
 
 class FramebufferPalette(framebuf.FrameBuffer):
@@ -10,8 +11,8 @@ class FramebufferPalette(framebuf.FrameBuffer):
 
     # By introducing an offset, we can "rotate" the colors in the palette without changing the data
     index_offset: int = 0
-    RGB565 = 0
-    BGR565 = 1
+    RGB565 = 1
+    BGR565 = 10
     color_mode = BGR565
 
     def __init__(self, palette, color_mode=None):
@@ -23,20 +24,21 @@ class FramebufferPalette(framebuf.FrameBuffer):
 
         if isinstance(palette, int):
             self.num_colors = palette
-            palette = bytearray(palette * 2)
-
+            byte_size = self.byte_size(self.num_colors)
+            palette = bytearray(byte_size)
             self.palette = palette
         elif isinstance(palette, bytearray):
-            self.num_colors = len(palette) // 2
+            self.num_colors = self.color_size(len(palette))
             self.palette = palette
         else:
             """ you can also pass a list of RGB tuples to the constructor"""
             set_colors = palette
-
             self.num_colors = len(set_colors)
-            self.palette = bytearray(self.num_colors * 2) # 2 bytes per color (RGB565)
+            byte_size = self.byte_size(self.num_colors)
+            self.palette = bytearray(byte_size)
 
-        super().__init__(self.palette, self.num_colors, 1, framebuf.RGB565)
+        fb_color_mode = framebuf.RGB565 if self.color_mode in (self.BGR565, self.RGB565) else self.color_mode
+        super().__init__(self.palette, self.num_colors, 1, fb_color_mode)
 
         for i, color in enumerate(set_colors):
             self.set_rgb(i, color)
@@ -62,10 +64,40 @@ class FramebufferPalette(framebuf.FrameBuffer):
     def __getitem__(self, index):
         return self.get_bytes(index)
 
+    def byte_size(self, num_colors):
+        """ Return the size, in bytes, of the number of colors specified at the current color format"""
+        color_mode = self.color_mode
+
+        if color_mode in (fb.RGB565, self.RGB565, self.BGR565):
+            size = num_colors * 2
+        elif color_mode == fb.GS8:
+            size = num_colors
+        elif color_mode == fb.GS4_HMSB:
+            size = num_colors // 2
+        else:
+            size = num_colors // 4
+
+        return size
+
+    def color_size(self, byte_size):
+        """ How many colors fit in the given byte_size at the current color format"""
+        color_mode = self.color_mode
+
+        if color_mode in (fb.RGB565, self.RGB565, self.BGR565):
+            num_colors = byte_size // 2
+        elif color_mode == fb.GS8:
+            num_colors = byte_size
+        elif color_mode == fb.GS4_HMSB:
+            num_colors = byte_size * 2
+        else:
+            num_colors = byte_size * 4
+
+        return num_colors
+
     def set_rgb(self, index, color):
         if isinstance(color, int):
             pass
-        elif self.color_mode == self.BGR565:
+        elif self.color_mode in (fb.RGB565, self.RGB565, self.BGR565):
             color = colors.rgb_to_565([color[2], color[1], color[0]])
         else:
             color = colors.rgb_to_565([color[0], color[1], color[2]])
@@ -80,14 +112,17 @@ class FramebufferPalette(framebuf.FrameBuffer):
         return color
 
     def set_bytes(self, index, color):
-        # Convert the color value to bytes
-        color_bytes = color.to_bytes(2, 'big')
+        if self.color_mode in (fb.RGB565, self.RGB565, self.BGR565):
+            # Convert the color value to bytes
+            color_bytes = color.to_bytes(2, 'big')
 
-        # Convert the flipped bytes back to an integer
-        color = int.from_bytes(color_bytes, 'big')
+            # Convert the flipped bytes back to an integer
+            color = int.from_bytes(color_bytes, 'big')
 
-        # Set the color in the underlying data structure
-        self.pixel(index, 0, color)
+            # Set the color in the underlying data structure
+            self.pixel(index, 0, color)
+        else:
+            self.pixel(index, 0, color)
 
     def set_int(self, index, color):
         self.pixel(index, 0, color)

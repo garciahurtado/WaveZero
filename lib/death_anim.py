@@ -18,7 +18,7 @@ class DeathAnim:
         self.debris_count: int = 100
         self.debris = [None] * self.debris_count
         self.explosion_center = None
-        self.animation_started = False
+        self.running = False
         self.start_time = 0
         self.speed = 300
         self.gravity = 0.0012  # Gravity (pixels per millisecond^2)
@@ -81,7 +81,7 @@ class DeathAnim:
                 'palette_id': pid,
                 'max_age': max_age,
             }
-        self.animation_started = True
+        self.running = True
 
     def get_random_palette_id(self):
         idx = random.randint(0, len(self.debris_palettes) - 1)
@@ -107,7 +107,7 @@ class DeathAnim:
 
 
     def update_and_draw(self):
-        if not self.animation_started:
+        if not self.running:
             return False
 
         current_time = utime.ticks_ms()
@@ -143,10 +143,12 @@ class DeathAnim:
         if self.speed < 20:
             self.speed = 20
 
+        """ were in charge for display rendering, because all the other tasks are waiting on this one"""
+
         return self.elapsed_time < self.total_duration
 
     def is_animating(self):
-        return self.animation_started and self.elapsed_time < self.total_duration
+        return time.ticks_diff(self.running, self.elapsed_time) < self.total_duration
 
 
     def create_bike_half(self):
