@@ -1,3 +1,5 @@
+import math
+
 import framebuf
 from typing import Tuple, Optional
 
@@ -133,6 +135,7 @@ class ColorWriter():
         self.fixed_width = fixed_width
         self.bgcolor = 0
         self.fgcolor = 1
+        self.dirty = False
 
         # print(f"WRITER WITH COLORS: x{palette[0]:#06x} and x{palette[1]:#06x}")
         if color_format:
@@ -144,11 +147,25 @@ class ColorWriter():
                 raise ValueError('Font must be horizontally mapped.')
 
         # Create a GS4_HMSB framebuffer for the text
-        buffer_size = (text_width * text_height) // 2  # 4 bits per pixel
+        if color_format in (fb.MONO_HLSB, fb.MONO_HMSB):
+            pixels_per_byte = 8
+        elif color_format == fb.GS4_HMSB:
+            pixels_per_byte = 2
+        elif color_format == fb.GS8:
+            pixels_per_byte = 1
+        else:
+            pixels_per_byte = 1 / 2
+
+        print(f"dims: {text_width} x {text_height}")
+        print(f"PPB {pixels_per_byte}")
+
+        buffer_size = math.ceil((text_width * text_height) / pixels_per_byte)
+        print(f"BUFFER SIZE {buffer_size} (color: {self.color_format}")
         self.pixels = framebuf.FrameBuffer(bytearray(buffer_size),
-                                           self.text_width, self.text_height, self.color_format)
+                                           text_width, text_height, self.color_format)
 
     def render_text(self, text: str, invert: bool = False) -> None:
+        print(f"Rendering text {text}")
         self.text_x = self.orig_x
         self.text_y = self.orig_y
 
@@ -175,23 +192,37 @@ class ColorWriter():
             width = self.fixed_width
 
         # print(f"RENDER {char}(w:{width}) at {self.text_x},{self.text_y} (on {self.text_width}x{self.text_height}) -GLYPH: {glyph}")
+        # for line in glyph:
+        #     print(f"{line:>011b}")
 
         if self.text_x + width > self.text_width:
-            self.newline()
+            # self.newline()
+            pass
         if self.text_y + height > self.text_height:
             pass
-            return  # No space left in the buffer
+            # return  # No space left in the buffer
 
         self.char_framebuf = framebuf.FrameBuffer(bytearray(glyph), width, height, framebuf.MONO_HLSB)
 
-        # Render the character to our GS4_HMSB buffer
-        for y in range(height):
-            for x in range(width):
-                pixel = self.char_framebuf.pixel(x, y)
-                if pixel:  # If the pixel is set in the original glyph
-                    self.pixels.pixel(self.text_x + x, self.text_y + y, 1)
+        # Render the character to our pixel buffer
+        # for y in range(height):
+        #     for x in range(width):
+        #         pixel = self.char_framebuf.pixel(x, y)
+        #
+        #         if self.color_format == fb.RGB565:
+        #             # For RGB565, use the actual color values from the palette
+        #             color = self.palette.get_int(self.fgcolor if pixel else self.bgcolor)
+        #             # print(f"set to color {color:#04x}")
+        #         else:
+        #             if pixel:  # If the pixel is set in the original glyph
+        #                 color = self.fgcolor if not invert else self.bgcolor
+        #             else:
+        #                 color = self.bgcolor if not invert else self.fgcolor
+        #
+        #         if pixel:
+        #             self.pixels.pixel(self.text_x + x, y, color)
 
-        self.pixels.blit(self.char_framebuf, self.text_x, self.text_y, -1, self.palette)
+        self.pixels.blit(self.char_framebuf, self.text_x, 0, -1, self.palette)
         self.text_x += width
 
     def newline(self) -> None:
@@ -211,7 +242,11 @@ class ColorWriter():
         if not palette:
             palette = self.palette
 
-        display.blit(self.pixels, self.orig_x, self.orig_y, -1, palette)
+        if self.color_format in (fb.MONO_HMSB, fb.GS4_HMSB, fb.GS8):
+            """ Only indexed formats need a palette"""
+            display.blit(self.pixels, self.orig_x, self.orig_y, -1, palette)
+        else:
+            display.blit(self.pixels, self.orig_x, self.orig_y, -1, palette)
 
     def set_clip(self, row_clip: bool, col_clip: bool, wrap: bool) -> Tuple[bool, bool, bool]:
         self.row_clip = row_clip
@@ -231,3 +266,30 @@ class ColorWriter():
     def stringlen(self, string: str) -> int:
         return sum(self.get_char_width(char) for char in string)
 
+    def color_size(self, byte_size, color_mode):
+        """ How many colors fit in the given byte_size at the current color format"""
+
+        if color_mode == fb.RGB565:
+            num_colors = byte_size // 2
+        elif color_mode == fb.GS8:
+            num_colors = byte_size
+        elif color_mode == fb.GS4_HMSB:
+            num_colors = byte_size * 2
+        else:
+            num_colors = byte_size * 4
+
+        return num_colors
+
+    def byte_size(self, num_colors, color_mode):
+        """ Return the size, in bytes, of the number of colors specified at the current color format"""
+
+        if color_mode == fb.RGB565:
+            size = num_colors * 2
+        elif color_mode == fb.GS8:
+            size = num_colors
+        elif color_mode == fb.GS4_HMSB:
+            size = num_colors // 2
+        else:
+            size = num_colors // 4
+
+        return size

@@ -25,15 +25,12 @@ class PaletteRotateOne(Animation):
     async def run_loop(self):
         now = time.ticks_ms()
         delta = time.ticks_diff(now, self.last_change_ms)
-        print(f"DELTA: {delta}")
-        print(f"INT: {self.interval_ms}")
         color_list = self.color_list
 
         if delta > self.interval_ms:
-            print("Change color")
             self.current_idx = (self.current_idx + 1) % len(color_list)
-            new_color = color_list.get_bytes(self.idx)
-            self.orig_palette.set_bytes(self.current_idx, new_color)
+            new_color = color_list.get_bytes(self.current_idx)
+            self.orig_palette.set_bytes(self.idx, new_color)
             self.last_change_ms = time.ticks_ms()
 
         await asyncio.sleep_ms(self.interval_ms)

@@ -109,7 +109,7 @@ class SpriteMgrTestScreen(Screen):
         print("-- Creating sprites...")
         sprites = self.enemies
 
-        barrier_speed = self.max_ground_speed / 10
+        barrier_speed = self.max_ground_speed / 1
         print(f"Sprite speed: {barrier_speed}")
 
         self.check_mem()
@@ -281,14 +281,21 @@ class SpriteMgrTestScreen(Screen):
         self.paused = True
         self.player.active = False
         self.grid.stop()
-        loop.create_task(
-            self.enemies.death_anim.start_animation(self.player.x, self.player.y))
+        # death_task = loop.create_task(
+        #     )
+        self.enemies.death_anim.start_animation(self.player.x, self.player.y)
 
-        # if not self.ui.remove_life():
-        #     self.bike.visible = False
-        #     self.ui.show_game_over()
-        #     return False
+        # while self.enemies.death_anim.update_and_draw():
+        #     self.display.show()
 
+        task = loop.create_task(self.death_loop())
+
+        # loop.run_until_complete()
+
+        if self.ui.remove_life():
+            self.player.visible = False
+            self.ui.show_game_over()
+            return False
 
         white = colors.rgb_to_565_v2(colors.hex_to_rgb(0xFFFFFF))
         white = int.from_bytes(white, "big")
@@ -309,6 +316,11 @@ class SpriteMgrTestScreen(Screen):
 
 
         # loop.create_task(self.player.stop_blink())
+
+    async def death_loop(self):
+        while self.enemies.death_anim.running:
+            await asyncio.sleep_ms(50)
+        print("END OF DEATH LOOP")
 
     def init_camera(self):
         # Camera

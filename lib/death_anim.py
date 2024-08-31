@@ -19,7 +19,7 @@ class DeathAnim:
         self.debris = [None] * self.debris_count
         self.explosion_center = None
         self.running = False
-        self.start_time = 0
+        self.start_time = None
         self.speed = 300
         self.gravity = 0.0012  # Gravity (pixels per millisecond^2)
         self.base_x = 0
@@ -52,7 +52,7 @@ class DeathAnim:
             self.debris_palettes.append(palette)
 
 
-    async def start_animation(self, x, y):
+    def start_animation(self, x, y):
         self.elapsed_time = 0
         self.start_time = utime.ticks_ms()
         self.explosion_center = (x + 16, y + 10)
@@ -105,15 +105,19 @@ class DeathAnim:
     def draw_debris(self, x, y, sprite, palette):
         self.display.blit(sprite, x, y, 0, palette)
 
-
     def update_and_draw(self):
-        if not self.running:
+        """ This is a very weird and inefficient way of doing things """
+        if not self.running or not self.start_time:
             return False
 
         current_time = utime.ticks_ms()
         frame_time = utime.ticks_diff(current_time, self.start_time)
         delta_time = (frame_time - self.elapsed_time) * (self.speed / 1000)
         self.elapsed_time = frame_time
+
+        if time.ticks_diff(current_time, self.start_time) > self.total_duration:
+            self.running = False
+            return False
 
         gravity = self.gravity
 
@@ -143,8 +147,8 @@ class DeathAnim:
         if self.speed < 20:
             self.speed = 20
 
-        """ were in charge for display rendering, because all the other tasks are waiting on this one"""
-
+        """ we're in charge for display rendering, because all the other tasks are waiting on this one"""
+        # await asyncio.sleep_ms(50)
         return self.elapsed_time < self.total_duration
 
     def is_animating(self):

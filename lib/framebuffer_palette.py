@@ -124,6 +124,9 @@ class FramebufferPalette(framebuf.FrameBuffer):
         else:
             self.pixel(index, 0, color)
 
+    def get_int(self, index):
+        return self.pixel(index, 0)
+
     def set_int(self, index, color):
         self.pixel(index, 0, color)
 
