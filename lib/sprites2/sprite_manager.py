@@ -28,12 +28,10 @@ class SpriteManager:
     half_scale_one_dist = int(0)  # This should be set based on your camera setup
     add_frames = 0  # Number of upscaled frames to add
     pool = None
-    death_anim = None
     grid = None
 
     def __init__(self, display: framebuf.FrameBuffer, max_sprites, camera=None, lane_width=None, grid=None):
         self.display = display
-        self.death_anim = DeathAnim(display)
 
         self.max_sprites = max_sprites
         self.lane_width = lane_width

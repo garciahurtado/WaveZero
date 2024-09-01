@@ -391,5 +391,8 @@ class RoadGrid():
     def stop(self):
         self.paused = True
 
+    def start(self):
+        self.paused = False
+
     def check_mem(self):
         print(f"Free memory:  {gc.mem_free():,} bytes")

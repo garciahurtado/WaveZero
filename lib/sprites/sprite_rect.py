@@ -11,8 +11,7 @@ class SpriteRect(Sprite):
         self.height = height
         self.color = color
 
-    def show(self, display):
-        # print(f"SPRITE RECT AT {self.x}, {self.y} ({self.width}, {self.height} - {self.color})")
+    def show(self, display, x=None, y=None, palette=None):
         if not self.visible:
             return
 

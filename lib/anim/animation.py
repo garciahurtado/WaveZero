@@ -13,6 +13,7 @@ class Animation:
     anim_obj: None
     anim_property: None
     running = False
+    callback = None
 
     def __init__(self, anim_obj, anim_property, duration=0):
         self.anim_obj = anim_obj
@@ -31,7 +32,13 @@ class Animation:
             await self.run_loop()
             await asyncio.sleep(1 / fps)
 
+        self.finish()
+
         return True
+
+    def finish(self):
+        if self.callback:
+            self.callback()
 
     async def run_loop(self):
         """ Must be implemented in child classes"""

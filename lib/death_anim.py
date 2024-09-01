@@ -3,15 +3,19 @@ import random
 import framebuf
 import time
 import utime
+
+from anim.animation import Animation
 from framebuffer_palette import FramebufferPalette
 from sprites.spritesheet import Spritesheet
 import color_util as colors
 
-class DeathAnim:
+class DeathAnim(Animation):
     def __init__(self, display):
         self.display = display
         self.width = display.width
         self.height = display.height
+        self.callback = None
+
         self.player = None
         self.elapsed_time = 0
         self.total_duration = 2000  # Total animation duration in milliseconds
@@ -20,7 +24,7 @@ class DeathAnim:
         self.explosion_center = None
         self.running = False
         self.start_time = None
-        self.speed = 300
+        self.speed = self.orig_speed = 300
         self.gravity = 0.0012  # Gravity (pixels per millisecond^2)
         self.base_x = 0
         self.base_y = 0
@@ -51,14 +55,16 @@ class DeathAnim:
             palette.set_int(1, int(color))
             self.debris_palettes.append(palette)
 
-
     def start_animation(self, x, y):
         self.elapsed_time = 0
         self.start_time = utime.ticks_ms()
         self.explosion_center = (x + 16, y + 10)
-        debris_speed = self.speed * 0.0007
+        self.speed = self.orig_speed
 
-        for _ in range(self.debris_count):  # Increased number of debris pieces
+        debris_speed = self.speed * 0.0007
+        self.debris = [None] * self.debris_count
+
+        for idx in range(self.debris_count):  # Increased number of debris pieces
             pid = self.get_random_palette_id()
             choice = random.choice([0,1,2,3]) - 1
 
@@ -71,8 +77,7 @@ class DeathAnim:
                 max_age = int(1000 + (random.uniform(-200, 300)))
                 this_speed = random.uniform(0.7, 1.8) * debris_speed
 
-
-            self.debris[_] = {
+            self.debris[idx] = {
                 'x': self.explosion_center[0] + random.randint(-8, 8),
                 'y': self.explosion_center[1] + random.randint(-8, 8),
                 'dx': random.uniform(-this_speed, this_speed),  # Speed in pixels per millisecond
@@ -115,7 +120,11 @@ class DeathAnim:
         delta_time = (frame_time - self.elapsed_time) * (self.speed / 1000)
         self.elapsed_time = frame_time
 
+        """ Check whether the animation has reached its end """
         if time.ticks_diff(current_time, self.start_time) > self.total_duration:
+            if self.callback:
+                self.callback()
+
             self.running = False
             return False
 
@@ -150,9 +159,6 @@ class DeathAnim:
         """ we're in charge for display rendering, because all the other tasks are waiting on this one"""
         # await asyncio.sleep_ms(50)
         return self.elapsed_time < self.total_duration
-
-    def is_animating(self):
-        return time.ticks_diff(self.running, self.elapsed_time) < self.total_duration
 
 
     def create_bike_half(self):

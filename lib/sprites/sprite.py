@@ -133,7 +133,7 @@ class Sprite:
 
         self.palette = new_palette
 
-    def show(self, display: framebuf.FrameBuffer, x: int = None, y: int = None):
+    def show(self, display: framebuf.FrameBuffer, x: int = None, y: int = None, palette=None):
         if not self.visible or not self.image:
             return False
 
@@ -159,21 +159,16 @@ class Sprite:
         if y < self.min_y:
             y = self.min_y
 
-        return self.do_blit(x, y, display)
+        return self.do_blit(x, y, display, palette=palette)
 
-
-    def do_blit(self, x: int, y: int, display: framebuf.FrameBuffer):
+    def do_blit(self, x: int, y: int, display: framebuf.FrameBuffer, palette=None):
+        palette = palette if palette else self.palette
         if self.has_alpha:
-            #print(f"x/y: {x},{y} / alpha:{self.alpha_color}")
-            display.blit(self.image, int(x), int(y), self.alpha_color, self.palette)
+            display.blit(self.image, int(x), int(y), self.alpha_color, palette)
         else:
-            display.blit(self.image, int(x), int(y), -1, self.palette)
+            display.blit(self.image, int(x), int(y), -1, palette)
 
         return True
-
-    def get_draw_xy(self, display: framebuf.FrameBuffer):
-        x, y = self.x, self.y
-        return x, y
 
     def update(self, elapsed=None):
         """ Meant to be overridden in child class"""

@@ -1,5 +1,6 @@
 import random
 
+from death_anim import DeathAnim
 from sprites.sprite import Sprite
 from ui_elements import ui_screen
 import color_util as colors
@@ -56,7 +57,7 @@ class SpriteMgrTestScreen(Screen):
         self.check_mem()
 
         print("-- Creating UI...")
-        self.ui = ui_screen(self.display, self.num_lives)
+        self.ui = ui_screen(display, self.num_lives)
 
         print("-- Preloading images...")
         self.preload_images()
@@ -70,12 +71,15 @@ class SpriteMgrTestScreen(Screen):
         self.collider.add_callback(self.do_crash)
 
         print("-- Creating road grid...")
-        self.grid = RoadGrid(self.camera, self.display, lane_width=self.lane_width)
+        self.grid = RoadGrid(self.camera, display, lane_width=self.lane_width)
 
         self.check_mem()
         print("-- Creating Sprite Manager...")
         self.enemies = SpriteManager(display, 100, self.camera, self.lane_width, grid=self.grid)
         self.add(self.enemies)
+
+        self.death_anim = DeathAnim(display)
+        self.death_anim.callback = self.after_death
 
         self.check_mem()
         self.display.fps = self.fps
@@ -109,7 +113,7 @@ class SpriteMgrTestScreen(Screen):
         print("-- Creating sprites...")
         sprites = self.enemies
 
-        barrier_speed = self.max_ground_speed / 1
+        barrier_speed = self.max_ground_speed / 4
         print(f"Sprite speed: {barrier_speed}")
 
         self.check_mem()
@@ -141,7 +145,7 @@ class SpriteMgrTestScreen(Screen):
 
         img_height = 15
         start = 2000
-        every = +100
+        every = +200
         num_rows = 80
 
         # for i in range(num_rows):
@@ -184,7 +188,7 @@ class SpriteMgrTestScreen(Screen):
         self.input_task = make_input_handler(self.player)
         self.update_score_task = loop.create_task(self.mock_update_score())
 
-        # Start the speed-up task
+        # Start the road speed-up task
         self.speed_anim = AnimAttr(self, 'ground_speed', self.max_ground_speed, 1500, easing=AnimAttr.ease_in_out_sine)
         loop.create_task(self.speed_anim.run(fps=60))
 
@@ -256,71 +260,51 @@ class SpriteMgrTestScreen(Screen):
             sprite.show(self.display)
 
     def show_fx(self):
-        self.enemies.death_anim.update_and_draw()
+        self.death_anim.update_and_draw()
 
-    def check_collisions(self, colliders):
-        raise RuntimeError("This method is not supposed to be called")
-        if self.player.visible and self.player.active and self.player.has_physics:
-            for sprite in colliders:
-
-                # Check collisions
-                if ((sprite.draw_y >= self.crash_y_start) and
-                        (sprite.draw_y < self.crash_y_end) and
-                        (self.enemies.get_lane(sprite) == self.player.current_lane) and
-                        self.player.has_physics):
-                    print(f"Crash on {self.player.current_lane}")
-                    self.do_crash()
-
-                    break  # No need to check other collisions
-
-    def do_crash(self):
-        loop = asyncio.get_event_loop()
-
-        # self.display_task.cancel()
-
+    def pause(self):
         self.paused = True
         self.player.active = False
         self.grid.stop()
-        # death_task = loop.create_task(
-        #     )
-        self.enemies.death_anim.start_animation(self.player.x, self.player.y)
 
-        # while self.enemies.death_anim.update_and_draw():
-        #     self.display.show()
+    def start(self):
+        self.paused = False
+        self.player.visible = True
+        self.player.start_blink()
+        self.grid.start()
 
-        task = loop.create_task(self.death_loop())
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.player.stop_blink())
 
-        # loop.run_until_complete()
+    def do_crash(self):
+        # self.display_task.cancel()
 
-        if self.ui.remove_life():
-            self.player.visible = False
-            self.ui.show_game_over()
-            return False
+        for i in range(2):
+            self.display.fill(0xFFFF)
+            self.display.show()
+            self.do_refresh()
 
-        white = colors.rgb_to_565_v2(colors.hex_to_rgb(0xFFFFFF))
-        white = int.from_bytes(white, "big")
+        self.pause()
+        self.player.visible = False
+        self.death_anim.start_animation(self.player.x, self.player.y)
 
-        # # Quick flash of white
-        # for i in range(1):
-        #     self.do_refresh2()
-        #     self.display.rect(10, 10, 50, 50, white, fill=white)
-        #     self.display.show()
-        #
-        #     await asyncio.sleep(2)
-        #
-
-
-
-        # self.player.start_blink()
-
-
-
-        # loop.create_task(self.player.stop_blink())
 
     async def death_loop(self):
-        while self.enemies.death_anim.running:
+        while self.death_anim.running:
             await asyncio.sleep_ms(50)
-        print("END OF DEATH LOOP")
+
+    def after_death(self):
+        loop = asyncio.get_event_loop()
+
+        if self.num_lives == 0:
+            self.player.visible = False
+            self.ui.show_game_over()
+        else:
+            self.num_lives = self.num_lives - 1
+            self.ui.update_lives(self.num_lives)
+            self.start()
+
+            return False
 
     def init_camera(self):
         # Camera

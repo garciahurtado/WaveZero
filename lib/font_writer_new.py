@@ -66,8 +66,6 @@ class FontRenderer():
 class MonochromeWriter(FontRenderer):
     def __init__(self, device: framebuf.FrameBuffer, font, screen_width: int, screen_height: int):
         super().__init__(device, font, screen_width, screen_height)
-        self.bgcolor = 0
-        self.fgcolor = 1
         self.orig_x = 0
         self.orig_y = 0
         self.text_x = 0
@@ -133,8 +131,6 @@ class ColorWriter():
         self.visible = True
         self.palette = palette
         self.fixed_width = fixed_width
-        self.bgcolor = 0
-        self.fgcolor = 1
         self.dirty = False
 
         # print(f"WRITER WITH COLORS: x{palette[0]:#06x} and x{palette[1]:#06x}")
@@ -165,7 +161,6 @@ class ColorWriter():
                                            text_width, text_height, self.color_format)
 
     def render_text(self, text: str, invert: bool = False) -> None:
-        print(f"Rendering text {text}")
         self.text_x = self.orig_x
         self.text_y = self.orig_y
 
@@ -196,31 +191,13 @@ class ColorWriter():
         #     print(f"{line:>011b}")
 
         if self.text_x + width > self.text_width:
-            # self.newline()
+            self.newline()
             pass
         if self.text_y + height > self.text_height:
             pass
             # return  # No space left in the buffer
 
         self.char_framebuf = framebuf.FrameBuffer(bytearray(glyph), width, height, framebuf.MONO_HLSB)
-
-        # Render the character to our pixel buffer
-        # for y in range(height):
-        #     for x in range(width):
-        #         pixel = self.char_framebuf.pixel(x, y)
-        #
-        #         if self.color_format == fb.RGB565:
-        #             # For RGB565, use the actual color values from the palette
-        #             color = self.palette.get_int(self.fgcolor if pixel else self.bgcolor)
-        #             # print(f"set to color {color:#04x}")
-        #         else:
-        #             if pixel:  # If the pixel is set in the original glyph
-        #                 color = self.fgcolor if not invert else self.bgcolor
-        #             else:
-        #                 color = self.bgcolor if not invert else self.fgcolor
-        #
-        #         if pixel:
-        #             self.pixels.pixel(self.text_x + x, y, color)
 
         self.pixels.blit(self.char_framebuf, self.text_x, 0, -1, self.palette)
         self.text_x += width
@@ -234,6 +211,7 @@ class ColorWriter():
             self.text_y -= self.font.height()
             # Clear the new line
             # self.pixels.fill_rect(0, self.text_y, self.text_width, self.font.height(), 1)
+
 
     def show(self, display, palette=None):
         if not self.visible:
