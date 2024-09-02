@@ -73,6 +73,7 @@ class RoadGrid():
     far_z = 0
     speed = 0
     speed_ms = 0
+    field_width = 0
 
     def __init__(self, camera, display, lane_width=None):
 
@@ -97,8 +98,7 @@ class RoadGrid():
 
         # For vertical road lines only
         self.max_spacing = self.lane_width
-
-        self.field_width = 96
+        self.field_width = self.lane_width * 5
 
         self.x_start_top = 0
         self.x_start_bottom = 0
@@ -299,6 +299,9 @@ class RoadGrid():
         # Calculate the reference points just once
         start_x_far, _ = self.camera.to_2d(0, 0, self.far_z_vert)
         start_x_near, _ = self.camera.to_2d(0, 0, self.near_z)
+        start_x_near += (self.camera.vp_x) # Readd VP to neutralize the fact that its added in to_2d
+        start_x_near -= (self.camera.vp_x * 2)
+
         bright_lines = self.bright_lines
         bright_color = self.bright_color
 

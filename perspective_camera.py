@@ -19,8 +19,9 @@ class PerspectiveCamera():
         self.aspect_ratio = self.screen_width / self.screen_height
 
         # Near / far clipping planes
-        self.near = -4
-        self.far = 2000  # past this point all sprites are considered to be in the horizon line
+        self.near = -30
+        self.far = 1500  # past this point all sprites are considered to be in the horizon line
+
 
         self.cam_x = pos_x
         self.cam_y = pos_y

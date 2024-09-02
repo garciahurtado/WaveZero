@@ -1,15 +1,13 @@
 import gc
 import sys
-
 from utime import sleep
 
 from screens.screen_app import ScreenApp
 from screens.game_screen import GameScreen
+from test_pattern import test_pattern
 
 # from test_screen import TestScreen
 import micropython
-print("-------------------- EARLIEST POSSIBLE ---------------------")
-
 import time
 import machine
 # import test_midi as midi
@@ -24,6 +22,7 @@ import machine
 
 from machine import Pin
 
+
 def main():
     machine.freq(250_000_000)
     time.sleep(2)
@@ -32,6 +31,8 @@ def main():
 
     check_mem()
     print("Compiler opt level: " + str(micropython.opt_level()))
+
+    test_pattern()
 
     app = ScreenApp(96, 64)
     app.load_screen(GameScreen(app.display))

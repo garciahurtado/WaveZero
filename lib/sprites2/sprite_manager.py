@@ -115,9 +115,6 @@ class SpriteManager:
             self.sprite_images[sprite_type] = self.load_img_and_scale(class_meta, sprite_type)
 
         new_sprite.active = True
-        lane = self.get_lane(new_sprite)
-        self.set_lane(new_sprite, lane)
-
         return new_sprite, idx
 
     def load_img_and_scale(self, metadata, sprite_type):
@@ -231,7 +228,7 @@ class SpriteManager:
         sprite.scale = scale
 
         #prof.start_profile('cam_pos')
-        draw_x, draw_y = self.to_2d(sprite.x, sprite.y + (sprite.frame_height*1.5), sprite.z)
+        draw_x, draw_y = self.to_2d(sprite.x, sprite.y + sprite.frame_height, sprite.z)
         #prof.end_profile('cam_pos')
 
         num_frames = meta.num_frames
@@ -303,7 +300,7 @@ class SpriteManager:
         #     action = self.sprite_actions[sprite_type]
         #     action(display, self.camera, sprite.draw_x, sprite.draw_y, sprite.x, sprite.y, sprite.z, sprite.frame_width)
 
-        start_y = int(sprite.draw_y)
+        start_y = int(sprite.draw_y) - sprite.frame_height
         start_x = sprite.draw_x
 
         """ Drawing a single image or a row of them? """
@@ -345,10 +342,11 @@ class SpriteManager:
 
     def set_lane(self, sprite, lane_num):
         # lane_num = 0,1,2,3,4
-        half_field = self.lane_width * 2.5
+        sprite.lane_num = lane_num
+
+        half_field = self.grid.field_width * 0.5
 
         new_x = (lane_num * self.lane_width)
-        sprite.lane_num = lane_num
         sprite.x = round(new_x - half_field)
         meta = self.sprite_metadata[sprite.sprite_type]
 

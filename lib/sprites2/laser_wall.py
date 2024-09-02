@@ -16,8 +16,6 @@ class LaserWall(SpriteType):
     height = 10
     color_depth = 4
     alpha = None
-    repeats = 3
-    repeat_spacing = 24
 
     rotate_change_index = 1
     rotate_pal_index = 0
