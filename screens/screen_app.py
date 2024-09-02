@@ -1,12 +1,9 @@
-import sys
-
 import framebuf
 from machine import Pin
 import machine
 
-from sprites2.sprite_pool_lite import SpritePool
-# from ssd1331_16bit import SSD1331 as Driver
 from ssd1331_pio import SSD1331PIO as Driver
+from test_pattern import test_pattern
 
 class ScreenApp:
     display: framebuf.FrameBuffer
@@ -25,6 +22,7 @@ class ScreenApp:
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.setup_display()
+        # test_pattern(self.display)
 
     def load_screen(self, screen: type):
         screen.app = self

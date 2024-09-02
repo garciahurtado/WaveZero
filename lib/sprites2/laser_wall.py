@@ -13,11 +13,11 @@ class LaserWall(SpriteType):
     image_path = "/img/laser_wall.bmp"
     speed = -150
     width = 24
-    height = 15
+    height = 10
     color_depth = 4
     alpha = None
     repeats = 3
-    repeat_spacing = 22
+    repeat_spacing = 24
 
     rotate_change_index = 1
     rotate_pal_index = 0

@@ -6,8 +6,6 @@ from fps_counter import FpsCounter
 from sprites.sprite import Sprite
 import micropython
 
-# from ssd1331_pio import SSD1331PIO
-
 class Screen:
     display = None
     sprites: [Sprite]

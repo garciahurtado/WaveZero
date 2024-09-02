@@ -264,9 +264,12 @@ def hsl_to_rgb(hsl):
     return int(r * 255), int(g * 255), int(b * 255)
 
 
-def int_to_bytes(color):
+def int_to_bytes(color, format=RGB565):
     """Convert a color represented as a 3 byte int, into a bytearray"""
-    return bytearray([(color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF])
+    if format==RGB565:
+        return bytearray([(color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF])
+    else:
+        return bytearray([color & 0xFF, (color >> 8) & 0xFF, (color >> 16) & 0xFF])
 
 
 def bytearray_to_int(bytes_array):

@@ -2,6 +2,8 @@ import random
 
 from death_anim import DeathAnim
 from sprites.sprite import Sprite
+from sprites2.warning_wall import WarningWall
+from stages.stage_1 import Stage1
 from ui_elements import ui_screen
 import color_util as colors
 
@@ -12,7 +14,7 @@ from road_grid import RoadGrid
 
 from input import make_input_handler
 from perspective_camera import PerspectiveCamera
-from game_screen import Screen
+from screens.screen import Screen
 import uasyncio as asyncio
 import utime
 
@@ -23,7 +25,7 @@ from sprites2.laser_wall import LaserWall
 
 from profiler import Profiler as prof
 
-class SpriteMgrTestScreen(Screen):
+class GameScreen(Screen):
     ground_speed: int = const(-0)
     max_ground_speed: int = const(-2000)
     grid: RoadGrid = None
@@ -32,8 +34,8 @@ class SpriteMgrTestScreen(Screen):
     camera: PerspectiveCamera
     enemies: SpriteManager = None
     saved_ground_speed = 0
-    lane_width: int = const(22)
-    num_lives: int = const(4)
+    lane_width: int = const(23)
+    num_lives: int = const(2)
     total_frames = 0
     last_update_ms = 0
     fps_every_n_frames = 30
@@ -48,6 +50,7 @@ class SpriteMgrTestScreen(Screen):
     ui = None
     collider = None
     score = 0
+    stage = None
 
     def __init__(self, display, *args, **kwargs):
         # Sets up display
@@ -84,6 +87,8 @@ class SpriteMgrTestScreen(Screen):
         self.check_mem()
         self.display.fps = self.fps
 
+        self.stage = Stage1(self.enemies)
+
         self.check_mem()
 
     async def mock_update_score(self):
@@ -113,18 +118,13 @@ class SpriteMgrTestScreen(Screen):
         print("-- Creating sprites...")
         sprites = self.enemies
 
-        barrier_speed = self.max_ground_speed / 4
+        barrier_speed = self.max_ground_speed / 200
         print(f"Sprite speed: {barrier_speed}")
 
         self.check_mem()
 
         # Register sprite types
-        #sprites.add_type(SPRITE_PLAYER, "/img/bike_sprite.bmp", 5, 32, 22, 4, None)  # Assuming 8-bit color depth
-        # sprites.add_type(SPRITE_BARRIER_LEFT, WarningWall, "/img/road_barrier_yellow.bmp", barrier_speed, 24, 15, 4, None, None, repeats=4, repeat_spacing=26)
-        # sprites.add_type(SPRITE_BARRIER_RIGHT, "/img/road_barrier_yellow_inv.bmp", barrier_speed, 24, 15, 4, None, None, repeats=2, repeat_spacing=22)
 
-        # sprites.add_type(SPRITE_BARRIER_RED, "/img/road_barrier_red.bmp", barrier_speed * 2, 22, 8, 4, None, repeats=4, repeat_spacing=25)
-        sprites.add_type(SPRITE_LASER_WALL, LaserWall, "/img/laser_wall.bmp", barrier_speed, 22, 10, 4, None, 0x000, repeats=3, repeat_spacing=24)
         # sprites.add_type(SPRITE_HOLO_TRI, HoloTri, "/img/holo_tri.bmp", barrier_speed, 20, 20, 4, None, 0)
         # sprites.add_type(SPRITE_LASER_WALL_POST, "/img/laser_wall_post.bmp", barrier_speed, 10, 24, 4, None, 0x0000)
         # sprites.add_type(SPRITE_LASER_ORB, "/img/laser_orb.bmp", barrier_speed, 16, 16, 4, None, 0x0000)
@@ -145,23 +145,19 @@ class SpriteMgrTestScreen(Screen):
 
         img_height = 15
         start = 2000
-        every = +200
-        num_rows = 80
-
-        # for i in range(num_rows):
-        #     new_sprite, idx = sprites.create(SPRITE_BARRIER_LEFT, x=0, y=int(img_height),
-        #                                      z=int(start + i * every))
-        #     sprites.set_lane(new_sprite, 1)
+        every = +400
+        half_every = int(every//2)
+        num_rows = 50
         #
         # for i in range(num_rows):
-        #     new_sprite, idx = sprites.create(SPRITE_BARRIER_RIGHT, x=start_x, y=img_height,
+        #     new_sprite, idx = sprites.create(SPRITE_BARRIER_RIGHT, x=0, y=int(img_height),
+        #                                      z=int((start + i * every) + half_every))
+        #     sprites.set_lane(new_sprite, 0)
+        #
+        # for i in range(num_rows):
+        #     new_sprite, idx = sprites.create(SPRITE_LASER_WALL, x=start_x, y=img_height,
         #                                      z=start + i * every)
-        #     sprites.set_lane(new_sprite, 1)
-        #
-        for i in range(num_rows):
-            new_sprite, idx = sprites.create(SPRITE_LASER_WALL, x=start_x, y=img_height,
-                                             z=start + i * every)
-            sprites.set_lane(new_sprite, 2)
+        #     sprites.set_lane(new_sprite, 2)
 
         # for i in range(num_rows):
         #     new_sprite, idx = sprites.create(SPRITE_HOLO_TRI, x=start_x, y=img_height,
@@ -182,9 +178,6 @@ class SpriteMgrTestScreen(Screen):
         loop = asyncio.get_event_loop()
         loop.create_task(self.start_display_loop())
 
-
-        # _thread.start_new_thread(self.start_display_loop, ()) """ Display Thread / 2nd core """
-
         self.input_task = make_input_handler(self.player)
         self.update_score_task = loop.create_task(self.mock_update_score())
 
@@ -194,8 +187,10 @@ class SpriteMgrTestScreen(Screen):
 
         self.player.has_physics = True
 
-        print("-- Starting update_loop")
+        print("-- Starting stage")
+        self.stage.start()
 
+        print("-- Starting update_loop")
         asyncio.run(self.start_main_loop())
 
 
@@ -223,13 +218,15 @@ class SpriteMgrTestScreen(Screen):
 
                 now = utime.ticks_ms()
                 elapsed = utime.ticks_diff(now, self.last_update_ms)
-                elapsed = elapsed / 1000
+                elapsed = elapsed / 1000 # @TODO change to MS?
                 self.last_update_ms = now
 
                 if not self.paused:
+                    self.stage.update(elapsed)
                     self.grid.update_horiz_lines(elapsed)
                     self.player.update(elapsed)
                     self.sun.x = self.sun_start_x - round(self.player.turn_angle * 4)
+
                     for sprite in self.sprites:
                         sprite.update(elapsed)
 

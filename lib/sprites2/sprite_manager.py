@@ -43,7 +43,7 @@ class SpriteManager:
         if camera:
             self.set_camera(camera)
 
-    def add_type(self, sprite_type, sprite_class, image_path, speed, width, height, color_depth, palette, alpha_index, alpha_color=0, repeats=0, repeat_spacing=0):
+    def add_type(self, sprite_type, sprite_class, image_path, speed, width, height, color_depth, palette=None, alpha_index=-1, alpha_color=0, repeats=0, repeat_spacing=0):
         num_frames = max(width, height) + self.add_frames
 
         speed = speed
@@ -97,7 +97,6 @@ class SpriteManager:
         # Set defaults for properties both in the sprite class as well as in the sprite entity
         for name, val in class_attrs.items():
             if name in SPRITE_DATA_LAYOUT.keys():
-                # print(f"SET: {name} to {val}")
                 setattr(new_sprite, name, val)
             new_sprite.speed = class_meta.speed
             new_sprite.frame_width = class_meta.width
@@ -116,7 +115,6 @@ class SpriteManager:
             self.sprite_images[sprite_type] = self.load_img_and_scale(class_meta, sprite_type)
 
         new_sprite.active = True
-
         lane = self.get_lane(new_sprite)
         self.set_lane(new_sprite, lane)
 
@@ -204,8 +202,6 @@ class SpriteManager:
         new_z = sprite.z + (sprite.speed * elapsed)
         #prof.end_profile('update_z_speed')
 
-        # print(f"speed:{sprite.speed} / {elapsed}")
-
         if new_z == sprite.z:
             return False
 
@@ -235,9 +231,7 @@ class SpriteManager:
         sprite.scale = scale
 
         #prof.start_profile('cam_pos')
-        draw_x, draw_y = self.to_2d(sprite.x, sprite.y + meta.height, sprite.z)
-        # draw_x_2 = int(self.camera.half_width - (sprite.x * scale))
-        # print(f"Draw X 2: {draw_x_2}")
+        draw_x, draw_y = self.to_2d(sprite.x, sprite.y + (sprite.frame_height*1.5), sprite.z)
         #prof.end_profile('cam_pos')
 
         num_frames = meta.num_frames
@@ -350,14 +344,15 @@ class SpriteManager:
         return max(0, min(frame_idx, sprite.num_frames - 1))
 
     def set_lane(self, sprite, lane_num):
-        # lane = lane_num - 2  # [-2,-1,0,1,2]
+        # lane_num = 0,1,2,3,4
         half_field = self.lane_width * 2.5
 
-        new_x = (lane_num * self.lane_width) + (self.lane_width / 2) - (sprite.frame_width / 2)
+        new_x = (lane_num * self.lane_width)
         sprite.lane_num = lane_num
         sprite.x = round(new_x - half_field)
         meta = self.sprite_metadata[sprite.sprite_type]
 
+        print(f"SET LANE TO {lane_num} - x: {new_x} - fw: {sprite.frame_width} (half field: {half_field})")
         if meta.repeats:
             """Multi image sprite"""
             self.grid.set_lane_mask(sprite, meta.repeats, meta.repeat_spacing)

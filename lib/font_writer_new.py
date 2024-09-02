@@ -152,11 +152,7 @@ class ColorWriter():
         else:
             pixels_per_byte = 1 / 2
 
-        print(f"dims: {text_width} x {text_height}")
-        print(f"PPB {pixels_per_byte}")
-
         buffer_size = math.ceil((text_width * text_height) / pixels_per_byte)
-        print(f"BUFFER SIZE {buffer_size} (color: {self.color_format}")
         self.pixels = framebuf.FrameBuffer(bytearray(buffer_size),
                                            text_width, text_height, self.color_format)
 

@@ -24,8 +24,8 @@ class Event:
         if not self.last_tick:
             self.last_tick = self.started_ms
 
-        elapsed = utime.ticks_ms() - self.last_tick
-        return elapsed
+        # elapsed = utime.ticks_ms() - self.last_tick
+        return True
 
     def finish(self):
         self.finished = True
@@ -38,10 +38,13 @@ class Event:
 
     def on_finish(self):
         """on_finish handler should be overridden in children classes"""
+        if self.next_event:
+            self.next_event.start()
         pass
 
 
 class EventChain(Event):
+    """ A list of events that will be executed from first to last"""
     events: [] = []
     current_event: Event = None
     finished: bool = False
@@ -73,16 +76,17 @@ class EventChain(Event):
         if not super().update():
             return False
 
-        self.current_event.update()
-
         if self.current_event.finished:
             if self.current_event.next_event:
-                self.current_event = self.current_event.next_event
+                next_event = self.current_event.next_event
+                self.current_event = next_event
                 self.current_event.start()
             else:
                 self.finish()
 
-        return False
+        self.current_event.update()
+
+        return True
 
 class WaitEvent(Event):
     """ Will wait for a certain amount of time and then give way to the next event """
@@ -101,23 +105,23 @@ class WaitEvent(Event):
             return False
 
         now = utime.ticks_ms()
-        if self.started_ms + self.delay_ms < now:
+        if utime.ticks_diff(now, self.started_ms) > self.delay_ms:
             self.finish()
             return False
 
 
 class MultiEvent(Event):
     events = []
-    times_max = 0
-    times_count = 0
+    repeat_max = 0
+    repeat_count = 0
 
     """ A class that allows multiple other events to fire off at once
         `times` allows us to repeat the whole set of events more than once 
         (once the first set is finished)
     """
-    def __init__(self, events, times=1):
+    def __init__(self, *events, repeat=1):
         self.events = events
-        self.times_max = times
+        self.repeat_max = repeat
 
     def start(self):
         super().start()
@@ -144,12 +148,12 @@ class MultiEvent(Event):
                 return True
 
         """All events finished"""
-        self.times_count += 1
+        self.repeat_count += 1
 
         for reset_event in self.events:
             reset_event.reset()
 
-        if (self.times_count >= self.times_max):
+        if (self.repeat_count >= self.repeat_max):
             self.finish()
             return False
         else:
@@ -162,8 +166,6 @@ class OneShotEvent(Event):
 
     def start(self):
         super().start()
-
-        self.active = True
         self.do_thing()
         self.finish()
 
@@ -173,36 +175,28 @@ class OneShotEvent(Event):
 
 
 class SpawnEnemyEvent(OneShotEvent):
-    dead_pool: None
-    active_sprites: None
+    sprite_mgr: None
 
     x: int
     y: int
     z: int
     lane: int
 
-    def __init__(self, x=0, y=0, z=0, lane=0, dead_pool=None):
+    def __init__(self, sprite_type, x=0, y=0, z=0, lane=0, sprite_mgr=None):
         super().__init__()
 
-        self.dead_pool = dead_pool
+        self.sprite_mgr = sprite_mgr
 
         self.x = x
         self.y = y
         self.z = z
+        self.sprite_type = sprite_type
         self.lane = lane
 
     def do_thing(self):
-        sprite = self.dead_pool.get_new()
-        if not sprite:
-            return False
-
-        sprite.reset()
-
-        sprite.x = self.x
-        sprite.y = self.y
-        sprite.z = self.z
-
-        sprite.set_lane(self.lane)
+        sprite, _ = self.sprite_mgr.create(self.sprite_type, x=self.x, y=self.y, z=self.z)
+        self.sprite_mgr.set_lane(sprite, self.lane)
+        self.finish()
 
         return sprite
 

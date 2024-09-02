@@ -3,12 +3,13 @@ import sys
 
 from utime import sleep
 
-from screen_app import ScreenApp
+from screens.screen_app import ScreenApp
+from screens.game_screen import GameScreen
 
-# from game_screen import GameScreen
-from sprite_mgr_test_screen import SpriteMgrTestScreen
 # from test_screen import TestScreen
 import micropython
+print("-------------------- EARLIEST POSSIBLE ---------------------")
+
 import time
 import machine
 # import test_midi as midi
@@ -33,10 +34,8 @@ def main():
     print("Compiler opt level: " + str(micropython.opt_level()))
 
     app = ScreenApp(96, 64)
-    # app.load_screen(GameScreen(app.display))
-    app.load_screen(SpriteMgrTestScreen(app.display))
+    app.load_screen(GameScreen(app.display))
     # app.load_screen(TitleScreen(app.display))
-    # app.load_screen(TestScreen(app.display))
 
     print("After loading screen class")
     app.run()
