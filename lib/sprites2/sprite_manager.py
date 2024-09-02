@@ -86,6 +86,7 @@ class SpriteManager:
 
     def create(self, sprite_type, **kwargs):
         new_sprite, idx = self.pool.get(sprite_type)
+        new_sprite.x = new_sprite.y = new_sprite.z = 0
 
         if sprite_type not in self.sprite_classes.keys():
             raise IndexError(f"Sprite type {sprite_type} is not defined")
@@ -228,7 +229,21 @@ class SpriteManager:
         sprite.scale = scale
 
         #prof.start_profile('cam_pos')
-        draw_x, draw_y = self.to_2d(sprite.x, sprite.y + sprite.frame_height, sprite.z)
+
+        # the scalars below are pretty much trial and error "magic" numbers
+        vp_scale = ((self.camera.max_vp_scale) * sprite.scale) + 0.8
+
+        """ We have to adjust for the fact that 3D vertical axis and 2D vertical axis run in opposite directions,
+        so we add the sprite height to Y in 3D space before translating to 2D"""
+
+        draw_x, draw_y = self.to_2d(sprite.x, sprite.y, sprite.z, vp_scale=vp_scale)
+
+        # draw_x, draw_y = self.to_2d(sprite.x, sprite.y, sprite.z)
+
+        # print(f"calc draw coords: frameheight: {sprite.frame_height} / height: {height} / sprite.y : {sprite.y}")
+        height = round(sprite.frame_height * sprite.scale)
+        draw_y = draw_y - height
+
         #prof.end_profile('cam_pos')
 
         num_frames = meta.num_frames
@@ -244,9 +259,6 @@ class SpriteManager:
         sprite.draw_y = int(draw_y)
 
         sprite.current_frame = frame_idx
-
-        # if sprite.event_chain:
-        #     sprite.event_chain.update()
 
         return True
 
@@ -300,7 +312,7 @@ class SpriteManager:
         #     action = self.sprite_actions[sprite_type]
         #     action(display, self.camera, sprite.draw_x, sprite.draw_y, sprite.x, sprite.y, sprite.z, sprite.frame_width)
 
-        start_y = int(sprite.draw_y) - sprite.frame_height
+        start_y = int(sprite.draw_y)
         start_x = sprite.draw_x
 
         """ Drawing a single image or a row of them? """
@@ -325,10 +337,10 @@ class SpriteManager:
         return True
 
     # @timed
-    def to_2d(self, x, y, z):
+    def to_2d(self, x, y, z, vp_scale=1):
         camera = self.camera
         if camera:
-            return self.camera.to_2d(x, y, z)
+            return self.camera.to_2d(x, y, z, vp_scale=vp_scale)
         else:
             return x, y
 
@@ -340,22 +352,8 @@ class SpriteManager:
         frame_idx = int(scale * sprite.num_frames)
         return max(0, min(frame_idx, sprite.num_frames - 1))
 
-    def set_lane(self, sprite, lane_num):
-        # lane_num = 0,1,2,3,4
-        sprite.lane_num = lane_num
-
-        half_field = self.grid.field_width * 0.5
-
-        new_x = (lane_num * self.lane_width)
-        sprite.x = round(new_x - half_field)
-        meta = self.sprite_metadata[sprite.sprite_type]
-
-        print(f"SET LANE TO {lane_num} - x: {new_x} - fw: {sprite.frame_width} (half field: {half_field})")
-        if meta.repeats:
-            """Multi image sprite"""
-            self.grid.set_lane_mask(sprite, meta.repeats, meta.repeat_spacing)
-        else:
-            sprite.lane_mask = 1 << lane_num
+    def set_lane(self, sprite, lane_num, repeats=0, spacing=0):
+        return self.grid.set_lane(sprite, lane_num, repeats=0, spacing=0)
 
     def get_lane(self, sprite):
         """
@@ -379,7 +377,7 @@ class SpriteManager:
         """Get the value of the color to be used as an alpha channel when drawing the sprite
         into the display framebuffer """
 
-        if sprite_type.alpha_index is None:
+        if sprite_type.alpha_index in(None, -1):
             return False
 
         alpha_color = sprite_type.palette.get_bytes(sprite_type.alpha_index)

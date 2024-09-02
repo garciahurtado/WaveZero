@@ -19,9 +19,8 @@ class PerspectiveCamera():
         self.aspect_ratio = self.screen_width / self.screen_height
 
         # Near / far clipping planes
-        self.near = -30
-        self.far = 1500  # past this point all sprites are considered to be in the horizon line
-
+        self.near = 0
+        self.far = 2000  # past this point all sprites are considered to be in the horizon line
 
         self.cam_x = pos_x
         self.cam_y = pos_y
@@ -41,9 +40,10 @@ class PerspectiveCamera():
         # PreCalculate some values based on constants that will not change
         self.fov_y = self.calculate_fov(focal_length)
         self.fov_x = self.fov_y * self.aspect_ratio
-        self.y_offset = self.screen_height - self.half_height - vp_y
+        self.y_offset = self.half_height - vp_y
         self.vp_factor = self.vp_x / (self.screen_height - self.vp_y)
         self.vp_factor_y = 1 / (self.screen_height - self.vp_y)
+        self.max_vp_scale = 2.2 # Allows parallax effect so that close objects move faster when the VP moves
 
         self.min_z = pos_z - 80
         self._y_factor_cache = {}
@@ -76,7 +76,7 @@ class PerspectiveCamera():
             self._y_factor_cache[y] = self._calculate_y_factor(y)
         return self._y_factor_cache[y]
 
-    def to_2d(self, x: int=0, y: int=0, z: int=0):
+    def to_2d(self, x: int=0, y: int=0, z: int=0, vp_scale=1):
         """
         Convert 3D coordinates to 2D screen coordinates, accounting for aspect ratio.
         In this 3D world, +z is up and +y is into the screen.
@@ -99,8 +99,10 @@ class PerspectiveCamera():
 
         # Adjust for camera position
         #prof.start_profile('cam.pos_adjust')
-        y = y - cam_y
-        z = z - cam_z
+        orig_y = y
+        orig_z = z
+        y = orig_y - cam_y
+        z = orig_z - cam_z
         #prof.end_profile()
 
         #prof.start_profile('cam.apply_persp_proj')
@@ -114,7 +116,6 @@ class PerspectiveCamera():
         screen_x = screen_x * self.aspect_ratio
         #prof.end_profile()
 
-
         #prof.start_profile('cam.convert_to_screen')
         # Convert to screen coordinates
         screen_x = int(screen_x + half_width)
@@ -125,12 +126,10 @@ class PerspectiveCamera():
 
         #prof.start_profile('cam.apply_vp')
         # Apply vanishing point adjustment
-        screen_x = screen_x - vp_x
+        # true_scale = (vp_scale * (self.max_vp_scale))
+        screen_x = screen_x - (vp_x * vp_scale)
 
         #prof.end_profile()
-
-
-        # print(f"x/y : {screen_x} {screen_y}")
 
         return screen_x, screen_y
 

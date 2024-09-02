@@ -37,4 +37,4 @@ def test_pattern():
 
         y += sq_height
 
-    # display.show()
+    display.show()

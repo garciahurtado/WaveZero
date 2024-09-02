@@ -1,3 +1,4 @@
+import math
 import random
 
 from death_anim import DeathAnim
@@ -34,7 +35,7 @@ class GameScreen(Screen):
     camera: PerspectiveCamera
     enemies: SpriteManager = None
     saved_ground_speed = 0
-    lane_width: int = const(24)
+    lane_width: int = const(20)
     num_lives: int = const(2)
     total_frames = 0
     last_update_ms = 0
@@ -53,8 +54,9 @@ class GameScreen(Screen):
     stage = None
 
     def __init__(self, display, *args, **kwargs):
-        # Sets up display
         super().__init__(display, *args, **kwargs)
+        display.fill(0x0000)
+        display.show()
 
         self.init_camera()
         self.check_mem()
@@ -134,7 +136,7 @@ class GameScreen(Screen):
         sun = Sprite("/img/sunset.bmp")
         sun.x = self.sun_start_x = 39
         sun.y = 10
-        self.add(sun)
+        # self.add(sun)
         self.sun = sun
 
         self.check_mem()
@@ -305,14 +307,14 @@ class GameScreen(Screen):
 
     def init_camera(self):
         # Camera
-        horiz_y: int = 14
+        horiz_y: int = 12
         camera_z: int = -40
         self.camera = PerspectiveCamera(
             self.display,
             pos_x=0,
-            pos_y=70,
+            pos_y=52,
             pos_z=camera_z,
-            focal_length=-camera_z-10,
+            focal_length=abs(camera_z)-5,
             vp_x=0,
             vp_y=horiz_y)
 

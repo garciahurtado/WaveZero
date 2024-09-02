@@ -25,14 +25,13 @@ from machine import Pin
 
 def main():
     machine.freq(250_000_000)
-    time.sleep(2)
     current_freq = machine.freq()
     print(f"CPU: {current_freq / 1_000_000} MHz")
 
     check_mem()
     print("Compiler opt level: " + str(micropython.opt_level()))
 
-    test_pattern()
+    time.sleep(1)
 
     app = ScreenApp(96, 64)
     app.load_screen(GameScreen(app.display))
@@ -65,7 +64,6 @@ def midi_test():
     sys.exit(1)
 
 if __name__ == "__main__":
-    time.sleep(1)
     print("======== APP START ========")
     print(micropython.mem_info())
     main()

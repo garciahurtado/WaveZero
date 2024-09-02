@@ -24,13 +24,10 @@ class Stage:
 
     def queue(self, event=None):
         if isinstance(event, list):
-            print(f"{event} is list of {len(event)}")
             return self.add_events(event)
         elif event:
-            print(f"is event as {event}")
             self.events.add(event)
         else:
-            print("NO ARGS")
             return self
 
     def update(self, elapsed):

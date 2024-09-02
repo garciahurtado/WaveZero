@@ -46,7 +46,9 @@ class RoadGrid():
                        0x37030A,
                        0x5a0052,
                        0x00687b,
-                       0x570097,
+                       0x550055,
+                       0x690086,
+                       0x520014,
                        ]
 
     horiz_palette_len = len(horizon_palette)
@@ -86,7 +88,7 @@ class RoadGrid():
         self.paused = False
 
         self.camera = camera
-        self.horiz_y = camera.vp['y']
+        self.horiz_y = camera.vp['y'] + 4
         print(f"Horizon Y: {self.horiz_y}")
 
         self.far_z_vert = 2000
@@ -98,7 +100,7 @@ class RoadGrid():
 
         # For vertical road lines only
         self.max_spacing = self.lane_width
-        self.field_width = self.lane_width * 5
+        self.field_width = (self.lane_width * 5)
 
         self.x_start_top = 0
         self.x_start_bottom = 0
@@ -300,7 +302,7 @@ class RoadGrid():
         start_x_far, _ = self.camera.to_2d(0, 0, self.far_z_vert)
         start_x_near, _ = self.camera.to_2d(0, 0, self.near_z)
         start_x_near += (self.camera.vp_x) # Readd VP to neutralize the fact that its added in to_2d
-        start_x_near -= (self.camera.vp_x * 2)
+        start_x_near -= (self.camera.vp_x * self.camera.max_vp_scale)
 
         bright_lines = self.bright_lines
         bright_color = self.bright_color
@@ -329,22 +331,37 @@ class RoadGrid():
     #@timed
     def draw_horizon(self):
         """Draw some static horizontal lines to cover up the seam between vertical and horiz road lines"""
-        horizon_offset = -9
-        last_few = 3
+        horizon_offset = -10
+        last_few = 4
+        pal_len = self.horiz_palette_len
 
-        for i in range(self.horiz_palette_len):
+        for i in range(pal_len):
             color = self.horizon_palette[i]
 
-            if i < self.horiz_palette_len - last_few:
+            if i < pal_len - last_few:
                 start_y = self.horiz_y + horizon_offset + i * 2
                 self.display.hline(0, start_y, self.display_width, color)
                 self.display.hline(0, start_y + 1, self.display_width, BLACK)
             else:
-                # For the last 3 colors, draw them consecutively without gaps
-                start_y = self.horiz_y + horizon_offset + (self.horiz_palette_len - last_few) * 2 + (
+                # For the last few colors, draw them consecutively without gaps
+                start_y = self.horiz_y + horizon_offset + (pal_len - last_few) * 2 + (
                             i - (self.horiz_palette_len - last_few))
                 self.display.hline(0, start_y, self.display_width, color)
 
+    def set_lane(self, sprite, lane_num, repeats=0, spacing=0):
+        # lane_num = 0,1,2,3,4
+        sprite.lane_num = lane_num
+
+        half_field = self.field_width * 0.5
+
+        new_x = (lane_num * self.lane_width+3)
+        sprite.x = math.ceil(new_x - half_field)
+
+        if repeats:
+            """Multi image sprite"""
+            self.set_lane_mask(sprite, repeats, spacing)
+        else:
+            sprite.lane_mask = 1 << lane_num
 
     def set_lane_mask(self, sprite, repeats, repeat_spacing):
         """

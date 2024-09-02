@@ -194,8 +194,10 @@ class SpawnEnemyEvent(OneShotEvent):
         self.lane = lane
 
     def do_thing(self):
-        sprite, _ = self.sprite_mgr.create(self.sprite_type, x=self.x, y=self.y, z=self.z)
-        self.sprite_mgr.set_lane(sprite, self.lane)
+        type = self.sprite_type
+        sprite, _ = self.sprite_mgr.create(type, x=self.x, y=self.y, z=self.z)
+        meta = self.sprite_mgr.sprite_metadata[type]
+        self.sprite_mgr.set_lane(sprite, self.lane, meta.repeats, meta.repeat_spacing)
         self.finish()
 
         return sprite
@@ -220,7 +222,6 @@ class MoveCircle(Event):
         self.orig_y = item.y
 
     def update(self):
-        # print("move circle")
         elapsed = super().update()
         if not elapsed:
             return False
