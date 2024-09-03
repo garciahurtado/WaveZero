@@ -5,6 +5,7 @@ import micropython
 
 from death_anim import DeathAnim
 from images.image_loader import ImageLoader
+from perspective_camera import PerspectiveCamera
 from sprites2.sprite_types import SpriteType, SPRITE_DATA_LAYOUT
 import framebuf
 import math
@@ -29,6 +30,7 @@ class SpriteManager:
     add_frames = 0  # Number of upscaled frames to add
     pool = None
     grid = None
+    camera: PerspectiveCamera = None
 
     def __init__(self, display: framebuf.FrameBuffer, max_sprites, camera=None, lane_width=None, grid=None):
         self.display = display
@@ -237,12 +239,18 @@ class SpriteManager:
         so we add the sprite height to Y in 3D space before translating to 2D"""
 
         draw_x, draw_y = self.to_2d(sprite.x, sprite.y, sprite.z, vp_scale=vp_scale)
+        # draw_x = (sprite.scale * sprite.x * self.camera.aspect_ratio) + self.camera.half_width
+        # draw_y = (sprite.scale * sprite.y * self.camera.aspect_ratio)
+        # draw_y = ((self.display.height - self.camera.vp_y) * sprite.scale ) + self.camera.vp_y
+        # draw_y = (y * focal_length) / z
+        # print(f"draw X: {draw_x} new Draw X: {new_draw_x}")
+        # print(f"draw Y: {draw_y} new Draw Y: {new_draw_y}")
+         # , _newdraw_y) = self.to_2d(sprite.x, sprite.y, sprite.z, vp_scale=vp_scale)
 
         # draw_x, draw_y = self.to_2d(sprite.x, sprite.y, sprite.z)
 
         # print(f"calc draw coords: frameheight: {sprite.frame_height} / height: {height} / sprite.y : {sprite.y}")
-        height = round(sprite.frame_height * sprite.scale)
-        draw_y = draw_y - height
+        # height = round(sprite.frame_height * sprite.scale)
 
         #prof.end_profile('cam_pos')
 

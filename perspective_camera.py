@@ -96,7 +96,6 @@ class PerspectiveCamera():
         vp_x = self.vp_x
         #prof.end_profile()
 
-
         # Adjust for camera position
         #prof.start_profile('cam.pos_adjust')
         orig_y = y
@@ -128,6 +127,7 @@ class PerspectiveCamera():
         # Apply vanishing point adjustment
         # true_scale = (vp_scale * (self.max_vp_scale))
         screen_x = screen_x - (vp_x * vp_scale)
+        # screen_x = screen_x - (vp_x)
 
         #prof.end_profile()
 

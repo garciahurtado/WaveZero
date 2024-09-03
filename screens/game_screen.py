@@ -136,7 +136,7 @@ class GameScreen(Screen):
         sun = Sprite("/img/sunset.bmp")
         sun.x = self.sun_start_x = 39
         sun.y = 10
-        # self.add(sun)
+        self.add(sun)
         self.sun = sun
 
         self.check_mem()
