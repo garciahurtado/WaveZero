@@ -11,25 +11,28 @@ class Stage1(Stage):
 
         spawn_z = 1500
         small_wait = 1000
+        tiny_wait = 200
 
         self.load_types()
-        (self.spawn(SPRITE_LASER_WALL_x2, lane=0, z=spawn_z)
-            .spawn(SPRITE_LASER_WALL_x2, lane=3, z=spawn_z).wait(100)
-            .spawn(SPRITE_LASER_WALL_x2, lane=0, z=spawn_z)
-            .spawn(SPRITE_LASER_WALL_x2, lane=3, z=spawn_z).wait(100)
-            .spawn(SPRITE_LASER_WALL_x2, lane=0, z=spawn_z)
-            .spawn(SPRITE_LASER_WALL_x2, lane=3, z=spawn_z).wait(100)
-            .spawn(SPRITE_LASER_WALL_x2, lane=0, z=spawn_z)
-            .spawn(SPRITE_LASER_WALL_x2, lane=3, z=spawn_z).wait(100)
-            .spawn(SPRITE_LASER_WALL_x2, lane=0, z=spawn_z)
-            .spawn(SPRITE_LASER_WALL_x2, lane=3, z=spawn_z).wait(100)
-            .spawn(SPRITE_LASER_WALL_x2, lane=0, z=spawn_z)
-            .spawn(SPRITE_LASER_WALL_x2, lane=3, z=spawn_z).wait(100)
-            .spawn(SPRITE_LASER_WALL_x2, lane=0, z=spawn_z)
-            .spawn(SPRITE_LASER_WALL_x2, lane=3, z=spawn_z).wait(100)
-            .wait(small_wait)
-            .wait(small_wait)
-            .wait(small_wait))
+        (self.wait(500) # 28 sprites below
+             .spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z)
+             .spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z).wait(tiny_wait)
+             .spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z)
+             .spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z).wait(tiny_wait)
+             .spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z)
+             .spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z).wait(tiny_wait)
+             .spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z)
+             .spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z).wait(tiny_wait)
+             .spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z)
+             .spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z).wait(tiny_wait)
+             .spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z)
+             .spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z).wait(tiny_wait)
+             .spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z)
+             .spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z).wait(tiny_wait))
+
+            # .wait(small_wait)
+            # .wait(small_wait)
+            # .wait(small_wait))
             # .spawn(SPRITE_LASER_WALL_x2, lane=0, z=spawn_z)
             # .spawn(SPRITE_LASER_WALL_x2, lane=3, z=spawn_z).wait(100)
             # .spawn(SPRITE_LASER_WALL_x2, lane=0, z=spawn_z)
@@ -67,18 +70,21 @@ class Stage1(Stage):
         #         )
 
     def load_types(self):
-        self.sprite_manager.add_type(SPRITE_BARRIER_LEFT, WarningWall, "/img/road_barrier_yellow.bmp", self.base_speed,
+        mgr = self.sprite_manager
+        mgr.add_type(SPRITE_BARRIER_LEFT, WarningWall, "/img/road_barrier_yellow.bmp", self.base_speed,
                                      24, 15, 4)
-        self.sprite_manager.add_type(SPRITE_BARRIER_LEFT_x2, WarningWall, "/img/road_barrier_yellow.bmp", self.base_speed,
+        mgr.add_type(SPRITE_BARRIER_LEFT_x2, WarningWall, "/img/road_barrier_yellow.bmp", self.base_speed,
                                      24, 15, 4,
                                      None, None, repeats=2, repeat_spacing=24)
-        self.sprite_manager.add_type(SPRITE_BARRIER_RIGHT, WarningWall, "/img/road_barrier_yellow_inv.bmp",
-                                     self.base_speed, 24, 15,
-                                     4, None, None, repeats=2, repeat_spacing=24)
-        self.sprite_manager.add_type(SPRITE_LASER_WALL, LaserWall, "/img/laser_wall.bmp", self.base_speed, 24, 10, 4)
-        self.sprite_manager.add_type(SPRITE_LASER_WALL_x2, LaserWall, "/img/laser_wall.bmp", self.base_speed, 24, 10, 4,
+        mgr.add_type(SPRITE_BARRIER_RIGHT, WarningWall, "/img/road_barrier_yellow_inv.bmp",
+                                     self.base_speed, 24, 15, 4)
+        mgr.add_type(SPRITE_BARRIER_RIGHT_x2, WarningWall, "/img/road_barrier_yellow_inv.bmp",
+                                     self.base_speed, 24, 15, 4, None, None, repeats=2, repeat_spacing=24)
+
+        mgr.add_type(SPRITE_LASER_WALL, LaserWall, "/img/laser_wall.bmp", self.base_speed, 24, 10, 4)
+        mgr.add_type(SPRITE_LASER_WALL_x2, LaserWall, "/img/laser_wall.bmp", self.base_speed, 24, 10, 4,
                                      None, 0x000,
                                      repeats=2, repeat_spacing=24)
-        self.sprite_manager.add_type(SPRITE_LASER_WALL_x5, LaserWall, "/img/laser_wall.bmp", self.base_speed, 24, 10, 4,
+        mgr.add_type(SPRITE_LASER_WALL_x5, LaserWall, "/img/laser_wall.bmp", self.base_speed, 24, 10, 4,
                                      None, 0x000,
                                      repeats=5, repeat_spacing=24)

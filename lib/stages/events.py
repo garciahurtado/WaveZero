@@ -30,18 +30,10 @@ class Event:
     def finish(self):
         self.finished = True
         self.active = False
-        return self.on_finish()
 
     def reset(self):
         self.finished = True
         self.active = False
-
-    def on_finish(self):
-        """on_finish handler should be overridden in children classes"""
-        if self.next_event:
-            self.next_event.start()
-        pass
-
 
 class EventChain(Event):
     """ A list of events that will be executed from first to last"""
@@ -83,8 +75,8 @@ class EventChain(Event):
                 self.current_event.start()
             else:
                 self.finish()
-
-        self.current_event.update()
+        else:
+            return self.current_event.update()
 
         return True
 

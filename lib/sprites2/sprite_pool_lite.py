@@ -2,6 +2,8 @@ import utime
 from uarray import array
 from sprites2.sprite_types import create_sprite, SPRITE_DATA_LAYOUT, SPRITE_DATA_SIZE
 import uctypes
+from collections import namedtuple
+
 POOL_CHUNK_SIZE = 20
 
 class SpritePool:
@@ -31,8 +33,9 @@ class SpritePool:
 
         self.free_indices = array('H', range(pool_size))  # Unsigned short array for indices
         self.free_count = int(pool_size)
-        self.active_indices = array('H', [0] * pool_size)
         self.active_count = 0
+        self.head = None
+        self.tail = None
 
     def create(self):
         new_sprite = create_sprite()
@@ -60,7 +63,14 @@ class SpritePool:
         sprite.active = True
         sprite.visible = False
 
-        self.active_indices[self.active_count] = index
+        new_node = PoolNode(sprite=sprite, index=index)
+        if not self.head:
+            self.head = self.tail = new_node
+        else:
+            new_node.next = self.head
+            self.head.prev = new_node
+            self.head = new_node
+
         self.active_count += 1
 
         return sprite, index
@@ -70,22 +80,86 @@ class SpritePool:
             sprite.active = False
             sprite.visible = False
 
-            # Find and remove the sprite from active_indices
-            for i in range(self.active_count):
-                if self.sprites[self.active_indices[i]] is sprite:
-                    self.active_count -= 1
-                    self.active_indices[i] = self.active_indices[self.active_count]
+            # Find and remove the node from the linked list
+            current = self.head
+            while current:
+                if current.sprite is sprite:
+                    if current.prev:
+                        current.prev.next = current.next
+                    else:
+                        self.head = current.next
+
+                    if current.next:
+                        current.next.prev = current.prev
+                    else:
+                        self.tail = current.prev
+
                     break
+                current = current.next
+
+            self.active_count -= 1
 
             # Add the index back to free_indices
             self.free_indices[self.free_count] = self.sprites.index(sprite)
             self.free_count += 1
 
+    def insert(self, sprite, position):
+        """ DEPRECATED """
+        if position < 0 or position > self.active_count:
+            raise ValueError("Invalid position for insertion")
+
+        new_node = PoolNode(sprite, self.sprites.index(sprite))
+
+        if position == 0:
+            new_node.next = self.head
+            if self.head:
+                self.head.prev = new_node
+            self.head = new_node
+            if not self.tail:
+                self.tail = new_node
+        elif position == self.active_count:
+            new_node.prev = self.tail
+            if self.tail:
+                self.tail.next = new_node
+            self.tail = new_node
+            if not self.head:
+                self.head = new_node
+        else:
+            current = self.head
+            for _ in range(position):
+                current = current.next
+            new_node.prev = current.prev
+            new_node.next = current
+            current.prev.next = new_node
+            current.prev = new_node
+
+        self.active_count += 1
+
+    def active_sprites_forward(self):
+        current = self.head
+        while current:
+            yield current.sprite
+            current = current.next
+
+    def active_sprites_backward(self):
+        current = self.tail
+        while current:
+            yield current.sprite
+            current = current.prev
+
     @property
     def active_sprites(self):
-        """Return a generator of active sprites"""
-        return (self.sprites[i] for i in self.active_indices[:self.active_count])
+        return self.active_sprites_forward()
 
     def __len__(self):
         """Return the number of active sprites"""
         return self.active_count
+
+class PoolNode:
+    __slots__ = ['sprite', 'index', 'prev', 'next']
+
+    def __init__(self, sprite, index, prev=None, next=None):
+        self.sprite = sprite
+        self.index = index
+        self.prev = prev
+        self.next = next

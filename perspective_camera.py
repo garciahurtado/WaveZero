@@ -19,7 +19,7 @@ class PerspectiveCamera():
         self.aspect_ratio = self.screen_width / self.screen_height
 
         # Near / far clipping planes
-        self.near = 0
+        self.near = 5
         self.far = 2000  # past this point all sprites are considered to be in the horizon line
 
         self.cam_x = pos_x
@@ -49,6 +49,10 @@ class PerspectiveCamera():
         self._y_factor_cache = {}
 
         self.vp_factor_y = 1 / (self.screen_height - vp_y)
+
+        self._scale_cache = {}
+        self._cache_size = 100  # Adjust based on your needs
+        self.near_plus_epsilon = self.near + 0.000001
 
     def calculate_fov(self, focal_length: float) -> float:
         # Calculate the vertical FOV
@@ -117,7 +121,7 @@ class PerspectiveCamera():
 
         #prof.start_profile('cam.convert_to_screen')
         # Convert to screen coordinates
-        screen_x = int(screen_x + half_width)
+        screen_x = screen_x + half_width
         screen_y = int(self.y_offset - screen_y)
 
         #prof.end_profile()
@@ -126,7 +130,7 @@ class PerspectiveCamera():
         #prof.start_profile('cam.apply_vp')
         # Apply vanishing point adjustment
         # true_scale = (vp_scale * (self.max_vp_scale))
-        screen_x = screen_x - (vp_x * vp_scale)
+        screen_x = int(screen_x - (vp_x * vp_scale))
         # screen_x = screen_x - (vp_x)
 
         #prof.end_profile()
@@ -152,13 +156,23 @@ class PerspectiveCamera():
 
         return screen_y
 
+    @micropython.native
     def calculate_scale(self, z):
+        # Check cache first
+        if z in self._scale_cache:
+            return self._scale_cache[z]
+
         relative_z = z - self.cam_z
 
         if relative_z <= self.near:
-            relative_z = self.near + 0.000001
+            relative_z = self.near_plus_epsilon
 
-        # Use pre-multiplied focal_length_aspect
-        scale = self.focal_length_aspect / relative_z
+        # Use multiplication instead of division
+        scale = self.focal_length_aspect * (1.0 / relative_z)
+
+        # Cache the result
+        if len(self._scale_cache) >= self._cache_size:
+            self._scale_cache.pop(next(iter(self._scale_cache)))
+        self._scale_cache[z] = scale
 
         return scale

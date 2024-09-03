@@ -19,7 +19,6 @@ class SpriteManager:
     POS_TYPE_FAR = const(0)
     POS_TYPE_NEAR = const(1)
     display = None
-    max_sprites: int = 0
     sprite_images: Dict[str, List[Image]] = {}
     sprite_palettes: Dict[str, bytes] = {}
     sprite_metadata: Dict[str, SpriteType] = {}
@@ -238,7 +237,10 @@ class SpriteManager:
         """ We have to adjust for the fact that 3D vertical axis and 2D vertical axis run in opposite directions,
         so we add the sprite height to Y in 3D space before translating to 2D"""
 
+        height = round(sprite.frame_height * sprite.scale)
+
         draw_x, draw_y = self.to_2d(sprite.x, sprite.y, sprite.z, vp_scale=vp_scale)
+        draw_y -= height
         # draw_x = (sprite.scale * sprite.x * self.camera.aspect_ratio) + self.camera.half_width
         # draw_y = (sprite.scale * sprite.y * self.camera.aspect_ratio)
         # draw_y = ((self.display.height - self.camera.vp_y) * sprite.scale ) + self.camera.vp_y
@@ -247,24 +249,21 @@ class SpriteManager:
         # print(f"draw Y: {draw_y} new Draw Y: {new_draw_y}")
          # , _newdraw_y) = self.to_2d(sprite.x, sprite.y, sprite.z, vp_scale=vp_scale)
 
-        # draw_x, draw_y = self.to_2d(sprite.x, sprite.y, sprite.z)
 
         # print(f"calc draw coords: frameheight: {sprite.frame_height} / height: {height} / sprite.y : {sprite.y}")
-        # height = round(sprite.frame_height * sprite.scale)
 
         #prof.end_profile('cam_pos')
 
-        num_frames = meta.num_frames
-
-        real_z = sprite.z
-
         #prof.start_profile('get_frame_idx')
-        frame_idx = self.get_frame_idx(real_z, int(self.camera.cam_z), num_frames,
-                                       self.half_scale_one_dist)
+        # frame_idx = self.get_frame_idx(real_z, int(self.camera.cam_z), num_frames,
+        #                                self.half_scale_one_dist)
+        frame_idx = self.get_frame_idx(sprite.scale, sprite.num_frames)
         #prof.end_profile('get_frame_idx')
-
-        sprite.draw_x = int(draw_x)
-        sprite.draw_y = int(draw_y)
+        #
+        # sprite.draw_x = int(draw_x)
+        # sprite.draw_y = int(draw_y)
+        sprite.draw_x = draw_x
+        sprite.draw_y = draw_y
 
         sprite.current_frame = frame_idx
 
@@ -272,24 +271,19 @@ class SpriteManager:
 
     def update(self, elapsed):
         metas = self.sprite_metadata
-        i = 0
-        while i < self.pool.active_count:
-            sprite = self.pool.sprites[self.pool.active_indices[i]]
+        current = self.pool.head
+        while current:
+            sprite = current.sprite
             meta = metas[sprite.sprite_type]
 
-            if self.update_sprite(sprite, meta, elapsed):
-                self.update_frame(sprite)
+            self.update_sprite(sprite, meta, elapsed)
 
+            next_node = current.next
             if not sprite.active:
                 self.pool.release(sprite)
 
-            i += 1
+            current = next_node
 
-
-    def update_frame(self, sprite):
-        frame_idx = self.get_frame_idx(int(sprite.z), int(self.camera.cam_z), int(sprite.num_frames),
-                                       int(self.half_scale_one_dist))
-        sprite.current_frame = frame_idx
 
 
     # @timed
@@ -352,14 +346,6 @@ class SpriteManager:
         else:
             return x, y
 
-    def _get_frame_idx_short(self, sprite):
-        rate = (sprite.z - self.camera.cam_z) / 2
-        if rate == 0:
-            rate = 0.0001  # Avoid divide by zero
-        scale = abs(self.half_scale_one_dist / rate)
-        frame_idx = int(scale * sprite.num_frames)
-        return max(0, min(frame_idx, sprite.num_frames - 1))
-
     def set_lane(self, sprite, lane_num, repeats=0, spacing=0):
         return self.grid.set_lane(sprite, lane_num, repeats=0, spacing=0)
 
@@ -391,9 +377,14 @@ class SpriteManager:
         alpha_color = sprite_type.palette.get_bytes(sprite_type.alpha_index)
         sprite_type.alpha_color = alpha_color
 
+    @micropython.native
+    def get_frame_idx(self, scale:float, num_frames:int):
+        frame_idx:int = int(scale * num_frames)
+        return min(frame_idx, num_frames - 1)
+
     # @timed
-    # @micropython.viper
-    def get_frame_idx(self, z: int, cam_z: int, num_frames: int, scale_dist: int) -> int:
+    @micropython.viper
+    def get_frame_idx_old(self, z: int, cam_z: int, num_frames: int, scale_dist: int) -> int:
         """ Given the Z coordinate (depth), find the scaled frame number which best represents the
         size of the object at that distance """
 
@@ -428,11 +419,12 @@ class SpriteManager:
     # @timed
     def show(self, display: framebuf.FrameBuffer):
         """ Display all the active sprites """
-        for i in range(self.pool.active_count):
-            sprite = self.pool.sprites[self.pool.active_indices[i]]
-
+        current = self.pool.head
+        while current:
+            sprite = current.sprite
             if sprite.visible:
                 self.show_sprite(sprite, display)
+            current = current.next
 
     def start_anims(self):
         """ Start the animations of all the registered sprite types"""

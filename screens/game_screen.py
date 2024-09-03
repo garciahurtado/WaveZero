@@ -34,6 +34,7 @@ class GameScreen(Screen):
     sun_start_x = None
     camera: PerspectiveCamera
     enemies: SpriteManager = None
+    max_sprites: int = 100
     saved_ground_speed = 0
     lane_width: int = const(20)
     num_lives: int = const(2)
@@ -80,7 +81,7 @@ class GameScreen(Screen):
 
         self.check_mem()
         print("-- Creating Sprite Manager...")
-        self.enemies = SpriteManager(display, 100, self.camera, self.lane_width, grid=self.grid)
+        self.enemies = SpriteManager(display, self.max_sprites, self.camera, self.lane_width, grid=self.grid)
         self.add(self.enemies)
 
         self.death_anim = DeathAnim(display)

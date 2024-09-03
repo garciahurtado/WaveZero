@@ -208,7 +208,7 @@ class RoadGrid():
 
         num_vert_lines = self.num_vert_lines
 
-        lane_width_far, _ = self.camera.to_2d(self.lane_width, 0, self.far_z_vert // 2)  # used to measure the lane width in screen space
+        lane_width_far, _ = self.camera.to_2d(self.lane_width, 0, self.far_z_vert // 3)  # calc. lane width in 2D
         lane_width_far = lane_width_far - self.camera.half_width + 1
 
         lane_width_near, _ = self.camera.to_2d(self.lane_width, 0, self.near_z) # used to measure the lane width in screen space
