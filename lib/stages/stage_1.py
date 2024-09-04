@@ -21,12 +21,12 @@ class Stage1(Stage):
         self.load_types()
         self.wait(500)  # 28 sprites below
         self.multi([
-            # evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z),
-            # evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z),
-            # evt.wait(tiny_wait),
-            evt.spawn(SPRITE_LASER_WALL_x2, lane=0, z=spawn_z),
-            evt.spawn(SPRITE_LASER_WALL_x2, lane=3, z=spawn_z),
-            evt.wait(tiny_wait)
+            evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z),
+            evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z),
+            evt.wait(tiny_wait),
+            # evt.spawn(SPRITE_LASER_WALL_x2, lane=0, z=spawn_z),
+            # evt.spawn(SPRITE_LASER_WALL_x2, lane=3, z=spawn_z),
+            # evt.wait(tiny_wait)
         ], repeat=8)
 
         # .wait(small_wait)

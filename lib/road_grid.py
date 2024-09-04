@@ -300,9 +300,10 @@ class RoadGrid():
     def show_vert_lines(self):
         # Calculate the reference points just once
         start_x_far, _ = self.camera.to_2d(0, 0, self.far_z_vert)
-        start_x_near, _ = self.camera.to_2d(0, 0, self.near_z)
-        start_x_near += (self.camera.vp_x) # Readd VP to neutralize the fact that its added in to_2d
-        start_x_near -= (self.camera.vp_x * self.camera.max_vp_scale)
+
+        start_x_near, _ = self.camera.to_2d(0, 0, self.near_z, self.camera.max_vp_scale)
+        # start_x_near += (self.camera.vp_x) # Readd VP to neutralize the fact that its added in to_2d
+        # start_x_near -= (self.camera.vp_x * self.camera.max_vp_scale)
 
         bright_lines = self.bright_lines
         bright_color = self.bright_color
