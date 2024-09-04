@@ -14,6 +14,7 @@ from sprites2.sprite_pool_lite import SpritePool
 from typing import Dict, List
 from profiler import Profiler as prof
 import utime as time
+from dump_object import dump_object
 
 class SpriteManager:
     POS_TYPE_FAR = const(0)
@@ -26,7 +27,7 @@ class SpriteManager:
     sprite_actions = {}
     lane_width: int = 0
     half_scale_one_dist = int(0)  # This should be set based on your camera setup
-    add_frames = 0  # Number of upscaled frames to add
+    add_frames = 0  # Number of upscaled frames to add (scale > 1)
     pool = None
     grid = None
     camera: PerspectiveCamera = None
@@ -44,28 +45,38 @@ class SpriteManager:
         if camera:
             self.set_camera(camera)
 
-    def add_type(self, sprite_type, sprite_class, image_path, speed, width, height, color_depth, palette=None, alpha_index=-1, alpha_color=0, repeats=0, repeat_spacing=0):
-        num_frames = max(width, height) + self.add_frames
-
-        speed = speed
-        init_values = \
-            {   'image_path': image_path,
-                'speed': speed,
-                'width': width,
-                'height': height,
-                'color_depth': color_depth,
-                'palette': palette,
-                'alpha_index': alpha_index,
-                'alpha_color': alpha_color,
-                'num_frames': num_frames,
-                'repeats': repeats,
-                'repeat_spacing': repeat_spacing,
-             }
-
-
+    def add_type(self, **kwargs):
+        """ These arguments are mandatory """
+        sprite_type = kwargs['sprite_type']
+        sprite_class = kwargs['sprite_class']
         self.sprite_classes[sprite_type] = sprite_class
-        # names = init_values.values()
-        type_obj = sprite_class(**(init_values))
+
+        must_have = ['sprite_type', 'sprite_class']
+        defaults = [
+            'image_path',
+            'speed',
+            'width',
+            'height',
+            'color_depth',
+            'palette',
+            'alpha_index',
+            'alpha_color',
+            'repeats',
+            'repeat_spacing']
+
+        for arg in kwargs.keys():
+            if arg not in (defaults + must_have):
+                raise AttributeError(f"'{arg}' is not a valid argument for add_type")
+
+        default_args = {key: kwargs[key] for key in kwargs}
+        """ We dont need these for SpriteType initialization """
+        del default_args['sprite_type']
+        del default_args['sprite_class']
+
+        type_obj = sprite_class(**default_args)
+
+        # print(dump_object(type_obj))
+
         self.sprite_metadata[sprite_type] = type_obj
 
         print("Sprite registered: " + str(self.sprite_metadata[sprite_type].image_path))
@@ -218,8 +229,7 @@ class SpriteManager:
 
         if new_z < self.camera.near:
             """Past the near clipping plane"""
-            if sprite.active:  # Add this check
-                self.pool.release(sprite)
+            self.pool.release(sprite)
             return False
 
         scale = self.camera.calculate_scale(sprite.z)
@@ -237,10 +247,12 @@ class SpriteManager:
         """ We have to adjust for the fact that 3D vertical axis and 2D vertical axis run in opposite directions,
         so we add the sprite height to Y in 3D space before translating to 2D"""
 
-        height = round(sprite.frame_height * sprite.scale)
 
-        draw_x, draw_y = self.to_2d(sprite.x, sprite.y, sprite.z, vp_scale=vp_scale)
+        draw_x, draw_y = self.to_2d(sprite.x, sprite.y, sprite.z)
+
+        height = math.ceil(meta.height * sprite.scale)
         draw_y -= height
+
         # draw_x = (sprite.scale * sprite.x * self.camera.aspect_ratio) + self.camera.half_width
         # draw_y = (sprite.scale * sprite.y * self.camera.aspect_ratio)
         # draw_y = ((self.display.height - self.camera.vp_y) * sprite.scale ) + self.camera.vp_y
@@ -304,7 +316,7 @@ class SpriteManager:
 
         palette = self.sprite_palettes[sprite_type]
 
-        frame_id = sprite.current_frame # 255 ???
+        frame_id = sprite.current_frame # 255 sometimes ???
         # frame_id = 0
 
         image = self.sprite_images[sprite_type][frame_id]
@@ -346,8 +358,10 @@ class SpriteManager:
         else:
             return x, y
 
-    def set_lane(self, sprite, lane_num, repeats=0, spacing=0):
-        return self.grid.set_lane(sprite, lane_num, repeats=0, spacing=0)
+    def set_lane(self, sprite, lane_num):
+        meta = self.get_meta(sprite)
+
+        return self.grid.set_lane(sprite, lane_num, meta.repeats, meta.repeat_spacing)
 
     def get_lane(self, sprite):
         """
@@ -367,6 +381,10 @@ class SpriteManager:
         # Ensure lane_num is within valid range
         return max(0, min(4, lane_num))
 
+    def get_meta(self, sprite):
+        meta = self.sprite_metadata[sprite.sprite_type]
+        return meta
+
     def set_alpha_color(self, sprite_type: SpriteType):
         """Get the value of the color to be used as an alpha channel when drawing the sprite
         into the display framebuffer """
@@ -377,8 +395,11 @@ class SpriteManager:
         alpha_color = sprite_type.palette.get_bytes(sprite_type.alpha_index)
         sprite_type.alpha_color = alpha_color
 
-    @micropython.native
+    # @micropython.native
     def get_frame_idx(self, scale:float, num_frames:int):
+        if num_frames < 1:
+            raise ArithmeticError(f"Invalid number of frames: {num_frames}")
+
         frame_idx:int = int(scale * num_frames)
         return min(frame_idx, num_frames - 1)
 

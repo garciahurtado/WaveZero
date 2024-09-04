@@ -8,7 +8,7 @@ from ulab import numpy as np
 class PerspectiveCamera():
     def __init__(self, display: framebuf.FrameBuffer, pos_x: int = 0, pos_y: int = 0, pos_z: int = 0, vp_x: int = 0,
                  vp_y: int = 0,
-                 focal_length=None) -> object:
+                 fov=90.0) -> object:
 
         # Use display dimensions
         self.screen_width = display.width
@@ -19,7 +19,7 @@ class PerspectiveCamera():
         self.aspect_ratio = self.screen_width / self.screen_height
 
         # Near / far clipping planes
-        self.near = 5
+        self.near = 1
         self.far = 2000  # past this point all sprites are considered to be in the horizon line
 
         self.cam_x = pos_x
@@ -32,14 +32,20 @@ class PerspectiveCamera():
         self.vp = {"x": vp_x, "y": vp_y}  # vanishing point
         self.vp_x = int(vp_x)
         self.vp_y = int(vp_y)
-        self.focal_length = focal_length  # Distance from the camera to the projection plane in pixels
-
+        # self.focal_length = focal_length  # Distance from the camera to the projection plane in pixels
         # Pre-multiply focal_length and aspect_ratio
-        self.focal_length_aspect = self.focal_length * self.aspect_ratio
 
         # PreCalculate some values based on constants that will not change
-        self.fov_y = self.calculate_fov(focal_length)
+
+
+        # NEW WAY
+        self.focal_length = self.calculate_focal_length(fov)
+        # self.fov_y = self.calculate_fov(focal_length)
+        self.fov_y = fov
         self.fov_x = self.fov_y * self.aspect_ratio
+        self.focal_length_aspect = self.focal_length * self.aspect_ratio
+
+
         self.y_offset = self.half_height - vp_y
         self.vp_factor = self.vp_x / (self.screen_height - self.vp_y)
         self.vp_factor_y = 1 / (self.screen_height - self.vp_y)
@@ -51,7 +57,7 @@ class PerspectiveCamera():
         self.vp_factor_y = 1 / (self.screen_height - vp_y)
 
         self._scale_cache = {}
-        self._cache_size = 100  # Adjust based on your needs
+        self._cache_size = 10  # Adjust based on your needs
         self.near_plus_epsilon = self.near + 0.000001
 
     def calculate_fov(self, focal_length: float) -> float:
@@ -60,6 +66,12 @@ class PerspectiveCamera():
 
         # Convert to degrees
         return math.degrees(v_fov)
+
+    def calculate_focal_length(self, fov: float) -> float:
+        # Convert FOV to radians
+        fov_rad = math.radians(fov)
+        # Calculate focal length
+        return (self.screen_height / 2) / math.tan(fov_rad / 2)
 
     def _calculate_y_factor(self, y):
         # Adjust y relative to camera position
@@ -156,7 +168,6 @@ class PerspectiveCamera():
 
         return screen_y
 
-    @micropython.native
     def calculate_scale(self, z):
         # Check cache first
         if z in self._scale_cache:

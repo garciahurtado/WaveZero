@@ -10,10 +10,10 @@ import color_util as colors
 
 class LaserWall(SpriteType):
     name = SPRITE_LASER_WALL
-    image_path = "/img/white_dot_large.bmp"
+    image_path = "/img/laser_wall.bmp"
     speed = -300
-    width = 10
-    height = 10
+    width = 25
+    height = 15
     color_depth = 4
     alpha = None
     x = 0

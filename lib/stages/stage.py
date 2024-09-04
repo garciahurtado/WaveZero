@@ -1,7 +1,10 @@
 from stages.events import MultiEvent, WaitEvent, SpawnEnemyEvent, EventChain
 class Stage:
-    """ A stage is mainly a series of events which are chained to one another so that they will be executed in
-    sequence. These events can be multiple in parallel, wait events or enemy spawn events."""
+    """
+    A stage is mainly a series of events which are chained to one another so that they will be executed in
+    sequence. These events can be multiple in parallel, wait events or enemy spawn events.
+    Meant to be subclassed by individual stages
+    """
     events = EventChain()
     running = False
 
@@ -32,8 +35,8 @@ class Stage:
 
     def update(self, elapsed):
         """ Update the current event in the stage, provided it is running"""
-        # if not self.running:
-        #     return False
+        if not self.running:
+            return False
 
         self.events.update()
 
@@ -50,19 +53,25 @@ class Stage:
         self.current_event = 0
         self.events.reset()
 
-    """ Event aliases """
+    """ Event aliases.
+     These work differently than the ones in EvenChain, in that these return the Event object, so no fluent interface
+     is possible """
 
-    def multi(self, *events, repeat=1):
+    def multi(self, events, repeat=1):
         """MultiEvent Factory"""
-        self.queue(MultiEvent(*events, repeat=repeat))
+        next_event = MultiEvent(events, repeat=repeat)
+        self.events.add(next_event)
         return self
 
     def wait(self, delay_ms):
         """WaitEvent Factory"""
-        self.queue(WaitEvent(delay_ms))
+        next_event = WaitEvent(delay_ms)
+        self.events.add(next_event)
         return self
 
     def spawn(self, sprite_type, x=0, y=0, z=0, lane=0):
         """SpawnEvent Factory"""
-        self.queue(SpawnEnemyEvent(sprite_type, x=x, y=y, z=z, lane=lane, sprite_mgr=self.sprite_manager))
+        next_event = SpawnEnemyEvent(sprite_type, x=x, y=y, z=z, lane=lane, sprite_mgr=self.sprite_manager)
+        self.events.add(next_event)
         return self
+

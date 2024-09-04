@@ -51,12 +51,13 @@ SPRITE_DATA_LAYOUT = {
 
 SPRITE_DATA_SIZE = 32
 
+# Clean this up like we did sprite_manager/create
 def create_sprite(
     x=0, y=0, z=0, scale=1.0, speed=0.0, born_ms=0, sprite_type=0,
     visible=False, active=False, blink=False, blink_flip=False,
     pos_type=POS_TYPE_FAR, frame_width=0, frame_height=0,
     current_frame=0, num_frames=0, lane_num=0, lane_mask=0,
-    draw_x=0, draw_y=0
+    draw_x=0, draw_y=0, width=0, height=0
 ):
     mem = bytearray(SPRITE_DATA_SIZE)
     sprite = uctypes.struct(uctypes.addressof(mem), SPRITE_DATA_LAYOUT)
@@ -103,7 +104,7 @@ class SpriteType:
     rotate_pal_last_change = 0
     rotate_pal_index = 0
 
-    alpha_index: int = None
+    alpha_index: int = -1
     alpha_color: int = 0
     frames = None
     num_frames: int = 0
@@ -121,6 +122,10 @@ class SpriteType:
                 setattr(self, key, value)
             else:
                 raise AttributeError(f"Object does not have property named '{key}'")
+
+        if self.width and self.height and not self.num_frames:
+            self.num_frames = max(self.width, self.height)
+
 
     def set_alpha_color(self):
         """Get the value of the color to be used as an alpha channel when drawing the sprite

@@ -36,7 +36,7 @@ class GameScreen(Screen):
     enemies: SpriteManager = None
     max_sprites: int = 100
     saved_ground_speed = 0
-    lane_width: int = const(20)
+    lane_width: int = const(24)
     num_lives: int = const(2)
     total_frames = 0
     last_update_ms = 0
@@ -308,16 +308,15 @@ class GameScreen(Screen):
 
     def init_camera(self):
         # Camera
-        horiz_y: int = 12
+        horiz_y: int = 18
         camera_z: int = -40
         self.camera = PerspectiveCamera(
             self.display,
             pos_x=0,
-            pos_y=52,
+            pos_y=60,
             pos_z=camera_z,
-            focal_length=abs(camera_z)-5,
             vp_x=0,
-            vp_y=horiz_y)
+            vp_y=horiz_y-6)
 
     async def show_perf(self):
         interval = 5000 # Every 5 secs

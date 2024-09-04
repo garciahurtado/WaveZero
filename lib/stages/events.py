@@ -2,6 +2,10 @@ import uasyncio as asyncio
 import math
 
 import utime
+
+from sprites2.sprite_manager import SpriteManager
+
+
 class Event:
     started_ms: int
     active: bool = False
@@ -10,6 +14,7 @@ class Event:
     speed: int = 0
     elapsed = 0
     last_tick = 0
+    sprite_manager = None
 
     def start(self):
         self.started_ms = utime.ticks_ms()
@@ -35,16 +40,35 @@ class Event:
         self.finished = True
         self.active = False
 
+    """ Event aliases """
+
+    def multi(self, events, repeat=1):
+        """MultiEvent Factory"""
+        self.next_event = MultiEvent(events, repeat=repeat)
+        return self.next_event
+
+    def wait(self, delay_ms):
+        """WaitEvent Factory"""
+        self.next_event = WaitEvent(delay_ms)
+        return self.next_event
+
+    def spawn(self, sprite_type, x=0, y=0, z=0, lane=0):
+        """SpawnEvent Factory"""
+        self.next_event = SpawnEnemyEvent(sprite_type, x=x, y=y, z=z, lane=lane, sprite_mgr=Event.sprite_manager)
+        return self.next_event
+
 class EventChain(Event):
     """ A list of events that will be executed from first to last"""
     events: [] = []
     current_event: Event = None
     finished: bool = False
+    sprite_manager: SpriteManager = None
 
-    def start(self):
+    def start(self, sprite_manager=None):
+        self.sprite_manager = sprite_manager
+
         super().start()
         self.current_event = self.events[0]
-        print(self.current_event)
         self.current_event.start()
 
     def reset(self):
@@ -53,7 +77,7 @@ class EventChain(Event):
         # TODO: add task cancellation
 
     def add(self, new_event: Event):
-        """ Chain it to the last event added before this one"""
+        """ Chain the last event added to this one"""
         if len(self.events) > 0:
             last: Event = self.events[-1]
             last.next_event = new_event
@@ -74,6 +98,7 @@ class EventChain(Event):
                 self.current_event = next_event
                 self.current_event.start()
             else:
+                """ No more events """
                 self.finish()
         else:
             return self.current_event.update()
@@ -111,7 +136,7 @@ class MultiEvent(Event):
         `times` allows us to repeat the whole set of events more than once 
         (once the first set is finished)
     """
-    def __init__(self, *events, repeat=1):
+    def __init__(self, events, repeat=1):
         self.events = events
         self.repeat_max = repeat
 
@@ -123,21 +148,20 @@ class MultiEvent(Event):
 
         for event in self.events:
             event.start()
-            
-    def finish(self):
-        super().finish()
-
 
     def update(self):
         if not super().update():
             return False
-
+        all_finished = True
         for event in self.events:
-            if event.finished:
+            if event.finished or not event.active:
                 continue
             else:
+                all_finished = False
                 event.update()
-                return True
+
+        if not all_finished:
+            return True
 
         """All events finished"""
         self.repeat_count += 1
@@ -188,8 +212,7 @@ class SpawnEnemyEvent(OneShotEvent):
     def do_thing(self):
         type = self.sprite_type
         sprite, _ = self.sprite_mgr.create(type, x=self.x, y=self.y, z=self.z)
-        meta = self.sprite_mgr.sprite_metadata[type]
-        self.sprite_mgr.set_lane(sprite, self.lane, meta.repeats, meta.repeat_spacing)
+        self.sprite_mgr.set_lane(sprite, self.lane)
         self.finish()
 
         return sprite
