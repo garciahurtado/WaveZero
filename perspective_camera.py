@@ -20,7 +20,7 @@ class PerspectiveCamera():
 
         # Near / far clipping planes
         self.near = 1
-        self.far = 2000  # past this point all sprites are considered to be in the horizon line
+        self.far = 1500  # past this point all sprites are considered to be in the horizon line
 
         self.cam_x = pos_x
         self.cam_y = pos_y

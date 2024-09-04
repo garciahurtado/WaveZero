@@ -6,14 +6,14 @@ from sprites2.sprite_types import *
 
 
 class Stage1(Stage):
-    base_speed = -50
+    base_speed = -200
 
     def __init__(self, sprite_manager):
         super().__init__(sprite_manager)
 
-        spawn_z = 1500
+        spawn_z = 1000
         small_wait = 1000
-        tiny_wait = 300
+        tiny_wait = 200
 
         Event.sprite_manager = sprite_manager
         evt = self.events
@@ -21,13 +21,33 @@ class Stage1(Stage):
         self.load_types()
         self.wait(500)  # 28 sprites below
         self.multi([
-            evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z),
-            evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z),
+            evt.spawn(SPRITE_LASER_WALL_x5, lane=0, z=spawn_z),
             evt.wait(tiny_wait),
+            # evt.spawn(SPRITE_WHITE_LINE, lane=1, z=spawn_z),
+            # evt.wait(small_wait),
+            # evt.spawn(SPRITE_WHITE_LINE, lane=2, z=spawn_z),
+            # evt.wait(small_wait),
+            # evt.spawn(SPRITE_WHITE_LINE, lane=3, z=spawn_z),
+            # evt.wait(small_wait),
+            # evt.spawn(SPRITE_WHITE_LINE, lane=4, z=spawn_z),
+            # evt.wait(small_wait),
+            # evt.spawn(SPRITE_WHITE_LINE, lane=3, z=spawn_z),
+            # evt.wait(small_wait),
+            # evt.spawn(SPRITE_WHITE_LINE, lane=2, z=spawn_z),
+            # evt.wait(small_wait),
+            # evt.spawn(SPRITE_WHITE_LINE, lane=1, z=spawn_z),
+            # evt.wait(small_wait),
+            # evt.spawn(SPRITE_WHITE_LINE, lane=0, z=spawn_z),
+            # evt.wait(small_wait),
+
+            # evt.wait(tiny_wait),
+            # evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z),
+            # evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z),
+            # evt.wait(tiny_wait),
             # evt.spawn(SPRITE_LASER_WALL_x2, lane=0, z=spawn_z),
             # evt.spawn(SPRITE_LASER_WALL_x2, lane=3, z=spawn_z),
             # evt.wait(tiny_wait)
-        ], repeat=8)
+        ], repeat=80)
 
         # .wait(small_wait)
         # .wait(small_wait)
@@ -94,6 +114,7 @@ class Stage1(Stage):
             speed=self.base_speed,
             repeats=2,
             repeat_spacing=24)
+
         mgr.add_type(
             sprite_type=SPRITE_LASER_WALL,
             sprite_class=LaserWall,
@@ -105,18 +126,25 @@ class Stage1(Stage):
             repeats=2,
             repeat_spacing=24)
 
-        # mgr.add_type(SPRITE_BARRIER_LEFT_x2, WarningWall, "/img/road_barrier_yellow.bmp", self.base_speed,
-        #                              24, 15, 4,
-        #                              None, None, repeats=2, repeat_spacing=24)
-        # mgr.add_type(SPRITE_BARRIER_RIGHT, WarningWall, "/img/road_barrier_yellow_inv.bmp",
-        #                              self.base_speed, 24, 15, 4)
-        # mgr.add_type(SPRITE_BARRIER_RIGHT_x2, WarningWall, "/img/road_barrier_yellow_inv.bmp",
-        #                              self.base_speed, 24, 15, 4, None, None, repeats=2, repeat_spacing=24)
-        #
-        # mgr.add_type(SPRITE_LASER_WALL, LaserWall, "/img/laser_wall.bmp", self.base_speed, 24, 10, 4)
-        # mgr.add_type(SPRITE_LASER_WALL_x2, LaserWall, "/img/laser_wall.bmp", self.base_speed, 24, 10, 4,
-        #                              None, 0x000,
-        #                              repeats=2, repeat_spacing=24)
-        # mgr.add_type(SPRITE_LASER_WALL_x5, LaserWall, "/img/laser_wall.bmp", self.base_speed, 24, 10, 4,
-        #                              None, 0x000,
-        #                              repeats=5, repeat_spacing=24)
+        mgr.add_type(
+            sprite_type=SPRITE_LASER_WALL_x5,
+            sprite_class=LaserWall,
+            repeats=5,
+            repeat_spacing=24)
+
+        mgr.add_type(
+            sprite_type=SPRITE_WHITE_LINE,
+            image_path="/img/test_white_line.bmp",
+            width=24,
+            height=2,
+            speed=self.base_speed)
+
+        mgr.add_type(
+            sprite_type=SPRITE_WHITE_LINE_x5,
+            image_path="/img/test_white_line.bmp",
+            width=24,
+            height=2,
+            repeats=5,
+            repeat_spacing=24,
+            speed=self.base_speed)
+

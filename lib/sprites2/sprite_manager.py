@@ -48,7 +48,12 @@ class SpriteManager:
     def add_type(self, **kwargs):
         """ These arguments are mandatory """
         sprite_type = kwargs['sprite_type']
-        sprite_class = kwargs['sprite_class']
+        if 'sprite_class' in kwargs.keys():
+            sprite_class = kwargs['sprite_class']
+        else:
+            sprite_class = SpriteType
+
+        """ Register the new class """
         self.sprite_classes[sprite_type] = sprite_class
 
         must_have = ['sprite_type', 'sprite_class']
@@ -70,8 +75,10 @@ class SpriteManager:
 
         default_args = {key: kwargs[key] for key in kwargs}
         """ We dont need these for SpriteType initialization """
-        del default_args['sprite_type']
-        del default_args['sprite_class']
+        if 'sprite_type' in default_args.keys():
+            del default_args['sprite_type']
+        if 'sprite_class' in default_args.keys():
+            del default_args['sprite_class']
 
         type_obj = sprite_class(**default_args)
 
@@ -329,7 +336,7 @@ class SpriteManager:
         start_y = int(sprite.draw_y)
         start_x = sprite.draw_x
 
-        """ Drawing a single image or a row of them? """
+        """ Drawing a single image or a row of them? repeats 0 and 1 mean the same thing (one image) """
         if meta.repeats < 2:
             self.do_blit(x=int(sprite.draw_x), y=start_y, display=display, frame=image.pixels,
                          palette=palette, alpha=alpha)
@@ -337,7 +344,7 @@ class SpriteManager:
             """Draw horizontal clones of this sprite"""
             for i in range(0, meta.repeats):
                 x = start_x + (meta.repeat_spacing * sprite.scale * i)
-                self.do_blit(x=int(x), y=start_y, display=display, frame=image.pixels,palette=palette, alpha=alpha)
+                self.do_blit(x=round(x), y=start_y, display=display, frame=image.pixels,palette=palette, alpha=alpha)
 
         return True
 
@@ -398,7 +405,7 @@ class SpriteManager:
     # @micropython.native
     def get_frame_idx(self, scale:float, num_frames:int):
         if num_frames < 1:
-            raise ArithmeticError(f"Invalid number of frames: {num_frames}")
+            raise ArithmeticError(f"Invalid number of frames: {num_frames}. Are width and height set?")
 
         frame_idx:int = int(scale * num_frames)
         return min(frame_idx, num_frames - 1)

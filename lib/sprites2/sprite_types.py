@@ -19,6 +19,8 @@ SPRITE_LASER_WALL_x2 = const(70)
 SPRITE_LASER_WALL_x5 = const(80)
 SPRITE_LASER_WALL_POST = const(90)
 SPRITE_WHITE_DOT = const(100)
+SPRITE_WHITE_LINE = const(104)
+SPRITE_WHITE_LINE_x5 = const(108)
 SPRITE_HOLO_TRI = const(110)
 
 SPRITE_DATA_LAYOUT = {
@@ -43,6 +45,7 @@ SPRITE_DATA_LAYOUT = {
     "frame_height": uctypes.UINT8 | 25,  # 1 byte at offset 25
     "current_frame": uctypes.UINT8 | 26, # 1 byte at offset 26
     "num_frames": uctypes.UINT8 | 27,    # 1 byte at offset 27
+    # The next two could be combined, since they hold small numbers
     "lane_num": uctypes.INT8 | 28,       # 1 byte at offset 28
     "lane_mask": uctypes.UINT8 | 29,     # 1 byte at offset 29
     "draw_x": uctypes.INT8 | 30,         # 1 byte at offset 30
@@ -97,7 +100,7 @@ class SpriteType:
     speed: int = 0
     width: int = 0
     height: int = 0
-    color_depth: int = 0
+    color_depth: int = 4
     palette = None
     rotate_palette = None
     rotate_pal_freq = 5000 # milliseconds

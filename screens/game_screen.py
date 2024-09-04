@@ -34,7 +34,7 @@ class GameScreen(Screen):
     sun_start_x = None
     camera: PerspectiveCamera
     enemies: SpriteManager = None
-    max_sprites: int = 100
+    max_sprites: int = 200
     saved_ground_speed = 0
     lane_width: int = const(24)
     num_lives: int = const(2)
@@ -118,21 +118,10 @@ class GameScreen(Screen):
         utime.sleep_ms(1000)
         self.display.fill(0x0)
 
-        print("-- Creating sprites...")
-        sprites = self.enemies
-
         barrier_speed = self.max_ground_speed / 200
         print(f"Sprite speed: {barrier_speed}")
 
         self.check_mem()
-
-        # Register sprite types
-
-        # sprites.add_type(SPRITE_HOLO_TRI, HoloTri, "/img/holo_tri.bmp", barrier_speed, 20, 20, 4, None, 0)
-        # sprites.add_type(SPRITE_LASER_WALL_POST, "/img/laser_wall_post.bmp", barrier_speed, 10, 24, 4, None, 0x0000)
-        # sprites.add_type(SPRITE_LASER_ORB, "/img/laser_orb.bmp", barrier_speed, 16, 16, 4, None, 0x0000)
-        # sprites.add_type(SPRITE_WHITE_DOT, "/img/white_dot.bmp", barrier_speed, 4, 4, 4, None)
-        # sprites.add_action(SPRITE_TYPE_LASER_ORB, actions.ground_laser)
 
         sun = Sprite("/img/sunset.bmp")
         sun.x = self.sun_start_x = 39
@@ -141,41 +130,6 @@ class GameScreen(Screen):
         self.sun = sun
 
         self.check_mem()
-
-        lane_width = self.lane_width
-        half_lane_width = lane_width // 2
-        start_x = -half_lane_width
-
-        img_height = 15
-        start = 2000
-        every = +400
-        half_every = int(every//2)
-        num_rows = 50
-        #
-        # for i in range(num_rows):
-        #     new_sprite, idx = sprites.create(SPRITE_BARRIER_RIGHT, x=0, y=int(img_height),
-        #                                      z=int((start + i * every) + half_every))
-        #     sprites.set_lane(new_sprite, 0)
-        #
-        # for i in range(num_rows):
-        #     new_sprite, idx = sprites.create(SPRITE_LASER_WALL, x=start_x, y=img_height,
-        #                                      z=start + i * every)
-        #     sprites.set_lane(new_sprite, 2)
-
-        # for i in range(num_rows):
-        #     new_sprite, idx = sprites.create(SPRITE_HOLO_TRI, x=start_x, y=img_height,
-        #                                      z=start + i * every)
-        #     sprites.set_lane(new_sprite, int(random.choice([0,1,2,3,4])))
-        #
-        # for i in range(num_rows):
-        #     new_sprite, idx = sprites.create(SPRITE_BARRIER_LEFT, x=start_x, y=img_height,
-        #                                      z=start + i * every)
-        #     sprites.set_lane(new_sprite, 3)
-
-        # for i in range(num_rows):
-        #     new_sprite, idx = sprites.create(SPRITE_BARRIER_LEFT, x=start_x, y=img_height,
-        #                                      z=start + i * every)
-        #     sprites.set_lane(new_sprite, 4)
 
         self.check_mem()
         loop = asyncio.get_event_loop()
@@ -188,7 +142,8 @@ class GameScreen(Screen):
         self.speed_anim = AnimAttr(self, 'ground_speed', self.max_ground_speed, 1500, easing=AnimAttr.ease_in_out_sine)
         loop.create_task(self.speed_anim.run(fps=60))
 
-        self.player.has_physics = True
+        self.player.has_physics = False
+        self.player.visible = False
 
         print("-- Starting stage")
         self.stage.start()

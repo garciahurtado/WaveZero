@@ -1,4 +1,6 @@
-from stages.events import MultiEvent, WaitEvent, SpawnEnemyEvent, EventChain
+from stages.events import MultiEvent, WaitEvent, SpawnEnemyEvent, EventChain, SequenceEvent
+
+
 class Stage:
     """
     A stage is mainly a series of events which are chained to one another so that they will be executed in
@@ -60,6 +62,12 @@ class Stage:
     def multi(self, events, repeat=1):
         """MultiEvent Factory"""
         next_event = MultiEvent(events, repeat=repeat)
+        self.events.add(next_event)
+        return self
+
+    def sequence(self, events, repeat=1):
+        """SequenceEvent Factory"""
+        next_event = SequenceEvent(events, repeat=repeat)
         self.events.add(next_event)
         return self
 

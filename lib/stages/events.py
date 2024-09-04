@@ -44,18 +44,23 @@ class Event:
 
     def multi(self, events, repeat=1):
         """MultiEvent Factory"""
-        self.next_event = MultiEvent(events, repeat=repeat)
-        return self.next_event
+        this_event = MultiEvent(events, repeat=repeat)
+        return this_event
+
+    def sequence(self, events, repeat=1):
+        """SequenceEvent Factory"""
+        this_event = SequenceEvent(events, repeat=repeat)
+        return this_event
 
     def wait(self, delay_ms):
         """WaitEvent Factory"""
-        self.next_event = WaitEvent(delay_ms)
-        return self.next_event
+        this_event = WaitEvent(delay_ms)
+        return this_event
 
     def spawn(self, sprite_type, x=0, y=0, z=0, lane=0):
         """SpawnEvent Factory"""
-        self.next_event = SpawnEnemyEvent(sprite_type, x=x, y=y, z=z, lane=lane, sprite_mgr=Event.sprite_manager)
-        return self.next_event
+        this_event = SpawnEnemyEvent(sprite_type, x=x, y=y, z=z, lane=lane, sprite_mgr=Event.sprite_manager)
+        return this_event
 
 class EventChain(Event):
     """ A list of events that will be executed from first to last"""
@@ -137,6 +142,7 @@ class MultiEvent(Event):
         (once the first set is finished)
     """
     def __init__(self, events, repeat=1):
+        print(f"MULTI RECEIVED {len(events)}")
         self.events = events
         self.repeat_max = repeat
 
@@ -174,6 +180,68 @@ class MultiEvent(Event):
             return False
         else:
             self.start()
+
+class SequenceEvent(Event):
+    events = []
+    repeat_max = 0
+    repeat_count = 0
+    current_event_index = 0
+
+    """ A class that allows multiple events to fire off sequentially
+        `repeat` allows us to repeat the whole sequence of events more than once 
+        (once the first sequence is finished)
+    """
+    def __init__(self, events, repeat=1):
+        print(f"SEQUENCE RECEIVED {len(events)}")
+        self.events = events
+        self.repeat_max = repeat
+
+    def start(self):
+        super().start()
+
+        self.active = True
+        self.finished = False
+        self.current_event_index = 0
+
+        if self.events:
+            self.events[0].start()
+
+    def update(self):
+        if not super().update():
+            return False
+
+        if self.current_event_index >= len(self.events):
+            self.repeat_count += 1
+            if self.repeat_count >= self.repeat_max:
+                self.finish()
+                return False
+            else:
+                self.reset()
+                self.start()
+                return True
+
+        current_event = self.events[self.current_event_index]
+
+        if current_event.finished or not current_event.active:
+            self.current_event_index += 1
+            if self.current_event_index < len(self.events):
+                self.events[self.current_event_index].start()
+        else:
+            current_event.update()
+
+        return True
+
+    def reset(self):
+        super().reset()
+        self.current_event_index = 0
+        for event in self.events:
+            event.reset()
+
+def sequence(self, events, repeat=1):
+    """SequenceEvent Factory"""
+    next_event = SequenceEvent(events, repeat=repeat)
+    self.events.add(next_event)
+    return self
 
 
 class OneShotEvent(Event):
