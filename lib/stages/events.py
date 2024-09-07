@@ -142,7 +142,6 @@ class MultiEvent(Event):
         (once the first set is finished)
     """
     def __init__(self, events, repeat=1):
-        print(f"MULTI RECEIVED {len(events)}")
         self.events = events
         self.repeat_max = repeat
 

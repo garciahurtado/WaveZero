@@ -21,7 +21,10 @@ SPRITE_LASER_WALL_POST = const(90)
 SPRITE_WHITE_DOT = const(100)
 SPRITE_WHITE_LINE = const(104)
 SPRITE_WHITE_LINE_x5 = const(108)
-SPRITE_HOLO_TRI = const(110)
+SPRITE_WHITE_LINE_VERT = const(120)
+SPRITE_WHITE_LINE_VERT_x5 = const(130)
+
+SPRITE_HOLO_TRI = const(200)
 
 SPRITE_DATA_LAYOUT = {
     # 4-byte (32-bit) fields
@@ -111,10 +114,14 @@ class SpriteType:
     alpha_color: int = 0
     frames = None
     num_frames: int = 0
+    upscale_width = None
+    upscale_height = None
     update_func = None
     render_func = None
     repeats: int = 0
     repeat_spacing: int = 0
+    stretch_width: int = 0
+    stretch_height: int = 0
     animations = []
 
     def __init__(self, **kwargs):

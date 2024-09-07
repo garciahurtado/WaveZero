@@ -1,6 +1,7 @@
 import math
 import random
 
+from perspective_camera import PerspectiveCamera
 from death_anim import DeathAnim
 from sprites.sprite import Sprite
 from sprites2.warning_wall import WarningWall
@@ -14,7 +15,6 @@ from sprites.player_sprite import PlayerSprite
 from road_grid import RoadGrid
 
 from input import make_input_handler
-from perspective_camera import PerspectiveCamera
 from screens.screen import Screen
 import uasyncio as asyncio
 import utime
@@ -36,7 +36,7 @@ class GameScreen(Screen):
     enemies: SpriteManager = None
     max_sprites: int = 200
     saved_ground_speed = 0
-    lane_width: int = const(24)
+    lane_width: int = const(30)
     num_lives: int = const(2)
     total_frames = 0
     last_update_ms = 0
@@ -82,7 +82,6 @@ class GameScreen(Screen):
         self.check_mem()
         print("-- Creating Sprite Manager...")
         self.enemies = SpriteManager(display, self.max_sprites, self.camera, self.lane_width, grid=self.grid)
-        self.add(self.enemies)
 
         self.death_anim = DeathAnim(display)
         self.death_anim.callback = self.after_death
@@ -93,6 +92,15 @@ class GameScreen(Screen):
         self.stage = Stage1(self.enemies)
 
         self.check_mem()
+
+        sun = Sprite("/img/sunset.bmp")
+        sun.x = self.sun_start_x = 39
+        sun.y = 12
+        self.add(sun)
+        self.add(self.enemies)
+
+        self.sun = sun
+
 
     async def mock_update_score(self):
         while True:
@@ -123,14 +131,6 @@ class GameScreen(Screen):
 
         self.check_mem()
 
-        sun = Sprite("/img/sunset.bmp")
-        sun.x = self.sun_start_x = 39
-        sun.y = 10
-        self.add(sun)
-        self.sun = sun
-
-        self.check_mem()
-
         self.check_mem()
         loop = asyncio.get_event_loop()
         loop.create_task(self.start_display_loop())
@@ -153,7 +153,7 @@ class GameScreen(Screen):
 
 
     async def update_loop(self):
-        start_time_ms = self.last_update_ms = round(utime.ticks_ms())
+        start_time_ms = self.last_update_ms = utime.ticks_ms()
         self.last_perf_dump_ms = start_time_ms
 
         print(f"--- Update loop Start time: {start_time_ms}ms ---")
@@ -190,8 +190,8 @@ class GameScreen(Screen):
 
                     self.collider.check_collisions(self.enemies.pool.active_sprites)
 
-                # await self.show_perf()
-                await asyncio.sleep(1/160)
+                await self.show_perf()
+                await asyncio.sleep(1/160) # Tweaking this number can give FPS gains
 
         except asyncio.CancelledError:
             return False
@@ -271,14 +271,15 @@ class GameScreen(Screen):
             pos_y=60,
             pos_z=camera_z,
             vp_x=0,
-            vp_y=horiz_y-6)
+            vp_y=horiz_y-6,
+            min_y=horiz_y,
+            max_y=self.display.height)
 
     async def show_perf(self):
         interval = 5000 # Every 5 secs
 
-        now = int(utime.ticks_ms())
-        elapsed = now - self.last_perf_dump_ms
-
-        if elapsed > interval:
+        now = utime.ticks_ms()
+        delta = utime.ticks_diff(now, self.last_perf_dump_ms)
+        if delta > interval:
             prof.dump_profile()
-            self.last_perf_dump_ms = int(utime.ticks_ms())
+            self.last_perf_dump_ms = utime.ticks_ms()

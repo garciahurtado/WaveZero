@@ -276,9 +276,9 @@ class GameScreen(Screen):
         if self.grid:
             self.grid.show()
 
-        prof.start_profile('draw_sprites()')
+        #prof.start_profile('draw_sprites()')
         self.draw_sprites()
-        prof.end_profile('draw_sprites()')
+        #prof.end_profile('draw_sprites()')
 
         self.display.show()
 

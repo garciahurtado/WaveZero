@@ -19,11 +19,11 @@ class Profiler():
         if not Profiler.enabled:
             return False
 
-        task = Profiler._get_current_task()
-        if task:
-            if task not in Profiler._task_local:
-                Profiler._task_local[task] = []
-            Profiler._task_local[task].append(label)
+        # task = Profiler._get_current_task()
+        # if task:
+        #     if task not in Profiler._task_local:
+        #         Profiler._task_local[task] = []
+        #     Profiler._task_local[task].append(label)
 
         if label not in Profiler.profile_labels:
             Profiler.profile_labels[label] = [0, 0, 0, label]  # num calls / start usecs / total time / label

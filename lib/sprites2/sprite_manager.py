@@ -20,6 +20,7 @@ class SpriteManager:
     POS_TYPE_FAR = const(0)
     POS_TYPE_NEAR = const(1)
     display = None
+
     sprite_images: Dict[str, List[Image]] = {}
     sprite_palettes: Dict[str, bytes] = {}
     sprite_metadata: Dict[str, SpriteType] = {}
@@ -67,7 +68,9 @@ class SpriteManager:
             'alpha_index',
             'alpha_color',
             'repeats',
-            'repeat_spacing']
+            'repeat_spacing',
+            'stretch_width',
+            'stretch_height']
 
         for arg in kwargs.keys():
             if arg not in (defaults + must_have):
@@ -83,10 +86,7 @@ class SpriteManager:
         type_obj = sprite_class(**default_args)
 
         # print(dump_object(type_obj))
-
         self.sprite_metadata[sprite_type] = type_obj
-
-        print("Sprite registered: " + str(self.sprite_metadata[sprite_type].image_path))
 
     def add_action(self, sprite_type, func):
         self.sprite_actions[sprite_type] = func
@@ -101,7 +101,6 @@ class SpriteManager:
             props[name] = getattr(cls, name)
 
         return props
-
 
     def create(self, sprite_type, **kwargs):
         new_sprite, idx = self.pool.get(sprite_type)
@@ -137,29 +136,54 @@ class SpriteManager:
         new_sprite.active = True
         return new_sprite, idx
 
-    def load_img_and_scale(self, metadata, sprite_type):
-        orig_img = ImageLoader.load_image(metadata.image_path, metadata.width, metadata.height)
+    def load_img_and_scale(self, meta, sprite_type):
+        orig_img = ImageLoader.load_image(meta.image_path, meta.width, meta.height)
         if isinstance(orig_img, list):
             orig_img = orig_img[0]
 
         frames = []
-        num_frames = metadata.num_frames
+        num_frames = meta.num_frames
 
         for f in range(1, num_frames):
             scale = f / num_frames # Avoid division by zero
 
-            new_width = math.ceil(metadata.width * scale)
-            new_height = math.ceil(metadata.height * scale)
+            new_width = math.ceil(meta.width * scale)
+            new_height = math.ceil(meta.height * scale)
 
             # print(f"Scale is {scale} / w:{new_width} h:{new_height} ")
 
-            new_frame = self.scale_frame(orig_img, new_width, new_height, metadata.color_depth)
+            new_frame = self.scale_frame(orig_img, new_width, new_height, meta.color_depth)
             frames.append(new_frame)
 
         frames.append(orig_img)  # Add original image as the last frame
+
+        """Do we need to add upscale frames? (scale > 1)"""
+        if ((meta.stretch_width and meta.stretch_width > meta.width) or
+            (meta.stretch_height and meta.stretch_height > meta.height)):
+
+            width_gap = meta.stretch_width - meta.width
+            height_gap = meta.stretch_height - meta.height
+
+            add_width_frames = 0
+            add_height_frames = 0
+
+            if width_gap > height_gap:
+                add_width_frames = max(width_gap, height_gap)
+            else:
+                add_height_frames = max(width_gap, height_gap)
+
+            print(f"+++ Adding {add_width_frames + add_height_frames} +++")
+
+            for f in range(0, add_width_frames):
+                pass
+
+            for f in range(0, add_height_frames):
+                pass
+
+
         self.sprite_palettes[sprite_type] = orig_img.palette
-        metadata.palette = orig_img.palette
-        self.set_alpha_color(metadata)
+        meta.palette = orig_img.palette
+        self.set_alpha_color(meta)
 
         return frames
 
@@ -215,9 +239,9 @@ class SpriteManager:
         if not sprite.speed:
             return False
 
-        #prof.start_profile('update_z_speed')
+        #prof.start_profile('mgr.update_z_speed')
         new_z = sprite.z + (sprite.speed * elapsed)
-        #prof.end_profile('update_z_speed')
+        #prof.end_profile('mgr.update_z_speed')
 
         if new_z == sprite.z:
             return False
@@ -226,62 +250,77 @@ class SpriteManager:
         if sprite.z == 0:
             sprite.z = 1
 
-        if new_z < self.camera.far and not sprite.visible:
+        cam = self.camera
+
+        if new_z < cam.far and not sprite.visible:
             sprite.visible = True
 
-        """ The rest of the calculations are only relevant for visible sprites"""
+        """ The rest of the calculations are only relevant for visible sprites within the frustrum"""
+
+        disp = self.display
 
         if not sprite.visible:
             return True
 
-        if new_z < self.camera.near:
+        if new_z < cam.near:
             """Past the near clipping plane"""
             self.pool.release(sprite)
             return False
 
-        scale = self.camera.calculate_scale(sprite.z)
+        prof.start_profile('mgr.sprite_scale')
+        draw_y, scale= cam.get_scale(sprite.z)
+        # draw_y = cam.get_y(sprite.z)
 
         if scale > 1:
             scale = 1
 
         sprite.scale = scale
-
-        #prof.start_profile('cam_pos')
+        prof.end_profile('mgr.sprite_scale')
 
         # the scalars below are pretty much trial and error "magic" numbers
-        vp_scale = ((self.camera.max_vp_scale) * sprite.scale) + 0.8
+        # vp_scale = ((cam.max_vp_scale) * sprite.scale) + 0.8
 
         """ We have to adjust for the fact that 3D vertical axis and 2D vertical axis run in opposite directions,
         so we add the sprite height to Y in 3D space before translating to 2D"""
 
+        # draw_x, draw_y = self.to_2d(sprite.x, sprite.y, sprite.z)
 
-        draw_x, draw_y = self.to_2d(sprite.x, sprite.y, sprite.z)
+        """ in 3D space, distance between floor and vp Y, when scale = 1 """
+        self.half_height = disp.height // 2
+        self.half_width = disp.width // 2
+        ground_height = disp.height - cam.vp_y
 
+        # print(f"GROUND HEIGHT: {ground_height} cam vp y: {cam.vp_y}")
+
+        # real_y = ground_height - cam.vp_y + sprite.y
+        # y_factor = cam.get_y_factor(-real_y)
+
+        prof.start_profile('mgr.sprite_scale_post')
+
+        # print(f"real_y: {real_y} / factor: {y_Factor} / {}")
+        # my_y = (cam.vp_y * scale) + cam.vp_y# magic number
+
+        x_factor = math.pi
+        draw_x = (sprite.x * scale) + self.half_width - ((cam.vp_x * x_factor) * scale)
+        prof.end_profile('mgr.sprite_scale_post')
+
+        # print(f"NEW Y: {my_y} / OLD Y: {draw_y}")
+
+        # draw_y = draw_y + self.camera.vp_y
+
+        #prof.start_profile('mgr.height_adjust')
         height = math.ceil(meta.height * sprite.scale)
-        draw_y -= height
+        # draw_y -= height
+        #prof.end_profile('mgr.height_adjust')
 
-        # draw_x = (sprite.scale * sprite.x * self.camera.aspect_ratio) + self.camera.half_width
-        # draw_y = (sprite.scale * sprite.y * self.camera.aspect_ratio)
-        # draw_y = ((self.display.height - self.camera.vp_y) * sprite.scale ) + self.camera.vp_y
-        # draw_y = (y * focal_length) / z
-        # print(f"draw X: {draw_x} new Draw X: {new_draw_x}")
-        # print(f"draw Y: {draw_y} new Draw Y: {new_draw_y}")
-         # , _newdraw_y) = self.to_2d(sprite.x, sprite.y, sprite.z, vp_scale=vp_scale)
-
-
-        # print(f"calc draw coords: frameheight: {sprite.frame_height} / height: {height} / sprite.y : {sprite.y}")
-
-        #prof.end_profile('cam_pos')
-
-        #prof.start_profile('get_frame_idx')
-        # frame_idx = self.get_frame_idx(real_z, int(self.camera.cam_z), num_frames,
-        #                                self.half_scale_one_dist)
+        #prof.start_profile('mgr.get_frame_idx')
         frame_idx = self.get_frame_idx(sprite.scale, sprite.num_frames)
-        #prof.end_profile('get_frame_idx')
-        #
-        # sprite.draw_x = int(draw_x)
-        # sprite.draw_y = int(draw_y)
-        sprite.draw_x = draw_x
+        #prof.end_profile('mgr.get_frame_idx')
+
+        # print(f"Z: {sprite.z}, scale: {sprite.scale} / DRAW Y : {draw_y}")
+
+        sprite.draw_x = int(draw_x)
+        # sprite.draw_y = int(draw_y - self.camera.screen_height)
         sprite.draw_y = draw_y
 
         sprite.current_frame = frame_idx
@@ -359,11 +398,15 @@ class SpriteManager:
 
     # @timed
     def to_2d(self, x, y, z, vp_scale=1):
+        prof.start_profile('mgr.to_2d')
+
         camera = self.camera
         if camera:
-            return self.camera.to_2d(x, y, z, vp_scale=vp_scale)
-        else:
-            return x, y
+            x, y = self.camera.to_2d(x, y, z, vp_scale=vp_scale)
+
+        prof.end_profile('mgr.to_2d')
+        return x, y
+
 
     def set_lane(self, sprite, lane_num):
         meta = self.get_meta(sprite)
@@ -402,47 +445,13 @@ class SpriteManager:
         alpha_color = sprite_type.palette.get_bytes(sprite_type.alpha_index)
         sprite_type.alpha_color = alpha_color
 
-    # @micropython.native
+    # @micropython.viper
     def get_frame_idx(self, scale:float, num_frames:int):
         if num_frames < 1:
             raise ArithmeticError(f"Invalid number of frames: {num_frames}. Are width and height set?")
+        frame_idx:int = scale * num_frames
+        return int(min(frame_idx, num_frames - 1))
 
-        frame_idx:int = int(scale * num_frames)
-        return min(frame_idx, num_frames - 1)
-
-    # @timed
-    @micropython.viper
-    def get_frame_idx_old(self, z: int, cam_z: int, num_frames: int, scale_dist: int) -> int:
-        """ Given the Z coordinate (depth), find the scaled frame number which best represents the
-        size of the object at that distance """
-
-        #prof.start_profile('frame.calc_rate')
-        rate: int = int(z - cam_z)
-        if (rate >= -1) and (rate <= 1):  # Use a small threshold instead of exactly 0
-            rate = 2 if rate >= 0 else -2  # Avoid divide by zero
-        #prof.end_profile()
-
-        #prof.start_profile('frame.calc_scale')
-        # Use multiplication instead of division
-        scale: int = abs(int(scale_dist) * 2)
-        if scale > abs(rate):
-            scale = abs(rate)
-        #prof.end_profile()
-
-        #prof.start_profile('frame.calc_frame_idx')
-        temp = abs((rate))
-        scale_num = int(scale) * (num_frames)
-        frame_idx: int = (scale_num) // int(temp)
-        #prof.end_profile()
-
-        # print(f"z: {z} / frame idx: {frame_idx} / num_frames: {num_frames}")
-
-        if frame_idx >= num_frames and num_frames > 0:
-            return int(num_frames - 1)
-        elif frame_idx < 0:
-            return 0
-        else:
-            return int(frame_idx)
 
     # @timed
     def show(self, display: framebuf.FrameBuffer):

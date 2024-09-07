@@ -213,7 +213,7 @@ class RoadGrid():
 
         lane_width_near, _ = self.camera.to_2d(self.lane_width, 0, self.near_z) # used to measure the lane width in screen space
         lane_width_near = lane_width_near - self.camera.half_width + 2
-
+        print(f"lane_width_near: {lane_width_near}")
         half_top = (num_vert_lines * lane_width_far) // 2
         half_bottom = (num_vert_lines * lane_width_near) // 2
 
@@ -351,12 +351,12 @@ class RoadGrid():
 
     def set_lane(self, sprite, lane_num, repeats=0, spacing=0):
         # lane_num = 0,1,2,3,4
-        sprite.lane_num = lane_num
+        sprite.lane_num = lane_num + 1
 
         half_field = self.field_width * 0.5
 
-        new_x = (lane_num * self.lane_width+3)
-        sprite.x = math.ceil(new_x - half_field)
+        new_x_delta = (lane_num * (self.lane_width))
+        sprite.x = int(new_x_delta - half_field)
 
         if repeats:
             """Multi image sprite"""
