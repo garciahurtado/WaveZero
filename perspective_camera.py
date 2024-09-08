@@ -2,6 +2,8 @@ import framebuf
 import math
 
 import micropython
+import sys
+
 from profiler import Profiler as prof, timed
 from ulab import numpy as np
 from uarray import array
@@ -69,8 +71,9 @@ class PerspectiveCamera():
         self.z_min = self.near - 20
         self.z_max = self.far
         self.near_plus_epsilon = self.near + 0.000001
-        self.integer_factor = 65000
+        self.integer_factor = 32000
 
+        # self.compare_methods()
         self._precalculate_scale_cache()
 
 
@@ -158,6 +161,42 @@ class PerspectiveCamera():
 
         return screen_x, screen_y
 
+    def compare_methods(self):
+        whole_list = range(self.z_min, self.z_max)
+        y_range = self.max_y - self.min_y
+
+        print(f"--- COMPARING 2D and SCALE(z) --- ")
+        y = 0
+        for z in whole_list:
+            _, screen_y_1 = self.to_2d(0, y, z, vp_scale=1)
+
+
+            # Calculate scale_y for verification
+            # scale_y = (self.max_y - self.min_y) * scale
+
+            scale = self.calculate_scale(z)
+            ground_y = self.calculate_ground_y(scale, y_range - 10)
+            height_y = (y) * scale
+            screen_y_2 = ground_y - height_y + self.min_y
+
+            #            y = y + self.vp_y  ??
+
+            # Calculate screen_y_2 using scale
+            # adjusted_y = y - (self.vp_factor_y * scale)
+            # screen_y_2 = int(self.y_offset - adjusted_y)
+            #
+            # y = y - self.cam_y
+            # scaled_y = scale * y
+
+            # Calculate screen_y_2 to match to_2d result
+            # projected_y = (adjusted_y * self.focal_length) / (z - self.cam_z)
+            # screen_y_2 = int(self.y_offset - projected_y)
+
+
+            print(f"z: {z}/ screen_y_1: {screen_y_1} / screen_y_2: {screen_y_2} / scale: {scale:.4f}")
+
+        sys.exit()
+
 
     def set_camera_position(self, x, y, z):
         self.camera_x = x
@@ -190,7 +229,7 @@ class PerspectiveCamera():
             raise ArithmeticError("Min Y cannot be higher than Max Y")
 
         self._cache_size = self.max_y - self.min_y
-        _new_cache_size = self._cache_size + 4
+        _new_cache_size = self._cache_size + 2
         print(f"CREATING A CACHE OF {_new_cache_size} elements")
 
         # Calculate logarithmically spaced values manually
@@ -204,23 +243,16 @@ class PerspectiveCamera():
         #
         # print(f"Z VALUES: (count {len(z_values)}")
         # print(z_values)
-        cache_size = (self.max_y - self.min_y) + 10 # Make room for negative Z, or > 1 scale
+        # cache_size = (self.max_y - self.min_y) + 10 # Make room for negative Z, or > 1 scale
 
 
-        # Recalculate cache_size based on unique integer z values
-        # self._cache_size = len(self._scale_cache_z)
-        current_z = 1500
-
-        # size = self.max_y - self.min_y
-        # print(f"rANGE: {self.z_min} / {self.z_max}")
         z_range = self.z_max - self.z_min
         y_range_orig = self.max_y - self.min_y
-
-        # Adjust the 20 below to control at which Z you get scale = 1
         y_range = y_range_orig
+        cache_range = y_range+20
 
-        self._scale_cache = np.array([1*self.integer_factor] * (y_range+1), dtype=np.uint16)
-        self._scale_cache_z = np.array([0] * (y_range+1), dtype=np.uint16)
+        self._scale_cache = np.array([1 * self.integer_factor] * cache_range, dtype=np.uint16)
+        self._scale_cache_z = np.array([0] * cache_range, dtype=np.uint16)
 
         for z in range(z_range, 0, -1):
             """ Takes a Z value and converts it to a scale, which converts to a Y coord, and gets added as the index
@@ -238,18 +270,35 @@ class PerspectiveCamera():
             if scale == 0:
                 scale = 0.0001
 
-            if scale > 1:
-                scale = 1
-            scale = abs(scale)
+            scale = self.calculate_scale(z)
 
-            screen_y = int(scale * y_range_orig)
-            if screen_y < 0:
-                screen_y = 0
+            # Adjust y for camera height
+            y = 0 # @TODO
+            adjusted_y = y - self.cam_y
 
-            # print(f"Screen Y: {screen_y} / Scale:{scale} / z: {z}")
+            # Calculate screen_y_2 using the scale and adjusted y
+            screen_y_2 = int(scale * adjusted_y)
+            # screen_y_2 = self.y_offset - screen_y_2  # Invert and offset
 
-            self._scale_cache[screen_y] = scale * self.integer_factor
-            self._scale_cache_z[screen_y] = int(z)
+            ground_y = self.calculate_ground_y(scale, y_range) + self.vp_y
+            height_y = (y) * scale
+            screen_y_2 = ground_y - height_y
+
+            # if scale > 1:
+            #     scale = 1
+            # scale = abs(scale)
+            #
+            # screen_y = int(scale * (y_range_orig - 1))
+            if screen_y_2 < 0:
+                screen_y_2 = 0
+
+            screen_y_2 = screen_y_2 - self.vp_y
+            screen_y_2 = int(screen_y_2)
+
+            # print(f"Z: {z} / Screen Y: {screen_y_2} / vp_y {self.vp_y} / Scale:{scale} / ")
+
+            self._scale_cache[screen_y_2] = scale * self.integer_factor
+            self._scale_cache_z[screen_y_2] = int(z)
             # last_y = screen_y
 
         # Convert scale cache to numpy array
@@ -272,8 +321,8 @@ class PerspectiveCamera():
         # Find the closest z value in the cache
         idx = self._find_closest(self._scale_cache_z, z)
 
-        # Adjust for camera position
-        y = idx
+        # if idx > 0:
+        #     idx = idx - 1
         scale = self._scale_cache[idx]
         scale = scale / self.integer_factor # unconvert
         y = idx + self.min_y
@@ -303,14 +352,11 @@ class PerspectiveCamera():
         if z > self.z_max:
             return 0.0001
         elif z == 0:
-            return 1
+            z = 0.0001
 
         relative_z = z - self.cam_z
-        # relative_z = z
-
         if relative_z == 0:
             relative_z = self.near_plus_epsilon
-
         scale = self.focal_length_aspect * (1.0 / relative_z)
 
         # Optionally, you can invert the scale for negative z values
@@ -318,6 +364,10 @@ class PerspectiveCamera():
         #     scale = -scale
 
         return scale
+
+    def calculate_ground_y(self, scale, y_range):
+        y = y_range * scale
+        return y
 
     def _find_closest(self, arr, z):
 

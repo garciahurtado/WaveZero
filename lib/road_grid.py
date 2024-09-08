@@ -102,6 +102,7 @@ class RoadGrid():
         self.max_spacing = self.lane_width
         self.field_width = (self.lane_width * 5)
 
+
         self.x_start_top = 0
         self.x_start_bottom = 0
 
@@ -351,12 +352,9 @@ class RoadGrid():
 
     def set_lane(self, sprite, lane_num, repeats=0, spacing=0):
         # lane_num = 0,1,2,3,4
-        sprite.lane_num = lane_num + 1
-
-        half_field = self.field_width * 0.5
-
-        new_x_delta = (lane_num * (self.lane_width))
-        sprite.x = int(new_x_delta - half_field)
+        sprite.lane_num = lane_num
+        new_lane_width = self.lane_width
+        sprite.x = round((-2.5*self.lane_width) + (lane_num * new_lane_width))
 
         if repeats:
             """Multi image sprite"""

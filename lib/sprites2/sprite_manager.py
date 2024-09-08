@@ -300,27 +300,34 @@ class SpriteManager:
         # print(f"real_y: {real_y} / factor: {y_Factor} / {}")
         # my_y = (cam.vp_y * scale) + cam.vp_y# magic number
 
-        x_factor = math.pi
-        draw_x = (sprite.x * scale) + self.half_width - ((cam.vp_x * x_factor) * scale)
+        vp_scale = 1
+        draw_x = (sprite.x * scale) + self.half_width
+        draw_x = int(draw_x - (cam.vp_x * vp_scale))
+
+        # FROM OLD CODE:
+        # Apply vanishing point adjustment
+        # screen_x = int(screen_x - (vp_x * vp_scale))
+        # x_factor = math.pi
+
+        # draw_x = ( - (cam.vp_x*scale)) + self.half_width # Magic num
         prof.end_profile('mgr.sprite_scale_post')
 
         # print(f"NEW Y: {my_y} / OLD Y: {draw_y}")
 
-        # draw_y = draw_y + self.camera.vp_y
-
-        #prof.start_profile('mgr.height_adjust')
-        height = math.ceil(meta.height * sprite.scale)
-        # draw_y -= height
-        #prof.end_profile('mgr.height_adjust')
 
         #prof.start_profile('mgr.get_frame_idx')
         frame_idx = self.get_frame_idx(sprite.scale, sprite.num_frames)
         #prof.end_profile('mgr.get_frame_idx')
 
+        #prof.start_profile('mgr.height_adjust')
+        height = int(meta.height * sprite.scale)
+
+        draw_y -= height
+        #prof.end_profile('mgr.height_adjust')
+
         # print(f"Z: {sprite.z}, scale: {sprite.scale} / DRAW Y : {draw_y}")
 
         sprite.draw_x = int(draw_x)
-        # sprite.draw_y = int(draw_y - self.camera.screen_height)
         sprite.draw_y = draw_y
 
         sprite.current_frame = frame_idx

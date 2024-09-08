@@ -36,7 +36,7 @@ class GameScreen(Screen):
     enemies: SpriteManager = None
     max_sprites: int = 200
     saved_ground_speed = 0
-    lane_width: int = const(30)
+    lane_width: int = const(26)
     num_lives: int = const(2)
     total_frames = 0
     last_update_ms = 0
@@ -143,7 +143,7 @@ class GameScreen(Screen):
         loop.create_task(self.speed_anim.run(fps=60))
 
         self.player.has_physics = False
-        self.player.visible = False
+        self.player.visible = True
 
         print("-- Starting stage")
         self.stage.start()
@@ -268,12 +268,22 @@ class GameScreen(Screen):
         self.camera = PerspectiveCamera(
             self.display,
             pos_x=0,
-            pos_y=60,
+            pos_y=70,
             pos_z=camera_z,
             vp_x=0,
             vp_y=horiz_y-6,
             min_y=horiz_y,
             max_y=self.display.height)
+
+        # self.camera = PerspectiveCamera(
+        #     self.display,
+        #     pos_x=0,
+        #     pos_y=20,
+        #     pos_z=camera_z,
+        #     vp_x=0,
+        #     vp_y=20,
+        #     min_y=20,
+        #     max_y=self.display.height)
 
     async def show_perf(self):
         interval = 5000 # Every 5 secs
