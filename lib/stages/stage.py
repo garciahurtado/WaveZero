@@ -1,3 +1,5 @@
+import asyncio
+
 from stages.events import MultiEvent, WaitEvent, SpawnEnemyEvent, EventChain, SequenceEvent
 
 
@@ -40,16 +42,9 @@ class Stage:
         if not self.running:
             return False
 
-        self.events.update()
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.events.update())
 
-        # if self.current_event < len(self.events):
-        #     # print(f"UPDATE {self.current_event} len:{len(self.events)}")
-        #
-        #     event = self.events[self.current_event]
-        #     if event.active:
-        #         if not event.update():
-        #             self.current_event += 1
-        #             self.events[self.current_event].start()
 
     def reset(self):
         self.current_event = 0

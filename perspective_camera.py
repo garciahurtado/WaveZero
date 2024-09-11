@@ -16,7 +16,6 @@ class PerspectiveCamera():
         self.screen_width = display.width
         self.screen_height = display.height
 
-
         # Calculate aspect ratio
         self.aspect_ratio = self.screen_width / self.screen_height
 
@@ -40,19 +39,12 @@ class PerspectiveCamera():
         self.vp = {"x": vp_x, "y": vp_y}  # vanishing point
         self.vp_x = int(vp_x)
         self.vp_y = int(vp_y)
-        # self.focal_length = focal_length  # Distance from the camera to the projection plane in pixels
-        # Pre-multiply focal_length and aspect_ratio
 
-        # PreCalculate some values based on constants that will not change
-
-
-        # NEW WAY
-        self.focal_length = self.calculate_focal_length(fov)
-        # self.fov_y = self.calculate_fov(focal_length)
+        # Calculate FOV and focal length
         self.fov_y = fov
-        self.fov_x = self.fov_y * self.aspect_ratio
+        self.focal_length = self.calculate_focal_length(self.fov_y)
+        self.fov_x = self.calculate_fov(self.focal_length)  # Horizontal FOV
         self.focal_length_aspect = self.focal_length * self.aspect_ratio
-
 
         self.y_offset = self.half_height - vp_y
         self.vp_factor = self.vp_x / (self.screen_height - self.vp_y)
@@ -64,14 +56,13 @@ class PerspectiveCamera():
 
         self._cache_index = 0
         self._cache_full = False
-        self._cache_size = 200  # Adjust based on your needs
+        self._cache_size = 64  # Adjust based on your needs
         self._scale_cache_z = None
         self._scale_cache_scale = None
 
         self.z_min = self.near - 20
         self.z_max = self.far
         self.near_plus_epsilon = self.near + 0.000001
-        self.integer_factor = 32000
 
         # self.compare_methods()
         self._precalculate_scale_cache()
@@ -120,44 +111,44 @@ class PerspectiveCamera():
         half_width = self.half_width
         focal_length = self.focal_length
 
-        #prof.start_profile('cam.pos_assign')
+        prof.start_profile('cam.pos_assign')
         cam_y = self.cam_y
         cam_z = self.cam_z
-        #prof.end_profile('cam.pos_assign')
+        prof.end_profile('cam.pos_assign')
 
-        #prof.start_profile('cam.vp_assign')
+        prof.start_profile('cam.vp_assign')
         vp_x = self.vp_x
-        #prof.end_profile('cam.vp_assign')
+        prof.end_profile('cam.vp_assign')
 
         # Adjust for camera position
-        #prof.start_profile('cam.pos_adjust')
+        prof.start_profile('cam.pos_adjust')
         orig_y = y
         orig_z = z
         y = orig_y - cam_y
         z = orig_z - cam_z
-        #prof.end_profile('cam.pos_adjust')
+        prof.end_profile('cam.pos_adjust')
 
-        #prof.start_profile('cam.apply_persp_proj')
+        prof.start_profile('cam.apply_persp_proj')
         # Apply perspective projection
         screen_x = (x * focal_length) / z
         screen_y = (y * focal_length) / z
-        #prof.end_profile('cam.apply_persp_proj')
+        prof.end_profile('cam.apply_persp_proj')
 
-        #prof.start_profile('cam.apply_asp_ratio')
+        prof.start_profile('cam.apply_asp_ratio')
         # Apply aspect ratio correction
         screen_x = screen_x * self.aspect_ratio
-        #prof.end_profile('cam.apply_asp_ratio')
+        prof.end_profile('cam.apply_asp_ratio')
 
-        #prof.start_profile('cam.convert_to_screen')
+        prof.start_profile('cam.convert_to_screen')
         # Convert to screen coordinates
         screen_x = screen_x + half_width
         screen_y = int(self.y_offset - screen_y)
-        #prof.end_profile('cam.convert_to_screen')
+        prof.end_profile('cam.convert_to_screen')
 
-        #prof.start_profile('cam.apply_vp')
+        prof.start_profile('cam.apply_vp')
         # Apply vanishing point adjustment
         screen_x = int(screen_x - (vp_x * vp_scale))
-        #prof.end_profile('cam.apply_vp')
+        prof.end_profile('cam.apply_vp')
 
         return screen_x, screen_y
 
@@ -230,7 +221,6 @@ class PerspectiveCamera():
 
         self._cache_size = self.max_y - self.min_y
         _new_cache_size = self._cache_size + 2
-        print(f"CREATING A CACHE OF {_new_cache_size} elements")
 
         # Calculate logarithmically spaced values manually
         # ratio = (stop / start)
@@ -249,9 +239,9 @@ class PerspectiveCamera():
         z_range = self.z_max - self.z_min
         y_range_orig = self.max_y - self.min_y
         y_range = y_range_orig
-        cache_range = y_range+20
+        cache_range = y_range+20 * 2
 
-        self._scale_cache = np.array([1 * self.integer_factor] * cache_range, dtype=np.uint16)
+        self._scale_cache = np.array([0.0001] * cache_range)
         self._scale_cache_z = np.array([0] * cache_range, dtype=np.uint16)
 
         for z in range(z_range, 0, -1):
@@ -270,35 +260,34 @@ class PerspectiveCamera():
             if scale == 0:
                 scale = 0.0001
 
-            scale = self.calculate_scale(z)
-
             # Adjust y for camera height
             y = 0 # @TODO
             adjusted_y = y - self.cam_y
 
             # Calculate screen_y_2 using the scale and adjusted y
-            screen_y_2 = int(scale * adjusted_y)
             # screen_y_2 = self.y_offset - screen_y_2  # Invert and offset
 
             ground_y = self.calculate_ground_y(scale, y_range) + self.vp_y
             height_y = (y) * scale
-            screen_y_2 = ground_y - height_y
+            screen_y = ground_y - height_y
 
-            # if scale > 1:
-            #     scale = 1
-            # scale = abs(scale)
+            if scale > 1:
+                scale = 1
+            scale = abs(scale)
             #
             # screen_y = int(scale * (y_range_orig - 1))
-            if screen_y_2 < 0:
-                screen_y_2 = 0
 
-            screen_y_2 = screen_y_2 - self.vp_y
-            screen_y_2 = int(screen_y_2)
+            screen_y = screen_y - self.vp_y
+            screen_y = int(screen_y)
+
+            if screen_y < 0:
+                screen_y = 0
 
             # print(f"Z: {z} / Screen Y: {screen_y_2} / vp_y {self.vp_y} / Scale:{scale} / ")
 
-            self._scale_cache[screen_y_2] = scale * self.integer_factor
-            self._scale_cache_z[screen_y_2] = int(z)
+            """ Store scale as the integer version """
+            self._scale_cache[screen_y] = scale
+            self._scale_cache_z[screen_y] = int(z)
             # last_y = screen_y
 
         # Convert scale cache to numpy array
@@ -313,29 +302,26 @@ class PerspectiveCamera():
         #     print(f"[{i}] -> {val}")
 
     def get_scale(self, z):
-        """ Get the scale for the closest Z to ours in the scale cache"""
-
         if type(z) is not int:
             raise ArithmeticError("Z must be an integer")
 
+        prof.start_profile('cam.get_scale.cache_search')
         # Find the closest z value in the cache
         idx = self._find_closest(self._scale_cache_z, z)
+        prof.end_profile('cam.get_scale.cache_search')
 
-        # if idx > 0:
-        #     idx = idx - 1
+        prof.start_profile('cam.get_scale.dict_lookup_and_sum')
+
+        # Ensure idx is within bounds
+        idx = max(0, min(idx, len(self._scale_cache) - 1))
+
         scale = self._scale_cache[idx]
-        scale = scale / self.integer_factor # unconvert
+
         y = idx + self.min_y
+        prof.end_profile('cam.get_scale.dict_lookup_and_sum')
 
         return y, scale
 
-        # return at original dimension
-        # scale = scale / 10000
-        #
-        # scale = draw_y / (self.screen_height - self.vp_y)
-        #
-        # print(f"GET SC: z: {z} sc: {scale}")
-        # return scale
 
     def get_y(self, z, scale=None):
         """ Get the Y coordinate given a Z"""
@@ -347,6 +333,15 @@ class PerspectiveCamera():
         total_dist = self.screen_height - self.vp_y
         y = (my_scale * total_dist)
         return int(y)
+
+    def normalize(self, scale):
+        """ normalize scale to 0-1 range """
+        return scale / self.int_scale
+
+    def denormalize(self, scale):
+        """ DEnormalize 0-1 scale to 0-integer_factor range """
+        return scale * self.int_scale
+
 
     def calculate_scale(self, z):
         if z > self.z_max:

@@ -93,8 +93,9 @@ class EventChain(Event):
         for event in all_events:
             self.add(event)
 
-    def update(self):
+    async def update(self):
         if not super().update():
+            await asyncio.sleep_ms(10)
             return False
 
         if self.current_event.finished:
@@ -106,8 +107,10 @@ class EventChain(Event):
                 """ No more events """
                 self.finish()
         else:
+            await asyncio.sleep_ms(10)
             return self.current_event.update()
 
+        await asyncio.sleep_ms(10)
         return True
 
 class WaitEvent(Event):
@@ -191,7 +194,6 @@ class SequenceEvent(Event):
         (once the first sequence is finished)
     """
     def __init__(self, events, repeat=1):
-        print(f"SEQUENCE RECEIVED {len(events)}")
         self.events = events
         self.repeat_max = repeat
 

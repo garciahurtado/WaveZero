@@ -989,7 +989,8 @@ class Color(object):
 
         self.equality = RGB_equivalence
 
-        for k, v in kwargs.items():
+        for k in kwargs:
+            v = kwargs[k]
             setattr(self, k, v)
 
     def __getattr__(self, label):

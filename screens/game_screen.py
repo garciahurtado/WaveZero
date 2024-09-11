@@ -36,7 +36,7 @@ class GameScreen(Screen):
     enemies: SpriteManager = None
     max_sprites: int = 200
     saved_ground_speed = 0
-    lane_width: int = const(26)
+    lane_width: int = const(24)
     num_lives: int = const(2)
     total_frames = 0
     last_update_ms = 0
@@ -268,7 +268,7 @@ class GameScreen(Screen):
         self.camera = PerspectiveCamera(
             self.display,
             pos_x=0,
-            pos_y=70,
+            pos_y=60,
             pos_z=camera_z,
             vp_x=0,
             vp_y=horiz_y-6,

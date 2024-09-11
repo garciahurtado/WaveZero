@@ -61,7 +61,7 @@ class Spritesheet(Sprite):
         """Update the current frame in the spritesheet to the one that represents the correct size when taking into
         account 3D coordinates and the camera """
 
-#        #prof.start_profile("sprite.update_frame")
+#        prof.start_profile("sprite.update_frame")
 
         frame_idx = self.get_frame_idx(self.z)
         # print(f"IDX: {frame_idx} / z: {self.z}")
@@ -70,7 +70,7 @@ class Spritesheet(Sprite):
 
         self.set_frame(frame_idx)
 
-        # #prof.end_profile("sprite.update_frame")
+        # prof.end_profile("sprite.update_frame")
 
         return True
 

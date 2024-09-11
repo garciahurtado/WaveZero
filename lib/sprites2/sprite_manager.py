@@ -3,18 +3,19 @@ import gc
 from micropython import const
 import micropython
 
-from death_anim import DeathAnim
+from dump_object import dump_object
 from images.image_loader import ImageLoader
 from perspective_camera import PerspectiveCamera
 from sprites2.sprite_types import SpriteType, SPRITE_DATA_LAYOUT
+from sprites2.sprite_types import SpriteType as types
+from sprites2.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE, FLAG_BLINK, FLAG_BLINK_FLIP, FLAG_PALETTE_ROTATE
 import framebuf
 import math
 from images.indexed_image import Image, create_image
 from sprites2.sprite_pool_lite import SpritePool
 from typing import Dict, List
 from profiler import Profiler as prof
-import utime as time
-from dump_object import dump_object
+import ssd1331_pio
 
 class SpriteManager:
     POS_TYPE_FAR = const(0)
@@ -24,7 +25,7 @@ class SpriteManager:
     sprite_images: Dict[str, List[Image]] = {}
     sprite_palettes: Dict[str, bytes] = {}
     sprite_metadata: Dict[str, SpriteType] = {}
-    sprite_classes: Dict[int, SpriteType] = {}
+    sprite_classes: Dict[int, callable] = {}
     sprite_actions = {}
     lane_width: int = 0
     half_scale_one_dist = int(0)  # This should be set based on your camera setup
@@ -33,7 +34,7 @@ class SpriteManager:
     grid = None
     camera: PerspectiveCamera = None
 
-    def __init__(self, display: framebuf.FrameBuffer, max_sprites, camera=None, lane_width=None, grid=None):
+    def __init__(self, display: ssd1331_pio, max_sprites, camera=None, lane_width=None, grid=None):
         self.display = display
 
         self.max_sprites = max_sprites
@@ -46,13 +47,17 @@ class SpriteManager:
         if camera:
             self.set_camera(camera)
 
+        self.half_height = display.height // 2
+        self.half_width = display.width // 2
+
     def add_type(self, **kwargs):
         """ These arguments are mandatory """
         sprite_type = kwargs['sprite_type']
-        if 'sprite_class' in kwargs.keys():
-            sprite_class = kwargs['sprite_class']
+
+        if 'sprite_class' in kwargs:
+            sprite_class: callable = kwargs['sprite_class']
         else:
-            sprite_class = SpriteType
+            sprite_class: callable = SpriteType
 
         """ Register the new class """
         self.sprite_classes[sprite_type] = sprite_class
@@ -72,11 +77,15 @@ class SpriteManager:
             'stretch_width',
             'stretch_height']
 
-        for arg in kwargs.keys():
+        for arg in kwargs:
             if arg not in (defaults + must_have):
                 raise AttributeError(f"'{arg}' is not a valid argument for add_type")
 
-        default_args = {key: kwargs[key] for key in kwargs}
+        default_args = {key: kwargs.get(key) for key in kwargs}
+
+        print("DEFAULT KWARGS")
+        print(default_args)
+
         """ We dont need these for SpriteType initialization """
         if 'sprite_type' in default_args.keys():
             del default_args['sprite_type']
@@ -85,8 +94,14 @@ class SpriteManager:
 
         type_obj = sprite_class(**default_args)
 
-        # print(dump_object(type_obj))
+        for key in default_args.keys():
+            if key in dir(sprite_class):
+                value = default_args[key]
+                print(f"TRYING TO SET {key} to {value} (class)")
+                setattr(type_obj, key, value)
+
         self.sprite_metadata[sprite_type] = type_obj
+        dump_object(type_obj)
 
     def add_action(self, sprite_type, func):
         self.sprite_actions[sprite_type] = func
@@ -102,38 +117,41 @@ class SpriteManager:
 
         return props
 
-    def create(self, sprite_type, **kwargs):
-        new_sprite, idx = self.pool.get(sprite_type)
-        new_sprite.x = new_sprite.y = new_sprite.z = 0
-
+    def create(self, sprite_type, *args, **kwargs):
         if sprite_type not in self.sprite_classes.keys():
             raise IndexError(f"Sprite type {sprite_type} is not defined")
 
+        meta = self.sprite_metadata[sprite_type]
         class_name = self.sprite_classes[sprite_type]
         class_attrs = self.get_class_properties(class_name)
-        class_meta = self.sprite_metadata[sprite_type]
 
-        # Set defaults for properties both in the sprite class as well as in the sprite entity
-        for name, val in class_attrs.items():
-            if name in SPRITE_DATA_LAYOUT.keys():
-                setattr(new_sprite, name, val)
-            new_sprite.speed = class_meta.speed
-            new_sprite.frame_width = class_meta.width
-            new_sprite.frame_height = class_meta.height
-            new_sprite.num_frames = class_meta.num_frames
+        # new_sprite.x = new_sprite.y = new_sprite.z = 0
+        new_sprite, idx = self.pool.get(sprite_type, meta)
 
-        #Set user values passed to the function
-        for key, value in kwargs.items():
+        #     new_sprite.speed = meta.speed
+        #     new_sprite.frame_width = meta.width
+        #     new_sprite.frame_height = meta.height
+        #     new_sprite.num_frames = meta.num_frames
+
+        # Set user values passed to the create method
+        for key in kwargs:
+            value = kwargs[key]
             if value is not None:
                 setattr(new_sprite, key, value)
+
+        # Some properties belong to the meta class, so they must be set separately
+
+        if ('width' in kwargs and 'height' in kwargs):
+            meta.num_frames = max(kwargs['width'], kwargs['height'])
 
         new_sprite.sprite_type = sprite_type
 
         #Create images and frames
         if sprite_type not in self.sprite_images:
-            self.sprite_images[sprite_type] = self.load_img_and_scale(class_meta, sprite_type)
+            self.sprite_images[sprite_type] = self.load_img_and_scale(meta, sprite_type)
 
-        new_sprite.active = True
+        types.set_flag(new_sprite, FLAG_ACTIVE)
+        types.set_flag(new_sprite, FLAG_VISIBLE)
         return new_sprite, idx
 
     def load_img_and_scale(self, meta, sprite_type):
@@ -149,8 +167,6 @@ class SpriteManager:
 
             new_width = math.ceil(meta.width * scale)
             new_height = math.ceil(meta.height * scale)
-
-            # print(f"Scale is {scale} / w:{new_width} h:{new_height} ")
 
             new_frame = self.scale_frame(orig_img, new_width, new_height, meta.color_depth)
             frames.append(new_frame)
@@ -172,14 +188,11 @@ class SpriteManager:
             else:
                 add_height_frames = max(width_gap, height_gap)
 
-            print(f"+++ Adding {add_width_frames + add_height_frames} +++")
-
             for f in range(0, add_width_frames):
                 pass
 
             for f in range(0, add_height_frames):
                 pass
-
 
         self.sprite_palettes[sprite_type] = orig_img.palette
         meta.palette = orig_img.palette
@@ -233,15 +246,16 @@ class SpriteManager:
         """The update function only applies to a single sprite at a time, and it is responsible for killing expired
         / out of bounds sprites, as well as updating the x and y draw coordinates based on the 3D position and camera view
         """
-        if not sprite.active:
+
+        if not types.get_flag(sprite, FLAG_ACTIVE):
             return False
 
         if not sprite.speed:
             return False
 
-        #prof.start_profile('mgr.update_z_speed')
+        prof.start_profile('mgr.update_z_speed')
         new_z = sprite.z + (sprite.speed * elapsed)
-        #prof.end_profile('mgr.update_z_speed')
+        prof.end_profile('mgr.update_z_speed')
 
         if new_z == sprite.z:
             return False
@@ -252,27 +266,29 @@ class SpriteManager:
 
         cam = self.camera
 
-        if new_z < cam.far and not sprite.visible:
-            sprite.visible = True
+        if new_z < cam.far and not types.get_flag(sprite, FLAG_VISIBLE):
+            types.set_flag(sprite, FLAG_VISIBLE)
 
         """ The rest of the calculations are only relevant for visible sprites within the frustrum"""
 
         disp = self.display
 
-        if not sprite.visible:
+        if not types.get_flag(sprite, FLAG_VISIBLE):
             return True
 
         if new_z < cam.near:
             """Past the near clipping plane"""
-            self.pool.release(sprite)
+            self.pool.release(sprite, meta)
             return False
 
+        """1. Get the Scale according to Z for a starting 2D Y"""
         prof.start_profile('mgr.sprite_scale')
-        draw_y, scale= cam.get_scale(sprite.z)
-        # draw_y = cam.get_y(sprite.z)
+        draw_y, scale = cam.get_scale(sprite.z)
 
-        if scale > 1:
-            scale = 1
+        """1. Add the scaled 3D Y (substract) + sprite height from the starting 2D Y. This way we scale both numbers 
+        in one single operation"""
+        if sprite.y or meta.height:
+            draw_y -= int(scale * (sprite.y + meta.height))
 
         sprite.scale = scale
         prof.end_profile('mgr.sprite_scale')
@@ -285,50 +301,28 @@ class SpriteManager:
 
         # draw_x, draw_y = self.to_2d(sprite.x, sprite.y, sprite.z)
 
-        """ in 3D space, distance between floor and vp Y, when scale = 1 """
-        self.half_height = disp.height // 2
-        self.half_width = disp.width // 2
-        ground_height = disp.height - cam.vp_y
-
-        # print(f"GROUND HEIGHT: {ground_height} cam vp y: {cam.vp_y}")
-
-        # real_y = ground_height - cam.vp_y + sprite.y
-        # y_factor = cam.get_y_factor(-real_y)
-
         prof.start_profile('mgr.sprite_scale_post')
-
-        # print(f"real_y: {real_y} / factor: {y_Factor} / {}")
-        # my_y = (cam.vp_y * scale) + cam.vp_y# magic number
-
-        vp_scale = 1
+        vp_mult = 0.7
         draw_x = (sprite.x * scale) + self.half_width
-        draw_x = int(draw_x - (cam.vp_x * vp_scale))
+        draw_x = int(draw_x - (cam.vp_x * vp_mult))
 
         # FROM OLD CODE:
         # Apply vanishing point adjustment
         # screen_x = int(screen_x - (vp_x * vp_scale))
-        # x_factor = math.pi
 
         # draw_x = ( - (cam.vp_x*scale)) + self.half_width # Magic num
         prof.end_profile('mgr.sprite_scale_post')
 
         # print(f"NEW Y: {my_y} / OLD Y: {draw_y}")
 
+        prof.start_profile('mgr.get_frame_idx')
 
-        #prof.start_profile('mgr.get_frame_idx')
-        frame_idx = self.get_frame_idx(sprite.scale, sprite.num_frames)
-        #prof.end_profile('mgr.get_frame_idx')
+        frame_idx = self.get_frame_idx(scale, sprite.num_frames)
+        prof.end_profile('mgr.get_frame_idx')
 
-        #prof.start_profile('mgr.height_adjust')
-        height = int(meta.height * sprite.scale)
-
-        draw_y -= height
-        #prof.end_profile('mgr.height_adjust')
-
-        # print(f"Z: {sprite.z}, scale: {sprite.scale} / DRAW Y : {draw_y}")
 
         sprite.draw_x = int(draw_x)
-        sprite.draw_y = draw_y
+        sprite.draw_y = int(draw_y)
 
         sprite.current_frame = frame_idx
 
@@ -338,17 +332,19 @@ class SpriteManager:
         metas = self.sprite_metadata
         current = self.pool.head
         while current:
+            prof.start_profile('mgr.update()')
             sprite = current.sprite
             meta = metas[sprite.sprite_type]
 
             self.update_sprite(sprite, meta, elapsed)
 
             next_node = current.next
-            if not sprite.active:
+            if not types.get_flag(sprite, FLAG_ACTIVE):
                 self.pool.release(sprite)
 
             current = next_node
 
+            prof.end_profile('mgr.update()')
 
 
     # @timed
@@ -356,22 +352,18 @@ class SpriteManager:
         """Draw a single sprite on the display (or several, if multisprites)"""
         sprite_type = sprite.sprite_type
 
-        if not sprite.visible:
+        if not types.get_flag(sprite, FLAG_VISIBLE):
             return False
 
-        if sprite.blink:
-            sprite.blink_flip = sprite.blink_flip * -1
-            if sprite.blink_flip == -1:
-                return False
+        if types.get_flag(sprite, FLAG_BLINK):
+            blink_flip = types.get_flag(sprite, FLAG_BLINK_FLIP)
+            types.set_flag(sprite, FLAG_BLINK_FLIP, blink_flip * -1)
 
         meta = self.sprite_metadata[sprite_type]
+
         alpha = meta.alpha_color
-
         palette = self.sprite_palettes[sprite_type]
-
         frame_id = sprite.current_frame # 255 sometimes ???
-        # frame_id = 0
-
         image = self.sprite_images[sprite_type][frame_id]
 
         """Actions?"""
@@ -379,27 +371,28 @@ class SpriteManager:
         #     action = self.sprite_actions[sprite_type]
         #     action(display, self.camera, sprite.draw_x, sprite.draw_y, sprite.x, sprite.y, sprite.z, sprite.frame_width)
 
-        start_y = int(sprite.draw_y)
+        start_y = sprite.draw_y
         start_x = sprite.draw_x
 
         """ Drawing a single image or a row of them? repeats 0 and 1 mean the same thing (one image) """
+
         if meta.repeats < 2:
-            self.do_blit(x=int(sprite.draw_x), y=start_y, display=display, frame=image.pixels,
+            self.do_blit(x=start_x, y=start_y, display=display, frame=image.pixels,
                          palette=palette, alpha=alpha)
         else:
             """Draw horizontal clones of this sprite"""
             for i in range(0, meta.repeats):
                 x = start_x + (meta.repeat_spacing * sprite.scale * i)
-                self.do_blit(x=round(x), y=start_y, display=display, frame=image.pixels,palette=palette, alpha=alpha)
+                self.do_blit(x=int(x), y=start_y, display=display, frame=image.pixels,palette=palette, alpha=alpha)
 
         return True
 
     # @timed
     def do_blit(self, x: int, y: int, display: framebuf.FrameBuffer, frame, palette, alpha=None):
         if alpha is not None:
-            display.blit(frame, int(x), int(y), alpha, palette)
+            display.blit(frame, x, y, alpha, palette)
         else:
-            display.blit(frame, int(x), int(y), -1, palette)
+            display.blit(frame, x, y, -1, palette)
 
         return True
 
@@ -454,10 +447,18 @@ class SpriteManager:
 
     # @micropython.viper
     def get_frame_idx(self, scale:float, num_frames:int):
-        if num_frames < 1:
+        if num_frames <= 0:
             raise ArithmeticError(f"Invalid number of frames: {num_frames}. Are width and height set?")
-        frame_idx:int = scale * num_frames
-        return int(min(frame_idx, num_frames - 1))
+
+        prof.start_profile('mgr.get_frame_idx.mult')
+        frame_idx = int(scale * num_frames)
+        prof.end_profile('mgr.get_frame_idx.mult')
+
+        prof.start_profile('mgr.get_frame_idx.min')
+        ret = min(frame_idx, num_frames - 1)
+        prof.end_profile('mgr.get_frame_idx.min')
+
+        return ret
 
 
     # @timed
@@ -466,7 +467,8 @@ class SpriteManager:
         current = self.pool.head
         while current:
             sprite = current.sprite
-            if sprite.visible:
+
+            if types.get_flag(sprite, FLAG_VISIBLE):
                 self.show_sprite(sprite, display)
             current = current.next
 

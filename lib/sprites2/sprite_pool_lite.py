@@ -1,20 +1,26 @@
+import sys
+from typing import List
+
 import utime
 from uarray import array
-from sprites2.sprite_types import create_sprite, SPRITE_DATA_LAYOUT, SPRITE_DATA_SIZE
+
+from dump_object import dump_object
+from sprites2.sprite_types import create_sprite, SPRITE_DATA_LAYOUT, SPRITE_DATA_SIZE, SpriteType
+from sprites2.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE
 import uctypes
 from collections import namedtuple
 
 POOL_CHUNK_SIZE = 20
 
 class SpritePool:
-    pool = []
+    pool: List[uctypes.struct] = []
+    sprite_memory: List[bytearray] = []
 
     def __init__(self, pool_size):
         self.pool_size = pool_size
         print(f"About to create sprite pool of {pool_size}")
 
         chunk_size = min(pool_size, POOL_CHUNK_SIZE)  # Size in number of objects. Adjust this value based on available memory
-        self.sprite_memory = []
         for i in range(0, pool_size, chunk_size):
             chunk = bytearray(SPRITE_DATA_SIZE * min(chunk_size, pool_size - i))
             self.sprite_memory.append(chunk)
@@ -42,12 +48,13 @@ class SpritePool:
         self.pool.append(new_sprite)
         return new_sprite
 
-    def get(self, sprite_type):
+    def get(self, sprite_type, meta):
         """ TODO: theres a problem here with the fact that we have two ways to determine a sprite is active:
         - sprite.active = True
         - belongs to self.active_indices
         """
         """Get the first sprite available from the pool and return it"""
+
         if self.free_count < 1:
             raise RuntimeError("Sprite pool is empty. Consider increasing pool size.")
 
@@ -58,12 +65,14 @@ class SpritePool:
 
         sprite.sprite_type = sprite_type
         sprite.current_frame = 0
+
         sprite.born_ms = int(utime.ticks_ms()) # reset creation timestamp
 
-        sprite.active = True
-        sprite.visible = False
+        # Use the new flag system instead of separate active and visible fields
+        sprite.flags = SpriteType.FLAG_ACTIVE  # Set active flag, clear all others
 
         new_node = PoolNode(sprite=sprite, index=index)
+
         if not self.head:
             self.head = self.tail = new_node
         else:
@@ -73,12 +82,14 @@ class SpritePool:
 
         self.active_count += 1
 
+        meta.reset(sprite)
+
         return sprite, index
 
-    def release(self, sprite):
-        if sprite.active:
-            sprite.active = False
-            sprite.visible = False
+    def release(self, sprite, types):
+        if types.get_flag(sprite, FLAG_ACTIVE):
+            types.set_flag(sprite, FLAG_ACTIVE)
+            types.set_flag(sprite, FLAG_VISIBLE)
 
             # Find and remove the node from the linked list
             current = self.head

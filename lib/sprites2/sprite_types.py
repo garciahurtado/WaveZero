@@ -1,8 +1,11 @@
 import asyncio
 
+import sys
 from micropython import const
 from ucollections import namedtuple
 import uctypes
+
+from dump_object import dump_object
 
 POS_TYPE_FAR = const(0)
 POS_TYPE_NEAR = const(1)
@@ -26,6 +29,14 @@ SPRITE_WHITE_LINE_VERT_x6 = const(130)
 
 SPRITE_HOLO_TRI = const(200)
 
+"""
+    Flag Bits:
+    0: active,
+    1: visible,
+    2: blink,
+    3: blink_flip,
+    4: palette_rotate
+"""
 SPRITE_DATA_LAYOUT = {
     # 4-byte (32-bit) fields
     "scale": uctypes.FLOAT32 | 0,        # 4 bytes at offset 0
@@ -42,20 +53,22 @@ SPRITE_DATA_LAYOUT = {
     "visible": uctypes.UINT8 | 19,       # 1 byte at offset 19
     "active": uctypes.UINT8 | 20,        # 1 byte at offset 20
     "blink": uctypes.UINT8 | 21,         # 1 byte at offset 21
-    "blink_flip": uctypes.UINT8 | 22,    # 1 byte at offset 22
-    "pos_type": uctypes.UINT8 | 23,      # 1 byte at offset 23
-    "frame_width": uctypes.UINT8 | 24,   # 1 byte at offset 24
-    "frame_height": uctypes.UINT8 | 25,  # 1 byte at offset 25
-    "current_frame": uctypes.UINT8 | 26, # 1 byte at offset 26
-    "num_frames": uctypes.UINT8 | 27,    # 1 byte at offset 27
-    # The next two could be combined, since they hold small numbers
-    "lane_num": uctypes.INT8 | 28,       # 1 byte at offset 28
-    "lane_mask": uctypes.UINT8 | 29,     # 1 byte at offset 29
-    "draw_x": uctypes.INT8 | 30,         # 1 byte at offset 30
-    "draw_y": uctypes.INT8 | 31,         # 1 byte at offset 31
+    "pos_type": uctypes.UINT8 | 22,      # 1 byte at offset 22
+    "frame_width": uctypes.UINT8 | 23,   # 1 byte at offset 23
+    "frame_height": uctypes.UINT8 | 24,  # 1 byte at offset 24
+    "current_frame": uctypes.UINT8 | 25, # 1 byte at offset 25
+    "num_frames": uctypes.UINT8 | 26,    # 1 byte at offset 26
+    "lane_num": uctypes.INT8 | 27,       # 1 byte at offset 27
+    "lane_mask": uctypes.UINT8 | 28,     # 1 byte at offset 28
+    "draw_x": uctypes.INT8 | 29,         # 1 byte at offset 29
+    "draw_y": uctypes.INT8 | 30,         # 1 byte at offset 30
+    "flags": uctypes.UINT8 | 31,         # 1 byte at offset 31
 }
 
 SPRITE_DATA_SIZE = 32
+
+# Get all field names for outside use
+sprite_fields = SPRITE_DATA_LAYOUT.keys()
 
 # Clean this up like we did sprite_manager/create
 def create_sprite(
@@ -83,7 +96,7 @@ def create_sprite(
     sprite.visible = int(visible)
     sprite.active = int(active)
     sprite.blink = int(blink)
-    sprite.blink_flip = int(blink_flip)
+    # sprite.blink_flip = int(blink_flip)
     sprite.pos_type = pos_type
     sprite.frame_width = frame_width
     sprite.frame_height = frame_height
@@ -93,12 +106,20 @@ def create_sprite(
     sprite.lane_mask = lane_mask
     sprite.draw_x = draw_x
     sprite.draw_y = draw_y
+    sprite.flags = 0
 
     return sprite
 
 
 # Define metadata structure, these values should not change across sprites of this class
 class SpriteType:
+    # Flag constants
+    FLAG_ACTIVE = 1 << 0  # 1
+    FLAG_VISIBLE = 1 << 1  # 2
+    FLAG_BLINK = 1 << 2  # 4
+    FLAG_BLINK_FLIP = 1 << 3  # 8
+    FLAG_PALETTE_ROTATE = 1 << 4  # 16
+
     image_path = None
     speed: int = 0
     width: int = 0
@@ -123,12 +144,15 @@ class SpriteType:
     stretch_width: int = 0
     stretch_height: int = 0
     animations = []
+    defaults = []
 
     def __init__(self, **kwargs):
         self.rotate_pal_last_change = 0
 
-        for key, value in kwargs.items():
+        for key in kwargs:
+            value = kwargs[key]
             if hasattr(self, key):
+                self.defaults.append(key)
                 setattr(self, key, value)
             else:
                 raise AttributeError(f"Object does not have property named '{key}'")
@@ -136,6 +160,17 @@ class SpriteType:
         if self.width and self.height and not self.num_frames:
             self.num_frames = max(self.width, self.height)
 
+    def reset(self, sprite):
+        global sprite_fields
+
+        for key in self.defaults:
+            if key in sprite_fields:
+                default = getattr(self, key)
+                setattr(sprite, key, default)
+
+        # Recalculate number of frames
+        if 'width' in self.defaults and 'height' in self.defaults:
+            sprite.num_frames = max(self.width, self.height)
 
     def set_alpha_color(self):
         """Get the value of the color to be used as an alpha channel when drawing the sprite
@@ -147,7 +182,30 @@ class SpriteType:
         alpha_color = self.palette.get_bytes(self.alpha_index)
         self.alpha_color = alpha_color
 
+    @staticmethod
+    def set_flag(sprite, flag, value=True):
+        if value:
+            sprite.flags |= flag
+        else:
+            sprite.flags &= ~flag
+
+    @staticmethod
+    def unset_flag(sprite, flag):
+        return SpriteType.set_flag(sprite, flag, False)
+
+    @staticmethod
+    def get_flag(sprite, flag):
+        res = bool(sprite.flags & flag)
+
+        return res
+
     def start_anim(self):
         for anim in self.animations:
             asyncio.run(anim.run())
 
+""" So that we can easily export the flags """
+FLAG_ACTIVE = SpriteType.FLAG_ACTIVE
+FLAG_VISIBLE = SpriteType.FLAG_VISIBLE
+FLAG_BLINK = SpriteType.FLAG_BLINK
+FLAG_BLINK_FLIP = SpriteType.FLAG_BLINK_FLIP
+FLAG_PALETTE_ROTATE = SpriteType.FLAG_PALETTE_ROTATE
