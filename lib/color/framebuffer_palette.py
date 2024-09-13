@@ -115,10 +115,10 @@ class FramebufferPalette(framebuf.FrameBuffer):
     def set_bytes(self, index, color):
         if self.color_mode in (fb.RGB565, self.RGB565, self.BGR565):
             # Convert the color value to bytes
-            color_bytes = color.to_bytes(2, 'big')
+            color_bytes = color.to_bytes(2, 'little')
 
             # Convert the flipped bytes back to an integer
-            color = int.from_bytes(color_bytes, 'big')
+            color = int.from_bytes(color_bytes, 'little')
 
             # Set the color in the underlying data structure
             self.pixel(index, 0, color)
@@ -131,7 +131,7 @@ class FramebufferPalette(framebuf.FrameBuffer):
     def set_int(self, index, color):
         self.pixel(index, 0, color)
 
-    def get_bytes(self, index, invert=True):
+    def get_bytes(self, index, invert=False):
         """ Since the palette already stores colors in original screen format, for efficiency,
         there is no need to convert the color on the way out, presuming its meant for the screen"""
         color = self.pixel(index, 0)

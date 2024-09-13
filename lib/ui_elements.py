@@ -16,9 +16,8 @@ from color.palettes import PALETTE_UI_FLASH_TEXT
 
 BLACK = 0x000000
 CYAN = 0x00FFFF
-YELLOW = 0xFF0067
+YELLOW = 0xFFFF00
 WHITE = 0xFFFFFF
-
 
 class ui_screen():
     display = None
@@ -60,12 +59,19 @@ class ui_screen():
                 self.game_over_palette.set_bytes(i, 3)
 
         self.life_sprite.palette = self.lives_palette
+        format = colors.BGR565
 
-        self.palette_all = FramebufferPalette(4, color_mode=fb.RGB565)
-        self.palette_all.set_bytes(0, colors.hex_to_565(BLACK, format=colors.RGB565))
-        self.palette_all.set_bytes(1, colors.hex_to_565(YELLOW, format=colors.RGB565))
-        self.palette_all.set_bytes(2, colors.hex_to_565(CYAN, format=colors.RGB565))
-        self.palette_all.set_bytes(3, colors.hex_to_565(WHITE, format=colors.RGB565))
+        self.palette_all = FramebufferPalette(4)
+        # self.palette_all.set_bytes(0, colors.hex_to_565(BLACK, format=format))
+        # self.palette_all.set_bytes(1, colors.hex_to_565(YELLOW, format=format))
+        # self.palette_all.set_bytes(2, colors.hex_to_565(CYAN, format=format))
+        # self.palette_all.set_bytes(3, colors.hex_to_565(WHITE, format=format))
+
+        inv = True if format == colors.RGB565 else False
+        self.palette_all.set_rgb(0, colors.hex_to_rgb(BLACK, inv=inv))
+        self.palette_all.set_rgb(1, colors.hex_to_rgb(YELLOW, inv=inv))
+        self.palette_all.set_rgb(2, colors.hex_to_rgb(CYAN, inv=inv))
+        self.palette_all.set_rgb(3, colors.hex_to_rgb(WHITE, inv=inv))
 
         self.init_lives(num_lives)
         self.init_score()

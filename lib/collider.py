@@ -23,6 +23,7 @@ class Collider:
         player_lane_mask = self.player.lane_mask
 
         for sprite in collide_against:
+            # print(f"CHeck against {sprite} - {self.crash_y_start} <= {sprite.draw_y} < {self.crash_y_end}")
             # We use Bitwise AND between the two lane_masks to check for overlap
             if (self.crash_y_start <= sprite.draw_y < self.crash_y_end and
                     sprite.lane_mask & player_lane_mask):

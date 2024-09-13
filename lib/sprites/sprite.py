@@ -61,7 +61,7 @@ class Sprite:
         else:
             self.pos_type = self.POS_TYPE_FAR
 
-        self.has_physics = False
+        self.has_physics = True
         # self.update()
 
     def reset(self):

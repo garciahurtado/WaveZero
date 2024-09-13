@@ -38,6 +38,18 @@ PALETTE_FIRE = {
     0xE60B00,
 }
 
+PALETTE_CODE_GREEN = {
+    0X002C1E,
+    0X00501B,
+    0X00870E,
+    0X00C000,
+    0X00FF00,
+    0X00C000,
+    0X00870E,
+    0X00501B,
+    0X002C1E,
+}
+
 def convert_hex_palette(hex_palette, color_mode=RGB565):
     color_list_palette = FramebufferPalette(len(hex_palette), color_mode=color_mode)
     inv = False if (color_mode == RGB565) else True

@@ -34,9 +34,9 @@ class GameScreen(Screen):
     saved_ground_speed = 0
     """ We have 2 diff widths in order to use one for calculations involving 3D objects, and another one for 
     the display of the grid, which follows different rendering rules / 3D algo """
-    lane_width: int = const(24)
+    lane_width: int = const(26)
     lane_width_grid: int = const(24)
-    num_lives: int = const(2)
+    num_lives: int = const(4)
     total_frames = 0
     last_update_ms = 0
     fps_every_n_frames = 30
@@ -272,7 +272,7 @@ class GameScreen(Screen):
             pos_y=54,
             pos_z=camera_z,
             vp_x=0,
-            vp_y=horiz_y-8,
+            vp_y=horiz_y-6,
             min_y=horiz_y,
             max_y=self.display.height)
 

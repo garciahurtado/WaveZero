@@ -245,7 +245,7 @@ class PerspectiveCamera():
         self._scale_cache_z = np.array([0] * cache_range, dtype=np.uint16)
 
         for z in range(0, z_range):
-            """ Takes a Z value and converts it to a scale, which converts to a Y coord, and gets added as the index
+            """ Takes a Z value from the 0/max_z range and converts it to a scale, which converts to a Y coord, and gets added as the index
             of a new entry into the cache array"""
 
             # print(f"Z iter: {z}")
@@ -304,6 +304,8 @@ class PerspectiveCamera():
         #     print(f"[{i}] -> {val}")
 
     def get_scale(self, z):
+        """ For a given Z coordinate, return the 2D Y coordinate, as well as the scale at which the sprite
+        should be drawn. """
         if type(z) is not int:
             raise ArithmeticError("Z must be an integer")
 
@@ -319,30 +321,10 @@ class PerspectiveCamera():
 
         scale = self._scale_cache[idx]
 
-        y = idx + self.min_y
+        y = idx + self.min_y # This is how we end up with the range "vp Y - screen height"
         prof.end_profile('cam.get_scale.dict_lookup_and_sum')
 
         return y, scale
-
-
-    def get_y(self, z, scale=None):
-        """ Get the Y coordinate given a Z"""
-        if scale:
-            my_scale = scale
-        else:
-            my_scale = self.get_scale(z)
-
-        total_dist = self.screen_height - self.vp_y
-        y = (my_scale * total_dist)
-        return int(y)
-
-    def normalize(self, scale):
-        """ normalize scale to 0-1 range """
-        return scale / self.int_scale
-
-    def denormalize(self, scale):
-        """ DEnormalize 0-1 scale to 0-integer_factor range """
-        return scale * self.int_scale
 
 
     def calculate_scale(self, z):

@@ -28,6 +28,7 @@ class SpriteManager:
     sprite_metadata: Dict[str, SpriteType] = {}
     sprite_classes: Dict[int, callable] = {}
     sprite_actions = {}
+    sprites_by_type: Dict[str, list] = {}
     lane_width: int = 0
     half_scale_one_dist = int(0)  # This should be set based on your camera setup
     add_frames = 0  # Number of upscaled frames to add (scale > 1)
@@ -98,6 +99,7 @@ class SpriteManager:
                 setattr(type_obj, key, value)
 
         self.sprite_metadata[sprite_type] = type_obj
+        self.sprites_by_type[sprite_type] = []
 
     def add_action(self, sprite_type, func):
         self.sprite_actions[sprite_type] = func
@@ -125,6 +127,8 @@ class SpriteManager:
         # new_sprite.x = new_sprite.y = new_sprite.z = 0
         new_sprite, idx = self.pool.get(sprite_type, meta)
         prof.end_profile('mgr.pool_get')
+
+        self.sprites_by_type[sprite_type].append(idx)
 
         #     new_sprite.speed = meta.speed
         #     new_sprite.frame_width = meta.width
@@ -296,11 +300,16 @@ class SpriteManager:
         if sprite.y or meta.height:
             draw_y -= round(scale * (sprite.y + meta.height))
 
+
+        if draw_y < 0:
+            print(f"NEGATIVE DRAW Y: {draw_y} / sc: {scale} / z: {sprite.z} / height: {meta.height} ")
+
+
         sprite.scale = scale
         prof.end_profile('mgr.sprite_scale')
 
         # the scalars below are pretty much trial and error "magic" numbers
-        vp_scale = ((cam.max_vp_scale) * sprite.scale) + 0.8
+        vp_scale = ((cam.max_vp_scale) * sprite.scale * 0.8) + 0.6
 
         """ We have to adjust for the fact that 3D vertical axis and 2D vertical axis run in opposite directions,
         so we add the sprite height to Y in 3D space before translating to 2D"""
@@ -355,6 +364,17 @@ class SpriteManager:
 
             prof.end_profile('mgr.update()')
 
+        """ Check for and update actions for all sprite types"""
+        if self.sprite_actions:
+
+            for sprite_type in self.sprite_actions.keys():
+                sprites = self.sprites_by_type[sprite_type]
+                actions = self.sprite_actions[sprite_type]
+                for action in actions:
+                    action.update(sprites, elapsed)
+
+                action(display, self.camera, sprite.draw_x, sprite.draw_y, sprite.x, sprite.y, sprite.z, sprite.frame_width)
+
     def rotate_sprite_palette(self, sprite, meta):
         sprite.color_rot_idx = (sprite.color_rot_idx + 1) % len(meta.rotate_palette)
 
@@ -382,11 +402,6 @@ class SpriteManager:
 
         frame_id = sprite.current_frame # 255 sometimes ???
         image = self.sprite_images[sprite_type][frame_id]
-
-        """Actions?"""
-        # if sprite_type in self.sprite_actions.keys():
-        #     action = self.sprite_actions[sprite_type]
-        #     action(display, self.camera, sprite.draw_x, sprite.draw_y, sprite.x, sprite.y, sprite.z, sprite.frame_width)
 
         start_y = sprite.draw_y
         start_x = sprite.draw_x
@@ -441,9 +456,6 @@ class SpriteManager:
 
         # Calculate which lane the center of the sprite is in
         lane_num = round(sprite_center / self.lane_width)
-
-        # Convert lane to lane_num (add 2 to shift from [-2,-1,0,1,2] to [0,1,2,3,4])
-        # lane_num = lane + 2
 
         # Ensure lane_num is within valid range
         return max(0, min(4, lane_num))

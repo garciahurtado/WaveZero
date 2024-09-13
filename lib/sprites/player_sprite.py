@@ -98,6 +98,8 @@ class PlayerSprite(Spritesheet):
     def set_layer_mask(self, lane):
         self.lane_mask = 1 << lane
 
+        print(f"PLAYER MASK: {self.lane_mask:08b}")
+
     def adjust_pos(self, bike_angle):
         bike_angle = min(bike_angle, 1)  # Clamp the input between -1 and 1
         line_offset = self.pick_frame(bike_angle)  # bike_angle->(-1,1)

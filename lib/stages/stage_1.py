@@ -59,12 +59,8 @@ class Stage1(Stage):
         shared_pal = self.sprite_manager.sprite_palettes[SPRITE_WHITE_LINE]
         self.fire_palette = convert_hex_palette(PALETTE_FIRE, color_mode=BGR565)
 
-        rgb = self.fire_palette.get_int(0)
-
         sprite, _ = self.sprite_manager.create(SPRITE_WHITE_LINE_VERT)
         self.sprite_manager.sprite_palettes[SPRITE_WHITE_LINE_VERT] = shared_pal
-
-        shared_pal.set_int(0, rgb)
         self.shared_palette = shared_pal
 
         print(micropython.mem_info())

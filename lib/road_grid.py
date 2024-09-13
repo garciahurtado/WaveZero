@@ -175,7 +175,7 @@ class RoadGrid():
         for idx in range(final_palette.num_colors):
             tmp_palette.append(final_palette.get_bytes(idx, False))
 
-        self.bright_color = colors.hex_to_565(0x00ffff, format=colors.RGB565)
+        self.bright_color = colors.hex_to_565(0x00ffff, format=colors.BGR565)
 
         # Simplify palette to an array of rgb565 colors, for performance
         self.vert_palette = tmp_palette
@@ -403,6 +403,7 @@ class RoadGrid():
             if 0 <= adjacent_lane <= 4:  # Ensure we're within valid lane numbers
                 mask |= 1 << adjacent_lane
 
+        print(f"LANE MASK : {mask:08b}")
         sprite.lane_mask = mask
         return mask
 
