@@ -13,7 +13,7 @@ from micropython import const
 from font_writer import ColorWriter, Writer
 from perspective_camera import PerspectiveCamera
 from sprites.scaled_sprite import ScaledSprite
-import color_util as colors
+from color import color_util as colors
 import random
 
 class TestScreen(Screen):

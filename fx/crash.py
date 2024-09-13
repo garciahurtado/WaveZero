@@ -4,10 +4,11 @@ import random
 
 import framebuf
 
-from framebuffer_palette import FramebufferPalette
+from color.framebuffer_palette import FramebufferPalette
 from fx.scanline_fade import ScanlineFade
 from sprites.spritesheet import Spritesheet
-import color_util as colors
+from color import color_util as colors
+
 
 class Crash():
     x = 0

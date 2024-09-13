@@ -1,9 +1,8 @@
 import gc
 
-import time
 import uos
 from images.bmp_reader import BMPReader
-import color_util as colors
+from color import color_util as colors
 from images.indexed_image import Image
 from framebuf import *
 

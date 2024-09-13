@@ -9,6 +9,7 @@ from sprites2.sprite_types import create_sprite, SPRITE_DATA_LAYOUT, SPRITE_DATA
 from sprites2.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE
 import uctypes
 from collections import namedtuple
+from profiler import Profiler as prof
 
 POOL_CHUNK_SIZE = 20
 
@@ -71,7 +72,9 @@ class SpritePool:
         # Use the new flag system instead of separate active and visible fields
         sprite.flags = SpriteType.FLAG_ACTIVE  # Set active flag, clear all others
 
+        prof.start_profile('pool.create_node')
         new_node = PoolNode(sprite=sprite, index=index)
+        prof.end_profile('pool.create_node')
 
         if not self.head:
             self.head = self.tail = new_node
@@ -82,7 +85,9 @@ class SpritePool:
 
         self.active_count += 1
 
+        prof.start_profile('pool.reset')
         meta.reset(sprite)
+        prof.end_profile('pool.reset')
 
         return sprite, index
 

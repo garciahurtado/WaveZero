@@ -1,6 +1,7 @@
 import framebuf
 import framebuf as fb
-import color_util as colors
+from color import color_util as colors
+
 
 class FramebufferPalette(framebuf.FrameBuffer):
     """

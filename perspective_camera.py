@@ -20,7 +20,7 @@ class PerspectiveCamera():
         self.aspect_ratio = self.screen_width / self.screen_height
 
         # Near / far clipping planes
-        self.near = 0
+        self.near = -60
         self.far = 1500  # past this point all sprites are considered to be in the horizon line
 
         self.cam_x = pos_x
@@ -49,7 +49,7 @@ class PerspectiveCamera():
         self.y_offset = self.half_height - vp_y
         self.vp_factor = self.vp_x / (self.screen_height - self.vp_y)
         self.vp_factor_y = 1 / (self.screen_height - self.vp_y)
-        self.max_vp_scale = 3.5 # Allows parallax effect so that close objects move faster when the VP moves
+        self.max_vp_scale = 3 # Increase / decrease parallax effect (so that )close objects move faster when the VP moves
 
         self.min_z = pos_z
         self._y_factor_cache = {}
@@ -239,12 +239,12 @@ class PerspectiveCamera():
         z_range = self.z_max - self.z_min
         y_range_orig = self.max_y - self.min_y
         y_range = y_range_orig
-        cache_range = y_range+20 * 2
+        cache_range = y_range+20 * 5
 
         self._scale_cache = np.array([0.0001] * cache_range)
         self._scale_cache_z = np.array([0] * cache_range, dtype=np.uint16)
 
-        for z in range(z_range, 0, -1):
+        for z in range(0, z_range):
             """ Takes a Z value and converts it to a scale, which converts to a Y coord, and gets added as the index
             of a new entry into the cache array"""
 
@@ -278,12 +278,14 @@ class PerspectiveCamera():
             # screen_y = int(scale * (y_range_orig - 1))
 
             screen_y = screen_y - self.vp_y
-            screen_y = int(screen_y)
+            screen_y = int(screen_y) - 2
 
             if screen_y < 0:
                 screen_y = 0
+            elif screen_y > self.screen_height:
+                screen_y = self.screen_height
 
-            # print(f"Z: {z} / Screen Y: {screen_y_2} / vp_y {self.vp_y} / Scale:{scale} / ")
+            # print(f"Z: {z} / Screen Y: {screen_y} / Scale:{scale} / ")
 
             """ Store scale as the integer version """
             self._scale_cache[screen_y] = scale
@@ -365,23 +367,26 @@ class PerspectiveCamera():
         return y
 
     def _find_closest(self, arr, z):
+        """
+        Find the index of the closest value to z in a sparse array arr.
+        Optimized for a fixed range of 1500-0 in descending order.
 
-        if len(arr) == 0:
+        Args:
+        arr (list): A list of numbers in descending order from 1500 to 0, potentially sparse
+        z (float): The target value to find the closest match for
+
+        Returns:
+        int: The index of the closest value to z in arr
+        """
+        if not arr:
             return None
-
         if z >= arr[0]:
             return 0
+        if z <= arr[-1]:
+            return len(arr) - 1
 
-        last_non_zero = 0
-        for i in range(len(arr) - 1, -1, -1):
-            if arr[i] != 0:
-                last_non_zero = i
-                break
-
-        if z <= arr[last_non_zero]:
-            return last_non_zero
-
-        left, right = 0, last_non_zero
+        # Binary search to find the insertion point
+        left, right = 0, len(arr) - 1
         while left <= right:
             mid = (left + right) // 2
             if arr[mid] == z:
@@ -391,9 +396,15 @@ class PerspectiveCamera():
             else:
                 right = mid - 1
 
-        if right < 0:
-            return 0
-        if left >= len(arr):
-            return len(arr) - 1
+        # At this point, 'right' is the index of the first element > z
+        # and 'left' is the index of the first element < z
 
-        return right if abs(z - arr[right]) <= abs(z - arr[left]) else left
+        # Check which adjacent value is closer
+        if left >= len(arr):
+            return right
+        if right < 0:
+            return left
+        if abs(arr[right] - z) <= abs(arr[left] - z):
+            return right
+        else:
+            return left

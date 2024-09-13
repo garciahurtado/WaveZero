@@ -28,7 +28,7 @@ from road_grid import RoadGrid
 from perspective_camera import PerspectiveCamera
 from sprites.sprite import Sprite
 from title_screen import TitleScreen
-import color_util as colors
+from color import color_util as colors
 # from primitives.encoder import Encoder
 
 from profiler import Profiler as prof

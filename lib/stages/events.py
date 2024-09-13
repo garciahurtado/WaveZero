@@ -2,7 +2,7 @@ import uasyncio as asyncio
 import math
 
 import utime
-
+from profiler import Profiler as prof
 from sprites2.sprite_manager import SpriteManager
 
 
@@ -279,10 +279,19 @@ class SpawnEnemyEvent(OneShotEvent):
         self.lane = lane
 
     def do_thing(self):
+        prof.start_profile('spawn.do_thing')
         type = self.sprite_type
+
+        prof.start_profile('spawn.create')
         sprite, _ = self.sprite_mgr.create(type, x=self.x, y=self.y, z=self.z)
+        prof.end_profile('spawn.create')
+
+        prof.start_profile('spawn.set_lane')
         self.sprite_mgr.set_lane(sprite, self.lane)
+        prof.end_profile('spawn.set_lane')
+
         self.finish()
+        prof.end_profile('spawn.do_thing')
 
         return sprite
 

@@ -1,5 +1,5 @@
 import random
-import color_util as colors
+from color import color_util as colors
 
 
 def ground_laser(display, camera, from_x, from_y, x, y, z, sprite_width):

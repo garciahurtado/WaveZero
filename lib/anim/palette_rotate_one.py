@@ -2,8 +2,8 @@ import asyncio
 
 import time
 
+from profiler import Profiler as prof
 from anim.animation import Animation
-
 
 class PaletteRotateOne(Animation):
     color_idx = 0
@@ -13,7 +13,7 @@ class PaletteRotateOne(Animation):
     running = False
 
     def __init__(self, orig_palette, color_list, interval_ms, idx=1):
-        """ Default to idx=1 because its the color index that is usually transparent (ie: the second one)"""
+        """ Default to idx=1 because 0 is the color index that is usually transparent """
 
         super().__init__(orig_palette, None)
         self.orig_palette = orig_palette
@@ -29,8 +29,11 @@ class PaletteRotateOne(Animation):
 
         if delta > self.interval_ms:
             self.current_idx = (self.current_idx + 1) % len(color_list)
-            new_color = color_list.get_bytes(self.current_idx)
-            self.orig_palette.set_bytes(self.idx, new_color)
+            new_color = color_list.get_int(self.current_idx)
+
+            prof.start_profile('rot.run_loop')
+            self.orig_palette.set_int(self.idx, new_color)
             self.last_change_ms = time.ticks_ms()
+            prof.end_profile('rot.run_loop')
 
         await asyncio.sleep_ms(self.interval_ms)

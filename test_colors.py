@@ -2,8 +2,7 @@
 # from tkinter import ttk
 from micropython import const
 
-import lib.color_util as colors
-from framebuffer_palette import FramebufferPalette
+import color.color_util as colors
 from perspective_camera import PerspectiveCamera
 from road_grid import RoadGrid
 

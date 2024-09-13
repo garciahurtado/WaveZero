@@ -3,9 +3,8 @@ import math
 import framebuf
 from typing import Tuple, Optional
 
-from framebuffer_palette import FramebufferPalette
 import framebuf as fb
-import color_util as colors
+
 
 class FontRenderer():
     def __init__(self, device: framebuf.FrameBuffer, font, screen_width: int, screen_height: int):

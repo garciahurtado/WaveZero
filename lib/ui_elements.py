@@ -9,9 +9,10 @@ from sprites.sprite_rect import SpriteRect
 from sprites.sprite import Sprite
 
 import uasyncio as asyncio
-from framebuffer_palette import FramebufferPalette as fp, FramebufferPalette
+from color.framebuffer_palette import FramebufferPalette as fp, FramebufferPalette
 import framebuf as fb
-import color_util as colors
+from color import color_util as colors
+from color.palettes import PALETTE_UI_FLASH_TEXT
 
 BLACK = 0x000000
 CYAN = 0x00FFFF
@@ -30,17 +31,6 @@ class ui_screen():
     lives_sprites = []
     lives_text = None
     dirty = True
-
-    rotate_colors = [0x00FFFF,
-                   0xFF00FF,
-                   0xFF8000,
-                   0x00FFCC,
-                   0xCC00FF,
-                   0xFFCC00,
-                   0x80FFFF,
-                   0xFF80FF,
-                   0xFFCC80,
-                   0x00FFAA]
 
     def __init__(self, display, num_lives) -> None:
         self.dirty = True
@@ -187,9 +177,9 @@ class ui_screen():
         self.sprites.append(self.game_over_text)
 
         # Animate text colors
-        color_list_palette = fp(len(self.rotate_colors))
+        color_list_palette = fp(len(PALETTE_UI_FLASH_TEXT))
 
-        for i, color in enumerate(self.rotate_colors):
+        for i, color in enumerate(PALETTE_UI_FLASH_TEXT):
             color_list_palette.set_rgb(i, colors.hex_to_rgb(color))
 
         self.game_over_anim = PaletteRotateOne(self.palette_all, color_list_palette, 10, 3)

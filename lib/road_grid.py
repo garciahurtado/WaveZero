@@ -1,12 +1,11 @@
-import _thread
 import gc
 import math
 
 import utime
 from micropython import const
 
-import color_util as colors
-from framebuffer_palette import FramebufferPalette as fp
+from color import color_util as colors
+from color.framebuffer_palette import FramebufferPalette as fp
 
 MIDDLE_CYAN = 0x217eff
 MIDDLE_BLUE = 0x008097
@@ -96,7 +95,7 @@ class RoadGrid():
         self.min_z = -10
 
         self.lane_width = lane_width  # width in 3D space
-        self.lane_height = lane_width * 2  # length of a grid square along the Z axis
+        self.lane_depth = lane_width * 2  # depth of a grid square along the Z axis
 
         # For vertical road lines only
         self.max_spacing = self.lane_width
@@ -199,9 +198,9 @@ class RoadGrid():
     def create_horiz_lines(self, num_lines):
         start_z = -60
         for i in range(num_lines - 1, 0, -1):
-            self.horiz_lines_data.append( {'z': (i * self.lane_height) - start_z} )
+            self.horiz_lines_data.append({'z': (i * self.lane_depth) - start_z})
 
-        self.far_z_horiz = (num_lines) * self.lane_height + 400
+        self.far_z_horiz = (num_lines) * self.lane_depth + 400
 
 
     def create_vert_points(self):
@@ -291,9 +290,9 @@ class RoadGrid():
 
         dist_to_horiz = self.far_z_horiz - self.far_z
 
-        if (dist_to_horiz > self.lane_height) and len(self.horiz_lines_data) < self.num_horiz_lines:
+        if (dist_to_horiz > self.lane_depth) and len(self.horiz_lines_data) < self.num_horiz_lines:
             """ Time to spawn a new line in the horizon"""
-            new_line = {'z': self.far_z + self.lane_height}
+            new_line = {'z': self.far_z + self.lane_depth}
             self.horiz_lines_data.append(new_line)
 
 

@@ -1,6 +1,8 @@
 import asyncio
 
 import sys
+
+import time
 from micropython import const
 from ucollections import namedtuple
 import uctypes
@@ -52,16 +54,16 @@ SPRITE_DATA_LAYOUT = {
     "sprite_type": uctypes.UINT8 | 18,   # 1 byte at offset 18
     "visible": uctypes.UINT8 | 19,       # 1 byte at offset 19
     "active": uctypes.UINT8 | 20,        # 1 byte at offset 20
-    "blink": uctypes.UINT8 | 21,         # 1 byte at offset 21
-    "pos_type": uctypes.UINT8 | 22,      # 1 byte at offset 22
-    "frame_width": uctypes.UINT8 | 23,   # 1 byte at offset 23
-    "frame_height": uctypes.UINT8 | 24,  # 1 byte at offset 24
-    "current_frame": uctypes.UINT8 | 25, # 1 byte at offset 25
-    "num_frames": uctypes.UINT8 | 26,    # 1 byte at offset 26
-    "lane_num": uctypes.INT8 | 27,       # 1 byte at offset 27
-    "lane_mask": uctypes.UINT8 | 28,     # 1 byte at offset 28
-    "draw_x": uctypes.INT8 | 29,         # 1 byte at offset 29
-    "draw_y": uctypes.INT8 | 30,         # 1 byte at offset 30
+    "pos_type": uctypes.UINT8 | 21,      # 1 byte at offset 21
+    "frame_width": uctypes.UINT8 | 22,   # 1 byte at offset 22
+    "frame_height": uctypes.UINT8 | 23,  # 1 byte at offset 23
+    "current_frame": uctypes.UINT8 | 24, # 1 byte at offset 24
+    "num_frames": uctypes.UINT8 | 25,    # 1 byte at offset 25
+    "lane_num": uctypes.INT8 | 26,       # 1 byte at offset 26
+    "lane_mask": uctypes.UINT8 | 27,     # 1 byte at offset 27
+    "draw_x": uctypes.INT8 | 28,         # 1 byte at offset 28
+    "draw_y": uctypes.INT8 | 29,         # 1 byte at offset 29
+    "color_rot_idx": uctypes.UINT8 | 30,     # 1 byte at offset 30
     "flags": uctypes.UINT8 | 31,         # 1 byte at offset 31
 }
 
@@ -73,10 +75,8 @@ sprite_fields = SPRITE_DATA_LAYOUT.keys()
 # Clean this up like we did sprite_manager/create
 def create_sprite(
     x=0, y=0, z=0, scale=1.0, speed=0.0, born_ms=0, sprite_type=0,
-    visible=False, active=False, blink=False, blink_flip=False,
     pos_type=POS_TYPE_FAR, frame_width=0, frame_height=0,
-    current_frame=0, num_frames=0, lane_num=0, lane_mask=0,
-    draw_x=0, draw_y=0, width=0, height=0
+    current_frame=0, num_frames=0, lane_num=0, lane_mask=0
 ):
     mem = bytearray(SPRITE_DATA_SIZE)
     sprite = uctypes.struct(uctypes.addressof(mem), SPRITE_DATA_LAYOUT)
@@ -93,10 +93,6 @@ def create_sprite(
 
     # Set 1-byte fields
     sprite.sprite_type = sprite_type
-    sprite.visible = int(visible)
-    sprite.active = int(active)
-    sprite.blink = int(blink)
-    # sprite.blink_flip = int(blink_flip)
     sprite.pos_type = pos_type
     sprite.frame_width = frame_width
     sprite.frame_height = frame_height
@@ -104,8 +100,6 @@ def create_sprite(
     sprite.num_frames = num_frames
     sprite.lane_num = lane_num
     sprite.lane_mask = lane_mask
-    sprite.draw_x = draw_x
-    sprite.draw_y = draw_y
     sprite.flags = 0
 
     return sprite
@@ -127,9 +121,9 @@ class SpriteType:
     color_depth: int = 4
     palette = None
     rotate_palette = None
-    rotate_pal_freq = 5000 # milliseconds
-    rotate_pal_last_change = 0
+    rotate_pal_freq = 1 # seconds
     rotate_pal_index = 0
+    rotate_pal_timer = 0
 
     alpha_index: int = -1
     alpha_color: int = 0
@@ -145,6 +139,7 @@ class SpriteType:
     stretch_height: int = 0
     animations = []
     defaults = []
+
 
     def __init__(self, **kwargs):
         self.rotate_pal_last_change = 0
@@ -202,6 +197,16 @@ class SpriteType:
     def start_anim(self):
         for anim in self.animations:
             asyncio.run(anim.run())
+
+    def is_time_to_rotate(self, elapsed):
+        if not self.rotate_palette:
+            return False
+
+        self.rotate_pal_timer += elapsed
+        if self.rotate_pal_timer >= self.rotate_pal_freq:
+            self.rotate_pal_timer -= self.rotate_pal_freq
+            return True
+        return False
 
 """ So that we can easily export the flags """
 FLAG_ACTIVE = SpriteType.FLAG_ACTIVE

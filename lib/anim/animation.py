@@ -47,3 +47,7 @@ class Animation:
     def stop(self):
         self.running = False
 
+    def start(self):
+        self.running = True
+
+

@@ -1,8 +1,7 @@
 from sprites.sprite import Sprite
 import framebuf
-import color_util as colors
+from color import color_util as colors
 from sprites.sprite_3d import Sprite3D
-import micropython
 
 
 class PlasmaCircle(Sprite3D):

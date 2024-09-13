@@ -1,12 +1,8 @@
-import asyncio
-
-from anim.anim_attr import AnimAttr
-from anim.palette_rotate import PaletteRotate
 from anim.palette_rotate_one import PaletteRotateOne
-from sprites2.sprite_types import SpriteType
 from sprites2.sprite_types import *
-from framebuffer_palette import FramebufferPalette
-import color_util as colors
+from color.framebuffer_palette import FramebufferPalette
+from color import color_util as colors
+
 
 class LaserWall(SpriteType):
     name = SPRITE_LASER_WALL

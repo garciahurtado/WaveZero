@@ -1,13 +1,10 @@
-import math
 import random
 
 from perspective_camera import PerspectiveCamera
 from death_anim import DeathAnim
 from sprites.sprite import Sprite
-from sprites2.warning_wall import WarningWall
 from stages.stage_1 import Stage1
 from ui_elements import ui_screen
-import color_util as colors
 
 from anim.anim_attr import AnimAttr
 from images.image_loader import ImageLoader
@@ -22,7 +19,6 @@ import utime
 from sprites2.sprite_manager import SpriteManager
 from collider import Collider
 from sprites2.sprite_types import *
-from sprites2.laser_wall import LaserWall
 
 from profiler import Profiler as prof
 
@@ -36,7 +32,10 @@ class GameScreen(Screen):
     enemies: SpriteManager = None
     max_sprites: int = 200
     saved_ground_speed = 0
+    """ We have 2 diff widths in order to use one for calculations involving 3D objects, and another one for 
+    the display of the grid, which follows different rendering rules / 3D algo """
     lane_width: int = const(24)
+    lane_width_grid: int = const(24)
     num_lives: int = const(2)
     total_frames = 0
     last_update_ms = 0
@@ -77,7 +76,7 @@ class GameScreen(Screen):
         self.collider.add_callback(self.do_crash)
 
         print("-- Creating road grid...")
-        self.grid = RoadGrid(self.camera, display, lane_width=self.lane_width)
+        self.grid = RoadGrid(self.camera, display, lane_width=self.lane_width_grid)
 
         self.check_mem()
         print("-- Creating Sprite Manager...")
@@ -95,7 +94,7 @@ class GameScreen(Screen):
 
         sun = Sprite("/img/sunset.bmp")
         sun.x = self.sun_start_x = 39
-        sun.y = 12
+        sun.y = 11
         self.add(sun)
         self.add(self.enemies)
 
@@ -117,6 +116,8 @@ class GameScreen(Screen):
             {"name": "life.bmp", "width": 12, "height": 8},
             {"name": "debris_bits.bmp", "width": 4, "height": 4, "color_depth": 1},
             {"name": "debris_large.bmp", "width": 8, "height": 6, "color_depth": 1},
+            {"name": "test_white_line.bmp", "width": 24, "height": 2},
+            {"name": "test_white_line_vert.bmp", "width": 2, "height": 24},
         ]
 
         ImageLoader.load_images(images, self.display)
@@ -142,7 +143,7 @@ class GameScreen(Screen):
         self.speed_anim = AnimAttr(self, 'ground_speed', self.max_ground_speed, 1500, easing=AnimAttr.ease_in_out_sine)
         loop.create_task(self.speed_anim.run(fps=60))
 
-        self.player.has_physics = False
+        self.player.has_physics = True
         self.player.visible = True
 
         print("-- Starting stage")
@@ -264,14 +265,14 @@ class GameScreen(Screen):
     def init_camera(self):
         # Camera
         horiz_y: int = 18
-        camera_z: int = -40
+        camera_z: int = -45
         self.camera = PerspectiveCamera(
             self.display,
             pos_x=0,
-            pos_y=60,
+            pos_y=54,
             pos_z=camera_z,
             vp_x=0,
-            vp_y=horiz_y-6,
+            vp_y=horiz_y-8,
             min_y=horiz_y,
             max_y=self.display.height)
 
@@ -286,6 +287,9 @@ class GameScreen(Screen):
         #     max_y=self.display.height)
 
     async def show_perf(self):
+        if not prof.enabled:
+            return False
+
         interval = 5000 # Every 5 secs
 
         now = utime.ticks_ms()

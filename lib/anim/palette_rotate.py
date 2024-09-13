@@ -1,7 +1,6 @@
 import uasyncio as asyncio
-import framebuf
 from anim.animation import Animation
-from framebuffer_palette import FramebufferPalette
+from color.framebuffer_palette import FramebufferPalette
 
 
 class PaletteRotate(Animation):

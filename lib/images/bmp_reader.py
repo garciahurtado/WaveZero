@@ -3,9 +3,10 @@ import math
 from framebuf import *
 from struct import  unpack
 
-from framebuffer_palette import FramebufferPalette
+from color.framebuffer_palette import FramebufferPalette
 from images.indexed_image import Image, create_image
-import color_util as colors
+from color import color_util as colors
+
 
 class BMPReader():
     color_mode_map = {

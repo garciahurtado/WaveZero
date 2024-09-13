@@ -1,0 +1,42 @@
+
+func                             runs     avg ms                     total ms
+-------------------------------------------------------------------------------
+
+mgr.update()                     3310     3.7409                     12382.25
+mgr.sprite_scale                 3297     2.8015                      9236.45
+cam.get_scale.cache_search       3297     2.4052                      7929.83
+cam.convert_to_screen            13583    0.0806                      1094.60
+cam.apply_persp_proj             13583    0.0780                      1060.11
+cam.apply_vp                     13583    0.0694                       943.04
+mgr.get_frame_idx                3297     0.2797                       922.31
+cam.pos_adjust                   13583    0.0648                       880.10
+cam.apply_asp_ratio              13583    0.0587                       796.96
+cam.pos_assign                   13583    0.0546                       741.98
+cam.vp_assign                    13583    0.0467                       634.69
+cam.get_scale.dict_lookup_and_sum 3297     0.1533                       505.28
+mgr.sprite_scale_post            3297     0.1137                       374.78
+mgr.update_z_speed               3310     0.0804                       266.25
+mgr.get_frame_idx.mult           3297     0.0713                       235.21
+mgr.get_frame_idx.min            3297     0.0664                       218.93
+
+After Claud optimization (cam.get_scale.cache_search x3 speed)
+
+func                             runs     avg ms                     total ms   
+------------------------------------------------------------------------------- 
+
+mgr.update()                     4117     2.2023                      9066.68   
+mgr.sprite_scale                 4104     1.2479                      5121.33   
+cam.get_scale.cache_search       4104     0.8889                      3648.22   
+cam.apply_persp_proj             16135    0.0813                      1311.86   
+cam.convert_to_screen            16135    0.0768                      1239.24   
+mgr.get_frame_idx                4104     0.3014                      1236.84   
+cam.apply_vp                     16135    0.0646                      1043.06   
+cam.pos_adjust                   16135    0.0597                       962.73   
+cam.pos_assign                   16135    0.0536                       865.17   
+cam.apply_asp_ratio              16135    0.0514                       828.84   
+cam.vp_assign                    16135    0.0455                       733.77   
+cam.get_scale.dict_lookup_and_sum 4104     0.1407                       577.46  
+mgr.sprite_scale_post            4104     0.1207                       495.55   
+mgr.get_frame_idx.mult           4104     0.0885                       363.31   
+mgr.update_z_speed               4117     0.0800                       329.38   
+mgr.get_frame_idx.min            4104     0.0658                       269.93   

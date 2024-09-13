@@ -1,5 +1,6 @@
 from road_grid import RoadGrid as grid
-import color_util as colors
+from color import color_util as colors
+
 
 def show_colors():
     iter_colors(grid.horiz_palette)

@@ -10,6 +10,7 @@ from sprites2.sprite_types import SpriteType, SPRITE_DATA_LAYOUT
 from sprites2.sprite_types import SpriteType as types
 from sprites2.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE, FLAG_BLINK, FLAG_BLINK_FLIP, FLAG_PALETTE_ROTATE
 import framebuf
+from color.framebuffer_palette import FramebufferPalette
 import math
 from images.indexed_image import Image, create_image
 from sprites2.sprite_pool_lite import SpritePool
@@ -23,7 +24,7 @@ class SpriteManager:
     display = None
 
     sprite_images: Dict[str, List[Image]] = {}
-    sprite_palettes: Dict[str, bytes] = {}
+    sprite_palettes: Dict[str, FramebufferPalette] = {}
     sprite_metadata: Dict[str, SpriteType] = {}
     sprite_classes: Dict[int, callable] = {}
     sprite_actions = {}
@@ -83,9 +84,6 @@ class SpriteManager:
 
         default_args = {key: kwargs.get(key) for key in kwargs}
 
-        print("DEFAULT KWARGS")
-        print(default_args)
-
         """ We dont need these for SpriteType initialization """
         if 'sprite_type' in default_args.keys():
             del default_args['sprite_type']
@@ -97,11 +95,9 @@ class SpriteManager:
         for key in default_args.keys():
             if key in dir(sprite_class):
                 value = default_args[key]
-                print(f"TRYING TO SET {key} to {value} (class)")
                 setattr(type_obj, key, value)
 
         self.sprite_metadata[sprite_type] = type_obj
-        dump_object(type_obj)
 
     def add_action(self, sprite_type, func):
         self.sprite_actions[sprite_type] = func
@@ -121,12 +117,14 @@ class SpriteManager:
         if sprite_type not in self.sprite_classes.keys():
             raise IndexError(f"Sprite type {sprite_type} is not defined")
 
+        prof.start_profile('mgr.set_initial_vars')
         meta = self.sprite_metadata[sprite_type]
-        class_name = self.sprite_classes[sprite_type]
-        class_attrs = self.get_class_properties(class_name)
+        prof.end_profile('mgr.set_initial_vars')
 
+        prof.start_profile('mgr.pool_get')
         # new_sprite.x = new_sprite.y = new_sprite.z = 0
         new_sprite, idx = self.pool.get(sprite_type, meta)
+        prof.end_profile('mgr.pool_get')
 
         #     new_sprite.speed = meta.speed
         #     new_sprite.frame_width = meta.width
@@ -134,10 +132,13 @@ class SpriteManager:
         #     new_sprite.num_frames = meta.num_frames
 
         # Set user values passed to the create method
+        prof.start_profile('mgr.set_kwargs')
+
         for key in kwargs:
             value = kwargs[key]
             if value is not None:
                 setattr(new_sprite, key, value)
+        prof.end_profile('mgr.set_kwargs')
 
         # Some properties belong to the meta class, so they must be set separately
 
@@ -148,10 +149,15 @@ class SpriteManager:
 
         #Create images and frames
         if sprite_type not in self.sprite_images:
+            prof.start_profile('mgr.create_images')
             self.sprite_images[sprite_type] = self.load_img_and_scale(meta, sprite_type)
+            prof.end_profile('mgr.create_images')
 
+        prof.start_profile('mgr.set_flags')
         types.set_flag(new_sprite, FLAG_ACTIVE)
         types.set_flag(new_sprite, FLAG_VISIBLE)
+        prof.end_profile('mgr.set_flags')
+
         return new_sprite, idx
 
     def load_img_and_scale(self, meta, sprite_type):
@@ -288,13 +294,13 @@ class SpriteManager:
         """1. Add the scaled 3D Y (substract) + sprite height from the starting 2D Y. This way we scale both numbers 
         in one single operation"""
         if sprite.y or meta.height:
-            draw_y -= int(scale * (sprite.y + meta.height))
+            draw_y -= round(scale * (sprite.y + meta.height))
 
         sprite.scale = scale
         prof.end_profile('mgr.sprite_scale')
 
         # the scalars below are pretty much trial and error "magic" numbers
-        # vp_scale = ((cam.max_vp_scale) * sprite.scale) + 0.8
+        vp_scale = ((cam.max_vp_scale) * sprite.scale) + 0.8
 
         """ We have to adjust for the fact that 3D vertical axis and 2D vertical axis run in opposite directions,
         so we add the sprite height to Y in 3D space before translating to 2D"""
@@ -302,15 +308,16 @@ class SpriteManager:
         # draw_x, draw_y = self.to_2d(sprite.x, sprite.y, sprite.z)
 
         prof.start_profile('mgr.sprite_scale_post')
-        vp_mult = 0.7
+
         draw_x = (sprite.x * scale) + self.half_width
-        draw_x = int(draw_x - (cam.vp_x * vp_mult))
+        draw_x = int(draw_x - (cam.vp_x * vp_scale))
+
+        # print(f"Sprite X: {sprite.x} Draw X: {draw_x}")
 
         # FROM OLD CODE:
         # Apply vanishing point adjustment
         # screen_x = int(screen_x - (vp_x * vp_scale))
 
-        # draw_x = ( - (cam.vp_x*scale)) + self.half_width # Magic num
         prof.end_profile('mgr.sprite_scale_post')
 
         # print(f"NEW Y: {my_y} / OLD Y: {draw_y}")
@@ -321,7 +328,7 @@ class SpriteManager:
         prof.end_profile('mgr.get_frame_idx')
 
 
-        sprite.draw_x = int(draw_x)
+        sprite.draw_x = math.ceil(draw_x)
         sprite.draw_y = int(draw_y)
 
         sprite.current_frame = frame_idx
@@ -336,7 +343,9 @@ class SpriteManager:
             sprite = current.sprite
             meta = metas[sprite.sprite_type]
 
-            self.update_sprite(sprite, meta, elapsed)
+            if self.update_sprite(sprite, meta, elapsed):
+                if meta.is_time_to_rotate(elapsed):
+                    self.rotate_sprite_palette(sprite, meta)
 
             next_node = current.next
             if not types.get_flag(sprite, FLAG_ACTIVE):
@@ -346,6 +355,8 @@ class SpriteManager:
 
             prof.end_profile('mgr.update()')
 
+    def rotate_sprite_palette(self, sprite, meta):
+        sprite.color_rot_idx = (sprite.color_rot_idx + 1) % len(meta.rotate_palette)
 
     # @timed
     def show_sprite(self, sprite, display: framebuf.FrameBuffer):
@@ -362,7 +373,13 @@ class SpriteManager:
         meta = self.sprite_metadata[sprite_type]
 
         alpha = meta.alpha_color
-        palette = self.sprite_palettes[sprite_type]
+        palette:FramebufferPalette = self.sprite_palettes[sprite_type]
+
+        if meta.rotate_palette:
+            color = meta.rotate_palette[sprite.color_rot_idx]
+            # Apply the rotated color to the sprite's palette
+            palette.set_int(0, color)
+
         frame_id = sprite.current_frame # 255 sometimes ???
         image = self.sprite_images[sprite_type][frame_id]
 

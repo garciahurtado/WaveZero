@@ -5,7 +5,7 @@ import micropython
 import utime
 import time
 import random
-import color_util as colors
+from color import color_util as colors
 from images.image_loader import ImageLoader
 
 def test_ssd1331_driver():

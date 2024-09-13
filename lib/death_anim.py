@@ -1,13 +1,13 @@
-import asyncio
 import random
 import framebuf
 import time
 import utime
 
 from anim.animation import Animation
-from framebuffer_palette import FramebufferPalette
+from color.framebuffer_palette import FramebufferPalette
 from sprites.spritesheet import Spritesheet
-import color_util as colors
+from color import color_util as colors
+
 
 class DeathAnim(Animation):
     def __init__(self, display):
