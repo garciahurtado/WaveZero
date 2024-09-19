@@ -25,9 +25,11 @@ class ScreenApp:
         self.screens.append(screen)
 
     def run(self):
+        if not self.screens:
+            raise AssertionError("No screens registered with app!")
+
         for screen in self.screens:
             screen.run()
-
 
     # def setup_native_display(self, pin_cs, pin_dc, pin_rst, pin_sda, pin_sck):
     #     self.display = Driver(pin_cs, pin_dc, pin_rst, pin_sda, pin_sck)

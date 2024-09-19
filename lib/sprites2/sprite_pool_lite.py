@@ -91,10 +91,10 @@ class SpritePool:
 
         return sprite, index
 
-    def release(self, sprite, types):
-        if types.get_flag(sprite, FLAG_ACTIVE):
-            types.set_flag(sprite, FLAG_ACTIVE)
-            types.set_flag(sprite, FLAG_VISIBLE)
+    def release(self, sprite, meta):
+        if meta.get_flag(sprite, FLAG_ACTIVE):
+            meta.unset_flag(sprite, FLAG_ACTIVE)
+            meta.unset_flag(sprite, FLAG_VISIBLE)
 
             # Find and remove the node from the linked list
             current = self.head

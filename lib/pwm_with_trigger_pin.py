@@ -1,6 +1,6 @@
 import uarray as array
 
-from machine import Pin, mem32
+from machine import Pin, mem32, PWM
 import rp2
 import math
 import utime
@@ -8,12 +8,12 @@ from uctypes import addressof
 
 # Constants
 
-SINE_TABLE_SIZE = 256
-sine_table = [int((math.sin(2 * math.pi * i / SINE_TABLE_SIZE) + 1) * 127.5) for i in range(SINE_TABLE_SIZE)]
+# SINE_TABLE_SIZE = 256
+# sine_table = [int((math.sin(2 * math.pi * i / SINE_TABLE_SIZE) + 1) * 127.5) for i in range(SINE_TABLE_SIZE)]
 
 AUDIO_RATE = 44100  # Audio sample rate
 # PIO_FREQ = 340_000  # PIO frequency
-PIO_FREQ = 100_000  # PIO frequency
+PIO_FREQ = 125_000_000  # PIO frequency
 NUM_INSTR = 4
 PWM_PERIOD = PIO_FREQ / NUM_INSTR
 to_micro = 1000000
@@ -24,21 +24,74 @@ PIO0_TXF0 = PIO0_BASE + 0x10
 
 BUFFER_SIZE = 256
 
+SINE_TABLE_SIZE = 256
+sine_table = array.array('H', [int((math.sin(2 * math.pi * i / SINE_TABLE_SIZE) + 1) * 32767.5) for i in range(SINE_TABLE_SIZE)])
+
+
 @rp2.asm_pio(set_init=rp2.PIO.OUT_LOW, autopull=True, pull_thresh=32)
 def audio_pwm():
     pull()              # Pull 32-bit value from FIFO
     mov(x, osr)         # Move value to X register
-    mov(y, 65535)       # Set up counter (16-bit resolution)
+    mov(y, 255)       # Set up counter (16-bit resolution)
 
     label("loop")
     jmp(x_not_y, "skip")
-    set(pins, 0)        # Set pin high if X >= Y
+    set(pins, 1)        # Set pin high if X >= Y
     jmp("continue")
 
     label("skip")
-    set(pins, 1)        # Set pin low if X < Y
+    set(pins, 0)        # Set pin low if X < Y
     label("continue")
     jmp(y_dec, "loop")  # Decrement Y and loop
+
+
+@rp2.asm_pio(set_init=rp2.PIO.OUT_LOW)
+def square_wave_old():
+    set(pins, 1) [31]  # High for 32 cycles
+    set(pins, 0) [31]  # Low for 32 cycles
+
+@rp2.asm_pio(set_init=rp2.PIO.OUT_LOW, autopull=True, pull_thresh=32)
+def square_wave():
+    pull()
+    mov(x, osr)
+    set(pins, 1)
+    label("delay_high")
+    jmp(x_dec, "delay_high")
+    set(pins, 0)
+    mov(x, osr)
+    label("delay_low")
+    jmp(x_dec, "delay_low")
+
+@rp2.asm_pio(set_init=rp2.PIO.OUT_LOW, autopull=True, pull_thresh=32)
+def sine_wave():
+    pull()
+    mov(x, osr)
+    mov(y, 255)
+    label("loop")
+    jmp(x_not_y, "skip")
+    set(pins, 1)
+    jmp("continue")
+    label("skip")
+    set(pins, 0)
+    label("continue")
+    jmp(y_dec, "loop")
+
+@rp2.asm_pio(set_init=rp2.PIO.OUT_LOW, autopull=True, pull_thresh=32)
+def simple_wave():
+    wrap_target()
+    pull()
+    mov(x, osr)
+    set(pins, 1)
+    label("delay_high")
+    jmp(x_dec, "delay_high")
+    nop()           # Add a small delay
+    set(pins, 0)
+    mov(x, osr)
+    label("delay_low")
+    jmp(x_dec, "delay_low")
+    nop()           # Add a small delay
+    wrap()
+
 
 class AudioPWM:
     def __init__(self, pin_number):
@@ -56,6 +109,7 @@ class AudioPWM:
 
     def set_duty(self, duty):
         self.sm.put(duty)
+        print(f"Duty set to: {duty}")  # Debug print
 
     def setup_dma_channel(self, channel, buffer_address, buffer_size, phase_increment):
         CH_READ_ADDR = DMA_BASE + channel * 0x40
@@ -90,14 +144,19 @@ class AudioPWM:
         mem32[CH_AL3_CTRL] = 0x80000000  # Enable
         mem32[CH_AL3_WRITE_ADDR] = PIO0_TXF0
 
+        print(f"DMA Channel {channel} set up with phase increment: {phase_increment}")  # Debug print
+
     def calculate_phase_increment(self, frequency, buffer_size, pio_freq):
-        return int((frequency * buffer_size * (1 << 32)) / pio_freq)
+        phase_increment = int((frequency * buffer_size * (1 << 32)) / pio_freq)
+        print(f"Calculated phase increment: {phase_increment} for frequency: {frequency}")  # Debug print
+        return phase_increment
 
     def change_frequency(self, channel, new_frequency):
         CH_AL1_READ_ADDR = DMA_BASE + channel * 0x40 + 0x14
         buffer_size = len(self.all_buffers[channel])
         phase_increment = self.calculate_phase_increment(new_frequency, buffer_size, PIO_FREQ)
         mem32[CH_AL1_READ_ADDR] = phase_increment
+        print(f"Changed frequency for channel {channel} to {new_frequency} Hz")  # Debug print
 
     def setup_all_dma(self, buffers, frequencies):
         for i, (buffer, freq) in enumerate(zip(buffers, frequencies)):
@@ -120,7 +179,23 @@ class AudioPWM:
     def stop(self):
         self.sm.active(0)
         self.pin.value(0)
+        print("AudioPWM stopped")  # Debug print
 
+
+class SimpleAudioPWM:
+    def __init__(self, pin_number, freq=440):
+        self.pin = Pin(pin_number, Pin.OUT)
+        self.sm = rp2.StateMachine(0, audio_pwm, freq=125_000_000, set_base=self.pin)
+        self.sm.active(1)
+        self.set_frequency(freq)
+
+    def set_frequency(self, freq):
+        period = int(125_000_000 / (freq * 256))  # 256 steps for 8-bit resolution
+        self.sm.put(period)
+
+    def stop(self):
+        self.sm.active(0)
+        self.pin.value(0)
 
 
 """ Waveform buffers """
@@ -147,26 +222,145 @@ def create_triangle_buffer():
 def create_sawtooth_buffer():
     return array.array('I', [int(255 * (i / BUFFER_SIZE)) for i in range(BUFFER_SIZE)])
 
+# Basic Test
+# ----------
+# sm = rp2.StateMachine(0, square_wave, freq=10000, set_base=Pin(18))
+# sm.active(1)
+# exit()
 
+# try:
+#     print("Starting audio PWM test. Listen for a continuous 440 Hz tone.")
+#     audio_pwm = AudioPWM(18)  # Use GPIO 18 for audio output
+#     audio_pwm.change_frequency(0, 440)  # Set frequency to 440 Hz (A4)
+#     while True:
+#         utime.sleep(1)
+# except KeyboardInterrupt:
+#     print("Test interrupted.")
+# finally:
+#     audio_pwm.stop()
+#     print("Audio PWM stopped.")
+
+
+
+# try:
+#    print("Starting simple AudioPWM test. Listen for a 440 Hz tone.")
+#    audio = SimpleAudioPWM(18)  # Use GPIO 18 for audio output
+#    utime.sleep(5)  # Play for 5 seconds
+#    print("Changing to 880 Hz")
+#    audio.set_frequency(880)
+#    utime.sleep(5)  # Play for 5 more seconds
+# except KeyboardInterrupt:
+#    print("Test interrupted.")
+# finally:
+#    audio.stop()
+#    print("AudioPWM stopped.")
+
+
+class SineWaveGenerator:
+    def __init__(self, pin_number):
+        self.pin = Pin(pin_number, Pin.OUT)
+        self.sm = rp2.StateMachine(0, sine_wave, freq=125_000_000, set_base=self.pin)
+        self.sm.active(1)
+
+    def set_frequency(self, freq):
+        period = int(125_000_000 / (freq * SINE_TABLE_SIZE))
+        for i in range(SINE_TABLE_SIZE):
+            self.sm.put(sine_table[i] * period // 65535)
+
+    def stop(self):
+        self.sm.active(0)
+        self.pin.value(0)
+
+# Calculate frequency
+def calculate_freq(target_freq):
+    return target_freq * 64  # 64 cycles per square wave
+
+
+class DebugFrequencyChangeGenerator:
+    def __init__(self, pin_number):
+        self.pin = Pin(pin_number, Pin.OUT)
+        self.sm = rp2.StateMachine(0, simple_wave, freq=125_000_000, set_base=self.pin)
+        self.sm.active(1)
+        print("State Machine initialized and activated")
+
+    def set_frequency(self, freq):
+        period = int(125_000_000 / (2 * freq)) - 2  # Adjust for the two nop instructions
+        print(f"Setting frequency to {freq} Hz, period: {period}")
+        self.sm.active(0)  # Temporarily stop the state machine
+        self.sm.restart()  # Clear the FIFO
+        self.sm.put(period)
+        self.sm.put(period)  # Send twice to ensure it's in the FIFO
+        self.sm.active(1)  # Restart the state machine
+        print("New period value sent to State Machine")
+
+    def stop(self):
+        self.sm.active(0)
+        self.pin.value(0)
+        print("State Machine stopped")
+
+
+class SimpleSquareWaveGenerator:
+    def __init__(self, pin_number):
+        self.pin = Pin(pin_number, Pin.OUT)
+        self.sm = rp2.StateMachine(0, square_wave, freq=125_000_000, set_base=self.pin)
+        self.buffer = array.array('I', [0] * BUFFER_SIZE)
+        self.dma_channel = 0
+        self.setup_dma()
+        self.sm.active(1)
+        print("State Machine and DMA initialized and activated")
+
+    def setup_dma(self):
+        CH_READ_ADDR = DMA_BASE + self.dma_channel * 0x40
+        CH_WRITE_ADDR = CH_READ_ADDR + 0x4
+        CH_TRANS_COUNT = CH_READ_ADDR + 0x8
+        CH_CTRL_TRIG = CH_READ_ADDR + 0xC
+
+        mem32[CH_READ_ADDR] = addressof(self.buffer)
+        mem32[CH_WRITE_ADDR] = PIO0_TXF0
+        mem32[CH_TRANS_COUNT] = BUFFER_SIZE
+
+        ctrl = 0x3b400000 | (self.dma_channel << 11)  # Enable channel, wrap mode, incr read, size=32
+        mem32[CH_CTRL_TRIG] = ctrl
+        print("DMA setup completed")
+
+    def set_frequency(self, freq):
+        period = int(125_000_000 / (2 * freq))  # Half period for high and low
+        print(f"Setting frequency to {freq} Hz, period: {period}")
+        for i in range(0, BUFFER_SIZE, 2):
+            self.buffer[i] = period
+            self.buffer[i + 1] = period
+        print("New buffer values calculated")
+
+    def stop(self):
+        self.sm.active(0)
+        CH_CTRL_TRIG = DMA_BASE + self.dma_channel * 0x40 + 0xC
+        mem32[CH_CTRL_TRIG] = 0  # Disable DMA channel
+        self.pin.value(0)
+        print("State Machine and DMA stopped")
+
+
+# Test the simple square wave generator
 try:
-    print("Starting audio PWM test. Listen for tones.")
-    audio_pwm = AudioPWM(18)  # Use GPIO 18 for audio output
+    print("Starting Simple Square Wave DMA test.")
+    print("You should hear a 440 Hz tone, then an 880 Hz tone.")
+    print("Press Ctrl+C to stop.")
 
-    frequencies = [440, 294, 330, 349, 392, 440, 494, 523]  # A4 to C5
-    for freq in frequencies:
-        print(f"Playing {freq} Hz")
-        audio_pwm.change_frequency(0, freq)  # Change frequency of first channel
-        utime.sleep(0.5)  # Play each tone for 0.5 seconds
+    audio = SimpleSquareWaveGenerator(18)  # Use GPIO 18 for audio output
 
+    print("Setting initial frequency")
+    audio.set_frequency(440)
 
-    while True:
-        # Cycle through different duty cycles
-        for duty in [0, 64, 128, 192, 255]:
-            print(f"Setting duty cycle to {duty}")
-            audio_pwm.set_duty(duty)
-            utime.sleep(1)
+    print("Entering main loop")
+    for i in range(10):
+        print(f"Loop iteration {i + 1}")
+        utime.sleep(1)
+        if i == 5:
+            print("Changing frequency to 880 Hz")
+            audio.set_frequency(880)
+
 except KeyboardInterrupt:
     print("Test interrupted.")
+
 finally:
-    audio_pwm.stop()
-    print("Audio PWM stopped.")
+    audio.stop()
+    print("Simple Square Wave DMA test stopped.")

@@ -85,9 +85,9 @@ def gen_sine_wave(buffer_size, freq, sample_rate):
 def play_tone(frequency, duration, waveform):
     global dma_ch0, dma_ch1, sm
 
-    # sm.put(PWM_PERIOD // frequency)  # Preload the ISR with the PWM period
-    # sm.exec("pull()")
-    # sm.exec("out(isr, 32)")
+    sm.put(PWM_PERIOD // frequency)  # Preload the ISR with the PWM period
+    sm.exec("pull()")
+    sm.exec("out(isr, 32)")
 
     start_time = time.ticks_ms()
     phase_accumulator = 0
@@ -179,52 +179,6 @@ def setup_dma(buffer_addr):
     )
 
 
-
-    # Configure read address increment (AL1)
-    # dma_ch0.channel_config(channel, 1, read=phase_increment, write=0, count=0)
-    #
-    # # Configure transfer count (AL2)
-    # dma_ch0.channel_config(channel, 2, read=0, write=0, count=buffer_size - 1)
-
-    # CH0_READ_ADDR = DMA_BASE + channel * 0x40
-    # CH0_WRITE_ADDR = CH0_READ_ADDR + 0x4
-    # CH0_TRANS_COUNT = CH0_READ_ADDR + 0x8
-    # CH0_CTRL_TRIG = CH0_READ_ADDR + 0xC
-    # CH0_AL1_CTRL = CH0_READ_ADDR + 0x10
-    # CH0_AL1_READ_ADDR = CH0_READ_ADDR + 0x14
-    # CH0_AL1_WRITE_ADDR = CH0_READ_ADDR + 0x18
-    # CH0_AL2_CTRL = CH0_READ_ADDR + 0x1C
-    # CH0_AL2_TRANS_COUNT = CH0_READ_ADDR + 0x20
-    # CH0_AL3_CTRL = CH0_READ_ADDR + 0x24
-    # CH0_AL3_WRITE_ADDR = CH0_READ_ADDR + 0x28
-    #
-    # mem32[CH0_READ_ADDR] = buffer_address
-    # mem32[CH0_WRITE_ADDR] = PIO0_TXF0
-    # mem32[CH0_TRANS_COUNT] = 1
-    #
-    # # Configure main control register
-    # ctrl = 0x3b000000 | (channel << 11)  # Chain to next channel, no IRQ, 8-bit transfers
-    # mem32[CH0_CTRL_TRIG] = ctrl
-    #
-    # # Configure AL1 (Read Address)
-    # mem32[CH0_AL1_CTRL] = 0x40000000  # Enable
-    # mem32[CH0_AL1_READ_ADDR] = phase_increment
-    #
-    # # Configure AL2 (Transfer Count)
-    # mem32[CH0_AL2_CTRL] = 0xC0000000  # Enable, wrap
-    # mem32[CH0_AL2_TRANS_COUNT] = buffer_size - 1
-    #
-    # # Configure AL3 (Write Address)
-    # mem32[CH0_AL3_CTRL] = 0x80000000  # Enable
-    # mem32[CH0_AL3_WRITE_ADDR] = PIO0_TXF0
-
-def set_duty(duty):
-    global sm
-
-    # duty is a value between 0 and 255
-    # sm.put(duty)
-
-
 try:
     # wave = gen_square_wave(BUFFER_SIZE, 0, max_amp)
     # wave = gen_square_wave(BUFFER_SIZE, -16000, 16000)  # Full 16-bit range
@@ -237,7 +191,7 @@ try:
     dma_ch0.active(1)
 
     print("Playing tone...")
-    play_tone(440, 1, wave)
+    play_tone(880, 1, wave)
 
     print("Playing tone...")
     play_tone(220, 1, wave)

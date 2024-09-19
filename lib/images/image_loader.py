@@ -14,6 +14,8 @@ class ImageLoader():
 
     progress_loaded = 0
     progress_total = 0
+    progress_bar_color = colors.rgb_to_565([36, 36, 36])
+    progress_bar_bg_color = colors.rgb_to_565([12, 12, 12])
 
     @staticmethod
     def load_images(images, display):
@@ -78,14 +80,14 @@ class ImageLoader():
             progress_total = 0.001
 
         bar_width = 76
+        bar_height = 4
         filled_width = int((progress_loaded / progress_total) * bar_width)
         filled_width = filled_width if filled_width < bar_width else bar_width
 
-        my_color = colors.rgb_to_565([64, 64, 64])
 
         display.fill(0)
-        display.rect(10, 30, bar_width, 5, my_color)
-        display.rect(10, 30, int(filled_width), 5, my_color, True)
+        display.rect(10, 30, bar_width, bar_height, ImageLoader.progress_bar_bg_color, True)
+        display.rect(10, 30, int(filled_width), bar_height, ImageLoader.progress_bar_color, True)
         display.show()
 
     @staticmethod

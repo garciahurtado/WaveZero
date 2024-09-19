@@ -1,3 +1,4 @@
+import gc
 import random
 import framebuf
 import time
@@ -5,9 +6,10 @@ import utime
 
 from anim.animation import Animation
 from color.framebuffer_palette import FramebufferPalette
+from color.framebuffer_palette import FramebufferPalette as fp
 from sprites.spritesheet import Spritesheet
 from color import color_util as colors
-
+from profiler import Profiler as prof
 
 class DeathAnim(Animation):
     def __init__(self, display):
@@ -19,7 +21,7 @@ class DeathAnim(Animation):
         self.player = None
         self.elapsed_time = 0
         self.total_duration = 2000  # Total animation duration in milliseconds
-        self.debris_count: int = 100
+        self.debris_count: int = 80
         self.debris = [None] * self.debris_count
         self.explosion_center = None
         self.running = False
@@ -33,27 +35,36 @@ class DeathAnim(Animation):
         self.debris_large = Spritesheet(filename='/img/debris_large.bmp', frame_width=8, frame_height=6).frames
 
         # Define blue and cyan colors in RGB format
-        self.debris_colors_rgb = [
-            [0, 31, 159],
-            [0, 58, 169],
-            [0, 92, 181],
-            [0, 119, 191],
-            [0, 161, 205],
-            [0, 255, 255],
-            [180, 240, 240],
+        self.debris_colors_hex = [
+            0x001F9F,
+            0x003AA9,
+            0x005CB5,
+            0x0077BF,
+            0x00A1CD,
+            0x00FFFF,
+            0xB4F0F0,
         ]
 
-        self.debris_colors_int = [colors.rgb_to_565(rgb, color_format=colors.RGB565) for rgb in self.debris_colors_rgb]
-        self.fire_colors = [colors.rgb_to_565(rgb) for rgb in self.debris_colors_rgb]
+        debris_colors_int = [colors.hex_to_565(rgb, format=fp.BGR565) for rgb in self.debris_colors_hex]
+        fire_colors_int = [colors.hex_to_565(rgb) for rgb in self.debris_colors_hex]
 
         # Create 5 separate palettes, one for each color
         self.debris_palettes = []
+        self.fire_palettes = []
 
-        for color in self.debris_colors_int:
+        for debris_c, fire_c in zip(debris_colors_int, fire_colors_int):
             palette = FramebufferPalette(2)
             palette.set_int(0, 0x0000)
-            palette.set_int(1, int(color))
+            palette.set_int(1, int(debris_c))
             self.debris_palettes.append(palette)
+
+            palette2 = FramebufferPalette(2)
+            palette2.set_int(0, 0x0000)
+            palette2.set_int(1, int(fire_c))
+            self.fire_palettes.append(palette2)
+
+        """Flyweight objects """
+        self.debris = [None] * self.debris_count
 
     def start_animation(self, x, y):
         self.elapsed_time = 0
@@ -62,9 +73,14 @@ class DeathAnim(Animation):
         self.speed = self.orig_speed
 
         debris_speed = self.speed * 0.0007
-        self.debris = [None] * self.debris_count
 
-        for idx in range(self.debris_count):  # Increased number of debris pieces
+        print("Before creating DEBRIS")
+        gc.collect()
+        self.check_mem()
+
+        prof.start_profile("death.debris_create")
+
+        for idx in range(self.debris_count):
             pid = self.get_random_palette_id()
             choice = random.choice([0,1,2,3]) - 1
 
@@ -86,6 +102,12 @@ class DeathAnim(Animation):
                 'palette_id': pid,
                 'max_age': max_age,
             }
+
+        prof.end_profile("death.debris_create")
+
+        gc.collect()
+        self.check_mem()
+
         self.running = True
 
     def get_random_palette_id(self):
@@ -95,8 +117,8 @@ class DeathAnim(Animation):
     def draw_explosion(self, x, y, radius):
         for i in range(16):
             palette_id = self.get_random_palette_id()
-            palette = self.debris_palettes[palette_id]
-            color = palette.get_bytes(1)
+            palette = self.fire_palettes[palette_id]
+            color = palette.get_int(1)
 
             fact = int(radius * self.elapsed_time / 100)  # Scale based on elapsed time
 
@@ -140,7 +162,6 @@ class DeathAnim(Animation):
         # Update and draw debris
         for d in self.debris:
             if frame_time > d['max_age']:
-                self.debris.remove(d)
                 continue
 
             d['x'] += d['dx'] * delta_time
@@ -164,4 +185,7 @@ class DeathAnim(Animation):
     def create_bike_half(self):
         # Placeholder: Replace with actual left half of bike sprite loading
         return framebuf.FrameBuffer(bytearray([0xFF] * (16 * 22)), 16, 22, framebuf.GS2_HMSB)
+
+    def check_mem(self):
+        print(f"Free memory:  {gc.mem_free():,} bytes")
 

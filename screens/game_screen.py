@@ -24,7 +24,7 @@ from profiler import Profiler as prof
 
 class GameScreen(Screen):
     ground_speed: int = const(-0)
-    max_ground_speed: int = const(-2000)
+    max_ground_speed: int = const(-1000)
     grid: RoadGrid = None
     sun: Sprite = None
     sun_start_x = None
@@ -32,10 +32,7 @@ class GameScreen(Screen):
     enemies: SpriteManager = None
     max_sprites: int = 200
     saved_ground_speed = 0
-    """ We have 2 diff widths in order to use one for calculations involving 3D objects, and another one for 
-    the display of the grid, which follows different rendering rules / 3D algo """
-    lane_width: int = const(26)
-    lane_width_grid: int = const(24)
+    lane_width: int = const(24)
     num_lives: int = const(4)
     total_frames = 0
     last_update_ms = 0
@@ -43,8 +40,8 @@ class GameScreen(Screen):
     player = None
     last_perf_dump_ms = 0
     input_task = None
-    crash_y_start = const(46)  # Screen start Y of Sprites which will collide with the player
-    crash_y_end = const(62)  # Screen end Y
+    crash_y_start = const(52)  # Screen start Y of Sprites which will collide with the player
+    crash_y_end = const(100)  # Screen end Y
     death_task = None
     paused = False
     fx_callback = None
@@ -61,12 +58,12 @@ class GameScreen(Screen):
         self.init_camera()
         self.check_mem()
 
-        print("-- Creating UI...")
-        self.ui = ui_screen(display, self.num_lives)
-
         print("-- Preloading images...")
         self.preload_images()
         self.check_mem()
+
+        print("-- Creating UI...")
+        self.ui = ui_screen(display, self.num_lives)
 
         self.check_mem()
         print("-- Creating player sprite...")
@@ -76,11 +73,11 @@ class GameScreen(Screen):
         self.collider.add_callback(self.do_crash)
 
         print("-- Creating road grid...")
-        self.grid = RoadGrid(self.camera, display, lane_width=self.lane_width_grid)
+        self.grid = RoadGrid(self.camera, display, lane_width=self.lane_width)
 
         self.check_mem()
         print("-- Creating Sprite Manager...")
-        self.enemies = SpriteManager(display, self.max_sprites, self.camera, self.lane_width, grid=self.grid)
+        self.enemies = SpriteManager(display, self.max_sprites, self.camera, grid=self.grid)
 
         self.death_anim = DeathAnim(display)
         self.death_anim.callback = self.after_death
@@ -110,8 +107,10 @@ class GameScreen(Screen):
     def preload_images(self):
         images = [
             {"name": "bike_sprite.bmp", "width": 32, "height": 22, "color_depth": 4},
-            # {"name": "holo_tri.bmp", "width": 20, "height": 20, "color_depth": 4},
-            # {"name": "laser_wall.bmp", "width": 22, "height": 10, "color_depth": 4},
+            # {"name": "laser_wall.bmp", "width": 24, "height": 10, "color_depth": 4},
+            # {"name": "alien_fighter.bmp", "width": 24, "height": 16, "color_depth": 4},
+            {"name": "road_barrier_yellow.bmp", "width": 24, "height": 15, "color_depth": 4},
+            {"name": "road_barrier_yellow_inv.bmp", "width": 24, "height": 15, "color_depth": 4},
             {"name": "sunset.bmp", "width": 20, "height": 10, "color_depth": 8},
             {"name": "life.bmp", "width": 12, "height": 8},
             {"name": "debris_bits.bmp", "width": 4, "height": 4, "color_depth": 1},
@@ -140,10 +139,10 @@ class GameScreen(Screen):
         self.update_score_task = loop.create_task(self.mock_update_score())
 
         # Start the road speed-up task
-        self.speed_anim = AnimAttr(self, 'ground_speed', self.max_ground_speed, 1500, easing=AnimAttr.ease_in_out_sine)
+        self.speed_anim = AnimAttr(self, 'ground_speed', self.max_ground_speed, 2000, easing=AnimAttr.ease_in_out_sine)
         loop.create_task(self.speed_anim.run(fps=60))
 
-        self.player.has_physics = True
+        self.player.has_physics = False
         self.player.visible = True
 
         print("-- Starting stage")
@@ -250,8 +249,6 @@ class GameScreen(Screen):
             await asyncio.sleep_ms(50)
 
     def after_death(self):
-        loop = asyncio.get_event_loop()
-
         if self.num_lives == 0:
             self.player.visible = False
             self.ui.show_game_over()
@@ -264,17 +261,20 @@ class GameScreen(Screen):
 
     def init_camera(self):
         # Camera
-        horiz_y: int = 18
-        camera_z: int = -45
+        horiz_y: int = 16
+        pos_y = 50
+        max_sprite_height = -6
+
         self.camera = PerspectiveCamera(
             self.display,
             pos_x=0,
-            pos_y=54,
-            pos_z=camera_z,
+            pos_y=pos_y,
+            pos_z=-int(pos_y/2),
             vp_x=0,
-            vp_y=horiz_y-6,
-            min_y=horiz_y,
-            max_y=self.display.height)
+            vp_y=horiz_y,
+            min_y=horiz_y+4,
+            max_y=self.display.height + max_sprite_height,
+            fov=90.0)
 
         # self.camera = PerspectiveCamera(
         #     self.display,

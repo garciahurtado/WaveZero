@@ -25,9 +25,12 @@ SPRITE_LASER_WALL_x5 = const(80)
 SPRITE_LASER_WALL_POST = const(90)
 SPRITE_WHITE_DOT = const(100)
 SPRITE_WHITE_LINE = const(104)
+SPRITE_WHITE_LINE_x2 = const(106)
 SPRITE_WHITE_LINE_x5 = const(108)
 SPRITE_WHITE_LINE_VERT = const(120)
+SPRITE_WHITE_LINE_VERT_x3 = const(125)
 SPRITE_WHITE_LINE_VERT_x6 = const(130)
+SPRITE_ALIEN_FIGHTER = const(135)
 
 SPRITE_HOLO_TRI = const(200)
 
@@ -52,18 +55,18 @@ SPRITE_DATA_LAYOUT = {
 
     # 1-byte (8-bit) fields
     "sprite_type": uctypes.UINT8 | 18,   # 1 byte at offset 18
-    "visible": uctypes.UINT8 | 19,       # 1 byte at offset 19
-    "active": uctypes.UINT8 | 20,        # 1 byte at offset 20
-    "pos_type": uctypes.UINT8 | 21,      # 1 byte at offset 21
-    "frame_width": uctypes.UINT8 | 22,   # 1 byte at offset 22
-    "frame_height": uctypes.UINT8 | 23,  # 1 byte at offset 23
-    "current_frame": uctypes.UINT8 | 24, # 1 byte at offset 24
-    "num_frames": uctypes.UINT8 | 25,    # 1 byte at offset 25
-    "lane_num": uctypes.INT8 | 26,       # 1 byte at offset 26
-    "lane_mask": uctypes.UINT8 | 27,     # 1 byte at offset 27
-    "draw_x": uctypes.INT8 | 28,         # 1 byte at offset 28
-    "draw_y": uctypes.INT8 | 29,         # 1 byte at offset 29
-    "color_rot_idx": uctypes.UINT8 | 30,     # 1 byte at offset 30
+    "active": uctypes.UINT8 | 19,        # 1 byte at offset 19
+    "pos_type": uctypes.UINT8 | 20,      # 1 byte at offset 20
+    "frame_width": uctypes.UINT8 | 21,   # 1 byte at offset 21
+    "frame_height": uctypes.UINT8 | 22,  # 1 byte at offset 22
+    "current_frame": uctypes.UINT8 | 23, # 1 byte at offset 23
+    "num_frames": uctypes.UINT8 | 24,    # 1 byte at offset 24
+    "lane_num": uctypes.INT8 | 25,       # 1 byte at offset 25
+    "lane_mask": uctypes.UINT8 | 26,     # 1 byte at offset 26
+    "draw_x": uctypes.INT8 | 27,         # 1 byte at offset 27
+    "draw_y": uctypes.INT8 | 28,         # 1 byte at offset 28
+    "floor_y": uctypes.INT8 | 29,        # 1 byte at offset 29
+    "color_rot_idx": uctypes.UINT8 | 30, # 1 byte at offset 30
     "flags": uctypes.UINT8 | 31,         # 1 byte at offset 31
 }
 

@@ -74,33 +74,28 @@ class RoadGrid():
     far_z = 0
     speed = 0
     speed_ms = 0
-    field_width = 0
 
     def __init__(self, camera, display, lane_width=None):
 
         self.width = camera.screen_width
         self.height = camera.screen_height
-        self.num_horiz_lines = 20
+        self.num_horiz_lines = 24
         self.num_vert_lines = 16
         self.vert_points = []
         self.display = display
         self.paused = False
 
         self.camera = camera
-        self.horiz_y = camera.vp['y'] + 4
+        self.horiz_y = camera.vp['y'] + 2
         print(f"Horizon Y: {self.horiz_y}")
 
-        self.far_z_vert = 2000
+        self.far_z_vert = 1500
         self.near_z = 1
         self.min_z = -10
 
         self.lane_width = lane_width  # width in 3D space
-        self.lane_depth = lane_width * 2  # depth of a grid square along the Z axis
-
-        # For vertical road lines only
-        self.max_spacing = self.lane_width
-        self.field_width = (self.lane_width * 5)
-
+        self.lane_depth = lane_width * 1  # depth of a grid square along the Z axis
+        self.lane_width_grid = lane_width * 0.623 # only the omnissiah knows where this number comes from
 
         self.x_start_top = 0
         self.x_start_bottom = 0
@@ -197,9 +192,10 @@ class RoadGrid():
 
     def create_horiz_lines(self, num_lines):
         start_z = -60
-        for i in range(num_lines - 1, 0, -1):
-            self.horiz_lines_data.append({'z': (i * self.lane_depth) - start_z})
+        for i in range(0, num_lines):
+            self.horiz_lines_data.append({'z': (i * self.lane_depth) + start_z})
 
+        self.horiz_lines_data.reverse()
         self.far_z_horiz = (num_lines) * self.lane_depth + 400
 
 
@@ -208,10 +204,10 @@ class RoadGrid():
 
         num_vert_lines = self.num_vert_lines
 
-        lane_width_far, _ = self.camera.to_2d(self.lane_width, 0, self.far_z_vert // 3)  # calc. lane width in 2D
+        lane_width_far, _ = self.camera.to_2d(self.lane_width_grid, 0, self.far_z_vert // 3)  # calc. lane width in 2D
         lane_width_far = lane_width_far - self.camera.half_width + 1
 
-        lane_width_near, _ = self.camera.to_2d(self.lane_width, 0, self.near_z) # used to measure the lane width in screen space
+        lane_width_near, _ = self.camera.to_2d(self.lane_width_grid, 0, self.near_z) # used to measure the lane width in screen space
         lane_width_near = lane_width_near - self.camera.half_width + 2
         print(f"lane_width_near: {lane_width_near}")
         half_top = (num_vert_lines * lane_width_far) // 2
@@ -350,10 +346,13 @@ class RoadGrid():
                 self.display.hline(0, start_y, self.display_width, color)
 
     def set_lane(self, sprite, lane_num, repeats=0, spacing=0):
-        # lane_num = 0,1,2,3,4
+        """
+        lane_num = 0,1,2,3,4 are the valid lanes, but we allow any number to make
+        positioning of enemies more flexible
+        """
         sprite.lane_num = lane_num
         new_lane_width = self.lane_width
-        sprite.x = round((-2.5*self.lane_width) + (lane_num * new_lane_width))
+        sprite.x = math.ceil((-2.5*self.lane_width) + (lane_num * new_lane_width))
 
         if repeats:
             """Multi image sprite"""
@@ -382,28 +381,27 @@ class RoadGrid():
             Partially occupied lanes are considered fully occupied.
         """
 
-        lane_num = sprite.lane_num
+        first_lane = sprite.lane_num
 
         num_lanes = 5
 
         # Calculate total width based on repeats and repeat_spacing
-        total_width = abs(repeats) * abs(repeat_spacing) + self.lane_width
+        total_width = (abs(repeats) * abs(repeat_spacing))
 
         # Calculate how many lanes the sprite occupies
-        lanes_occupied = math.ceil(total_width / self.lane_width)
+        lanes_occupied = int(total_width / self.lane_width)
 
         # Set the bit for the primary lane
-        mask = 1 << lane_num
+        mask = 1 << first_lane
 
         # Determine direction based on sign of repeat_spacing
         direction = 1 if repeat_spacing > 0 else -1
 
         for i in range(1, lanes_occupied):
-            adjacent_lane = (lane_num + i * direction)
+            adjacent_lane = (first_lane + i * direction)
             if 0 <= adjacent_lane <= 4:  # Ensure we're within valid lane numbers
                 mask |= 1 << adjacent_lane
 
-        print(f"LANE MASK : {mask:08b}")
         sprite.lane_mask = mask
         return mask
 

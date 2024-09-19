@@ -2,9 +2,9 @@ import gc
 import sys
 from utime import sleep
 
+# import frozen_img # Created with freezefs: https://github.com/bixb922/freezeFS
 from screens.screen_app import ScreenApp
 from screens.game_screen import GameScreen
-from test_pattern import test_pattern
 
 # from test_screen import TestScreen
 import micropython
@@ -18,7 +18,7 @@ import machine
 # import wav.myPWM
 # import midi.midi_player_2 as midi
 # from midi.simple_pwm_player import SimplePwmPlayer
-# import lib.pwm_with_trigger_pin_scratch as pwm_player
+# import lib.pwm_with_trigger_pin as pwm_player
 
 from machine import Pin
 
@@ -32,6 +32,9 @@ def main():
     print("Compiler opt level: " + str(micropython.opt_level()))
 
     time.sleep(1)
+
+    # midi_test()
+    # return False
 
     app = ScreenApp(96, 64)
     app.load_screen(GameScreen(app.display))

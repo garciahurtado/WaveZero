@@ -29,18 +29,16 @@ class SpriteManager:
     sprite_classes: Dict[int, callable] = {}
     sprite_actions = {}
     sprites_by_type: Dict[str, list] = {}
-    lane_width: int = 0
     half_scale_one_dist = int(0)  # This should be set based on your camera setup
     add_frames = 0  # Number of upscaled frames to add (scale > 1)
     pool = None
     grid = None
     camera: PerspectiveCamera = None
 
-    def __init__(self, display: ssd1331_pio, max_sprites, camera=None, lane_width=None, grid=None):
+    def __init__(self, display: ssd1331_pio, max_sprites, camera=None, grid=None):
         self.display = display
 
         self.max_sprites = max_sprites
-        self.lane_width = lane_width
         self.grid = grid
 
         self.check_mem()
@@ -129,11 +127,6 @@ class SpriteManager:
         prof.end_profile('mgr.pool_get')
 
         self.sprites_by_type[sprite_type].append(idx)
-
-        #     new_sprite.speed = meta.speed
-        #     new_sprite.frame_width = meta.width
-        #     new_sprite.frame_height = meta.height
-        #     new_sprite.num_frames = meta.num_frames
 
         # Set user values passed to the create method
         prof.start_profile('mgr.set_kwargs')
@@ -256,60 +249,70 @@ class SpriteManager:
         """The update function only applies to a single sprite at a time, and it is responsible for killing expired
         / out of bounds sprites, as well as updating the x and y draw coordinates based on the 3D position and camera view
         """
+        visible = types.get_flag(sprite, FLAG_VISIBLE)
+        active = types.get_flag(sprite, FLAG_ACTIVE)
 
-        if not types.get_flag(sprite, FLAG_ACTIVE):
+        if not active:
             return False
 
-        if not sprite.speed:
-            return False
+        if sprite.speed:
+            prof.start_profile('mgr.update_z_speed')
+            new_z = int(sprite.z + (sprite.speed * elapsed))
+            prof.end_profile('mgr.update_z_speed')
+        else:
+            new_z = sprite.z
 
-        prof.start_profile('mgr.update_z_speed')
-        new_z = sprite.z + (sprite.speed * elapsed)
-        prof.end_profile('mgr.update_z_speed')
-
-        if new_z == sprite.z:
-            return False
-
-        sprite.z = int(new_z)
         if sprite.z == 0:
             sprite.z = 1
 
         cam = self.camera
 
-        if new_z < cam.far and not types.get_flag(sprite, FLAG_VISIBLE):
+        if sprite.z < cam.far and not visible:
             types.set_flag(sprite, FLAG_VISIBLE)
+        elif new_z == sprite.z and sprite.scale:
+            """ We check for sprite.scale to give static sprites that just spawned a change to calculate its render 
+            attributes once. """
+            """ Nothing more needs to change, since it hasn't moved"""
+            return False
+        else:
+            sprite.z = new_z
 
         """ The rest of the calculations are only relevant for visible sprites within the frustrum"""
-
-        disp = self.display
-
-        if not types.get_flag(sprite, FLAG_VISIBLE):
+        if not visible:
             return True
 
-        if new_z < cam.near:
+        if sprite.z < cam.near:
             """Past the near clipping plane"""
             self.pool.release(sprite, meta)
             return False
 
         """1. Get the Scale according to Z for a starting 2D Y"""
         prof.start_profile('mgr.sprite_scale')
-        draw_y, scale = cam.get_scale(sprite.z)
+        sprite.floor_y, scale = cam.get_scale(sprite.z)
+        prof.end_profile('mgr.sprite_scale')
+
 
         """1. Add the scaled 3D Y (substract) + sprite height from the starting 2D Y. This way we scale both numbers 
         in one single operation"""
+        prof.start_profile('mgr.sprite_height_adjust')
+        #
         if sprite.y or meta.height:
-            draw_y -= round(scale * (sprite.y + meta.height))
+            """ Draw the sprite at Y - (sprite height) """
+            scaled_height = int(scale * (sprite.y + meta.height))
+            draw_y = sprite.floor_y - scaled_height
+        else:
+            draw_y = sprite.floor_y
 
+        prof.end_profile('mgr.sprite_height_adjust')
 
-        if draw_y < 0:
-            print(f"NEGATIVE DRAW Y: {draw_y} / sc: {scale} / z: {sprite.z} / height: {meta.height} ")
-
+        # @TODO
+        # if draw_y < 0:
+        #     print(f"NEGATIVE DRAW Y: {draw_y} / sc: {scale} / z: {sprite.z} / height: {meta.height} ")
 
         sprite.scale = scale
-        prof.end_profile('mgr.sprite_scale')
 
         # the scalars below are pretty much trial and error "magic" numbers
-        vp_scale = ((cam.max_vp_scale) * sprite.scale * 0.8) + 0.6
+        # vp_scale = ((cam.max_vp_scale) * sprite.scale)
 
         """ We have to adjust for the fact that 3D vertical axis and 2D vertical axis run in opposite directions,
         so we add the sprite height to Y in 3D space before translating to 2D"""
@@ -317,11 +320,11 @@ class SpriteManager:
         # draw_x, draw_y = self.to_2d(sprite.x, sprite.y, sprite.z)
 
         prof.start_profile('mgr.sprite_scale_post')
+        #
+        draw_x = sprite.x * scale
+        draw_x -= cam.vp_x * cam.max_vp_scale * scale * 1.2 # magic number
+        draw_x += self.half_width
 
-        draw_x = (sprite.x * scale) + self.half_width
-        draw_x = int(draw_x - (cam.vp_x * vp_scale))
-
-        # print(f"Sprite X: {sprite.x} Draw X: {draw_x}")
 
         # FROM OLD CODE:
         # Apply vanishing point adjustment
@@ -336,8 +339,7 @@ class SpriteManager:
         frame_idx = self.get_frame_idx(scale, sprite.num_frames)
         prof.end_profile('mgr.get_frame_idx')
 
-
-        sprite.draw_x = math.ceil(draw_x)
+        sprite.draw_x = int(draw_x)
         sprite.draw_y = int(draw_y)
 
         sprite.current_frame = frame_idx
@@ -357,8 +359,9 @@ class SpriteManager:
                     self.rotate_sprite_palette(sprite, meta)
 
             next_node = current.next
+
             if not types.get_flag(sprite, FLAG_ACTIVE):
-                self.pool.release(sprite)
+                self.pool.release(sprite, meta)
 
             current = next_node
 
@@ -373,7 +376,7 @@ class SpriteManager:
                 for action in actions:
                     action.update(sprites, elapsed)
 
-                action(display, self.camera, sprite.draw_x, sprite.draw_y, sprite.x, sprite.y, sprite.z, sprite.frame_width)
+                action(self.camera, sprite.draw_x, sprite.draw_y, sprite.x, sprite.y, sprite.z, sprite.frame_width)
 
     def rotate_sprite_palette(self, sprite, meta):
         sprite.color_rot_idx = (sprite.color_rot_idx + 1) % len(meta.rotate_palette)
@@ -413,9 +416,13 @@ class SpriteManager:
                          palette=palette, alpha=alpha)
         else:
             """Draw horizontal clones of this sprite"""
+            # draw_x = (sprite.x * cam.aspect_ratio * scale) + self.half_width
+            # draw_x = int(draw_x - (cam.vp_x * vp_scale))
+            #
             for i in range(0, meta.repeats):
+                # x = start_x + (meta.repeat_spacing * sprite.scale * i * self.camera.aspect_ratio)
                 x = start_x + (meta.repeat_spacing * sprite.scale * i)
-                self.do_blit(x=int(x), y=start_y, display=display, frame=image.pixels,palette=palette, alpha=alpha)
+                self.do_blit(x=round(x), y=start_y, display=display, frame=image.pixels,palette=palette, alpha=alpha)
 
         return True
 
@@ -430,6 +437,7 @@ class SpriteManager:
 
     # @timed
     def to_2d(self, x, y, z, vp_scale=1):
+        print(f"MGR calling 2D X/Y/Z: {x} {y} {z}")
         prof.start_profile('mgr.to_2d')
 
         camera = self.camera
@@ -444,21 +452,6 @@ class SpriteManager:
         meta = self.get_meta(sprite)
 
         return self.grid.set_lane(sprite, lane_num, meta.repeats, meta.repeat_spacing)
-
-    def get_lane(self, sprite):
-        """
-        Return the lane a sprite is in, based on its X coordinate.
-        Values returned are in range [0,1,2,3,4]
-        """
-        norm_x = (self.lane_width * 2.5) - sprite.x
-        # Calculate the center of the sprite
-        sprite_center = norm_x - (sprite.frame_width / 2)
-
-        # Calculate which lane the center of the sprite is in
-        lane_num = round(sprite_center / self.lane_width)
-
-        # Ensure lane_num is within valid range
-        return max(0, min(4, lane_num))
 
     def get_meta(self, sprite):
         meta = self.sprite_metadata[sprite.sprite_type]
@@ -482,9 +475,8 @@ class SpriteManager:
         prof.start_profile('mgr.get_frame_idx.mult')
         frame_idx = int(scale * num_frames)
         prof.end_profile('mgr.get_frame_idx.mult')
-
         prof.start_profile('mgr.get_frame_idx.min')
-        ret = min(frame_idx, num_frames - 1)
+        ret = min(max(frame_idx, 0), num_frames - 1)
         prof.end_profile('mgr.get_frame_idx.min')
 
         return ret

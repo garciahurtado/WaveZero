@@ -1,12 +1,14 @@
 from sprites2.sprite_types import *
 
-class WarningWall(SpriteType):
-    name = SPRITE_BARRIER_LEFT
-    image_path = "/img/road_barrier_yellow.bmp"
+class AlienFighter(SpriteType):
+    name = SPRITE_ALIEN_FIGHTER
+    image_path = "/img/alien_fighter.bmp"
+    y = 42
     width = 24
-    height = 15
+    height = 16
     color_depth = 4
     alpha = None
+    speed = -30
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

@@ -30,6 +30,7 @@ class ui_screen():
     lives_sprites = []
     lives_text = None
     dirty = True
+    max_life_sprites = 3
 
     def __init__(self, display, num_lives) -> None:
         self.dirty = True
@@ -62,10 +63,6 @@ class ui_screen():
         format = colors.BGR565
 
         self.palette_all = FramebufferPalette(4)
-        # self.palette_all.set_bytes(0, colors.hex_to_565(BLACK, format=format))
-        # self.palette_all.set_bytes(1, colors.hex_to_565(YELLOW, format=format))
-        # self.palette_all.set_bytes(2, colors.hex_to_565(CYAN, format=format))
-        # self.palette_all.set_bytes(3, colors.hex_to_565(WHITE, format=format))
 
         inv = True if format == colors.RGB565 else False
         self.palette_all.set_rgb(0, colors.hex_to_rgb(BLACK, inv=inv))
@@ -91,8 +88,16 @@ class ui_screen():
             color_format=fb.GS4_HMSB)
 
         self.lives_text.orig_x = 7
-        self.lives_text.orig_y = 0
+        self.lives_text.orig_y = 1
         self.num_lives = num_lives
+
+        self.lives_sprites.append(self.life_sprite)
+        for i in range(1, self.max_life_sprites):
+            new_sprite = self.life_sprite.clone()
+            new_sprite.visible = False
+            new_sprite.x = i * 12
+            new_sprite.y = 0
+            self.lives_sprites.append(new_sprite)
 
         self.render_lives()
 
@@ -153,15 +158,12 @@ class ui_screen():
         self.dirty = True
 
     def render_life_icons(self, num):
-        self.lives_sprites = []
-
-        for i in range(0, num):
-            x, y = i * 12, -1
-            new_sprite = self.life_sprite.clone()
-            new_sprite.x = x
-            new_sprite.y = y
-            new_sprite.visible = True
-            self.lives_sprites.append(new_sprite)
+        for i in range(0, len(self.lives_sprites)):
+            one_sprite = self.lives_sprites[i]
+            if i >= num:
+                one_sprite.visible = False
+            else:
+                one_sprite.visible = True
 
     def update_score(self, new_score):
         if new_score == self.score:

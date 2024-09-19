@@ -24,7 +24,7 @@ class PlayerSprite(Spritesheet):
         self.turn_incr = 2500  # lane switching speed / turning speed
         self.camera = camera
         self.half_width = int(self.camera.half_width)
-        self.set_layer_mask(self.current_lane)
+        self.set_lane_mask(self.current_lane)
 
     def move_left(self):
         if (self.current_lane == 0):
@@ -76,7 +76,7 @@ class PlayerSprite(Spritesheet):
             if bike_angle <= target_angle:
                 current_lane = target_lane
                 bike_angle = target_angle
-                self.set_layer_mask(current_lane)
+                self.set_lane_mask(current_lane)
                 self.moving = False
 
             self.adjust_pos(bike_angle)
@@ -86,7 +86,7 @@ class PlayerSprite(Spritesheet):
             if bike_angle >= target_angle:
                 current_lane = target_lane
                 bike_angle = target_angle
-                self.set_layer_mask(current_lane)
+                self.set_lane_mask(current_lane)
                 self.moving = False
 
             self.adjust_pos(bike_angle)
@@ -94,11 +94,8 @@ class PlayerSprite(Spritesheet):
         self.turn_angle = bike_angle
         self.current_lane = current_lane
 
-
-    def set_layer_mask(self, lane):
+    def set_lane_mask(self, lane):
         self.lane_mask = 1 << lane
-
-        print(f"PLAYER MASK: {self.lane_mask:08b}")
 
     def adjust_pos(self, bike_angle):
         bike_angle = min(bike_angle, 1)  # Clamp the input between -1 and 1

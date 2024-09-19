@@ -50,6 +50,18 @@ PALETTE_CODE_GREEN = {
     0X002C1E,
 }
 
+PALETTE_CODE_BLUE = {
+    0x0C2840,
+    0x004F79,
+    0x0089CE,
+    0x00C4FF,
+    0x00FFFF,
+    0x00C4FF,
+    0x0089CE,
+    0x004F79,
+    0x0C2840,
+}
+
 def convert_hex_palette(hex_palette, color_mode=RGB565):
     color_list_palette = FramebufferPalette(len(hex_palette), color_mode=color_mode)
     inv = False if (color_mode == RGB565) else True

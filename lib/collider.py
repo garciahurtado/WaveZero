@@ -21,12 +21,16 @@ class Collider:
             return False
 
         player_lane_mask = self.player.lane_mask
+        sprite_y = None
 
         for sprite in collide_against:
-            # print(f"CHeck against {sprite} - {self.crash_y_start} <= {sprite.draw_y} < {self.crash_y_end}")
+            sprite_y = sprite.floor_y
+            # print(f"CHECK AGAINST {sprite} - {self.crash_y_start} <= {crash_y} < {self.crash_y_end}")
+            # print(f"SPRITE MASK: {sprite.lane_mask:08b} / player mask: {player_lane_mask:08b}")
+
             # We use Bitwise AND between the two lane_masks to check for overlap
-            if (self.crash_y_start <= sprite.draw_y < self.crash_y_end and
-                    sprite.lane_mask & player_lane_mask):
+            if ((self.crash_y_start <= sprite_y < self.crash_y_end) and
+                    (sprite.lane_mask & player_lane_mask)):
                 self.on_crash_callback()
                 return True
 
