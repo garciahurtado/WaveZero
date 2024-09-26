@@ -42,7 +42,9 @@ class Stage1(Stage):
                 # evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z),
                 evt.spawn(SPRITE_WHITE_LINE_VERT, lane=0, z=spawn_z),
                 evt.spawn(SPRITE_WHITE_LINE_VERT, lane=5, z=spawn_z),
-                evt.spawn(SPRITE_WHITE_LINE_x5, lane=0, z=spawn_z),
+                evt.spawn(SPRITE_WHITE_LINE_VERT, lane=0, z=spawn_z, y=line_height),
+                evt.spawn(SPRITE_WHITE_LINE_VERT, lane=5, z=spawn_z, y=line_height),
+                evt.spawn(SPRITE_WHITE_LINE_x5, lane=0, z=spawn_z, y=line_height*2),
                 # evt.spawn(SPRITE_WHITE_LINE_VERT_x3, lane=3, z=spawn_z),
 
                 evt.wait(tiny_wait)],

@@ -7,9 +7,9 @@ from color import color_util as colors
 class LaserWall(SpriteType):
     name = SPRITE_LASER_WALL
     image_path = "/img/laser_wall.bmp"
-    speed = -100
-    width = 25
-    height = 15
+    speed = 0
+    width = 24
+    height = 10
     color_depth = 4
     alpha = None
     x = 0
@@ -34,17 +34,17 @@ class LaserWall(SpriteType):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        new_palette = FramebufferPalette(len(self.rotate_new_palette))
-        for i, color in enumerate(self.rotate_new_palette):
-            rgb = colors.hex_to_rgb(color)
-            new_palette.set_rgb(i, rgb)
+        # new_palette = FramebufferPalette(len(self.rotate_new_palette))
+        # for i, color in enumerate(self.rotate_new_palette):
+        #     rgb = colors.hex_to_rgb(color)
+        #     new_palette.set_rgb(i, rgb)
+        #
+        # self.rotate_palette = new_palette
+        #
+        # anim = PaletteRotateOne(self.palette, self.rotate_palette, 500, 1)
+        # self.animations.append(anim)
 
-        self.rotate_palette = new_palette
-
-        anim = PaletteRotateOne(self.palette, self.rotate_palette, 500, 1)
-        self.animations.append(anim)
-
-    def rotate_palette(self):
+    def do_rotate_palette(self):
         if not self.palette or not self.rotate_new_palette:
             return False
 

@@ -22,9 +22,15 @@ import machine
 
 from machine import Pin
 
+from screens.test_screen import TestScreen
+
 
 def main():
-    machine.freq(250_000_000)
+    # micropython.opt_level(0)
+
+    # machine.freq(250_000_000)
+    machine.freq(40_000_000)
+
     current_freq = machine.freq()
     print(f"CPU: {current_freq / 1_000_000} MHz")
 
@@ -37,8 +43,9 @@ def main():
     # return False
 
     app = ScreenApp(96, 64)
-    app.load_screen(GameScreen(app.display))
+    # app.load_screen(GameScreen(app.display))
     # app.load_screen(TitleScreen(app.display))
+    app.load_screen(TestScreen(app.display))
 
     print("After loading screen class")
     app.run()

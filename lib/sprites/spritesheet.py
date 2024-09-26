@@ -81,7 +81,7 @@ class Spritesheet(Sprite):
         if frame_num >= len(self.frames):
             raise KeyError(f"Frame {frame_num} is invalid (only {len(self.frames)} frames)")
 
-        # print(f"SET FRAME {frame_num}")
+        print(f"SET FRAME {frame_num}")
         self.current_frame = frame_num
         self.image = self.frames[frame_num]
 

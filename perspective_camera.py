@@ -69,10 +69,8 @@ class PerspectiveCamera():
         self.max_z = self.far
         self.near_plus_epsilon = self.near + 0.000001
 
-        # self.compare_methods()
         self._precalculate_scale_cache()
-
-        self.to_2d_test(self.min_z, self.max_z)
+        # self.to_2d_test(self.min_z, self.max_z)
 
 
     def calculate_fov(self, focal_length: float) -> float:
@@ -222,46 +220,21 @@ class PerspectiveCamera():
         return screen_y
 
     def _precalculate_scale_cache(self):
-        # Calculate the start and stop values for logspace
-        # start = np.log10(self.near)
-        # stop = np.log10(self.far)
-        # start = self.near
-        # stop = self.far
+        """ min_y and max_y are from 2D space """
 
-
-        # min_y and max_y are from 2D space
-
-        if self.min_y  >= self.max_y:
+        if self.min_y >= self.max_y:
             raise ArithmeticError("Min Y cannot be higher than Max Y")
-
-        # Calculate logarithmically spaced values manually
-        # ratio = (stop / start)
-        # z_values = []
-        # for i in range(self._cache_size):
-        #     z_values.append(int(start * (ratio ** i)))
-        #
-        # # Remove duplicates and sort
-        # z_values = sorted(set(z_values))
-        #
-        # print(f"Z VALUES: (count {len(z_values)}")
-        # print(z_values)
-        # cache_size = (self.max_y - self.min_y) + 10 # Make room for negative Z, or > 1 scale
 
         y_range = self.max_y - self.min_y
 
-        # self._scale_cache = np.array([0.0001] * cache_range)
-        # self._scale_cache_z = np.array([0] * cache_range, dtype=np.uint16)
         self._scale_cache = []
         self._scale_cache_z = []
         self._scale_cache_y = []
 
-        last_z = z = 0
         for start, end, step in self._cache_steps:
             for z in range(start, end + step, step):
                 """ Takes a Z value from the 0/max_z range and converts it to a scale, which converts to a Y coord, and gets added as the index
                 of a new entry into the cache array"""
-
-                # z = z - self.near
 
                 if z <= self.min_z:
                     scale = 1
@@ -302,27 +275,6 @@ class PerspectiveCamera():
         # self._scale_cache.append(0.001)
         # self._scale_cache_z.append(self.far)
         # self._scale_cache_y.append(0)
-
-        print("==== CACHES ====")
-        # print(self._scale_cache)
-        # print(f"LEN: {len(self._scale_cache)}")
-        # print(self._scale_cache_z)
-        # print(f"LEN: {len(self._scale_cache_z)}")
-        # print(self._scale_cache_y)
-        # print(f"LEN: {len(self._scale_cache_y)}")
-        for idx, rec in enumerate(zip(self._scale_cache, self._scale_cache_y, self._scale_cache_z)):
-            print(f"R idx #{idx}: scale: {rec[0]:.04f}\t y:{rec[1]}\t  z:{rec[2]}  ")
-
-        # Convert scale cache to numpy array
-        # self._scale_cache_scale = array('H', self._scale_cache_scale) # 2 bytes
-
-        # print("*** SCALE CACHE ***")
-        # for i, val in enumerate(self._scale_cache):
-        #     print(f"[{i}] -> {val/self.integer_factor}")
-        #
-        # print("*** Z SCALE CACHE ***")
-        # for i, val in enumerate(self._scale_cache_z):
-        #     print(f"[{i}] -> {val}")
 
     def get_scale(self, z):
         """ For a given Z coordinate, return the 2D Y coordinate, as well as the scale at which the sprite

@@ -33,6 +33,7 @@ SPRITE_WHITE_LINE_VERT_x6 = const(130)
 SPRITE_ALIEN_FIGHTER = const(135)
 
 SPRITE_HOLO_TRI = const(200)
+SPRITE_TEST_SQUARE = const(210)
 
 """
     Flag Bits:

@@ -1,5 +1,6 @@
 import gc
 
+import uctypes
 from micropython import const
 import micropython
 
@@ -146,8 +147,10 @@ class SpriteManager:
 
         #Create images and frames
         if sprite_type not in self.sprite_images:
+            print(f"sprite type: {sprite_type} - creating scaled images")
             prof.start_profile('mgr.create_images')
-            self.sprite_images[sprite_type] = self.load_img_and_scale(meta, sprite_type)
+            new_img = self.load_img_and_scale(meta, sprite_type)
+            self.sprite_images[sprite_type] = new_img
             prof.end_profile('mgr.create_images')
 
         prof.start_profile('mgr.set_flags')
@@ -212,6 +215,7 @@ class SpriteManager:
 
         byte_size = (new_width * new_height) // (8 // color_depth)
         new_bytes = bytearray(byte_size)
+        new_bytes_addr = uctypes.addressof(new_bytes)
 
         if color_depth == 4:
             buffer_format = framebuf.GS4_HMSB
@@ -236,7 +240,7 @@ class SpriteManager:
                     color2 = orig_img.pixels.pixel(x_2, y_1)
                     new_buffer.pixel(x + 1, y, color2)
 
-        return create_image(new_width, new_height, new_buffer, memoryview(new_bytes),
+        return create_image(new_width, new_height, new_buffer, new_bytes, new_bytes_addr,
                             orig_img.palette, orig_img.palette_bytes, color_depth)
 
     def set_camera(self, camera):
@@ -317,22 +321,11 @@ class SpriteManager:
         """ We have to adjust for the fact that 3D vertical axis and 2D vertical axis run in opposite directions,
         so we add the sprite height to Y in 3D space before translating to 2D"""
 
-        # draw_x, draw_y = self.to_2d(sprite.x, sprite.y, sprite.z)
-
         prof.start_profile('mgr.sprite_scale_post')
-        #
         draw_x = sprite.x * scale
         draw_x -= cam.vp_x * cam.max_vp_scale * scale * 1.2 # magic number
         draw_x += self.half_width
-
-
-        # FROM OLD CODE:
-        # Apply vanishing point adjustment
-        # screen_x = int(screen_x - (vp_x * vp_scale))
-
         prof.end_profile('mgr.sprite_scale_post')
-
-        # print(f"NEW Y: {my_y} / OLD Y: {draw_y}")
 
         prof.start_profile('mgr.get_frame_idx')
 
@@ -398,10 +391,10 @@ class SpriteManager:
         alpha = meta.alpha_color
         palette:FramebufferPalette = self.sprite_palettes[sprite_type]
 
-        if meta.rotate_palette:
-            color = meta.rotate_palette[sprite.color_rot_idx]
-            # Apply the rotated color to the sprite's palette
-            palette.set_int(0, color)
+        # if meta.rotate_palette:
+        #     color = meta.rotate_palette[sprite.color_rot_idx]
+        #     # Apply the rotated color to the sprite's palette
+        #     palette.set_int(0, color)
 
         frame_id = sprite.current_frame # 255 sometimes ???
         image = self.sprite_images[sprite_type][frame_id]
@@ -416,11 +409,7 @@ class SpriteManager:
                          palette=palette, alpha=alpha)
         else:
             """Draw horizontal clones of this sprite"""
-            # draw_x = (sprite.x * cam.aspect_ratio * scale) + self.half_width
-            # draw_x = int(draw_x - (cam.vp_x * vp_scale))
-            #
             for i in range(0, meta.repeats):
-                # x = start_x + (meta.repeat_spacing * sprite.scale * i * self.camera.aspect_ratio)
                 x = start_x + (meta.repeat_spacing * sprite.scale * i)
                 self.do_blit(x=round(x), y=start_y, display=display, frame=image.pixels,palette=palette, alpha=alpha)
 
@@ -486,8 +475,12 @@ class SpriteManager:
     def show(self, display: framebuf.FrameBuffer):
         """ Display all the active sprites """
         current = self.pool.head
+
         while current:
             sprite = current.sprite
+            #
+            # print(f"VISIBLE: {SpriteType.get_flag(sprite, SpriteType.FLAG_VISIBLE)}")
+            # print(f"ACTIVE:  {SpriteType.get_flag(sprite, SpriteType.FLAG_ACTIVE)}")
 
             if types.get_flag(sprite, FLAG_VISIBLE):
                 self.show_sprite(sprite, display)

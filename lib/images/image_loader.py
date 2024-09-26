@@ -14,7 +14,7 @@ class ImageLoader():
 
     progress_loaded = 0
     progress_total = 0
-    progress_bar_color = colors.rgb_to_565([36, 36, 36])
+    progress_bar_color = colors.rgb_to_565([24, 24, 24])
     progress_bar_bg_color = colors.rgb_to_565([12, 12, 12])
 
     @staticmethod

@@ -1,9 +1,11 @@
 import math
 
+import framebuf
+import uctypes
 from framebuf import *
-from struct import  unpack
+from struct import unpack
 
-from color.framebuffer_palette import FramebufferPalette
+from color.framebuffer_palette import FramebufferPalette as BufPalette
 from images.indexed_image import Image, create_image
 from color import color_util as colors
 
@@ -47,9 +49,9 @@ class BMPReader():
             header.ppb = 8 // header.color_depth
             header.pmask = 0xFF >> (8 - header.color_depth)
 
-            palette = self._read_palette(file, header)
+            palette, palette_bytes = self._read_palette(file, header)
 
-            maybe_frames = self._read_pixels(file, header, frame_width, frame_height, progress_callback)
+            maybe_frames, pixel_bytes = self._read_pixels(file, header, frame_width, frame_height, progress_callback)
 
             """ We have multiple frames"""
             if type(maybe_frames) is list:
@@ -59,7 +61,8 @@ class BMPReader():
                 frames = None
                 pixels = maybe_frames
 
-            loaded_image = self._as_image(header, pixels, palette, header.color_depth, frames)
+            pixel_bytes_addr = uctypes.addressof(pixel_bytes)
+            loaded_image = self._as_image(header, pixels, pixel_bytes, pixel_bytes_addr, palette, palette_bytes, header.color_depth, frames)
 
             return loaded_image
 
@@ -101,7 +104,7 @@ class BMPReader():
 
         return meta
 
-    def _read_palette(self, file, header) -> FramebufferPalette:
+    def _read_palette(self, file, header) -> (BufPalette, bytearray):
         """
         Read color palette data for indexed color modes.
 
@@ -111,18 +114,27 @@ class BMPReader():
         :return: FramebufferPalette object
         """
         color_depth, num_colors = header.color_depth, header.num_colors
+        palette_bytes = bytearray(num_colors * 2)
 
+        # print("READING PALETTE")
         if color_depth <= 8:
-            palette = FramebufferPalette(num_colors)
+            palette = BufPalette(num_colors)
             for color_idx in range(num_colors):
                 """ The colors are stored in RGB format, but we need to extract the bytes as little endian"""
 
-                color_data = file.read(4)
+                color_data = file.read(4) # Read 4 bytes at a time and discard the last one (alpha)
+                # print(f"palette color data RGB: 0x{color_data[0]:02x}{color_data[1]:02x}{color_data[2]:02x}")
                 color_bytes = colors.byte3_to_byte2([color_data[0], color_data[1], color_data[2]])
-                color = int.from_bytes(color_bytes[:3], "little")
+
+                # print(f"color bytes: 0x{color_bytes[0]:02x}{color_bytes[1]:02x}")
+
+                color = int.from_bytes(color_bytes[:2], "little")
+                palette_bytes[color_idx * 2] = color_bytes[0]
+                palette_bytes[color_idx * 2 + 1] = color_bytes[1]
+
                 palette.set_bytes(color_idx, color)
 
-            return palette
+            return palette, palette_bytes
         else:
             raise TypeError(f"Invalid color depth:{color_depth}")
 
@@ -135,6 +147,8 @@ class BMPReader():
         :param frame_height: Height of each frame in a sprite sheet (optional)
         :return: List of FrameBuffer objects for sprite sheets, or a single FrameBuffer for regular images
         """
+
+        byte_data = None
 
         if (frame_width and frame_height) and frame_height < meta.height:
             """ This is a spritesheet"""
@@ -154,14 +168,14 @@ class BMPReader():
             if not meta.is_top_down:
                 self.frames.reverse()
 
-            return self.frames
+            return self.frames, byte_data
 
         else:
             """ normal sprite """
-            frame_buffer, _bytes = self._create_frame_buffer(meta.width, meta.height, meta.color_format)
+            frame_buffer, byte_data = self._create_frame_buffer(meta.width, meta.height, meta.color_format)
             self._read_frame_data(file, frame_buffer, meta, meta.height)
 
-            return frame_buffer
+            return frame_buffer, byte_data
 
 
     def _read_frame_data(self, file, frame_buffer: FrameBuffer, header, frame_height) -> None:
@@ -200,7 +214,17 @@ class BMPReader():
     def _create_frame_buffer(self, width:int, height:int, color_format: int) -> tuple[FrameBuffer, bytearray]:
         """Create a frame buffer for storing pixel data of the image (or frame of a spritesheet)."""
         frame_size = width * height
-        byte_pixels = bytearray(frame_size)
+
+        if color_format == framebuf.GS8:
+            div = 1
+        elif color_format == framebuf.GS4_HMSB:
+            div = 2
+        elif color_format == framebuf.GS2_HMSB:
+            div = 4
+        else:
+            div = 1/1
+
+        byte_pixels = bytearray(int(frame_size // div))
         fbuffer = FrameBuffer(
             byte_pixels,
             width,
@@ -225,14 +249,15 @@ class BMPReader():
 
         return (data[byte_index] >> shift) & pmask
 
-    def _as_image(self, meta, pixels, palette, color_depth, frames=None):
+    def _as_image(self, meta, pixels, pixel_bytes, pixel_bytes_addr, palette, palette_bytes, color_depth, frames=None):
         new_image = create_image(
                 meta.width,
                 meta.height,
                 pixels,
-                None,
+                pixel_bytes,
+                pixel_bytes_addr,
                 palette,
-                None,
+                palette_bytes,
                 color_depth,
                 frames)
         return new_image
