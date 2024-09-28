@@ -5,7 +5,7 @@ import asyncio
 class Profiler():
     profile_labels = OrderedDict()
     _task_local = {}
-    enabled = False
+    enabled = True
 
     @staticmethod
     def _get_current_task():
@@ -66,13 +66,16 @@ class Profiler():
         Profiler._task_local.clear()
 
     @staticmethod
-    def dump_profile():
+    def dump_profile(filter=None):
+        """
+        Filter: only the profile tags matching the string will be shown
+        """
         if not Profiler.enabled:
             return False
 
         print("\n")
-        print(f"{'func': <32} {'runs': <8} {'avg ms': <14} {'total ms': >20} ")
-        print("-------------------------------------------------------------------------------\n")
+        print(f"{'func': <32} {'runs': <8} {'avg ms': <14} {'total ms': >9} ")
+        print("--------------------------------------------------------------------")
 
         if not Profiler.profile_labels:
             print("No profiling data available.")
@@ -82,13 +85,17 @@ class Profiler():
             for record in sorted_labels:
                 record = record[1]
                 num_runs, _, total_time, label = record
+
+                if filter and filter not in label:
+                    continue
+
                 if num_runs == 0:
-                    print(f"{label: <32} {'N/A': <8} {'N/A': <14} {'N/A': >20}")
+                    print(f"{label: <32} {'N/A': <8} {'N/A': <14} {'N/A': >9}")
                 else:
                     avg_time = total_time / num_runs
                     avg_time_ms = avg_time / 1000
                     total_time_ms = total_time / 1000
-                    print(f"{label: <32} {num_runs: <8} {avg_time_ms: <14.4f} {total_time_ms: >20.2f}")
+                    print(f"{label: <32} {num_runs: <8} {avg_time_ms: <14.4f} {total_time_ms: >9.2f}")
 
         print("\n")
 

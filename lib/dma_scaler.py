@@ -8,10 +8,10 @@ from machine import Pin, mem32
 from rp2 import DMA, PIO, const
 
 from framebuf import FrameBuffer
-
+from profiler import Profiler as prof
 from dump_object import dump_object
 from images.indexed_image import Image
-import uctypes
+from uctypes import addressof
 from array import array
 import utime
 
@@ -21,6 +21,9 @@ import utime
 # 0x08c CH2_CTRL_TRIG
 # 0x090 CH2_AL1_CTRL
 # 0x094 CH2_AL1_READ_ADDR
+
+CH3_AL3_TRANS_COUNT = 0x0f8
+CH3_AL1_TRANS_COUNT_TRIG = 0x0dc
 
 CH2_AL1_TRANS_COUNT_TRIG=0x09c
 CH4_READ_ADDR=0x100
@@ -56,6 +59,7 @@ DMA_BASE_3 = const(0x500000C0)
 DMA_BASE_4 = const(0x50000100)
 DMA_BASE_5 = const(0x50000140)
 DMA_BASE_6 = const(0x50000180)
+DMA_BASE_7 = const(0x500001C0)
 
 DMA_READ_ADDR = 0x000
 DMA_WRITE_ADDR = 0x004
@@ -105,35 +109,20 @@ class DMAScaler:
 
     @rp2.asm_pio(
         sideset_init=PIO.OUT_LOW,
-        out_shiftdir=PIO.SHIFT_LEFT,
+        out_shiftdir=PIO.SHIFT_RIGHT,
         in_shiftdir=PIO.SHIFT_RIGHT,
     )
     def pixel_demux():
-        pull()              .side(0)[4]  # Pull 32 bits, set side pin to 0, wait 2 cycles
-        # mov(y, null)        .side(1)[4]           # Set Y to 0 (source of zero bits)
-        set(x, 3)           .side(0)[4]       # Set up loop counter (4 iterations, 0-3)
+        pull()              .side(0)[0]       # Pull 32 bits (4 bytes), set side pin to 0, wait 2 cycles
+        set(x, 7)           .side(1)[0]       # Set up loop counter (8 iterations, 0-7)
 
         label("loop")
-        out(y, 4)           .side(1)[4]       # take in 4 bits
-        in_(y, 8)
+        out(y, 4)           .side(0)[0]       # pull 4 bits from OSR
+        in_(y, 8)                             # spit them out as 8
         push()
 
-        jmp(x_dec, "loop")  .side(1)[4]        # Decrement counter and loop if not zero
+        jmp(x_dec, "loop")  .side(1)[0]        # Decrement counter and loop if not zero
 
-        # irq(block, 0)
-
-        # set(x, 3)               .side(1)[2]  # Set loop counter to 3 (4 iterations total, one per byte)
-        #
-        # label("loop")
-        # out(y, 8)               .side(0)[2]  # Get 8 bits into y
-        # mov(isr, y)             .side(1)[2]  # Copy y to ISR
-        # in_(null, 24)           .side(0)[2]  # Shift right by 24, 4 MSB now in LSB
-        #
-        # mov(y, isr)             .side(0)[2]  # Restore y from ISR
-        # in_(null, 28)           .side(1)[2]  # Shift right by 28, 4 LSB now in LSB
-        # push(noblock)           .side(0)[2]  # Push second 4 bits (was LSB, still in LSB)
-        #
-        # jmp(x_dec, "loop")      .side(1)[2]  # Decrement x and jump if not zero
 
     dma_pixel_read = None
     dma_palette = None
@@ -142,7 +131,7 @@ class DMAScaler:
     def init_pio(self):
         # Set up the PIO state machine
         # freq = 125 * 1000 * 1000
-        freq = 10 * 1000 * 1000
+        freq = 1 * 1000 * 1000
         sm_id = 4 # 1st SM in PIO1
         sm = rp2.StateMachine(sm_id)
 
@@ -157,24 +146,48 @@ class DMAScaler:
         self.sm = sm
 
 
-    def __init__(self, display, channel2, channel3, channel4, channel5, channel6):
+    def __init__(self, display, palette_size, channel2, channel3, channel4, channel5, channel6, channel7):
 
         self.display = display
         self.screen_width = self.display.width
         self.screen_height = self.display.height
+        self.palette_size = palette_size
 
         """ DMA Channels"""
         self.dma_img_read = channel2
         self.dma_pixel_read = channel3
+        self.dma_pixel_read_rst = channel7
         self.dma_palette = channel4
         self.dma_palette_ctrl = channel6
         self.dma_pixel_out = channel5
 
-        debug_bytes = array("B", [0] * 64)
+        debug_bytes = array("B", [0] * 256)
         self.debug_bytes = debug_bytes
 
         read_ctrl_block = array("I", [4])
         self.read_ctrl_block = read_ctrl_block
+
+        self.palette_buffer = array("H", [0x00FF, 0xFF00, 0xF00F])
+        self.palette_buffer_addr = addressof(self.palette_buffer)
+
+        self.single_colors_addrs = array("I", [0] * palette_size)
+
+        palette_size = len(self.single_colors_addrs)
+        for i in range(palette_size):
+            self.single_colors_addrs[i] = self.palette_buffer_addr + (i*2)
+
+        print(f"PALETTE COLOR ADDRS ({palette_size})")
+        print()
+
+        for i in range(palette_size):
+            print(f"0x{self.single_colors_addrs[i]:08x}")
+
+        print()
+
+
+        self.count_rst = array("I", [4])
+        self.count_rst_addr = addressof(self.count_rst)
+        print(f"COUNT RESETTER: {self.count_rst} addr {self.count_rst_addr}")
 
         self.init_pio()
         print(f"Screen dimensions: {self.screen_width}x{self.screen_height}")
@@ -188,33 +201,17 @@ class DMAScaler:
         print("+++ A PIO IRQ OCCURRED ++++")
         print()
 
-    def setup_dma(self, read_addr, write_addr, sprite_width, sprite_height, palette_size, palette_read_addr):
+    def setup_dma(self, read_addr, write_addr, sprite_width, sprite_height, palette_size):
         # Get the correct FIFO addresses
 
-        tx_fifo_addr = 0x50300000 + 0x10
-        rx_fifo_addr = 0x50300000 + 0x20
-
-        print(f"Writing a {sprite_width}x{sprite_height} sprite")
-        print(f"Address check: read:{read_addr:08x} write:{write_addr:08x}")
-        print()
-
-        #
         # for i in range(sprite_height):
         #     desc_write = int(write_addr + ((i * self.screen_width) * self.bytes_per_pixel))
         #     self.descriptors.append(desc_write)
-        #     # self.descriptors[i * 4 + 3] = uctypes.addressof(self.descriptors) + ((i + 1) % sprite_height) * 16
+        #     # self.descriptors[i * 4 + 3] = addressof(self.descriptors) + ((i + 1) % sprite_height) * 16
 
         num_pixels = sprite_width * sprite_height
 
-        print(f"DEBUG BYTES ADDR: 0x{uctypes.addressof(self.debug_bytes):08x}")
-
         """ Image Read DMA channel - CH #2 - (feeds SM) --------------------------------------- """
-        pio_num = 0  # PIO program number
-        sm_num = 0  # State Machine number
-        DATA_REQUEST_INDEX = (pio_num << 3) + sm_num
-
-        palette_read_addr_addr = uctypes.addressof(palette_read_addr)
-
         dma_img_read_ctrl = self.dma_img_read.pack_ctrl(
             size=2,
             inc_read=True,
@@ -223,11 +220,11 @@ class DMAScaler:
             chain_to=self.dma_pixel_read.channel,
         )
         self.dma_img_read.config(
-            count=64,
+            count=num_pixels//2,
             read=read_addr,
             write=PIO1_TX,
-            # write=self.debug_bytes,
             ctrl=dma_img_read_ctrl,
+            trigger=True
         )
         # self.dma_img_read.irq(handler=dma_callback, hard=True)
 
@@ -238,22 +235,26 @@ class DMAScaler:
             inc_read=False,
             inc_write=False,
             treq_sel=DREQ_PIO1_RX0,
-            chain_to=self.dma_img_read.channel
+            # chain_to=self.dma_img_read.channel,
+            # chain_to=self.dma_palette.channel,
+            high_pri=True,
+            bswap=True,
         )
         self.dma_pixel_read.config(
-            count=128,
+            count=num_pixels,
             read=PIO1_RX,
             write=DMA_BASE_4 + DMA_TRANS_COUNT_TRIG,
             # write=self.debug_bytes,
             ctrl=dma_pixel_read_ctrl,
+            trigger=True
         )
-        # self.dma_pixel_read.irq(handler=dma_callback, hard=True)
+#         self.dma_pixel_read.irq(handler=dma_callback, hard=True)
 
         # DMA_BASE = 0x50000000
         # DMA_WRITE = 0x0c4
         # 0x11c
         # value = DMA_BASE + CH4_AL1_TRANS_COUNT_TRIG
-        # value = uctypes.addressof(self.dma_palette.registers) + (7 * 4)
+        # value = addressof(self.dma_palette.registers) + (7 * 4)
         # mem32[DMA_BASE + DMA_WRITE] = value
 
         """ Palette DMA channel - CH #4 - --------------------------------------- """
@@ -262,20 +263,36 @@ class DMAScaler:
             size=2,  # 2 bytes per transfer \
             inc_read=True,
             inc_write=False,
-            chain_to=self.dma_pixel_read.channel,
-            ring_size=palette_size,
+            chain_to=self.dma_pixel_out.channel,
+            # chain_to=self.dma_img_read.channel,
+            ring_size=3,
             ring_sel=False,
+            bswap=True,
         )
 
         self.dma_palette.config(
-            count=1,
-            read=palette_read_addr,
-            write=DMA_BASE_5 + CH5_READ_ADDR,
-            # write=self.debug_bytes,
+            count=0,
+            read=self.single_colors_addrs,
+            write=DMA_BASE_5 + CH5_AL1_READ_ADDR,
             ctrl=dma_palette_ctrl,
         )
-        # self.dma_palette.irq(handler=dma_callback, hard=True)
+#         self.dma_palette.irq(handler=dma_callback, hard=True)
 
+        """ Pixel out DMA channel - CH #5 --------------------- """
+        dma_pixel_out_ctrl = self.dma_pixel_out.pack_ctrl(
+            size=1,  # 16bit pixels
+            inc_read=False,
+            inc_write=True,
+            chain_to=self.dma_pixel_read.channel,
+        )
+
+        self.dma_pixel_out.config(
+            count=1,
+            read=0,
+            write=write_addr,
+            ctrl=dma_pixel_out_ctrl
+        )
+        self.dma_pixel_out.irq(handler=dma_callback, hard=True)
 
         """ palette ch ctrl DMA channel - CH #6 - Reconfigures palette read addr ------------------- """
         dma_palette_ctrl_ctrl = self.dma_palette_ctrl.pack_ctrl(
@@ -286,87 +303,109 @@ class DMAScaler:
         )
         self.dma_palette_ctrl.config(
             count=1,
-            read=palette_read_addr_addr,
-            write=DMA_BASE_4 + CH4_AL1_READ_ADDR,
+            read=self.palette_buffer_addr,
+            write=DMA_BASE_4 + CH4_READ_ADDR,
             ctrl=dma_palette_ctrl_ctrl,
         )
+#         self.dma_palette_ctrl.irq(handler=dma_callback, hard=True)
 
-
-        """ Pixel out DMA channel - CH #5 --------------------- """
-        dma_pixel_out_ctrl = self.dma_pixel_out.pack_ctrl(
-            size=1,  # 16bit pixels
+        """ Reload #3 COUNT - CH #7 --------------------- """
+        dma_pixel_read_rst_ctrl = self.dma_pixel_read_rst.pack_ctrl(
+            size=2,
             inc_read=False,
-            inc_write=True,
-            chain_to=self.dma_palette_ctrl.channel,
+            inc_write=False,
+            chain_to=self.dma_img_read.channel
         )
 
-        self.dma_pixel_out.config(
-            count=2,
-            read=0,
-            write=write_addr,
-            ctrl=dma_pixel_out_ctrl
+        self.dma_pixel_read_rst.config(
+            count=1,
+            read=self.count_rst_addr,
+            write=CH3_AL1_TRANS_COUNT_TRIG,
+            ctrl=dma_pixel_read_rst_ctrl
         )
+#         self.dma_pixel_read_rst.irq(handler=dma_callback, hard=True)
 
-        print(f"DMA channels configured for sprite dimensions: {sprite_width}x{sprite_height}")
 
-    def show(self, image: Image, x, y, width, height, palette_bytes):
-        print("==== PIXELBYTES ====")
-        # print(f"LEN: {len(image.pixel_bytes)}")
+    def show(self, image: Image, x, y, width, height, palette_size):
+        print("==== PIXELBYTES SIZE ====")
+        print(f"LEN: {len(image.pixel_bytes)}")
 
-        read_addr = uctypes.addressof(image.pixel_bytes)
-        print()
+        read_addr = addressof(image.pixel_bytes)
+
         # print(f"SRC IMG ADDR: 0x{read_addr:016x}")
-        print()
 
         # write_addr = self.display.write_addr + ((y * self.screen_width) + x) * self.bytes_per_pixel
         write_addr = self.display.write_addr
+        write_offset = ((y * self.screen_width) + x) * 2 # since the display is 16 bit, we multiply x 2
+        num_pixels = width * height
 
+        print(f"DRAWING AT {x},{y} ({width}x{height}) COLORS: {palette_size}")
+        print(f"OFFSET: {write_offset}")
+        print(f"READING {num_pixels} PIXELS in {len(image.pixel_bytes)} BYTES")
 
-        palette_size = len(palette_bytes)//2
-        palette_bytes_addr = array("I", [0] * palette_size)
-        palette_read_addr=uctypes.addressof(palette_bytes)
+        write_addr += write_offset
 
-        for i in range(0, palette_size):
-            palette_bytes_addr[i] = palette_read_addr + i * 4
+        # palette_size = len(palette_bytes)//2
+        # palette_bytes_addrs = array("I", [0] * palette_size)
+        # palette_read_addr=addressof(palette_bytes)
 
-        print("PALETTE BYTES ADDRS:")
-        print(palette_bytes_addr)
+        # for i in range(0, palette_size):
+        #     addr = palette_read_addr + (i * 4)
+        #     # print(f"ADDED {addr} to palette")
+        #     palette_bytes_addrs[i] = addr
 
-        self.setup_dma(read_addr, write_addr, width, height, palette_size, palette_bytes_addr)
+        prof.start_profile('scaler.setup_dma')
+        self.setup_dma(read_addr, write_addr, width, height, palette_size)
+        prof.end_profile('scaler.setup_dma')
 
-        self.debug_dma(self.dma_img_read, DMA_BASE_2, 'start')
-        print(f"DMA 2 COUNT: {mem32[DMA_BASE_2 + 0x024]:08x}")
-        self.debug_status(DMA_BASE_2 + 0x010, 2)
+        #
+        # print("PALETTE BYTES ADDRS:")
+        # print(palette_bytes_addrs)
+        #
+        #
+        # self.debug_dma(self.dma_img_read, DMA_BASE_2, 'start')
+        # print(f"DMA 2 COUNT: {mem32[DMA_BASE_2 + 0x024]:08x}")
+        # self.debug_pio_status()
+        #
+        # self.debug_dma(self.dma_pixel_read, DMA_BASE_3, 'start')
+        # print(f"DMA 3 COUNT: {mem32[DMA_BASE_3 + 0x024]:08x}")
+        # self.debug_pio_status()
+        #
+        # self.debug_dma(self.dma_palette, DMA_BASE_4, 'start')
+        # print(f"DMA 4 COUNT: {mem32[DMA_BASE_4 + 0x024]:08x}")
+        # self.debug_pio_status()
+        #
+        # self.debug_dma(self.dma_pixel_out, DMA_BASE_5, 'start')
+        # print(f"DMA 5 COUNT: {mem32[DMA_BASE_5 + 0x024]:08x}")
+        # self.debug_pio_status()
+        #
+        # self.debug_dma(self.dma_palette_ctrl, DMA_BASE_6, 'start')
+        # print(f"DMA 6 COUNT: {mem32[DMA_BASE_6 + 0x024]:08x}")
+        # self.debug_pio_status()
+        #
+        # self.debug_dma(self.dma_pixel_read_rst, DMA_BASE_7, 'start')
+        # print(f"DMA 7 COUNT: {mem32[DMA_BASE_7 + 0x024]:08x}")
+        # self.debug_pio_status()
 
-        self.debug_dma(self.dma_pixel_read, DMA_BASE_3, 'start')
-        print(f"DMA 3 COUNT: {mem32[DMA_BASE_3 + 0x024]:08x}")
-        self.debug_status(DMA_BASE_3 + 0x010, 3)
-
-        self.debug_dma(self.dma_palette, DMA_BASE_4, 'start')
-        print(f"DMA 4 COUNT: {mem32[DMA_BASE_4 + 0x024]:08x}")
-        self.debug_status(DMA_BASE_4 + 0x010, 4)
-
-        self.debug_dma(self.dma_palette_ctrl, DMA_BASE_6, 'start')
-        print(f"DMA 6 COUNT: {mem32[DMA_BASE_6 + 0x024]:08x}")
-        self.debug_status(DMA_BASE_6 + 0x010, 2)
-
-
-        print(f"ADDR OF DEBUG_BYTES: {uctypes.addressof(self.debug_bytes):08x}")
+        # print(f"ADDR OF DEBUG_BYTES: {addressof(self.debug_bytes):08x}")
 
         # Start the DMA transfer chain
         self.sm.active(1)
-        time.sleep_ms(10)
-
         self.dma_img_read.active(1)
         self.dma_pixel_read.active(1)
         self.dma_palette.active(1)
         self.dma_palette_ctrl.active(1)
         self.dma_pixel_out.active(1)
+        self.dma_pixel_read_rst.active(1)
 
+        # self.debug_register()
 
+        time.sleep_ms(2)
 
-        while self.dma_img_read.active():
-            time.sleep_ms(1)
+        """ As far as DMA goes, active and busy are the same thing """
+        while (self.dma_img_read.active() or
+               self.dma_pixel_out.active()):
+
             print("=====================================================")
             self.debug_register()
 
@@ -374,56 +413,67 @@ class DMAScaler:
             print(f"RX FIFO: {self.sm.rx_fifo()}")
 
             self.debug_dma(self.dma_img_read, DMA_BASE_2,'in_loop')
-            self.debug_status(DMA_BASE_2 + 0x010, 2)
-
-            # self.debug_dma(self.dma_img_read_reload, DMA_BASE_6, 'in_loop')
-            # self.debug_status(DMA_BASE_6 + 0x010, 2)
+            self.debug_pio_status()
 
             self.debug_dma(self.dma_pixel_read, DMA_BASE_3, 'in_loop')
-            self.debug_status(DMA_BASE_3 + 0x010, 2)
+            self.debug_pio_status()
 
             self.debug_dma(self.dma_palette, DMA_BASE_4, 'in_loop')
-            self.debug_status(DMA_BASE_4 + 0x010, 2)
+            self.debug_pio_status()
 
+            self.debug_dma(self.dma_pixel_out, DMA_BASE_5, 'in_loop')
+            self.debug_pio_status()
+
+            self.debug_dma(self.dma_palette_ctrl, DMA_BASE_6, 'in_loop')
+            self.debug_pio_status()
+            #
+            # print("----------------------------------------------")
+            self.debug_register()
             print("----------------------------------------------")
-            print()
-            print("DEBUG BYTES")
-            print()
-            print("----------------------------------------------")
-
-            self.debug_buffer(self.debug_bytes)
-            print()
+            #
+            # self.debug_buffer(self.debug_bytes)
             print()
 
-        self.debug_dma(self.dma_img_read, DMA_BASE_2, 'end')
-        self.debug_status(DMA_BASE_2 + 0x010, 2)
+            pass
+
+
+        # self.debug_dma(self.dma_img_read, DMA_BASE_2, 'end')
+        # self.debug_pio_status()
+        # #
+        # # self.debug_dma(self.dma_img_read_reload, DMA_BASE_6, 'start')
+        # # self.debug_status(DMA_BASE_6 + 0x010, 2)
         #
-        # self.debug_dma(self.dma_img_read_reload, DMA_BASE_6, 'start')
-        # self.debug_status(DMA_BASE_6 + 0x010, 2)
-
-        self.debug_dma(self.dma_pixel_read, DMA_BASE_3, 'end')
-        self.debug_status(DMA_BASE_3 + 0x010, 3)
-
-        self.debug_dma(self.dma_palette, DMA_BASE_4, 'end')
-        self.debug_status(DMA_BASE_4 + 0x010, 4)
-
-        self.debug_register()
-
+        # self.debug_dma(self.dma_pixel_read, DMA_BASE_3, 'end')
+        # self.debug_pio_status()
+        #
+        # self.debug_dma(self.dma_palette, DMA_BASE_4, 'end')
+        # self.debug_pio_status()
+        #
+        # self.debug_dma(self.dma_pixel_out, DMA_BASE_5, 'end')
+        # self.debug_pio_status()
+        #
+        # self.debug_dma(self.dma_palette_ctrl, DMA_BASE_6, 'end')
+        # self.debug_pio_status()
+        #
+        # self.debug_dma(self.dma_pixel_read_rst, DMA_BASE_7, 'end')
+        # self.debug_pio_status()
+        #
+        # self.debug_register()
         # self.debug_buffer(self.debug_bytes)
-
-        print(f"  RX FIFO level: {self.sm.rx_fifo()}")
-        print(f"  TX FIFO level: {self.sm.tx_fifo()}")
+        #
+        # print(f"  RX FIFO level: {self.sm.rx_fifo()}")
+        # print(f"  TX FIFO level: {self.sm.tx_fifo()}")
 
         # print(f"IRQ: {irq_read:08x}")
 
-        print(f"Transfer complete. Sprite dimensions: {width}x{height}")
+        # print(f"Transfer complete. Sprite dimensions: {width}x{height}")
 
     def status_to_bytes(self, status_int):
         status_int = status_int.to_bytes(4, 'big')
         status = [status_int[0], status_int[1], status_int[2], status_int[3]]
         return status
 
-    def debug_status(self, addr, num):
+    def debug_pio_status(self):
         # status = self.status_to_bytes(mem32[addr])
         # print(f"DMA {num} STATUS: 0x{mem32[addr]:08x}")
         # print(" 3          2          1          0")
@@ -442,14 +492,24 @@ class DMAScaler:
         print(f"DEBUG REG >>> {deb1:08b}-{deb2:08b}-{deb3:08b}-{deb4:08b} <<<")
 
     def debug_dma(self, dma, base_addr, label):
+        my_dict = dma.unpack_ctrl(dma.registers[3])
+        active_txt = 'ACTIVE' if dma.active() else 'INACTIVE'
         print()
-        print(f"DMA #{dma.channel} | ACT: ({dma.active()}) ({label}):")
-        print("-------------------------------")
-        print(f"0. {dma.registers[0]:016x} R")
-        print(f"1. {dma.registers[1]:016x} W")
-        # print(f" 2. {dma.registers[9]:016x} TX")
-        print(f"2. {mem32[base_addr + 0x024]:016x} TX")
-        print(f"3. {dma.registers[3]:016x} CTRL")
+        print(f"DMA #{dma.channel} | ({active_txt}) ({label}):")
+        print("-------------------------------------")
+        print(f". {dma.registers[0]:016x} R \t{mem32[base_addr + 0x024]:016x} TX")
+        print(f". {dma.registers[1]:016x} W \t{dma.registers[3]:016x} CTRL")
+
+        print(f"4. CTRL UNPACKED |")
+        print(f"                 v")
+        for idx1, idx2 in zip(range(0, len(my_dict), 2), range(1, len(my_dict), 2)):
+            # rangerange(0, len(my_dict), 2):
+            keys = list(my_dict.keys())
+            key1 = keys[idx1]
+            key2 = keys[idx2]
+            value1 = my_dict[key1]
+            value2 = my_dict[key2]
+            print(f".{key1:_<12} {value1:02x} \t\t .{key2:_<12} {value2:02x}")
 
         # for idx, reg in enumerate(dma.registers):
         #     print(f"{idx}- {reg:032x}")

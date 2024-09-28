@@ -28,6 +28,7 @@ from sprites2.sprite_manager_2d import SpriteManager2D
 from sprites2.sprite_types import *
 from dma_scaler import DMAScaler
 from sprites2.test_square import TestSquare
+from profiler import Profiler as prof
 
 CYAN =  0x00FFFF
 GREEN = 0x00FF00
@@ -76,8 +77,10 @@ class TestScreen(Screen):
         ch_4 = DMA()
         ch_5 = DMA()
         ch_6 = DMA()
-        self.scaler = DMAScaler(self.display, ch_2, ch_3, ch_4, ch_5, ch_6)
-        self.kill_timer = 100
+        ch_7 = DMA()
+
+        num_colors = 3
+        self.scaler = DMAScaler(self.display, num_colors, ch_2, ch_3, ch_4, ch_5, ch_6, ch_7)
 
     def run(self):
         self.check_mem()
@@ -137,24 +140,28 @@ class TestScreen(Screen):
     def do_refresh(self):
         """ Overrides parent method """
         # self.mgr.show(self.display)
-        self.display.fill(0x0000)
+        self.display.fill(0xFFFF)
 
         image = self.one_sprite_image
-        width = self.one_sprite_meta.width
-        height = self.one_sprite_meta.height
+        img_width = self.one_sprite_meta.width
+        img_height = self.one_sprite_meta.height
         x = self.one_sprite.x
         y = self.one_sprite.y
 
-        self.scaler.show(image, x, y, width, height, image.palette_bytes)
+        # self.scaler.show(image, x, y, width, height, image.palette_bytes)
 
-        # print("<---- image has been shown ---->")
+        prof.start_profile('scaler.show')
+        self.scaler.show(image, x, y, img_width, img_height, len(image.palette_bytes)//2)
+        prof.end_profile('scaler.show')
+
+        print("<---- image has been shown ---->")
+
         self.display.show()
-        print(" *** DEBUG BYTES *** ")
-        print(self.scaler.debug_bytes)
+        prof.dump_profile('scaler')
 
-        self.kill_timer -= 1
-        if self.kill_timer < 0:
-            sys.exit(1)
+        print("________________________________________")
+        # print(" *** DEBUG BYTES *** ")
+        # print(self.scaler.debug_bytes)
 
         self.fps.tick()
 
@@ -234,7 +241,7 @@ class TestScreen(Screen):
 
         # print(self.mgr.sprite_images[sprite_type][-1])
         # print(f"\tSPRITE_IMAGES: {len(self.mgr.sprite_images)}")
-        self.mgr.sprite_images[sprite_type][-1].palette_bytes
+        # self.mgr.sprite_images[sprite_type][-1].palette_bytes
 
     def load_types(self):
         self.mgr.add_type(
