@@ -61,8 +61,8 @@ class TestScreen(Screen):
         self.init_camera()
         self.init_fps()
 
-        display.fill(0xFFFF)
-        display.show()
+        display.fill(0xAAAAAA)
+        self.display.show()
 
         self.check_mem()
         print("-- Creating Sprite Manager...")
@@ -140,7 +140,8 @@ class TestScreen(Screen):
     def do_refresh(self):
         """ Overrides parent method """
         # self.mgr.show(self.display)
-        self.display.fill(0xFFFF)
+        # self.display.fill(0xAAAAAA)
+
 
         image = self.one_sprite_image
         img_width = self.one_sprite_meta.width
@@ -151,15 +152,16 @@ class TestScreen(Screen):
         # self.scaler.show(image, x, y, width, height, image.palette_bytes)
 
         prof.start_profile('scaler.show')
-        self.scaler.show(image, x, y, img_width, img_height, len(image.palette_bytes)//2)
+        self.scaler.show(image, x, y, img_width, img_height)
         prof.end_profile('scaler.show')
 
         print("<---- image has been shown ---->")
-
         self.display.show()
-        prof.dump_profile('scaler')
 
-        print("________________________________________")
+
+        # prof.dump_profile('scaler')
+
+        # print("________________________________________")
         # print(" *** DEBUG BYTES *** ")
         # print(self.scaler.debug_bytes)
 

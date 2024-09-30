@@ -70,7 +70,7 @@ class Screen:
         #
         # self.display_loop_wait = display_loop_wait
 
-        self.display.show()
+        # self.display.show()
 
     def draw_sprites(self):
         for my_sprite in self.sprites:
