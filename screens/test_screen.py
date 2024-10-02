@@ -35,6 +35,9 @@ GREEN = 0x00FF00
 BLACK = 0x000000
 
 class TestScreen(Screen):
+    debug = True
+    debug_buffer_enable = False
+
     screen_width = 96
     screen_height = 64
 
@@ -80,7 +83,9 @@ class TestScreen(Screen):
         ch_7 = DMA()
 
         num_colors = 3
-        self.scaler = DMAScaler(self.display, num_colors, ch_2, ch_3, ch_4, ch_5, ch_6, ch_7)
+
+        self.scaler = DMAScaler(self.display, num_colors, ch_2, ch_3, ch_4, ch_5, ch_6, ch_7,
+                                debug=self.debug, debug_buffer_enable=self.debug_buffer_enable)
 
     def run(self):
         self.check_mem()
@@ -140,7 +145,7 @@ class TestScreen(Screen):
     def do_refresh(self):
         """ Overrides parent method """
         # self.mgr.show(self.display)
-        # self.display.fill(0xAAAAAA)
+        self.display.fill(0x000000)
 
 
         image = self.one_sprite_image
