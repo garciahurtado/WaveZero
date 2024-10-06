@@ -35,9 +35,6 @@ GREEN = 0x00FF00
 BLACK = 0x000000
 
 class TestScreen(Screen):
-    debug = True
-    debug_buffer_enable = False
-
     screen_width = 96
     screen_height = 64
 
@@ -81,11 +78,11 @@ class TestScreen(Screen):
         ch_5 = DMA()
         ch_6 = DMA()
         ch_7 = DMA()
+        ch_8 = DMA()
 
-        num_colors = 3
+        num_colors = 4
 
-        self.scaler = DMAScaler(self.display, num_colors, ch_2, ch_3, ch_4, ch_5, ch_6, ch_7,
-                                debug=self.debug, debug_buffer_enable=self.debug_buffer_enable)
+        self.scaler = DMAScaler(self.display, num_colors, ch_2, ch_3, ch_4, ch_5, ch_6, ch_7, ch_8)
 
     def run(self):
         self.check_mem()
