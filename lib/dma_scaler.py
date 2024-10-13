@@ -124,7 +124,7 @@ class DMAScaler:
     sm_indices = None
     sm_row_start = None
 
-    debug = True
+    debug = False
     debug_buffer_enable = False
 
     dma_row_read = None
@@ -151,78 +151,49 @@ class DMAScaler:
 
         label("loop")
 
-        nop()               [8]
-        nop()               [8]
-
-        # set(y, null)        [4]
         out(y, 4)           [8]       # pull 4 bits from OSR
         in_(y, 32)          [8]       # spit them out as padded bytes
         push()              [8]
 
-        nop()               [8]
-        nop()               [8]
 
-        jmp(x_dec, "loop")  [4]        # Decrement counter and loop if not zero
+        nop()               [4]
+        nop()               [4]
+        nop()               [4]
 
-    """ 
-        @rp2.asm_pio(
-            sideset_init=PIO.OUT_LOW,
-            in_shiftdir=PIO.SHIFT_LEFT,
-        )
-        def row_start_old():
-            set(x, 0)           .side(0)    [2]
-            pull()              #.side(1)    [4]
-            out(y, 32)          #.side(1)    [4] # the first 4 bytes are saved
-    
-            # jmp("skip_start")
-    
-            wrap_target()
-            pull()                  .side(0)
-            out(x, 32)              #.side(1)[4]
-    
-            label("skip_start")
-    
-            label("y++")
-            jmp(y_dec, "noop")      [4] # Subtract 1, skip the jump, then apply one's complement at the end, so is like a +1
-            label("noop")
-    
-            mov(y, ~y)          .side(0)[4] # ones complement, so now we've subtracted from Y above
-    
-            jmp(x_dec, "y++")       [4]
-    
-            in_(y, 32)            .side(0)  [2] # push out the whole 4 byte addr of the start of the next row
-            push()                          [2]
-    """
+        jmp(x_dec, "loop")  [8]        # Decrement counter and loop if not zero
 
     @rp2.asm_pio(
         sideset_init=PIO.OUT_LOW,
     )
     def row_start():
-        pull()                   .side(0)[4]
-        mov(x, invert(osr))             .side(1)[4]
+        """
+        Generates the next row start address by remembering the first pixel address and
+        progressively adding one row worth of pixels at a time to it.
 
-        nop()                   .side(0)[4]
-        nop()                   .side(0)[4]
+        Uses one's complement addition through substraction:
+        https://github.com/raspberrypi/pico-examples/blob/master/pio/addition/addition.pio
+        """
+        pull()
+        mov(x, invert(osr))
 
         wrap_target()
 
-        pull()                  .side(1)[4]
-        mov(y, osr)             .side(0)[4]
+        pull()
+        mov(y, osr)
 
         jmp("test")
                                             # this loop is equivalent to the following C code:
         label("incr")                       # while (y--)
-        jmp(x_dec, "test")      .side(0)[4] #     x--
+        jmp(x_dec, "test")                  #     x--
 
         label("test")                       # This has the effect of subtracting y from x, eventually.
-        jmp(y_dec, "incr")      .side(0)[4]
-
-        nop()                   .side(0)[4]
-        nop()                   .side(1)[1]
-        nop()                   .side(0)[4]
+        jmp(y_dec, "incr")
+        #
+        nop()                   [2]
+        nop()                   [2]
+        nop()                   [1]
 
         mov(isr, invert(x))
-
         push()
 
     dma_pixel_read = None
@@ -232,7 +203,7 @@ class DMAScaler:
     def init_pio(self):
         # Set up the PIO state machines
         # freq = 125 * 1000 * 1000
-        freq = 4 * 1000
+        freq = 40 * 1000 * 1000
 
         """ Pixel demuxer / index reader """
 
@@ -314,6 +285,8 @@ class DMAScaler:
         # palette_buffer = aligned_buffer(num_colors, 4)
         palette_buffer = array("B", [0x00] * num_colors * 2)
 
+
+        """ ---------------------- COLORS -------------------------"""
         for i, color in enumerate([0x0011, 0xFFFF, 0x00FF, 0xFF00, 0x00FF, 0xF0A0, 0xA0A0, 0x0FFF]):
             palette_buffer[i] = color
 
@@ -414,13 +387,14 @@ class DMAScaler:
             inc_write=False,
             treq_sel=DREQ_PIO1_TX0,
             chain_to=self.dma_row_size.channel,
+            bswap=True
+
         )
         self.dma_row_read.config(
             count=0,            # TBD: img pixels per row // 8
-            read=0,             # TBD: memory address of the first pixel of the byte buffer of the image
+            read=0,             # TBD: memory address of the first pixel of the byte buffer of the sprite
             write=PIO1_TX0,
             ctrl=dma_row_read_ctrl,
-            trigger=True
         )
         # self.dma_row_read.irq(handler=self.row_irq_handler)
 
@@ -438,7 +412,6 @@ class DMAScaler:
             read=PIO1_RX0,
             write=DMA_BASE_4 + DMA_TRANS_COUNT_TRIG,
             ctrl=dma_pixel_read_ctrl,
-            trigger=True
         )
 
         """ Palette DMA channel - CH #4 - --------------------------------------- """
@@ -466,6 +439,7 @@ class DMAScaler:
             inc_read=False,
             inc_write=True,
             chain_to=self.dma_palette_rst.channel,
+            # bswap=True
         )
 
         self.dma_pixel_out.config(
@@ -505,7 +479,7 @@ class DMAScaler:
             inc_read=False,
             inc_write=rs_inc_write,
             treq_sel=DREQ_PIO1_TX1,
-            chain_to=self.dma_row_start.channel,
+            chain_to=self.dma_row_read.channel,
         )
         self.dma_row_size.config(
             count=1,
@@ -532,15 +506,15 @@ class DMAScaler:
             inc_write=rsc_inc_write,
             treq_sel=DREQ_PIO1_RX1,
             chain_to=self.dma_row_read.channel,
-            # bswap=True
         )
         self.dma_row_start.config(
-            count=1,
+            count=32,
             read=PIO1_RX1,
             write=rsc_write,
             ctrl=dma_row_start_ctrl,
+            # trigger=True
         )
-        # self.dma_row_start.irq(handler=self.row_start_irq_handler)
+        self.dma_row_start.irq(handler=self.row_start_irq_handler)
 
     def row_irq_handler(self):
         print("[[[[[[[[ ROW READ IRQ - Triggered ]]]]]]]]]")
@@ -593,7 +567,7 @@ class DMAScaler:
 
         """ ----------- Set variable image configuration on the DMA channels -------------- """
 
-        row_count = math.ceil(width // 8) # number of 4 byte transfers for one full row of the image
+        row_count = int(width // 8) # number of 4 byte transfers for one full row of the image
 
         print(f"IMAGE WIDTH (px): {width}")
         print(f"ROW TX COUNT (32bit): {row_count}")
@@ -602,12 +576,10 @@ class DMAScaler:
         self.dma_row_read.count = row_count                     # CH2
         self.dma_pixel_read.count = 1                           # CH3
         self.dma_pixel_out.read = self.palette_buffer           # CH5
-        # self.dma_pixel_out.write = write_addr                   # CH5
         self.dma_palette.read = self.color_addr_list            # CH4
         self.dma_palette_rst.read = self.rst_addr_ptr           # CH6
-        # self.dma_row_size.read = self.row_size_buff             # CH7
 
-    def show(self, image: Image, x, y, width, height, debug=True):
+    def show(self, image: Image, x, y, width, height):
         print("==== PIXELBYTES SIZE ====")
         # print(f"LEN: {len(image.pixel_bytes)}")
         self.read_complete = False
@@ -650,21 +622,22 @@ class DMAScaler:
 
         print(f"==> PRIMING SM WITH 0x{addr0:08x}")
 
-        self.sm_row_start.put(addr0)
         self.sm_row_start.active(1)
+        self.sm_row_start.put(addr0)
         self.sm_indices.active(1)
 
         # SM
 
         """ We only need to kick off the channels that don't have any other means to get started (like chain_to)"""
+        self.dma_row_start.active(1)
         self.dma_row_read.active(1)
+        self.dma_pixel_read.active(1)
 
         self.debug_fifos()
 
         """ As far as DMA goes, active and busy are the same thing """
         while (not self.read_complete):
-            if debug:
-
+            if self.debug:
                 for i in range(2, 9):
                     idx = i - 2
                     ch = self.channels[idx]
