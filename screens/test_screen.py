@@ -1,5 +1,5 @@
 import math
-from pprint import pprint
+from dma_scaler import DMAScaler
 
 import fonts.vtks_blocketo_6px as font_vtks
 from rp2 import DMA
@@ -7,17 +7,15 @@ from rp2 import DMA
 from font_writer_new import ColorWriter
 
 import utime
+from sprites2.test_square import TestSquare
 
 from images.image_loader import ImageLoader
 from screen import Screen
 
 import uasyncio as asyncio
-import _thread
 import gc
-from micropython import const
 
 from perspective_camera import PerspectiveCamera
-from sprites.scaled_sprite import ScaledSprite
 from color import color_util as colors
 from color.framebuffer_palette import FramebufferPalette
 import framebuf as fb
@@ -26,8 +24,6 @@ import random
 from sprites2.laser_wall import LaserWall
 from sprites2.sprite_manager_2d import SpriteManager2D
 from sprites2.sprite_types import *
-from dma_scaler import DMAScaler
-from sprites2.test_square import TestSquare
 from profiler import Profiler as prof
 
 CYAN =  0x00FFFF
@@ -53,7 +49,7 @@ class TestScreen(Screen):
     scaler = None
 
     def __init__(self, display, *args, **kwargs):
-        super().__init__(display, *args, **kwargs)
+        super().__init__(display)
         print(f"Free memory __init__: {gc.mem_free():,} bytes")
 
         self.score_palette.set_rgb(0, colors.hex_to_rgb(BLACK))
@@ -97,7 +93,7 @@ class TestScreen(Screen):
     def preload_images(self):
         images = [
             # {"name": "bike_sprite.bmp", "width": 32, "height": 22, "color_depth": 4},
-            {"name": "laser_wall.bmp", "width": 24, "height": 10, "color_depth": 4},
+            # {"name": "laser_wall.bmp", "width": 24, "height": 10, "color_depth": 4},
         ]
 
         ImageLoader.load_images(images, self.display)
