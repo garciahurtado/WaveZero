@@ -147,8 +147,6 @@ class TestScreen(Screen):
         x = self.one_sprite.x
         y = self.one_sprite.y
 
-        # self.scaler.show(image, x, y, width, height, image.palette_bytes)
-
         prof.start_profile('scaler.show')
         self.scaler.show(image, x, y, img_width, img_height)
         prof.end_profile('scaler.show')
@@ -229,8 +227,8 @@ class TestScreen(Screen):
         for i in range(0, num_sprites):
             sprite, _ = self.mgr.create(sprite_type, x=45, y=34, z=0)
             sprite.current_frame = 19
-            sprite.x = 45
-            sprite.y = 30
+            sprite.x = 40
+            sprite.y = 15
             sprite.z = 0
             self.sprites.append(sprite)
 
