@@ -1,5 +1,9 @@
 import math
+
+import array
+
 from dma_scaler import DMAScaler
+import random
 
 import fonts.vtks_blocketo_6px as font_vtks
 from rp2 import DMA
@@ -37,6 +41,7 @@ class TestScreen(Screen):
     sprite_max_z = const(1000)
     display_task = None
 
+    last_perf_dump_ms = None
     fps_text: ColorWriter
     sprites = []
     lines = []
@@ -86,7 +91,6 @@ class TestScreen(Screen):
 
         loop = asyncio.get_event_loop()
         loop.create_task(self.start_display_loop())
-
         asyncio.run(self.start_main_loop())
         self.check_mem()
 
@@ -102,11 +106,10 @@ class TestScreen(Screen):
         print("-- Preloading images...")
         self.check_mem()
 
-        self.create_lines()
+        # self.create_lines()
 
         await asyncio.gather(
             asyncio.create_task(self.start_fps_counter()),
-            asyncio.create_task(self.display_line_test())
         )
 
     def create_lines(self):
@@ -138,28 +141,23 @@ class TestScreen(Screen):
     def do_refresh(self):
         """ Overrides parent method """
         # self.mgr.show(self.display)
-        self.display.fill(0x000000)
 
+        self.display.fill(0x000000)
 
         image = self.one_sprite_image
         img_width = self.one_sprite_meta.width
         img_height = self.one_sprite_meta.height
-        x = self.one_sprite.x
-        y = self.one_sprite.y
 
-        prof.start_profile('scaler.show')
-        self.scaler.show(image, x, y, img_width, img_height)
-        prof.end_profile('scaler.show')
+        base_x = self.one_sprite.x
+        base_y = self.one_sprite.y
 
-        print("<---- image has been shown ---->")
+        x1 = int(base_x + random.randrange(-20,10))
+        y1 = int(base_y + random.randrange(-10,20))
+
+        self.scaler.show(image, x1, y1, img_width, img_height)
         self.display.show()
 
-
-        # prof.dump_profile('scaler')
-
-        # print("________________________________________")
-        # print(" *** DEBUG BYTES *** ")
-        # print(self.scaler.debug_bytes)
+        # self.show_prof()
 
         self.fps.tick()
 
@@ -192,6 +190,15 @@ class TestScreen(Screen):
         while True:
             self.sprite_fps_test_func()
             await asyncio.sleep(1 / 100)
+
+    def show_prof(self):
+        interval = 5000  # Every 5 secs
+
+        now = utime.ticks_ms()
+        delta = utime.ticks_diff(now, self.last_perf_dump_ms)
+        if delta > interval:
+            prof.dump_profile('scaler')
+            self.last_perf_dump_ms = utime.ticks_ms()
 
     def sprite_fps_test_func(self):
         elapsed = utime.ticks_ms() - self.last_tick

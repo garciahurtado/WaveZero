@@ -45,7 +45,7 @@ class Screen:
     async def start_display_loop(self):
         while True:
             self.do_refresh()
-            await asyncio.sleep(5/1000)
+            await asyncio.sleep(1/10214)
 
     async def start_main_loop(self):
         await asyncio.gather(

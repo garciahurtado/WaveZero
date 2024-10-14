@@ -236,7 +236,7 @@ class DMAScaler:
         row_size_buff = bytearray(4)
         self.row_size = array("L", row_size_buff)
         # self.row_size[0] = display.width * 2
-        self.row_size[0] = 0x000000C0
+        self.row_size[0] = 0x000000C0 # @TODO: this should be dynamic based on img width
 
         print("~ CONTENTS OF ROW_SIZE ARRAY ~")
         print(f"0x{self.row_size[0]:08x}")
@@ -350,13 +350,6 @@ class DMAScaler:
         self.init_dma(mv[0:1])
 
 
-    def dma_handler(self, irq):
-        print()
-        print("~~~~@@ << DMA IRQ Was handled >> @@~~~~")
-        print(irq.channel)
-        print()
-        # self.read_complete = True
-
     def dma_handler_debug(self, irq):
         print("  >>>> DMA TRANSFER <<<< complete for: #", end='')
         print(irq.channel)
@@ -388,7 +381,7 @@ class DMAScaler:
             write=PIO1_TX0,
             ctrl=dma_row_read_ctrl,
         )
-        self.dma_row_read.irq(handler=self.row_start_irq_handler)
+        self.dma_row_read.irq(handler=self.img_end_irq_handler)
 
         """ Pixel reader DMA channel - CH #3 - (post SM) ---------------------------- """
 
@@ -423,7 +416,6 @@ class DMAScaler:
             count=0,
             read=self.color_addr_list,
             write=DMA_BASE_5 + DMA_READ_ADDR_AL1,
-            # write=0,
             ctrl=dma_palette_ctrl,
         )
 
@@ -508,48 +500,30 @@ class DMAScaler:
             trigger=True
         )
 
-
-    def row_start_irq_handler(self, irq_obj):
-        print("<<<<<< ROW START IRQ - Triggered >>>>>>")
-        sys.exit(1)
-        # self.read_complete = True
+    def img_end_irq_handler(self, irq_obj):
+        print("<<<<<< IMG END IRQ - Triggered >>>>>>")
+        # sys.exit(1)
+        self.read_complete = True
 
     def config_dma(self, image, x, y, width, height):
         display = self.display
         num_pixels = width * height
 
-        # write_addr = self.display.write_addr + ((y * self.screen_width) + x) * self.bytes_per_pixel
         write_addr = display.write_addr
         write_offset = ((y * display.width) + x) * 2 # since the display is 16 bit, we multiply x 2
         write_addr += write_offset
         self.write_addr = write_addr
 
-        print(f"WRITE START ADDR: 0x{write_addr:08x}")
-        #
-        print(f"DRAWING AT {x},{y} (size {width}x{height})")
-        print(f"OFFSET: 0x{write_offset:08x}")
-        print(f"READING {num_pixels} PIXELS in {len(image.pixel_bytes)} BYTES FROM ADDR: 0x{addressof(image.pixel_bytes):08x}")
-        """ Update the configuration of the DMA channels to get them ready for a new (single frame) image display"""
-        # num_pixels = 64 if self.debug_buffer_enable else num_pixels
-
-        if self.debug_buffer_enable:
-            num_pixels_per_row = width
-            num_bytes_per_row = num_pixels_per_row / 2
-            num_words_per_row = math.ceil(num_bytes_per_row / 4)
-        else:
-            num_pixels_per_row = width
-            num_bytes_per_row = num_pixels_per_row / 2
-            num_words_per_row = math.ceil(num_bytes_per_row / 4)
-
-
         if self.debug:
+            print(f"WRITE START ADDR: 0x{write_addr:08x}")
+            print(f"DRAWING AT {x},{y} (size {width}x{height})")
+            print(f"OFFSET: 0x{write_offset:08x}")
+            print(f"READING {num_pixels} PIXELS in {len(image.pixel_bytes)} BYTES FROM ADDR: 0x{addressof(image.pixel_bytes):08x}")
+
             print("DISPLAY & MEM DETAILS:")
             print("------------------------")
             print(f"\twidth: {display.width}px")
             print(f"\theight: {display.height}px")
-            # print(f"\tnum_rows: {row_count}")
-            print(f"\tnum_bytes_per_row: {num_bytes_per_row}")
-            print(f"\tnum_words_per_row: {num_words_per_row}")
             print(f"\tdisplay_out_start: 0x{self.display.write_addr:08x}")
             print(f"\tdisplay_out_addr + offset: 0x{write_addr:08x}")
             print(f"\timg_read_addr: 0x{addressof(image.pixel_bytes):08x}")
@@ -564,25 +538,28 @@ class DMAScaler:
         num_pixels = int(width * height)
         row_count = int(width)
 
-        print(f"IMAGE WIDTH (px): {width}")
-        print(f"TOTAL IMG PX: {num_pixels}")
-        print(f"ROW TX COUNT (32bit): {row_count}")
+        if self.debug:
+            print(f"IMAGE WIDTH (px): {width}")
+            print(f"TOTAL IMG PX: {num_pixels}")
+            print(f"ROW TX COUNT (32bit): {row_count}")
+
+
+        write_start_addr = addressof(self.display.write_framebuf)
+        write_offset = ((y * self.display.width) + x) * 2
 
         self.read_complete = False
-        self.dma_row_read.read = image.pixel_bytes_addr         # CH2
-        self.dma_row_read.count = num_pixels // 8               # CH2
-        self.dma_pixel_read.count = row_count                   # CH3
-        self.dma_pixel_out.read = self.palette_buffer           # CH5
-        self.dma_palette.read = self.color_addr_list            # CH4
-        self.dma_palette_rst.read = self.rst_addr_ptr           # CH6
-        self.dma_row_start.count = 1                            # 7
+        self.dma_row_read.read = image.pixel_bytes_addr             # CH2
+        self.dma_row_read.count = num_pixels // 8                   # CH2
+        self.dma_pixel_read.count = row_count                       # CH3
+        self.dma_pixel_out.read = self.palette_buffer               # CH5
+        self.dma_pixel_out.write = write_start_addr + write_offset  # CH5
+        self.dma_palette.read = self.color_addr_list                # CH4
+        self.dma_palette_rst.read = self.rst_addr_ptr               # CH6
+        self.dma_row_start.count = 1                                # 7
 
         prof.start_profile('scaler.setup_dma')
         self.config_dma(image, x, y, width, height)
         prof.end_profile('scaler.setup_dma')
-
-        write_offset = ((y * self.display.width) + x) * 2
-        self.dma_pixel_out.write = self.display.write_addr + write_offset
 
         if self.debug:
             for i in range(2, 9):
@@ -596,18 +573,19 @@ class DMAScaler:
                 self.debug_register()
 
         """ State Machine startup -----------------------"""
-
-        print(f"==> PRIMING SM WITH 0x{self.write_addr:08x}")
         self.sm_row_start.active(1)
         self.sm_row_start.put(self.write_addr)
         self.sm_indices.active(1)
 
         """ We only need to kick off the channels that don't have any other means to get started (like chain_to)"""
         self.dma_row_read.active(1)
-        # self.dma_pixel_read.active(1)
+        self.dma_pixel_read.active(1)
         self.dma_row_start.active(1)
 
-        self.debug_fifos()
+        if self.debug:
+            self.debug_fifos()
+
+        prof.start_profile('scaler.inner_loop')
 
         """ As far as DMA goes, active and busy are the same thing (i think)"""
         while (not self.read_complete):
@@ -631,9 +609,12 @@ class DMAScaler:
 
             pass
 
-        print("<<<-------- FINISHED READING IMAGE ---------->>>")
+        prof.end_profile('scaler.inner_loop')
+
 
         if self.debug:
+            print("<<<-------- FINISHED READING IMAGE ---------->>>")
+
             for i in range(2, 9):
                 idx = i - 2
                 ch = self.channels[idx]
@@ -646,7 +627,6 @@ class DMAScaler:
 
         self.sm_indices.restart()
         self.sm_row_start.restart()
-
 
     def debug_fifos(self):
         print("=====================================================")
@@ -677,7 +657,6 @@ class DMAScaler:
         print("SM1 -------------")
         inst_code = mem32[PIO1_BASE+SM1_INST_DEBUG]
         self.read_pio_opcode(inst_code)
-        print
 
     def debug_register(self):
         deb1 = mem32[FDEBUG] >> 24
