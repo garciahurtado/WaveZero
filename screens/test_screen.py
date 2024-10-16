@@ -1,9 +1,6 @@
 import math
 
-import array
-
 from dma_scaler import DMAScaler
-import random
 
 import fonts.vtks_blocketo_6px as font_vtks
 from rp2 import DMA
@@ -53,21 +50,37 @@ class TestScreen(Screen):
     mgr = None
     scaler = None
 
+    """ wobble speed of the squares """
+    speed = 5
+    rev_speed = int(10 / speed)
+    speed_range_list = [-1] + [0] * rev_speed + [+1]
+
     def __init__(self, display, *args, **kwargs):
         super().__init__(display)
         print(f"Free memory __init__: {gc.mem_free():,} bytes")
+
+        self.num_sprites = num_sprites = 1
+        print()
+        print(f"=== Testing performance of {num_sprites} sprites ===")
+        print()
+
+        self.base_x = base_x = 25
+        self.base_y = base_y = 15
+
+        self.x_vals = [(base_x + random.randrange(-20, 20)) for _ in range(num_sprites)]
+        self.y_vals = [(base_y + random.randrange(-10, 10)) for _ in range(num_sprites)]
 
         self.score_palette.set_rgb(0, colors.hex_to_rgb(BLACK))
         self.score_palette.set_rgb(0, colors.hex_to_rgb(CYAN))
         self.init_camera()
         self.init_fps()
 
-        display.fill(0xAAAAAA)
-        self.display.show()
+        display.fill(0x00AA)
+        display.show()
 
         self.check_mem()
         print("-- Creating Sprite Manager...")
-        self.max_sprites = 20
+        self.max_sprites = num_sprites
         self.mgr = SpriteManager2D(display, self.max_sprites, self.camera)
         self.preload_images()
         self.load_types()
@@ -103,7 +116,7 @@ class TestScreen(Screen):
         ImageLoader.load_images(images, self.display)
 
     async def start_main_loop(self):
-        print("-- Preloading images...")
+        print("-- Starting main Loop ...")
         self.check_mem()
 
         # self.create_lines()
@@ -141,25 +154,49 @@ class TestScreen(Screen):
     def do_refresh(self):
         """ Overrides parent method """
         # self.mgr.show(self.display)
+        self.scaler.reset()
 
-        self.display.fill(0x000000)
+        self.display.fill(0xAA00)
 
-        image = self.one_sprite_image
-        img_width = self.one_sprite_meta.width
-        img_height = self.one_sprite_meta.height
+        self.draw_image_group(self.one_sprite_image, self.one_sprite_meta, self.num_sprites, self.x_vals, self.y_vals)
 
-        base_x = self.one_sprite.x
-        base_y = self.one_sprite.y
-
-        x1 = int(base_x + random.randrange(-20,10))
-        y1 = int(base_y + random.randrange(-10,20))
-
-        self.scaler.show(image, x1, y1, img_width, img_height)
         self.display.show()
+        # exit(1)
 
-        # self.show_prof()
-
+        self.show_prof()
         self.fps.tick()
+
+    def draw_image_group(self, image, meta, num=10, x_vals=[], y_vals=[]):
+        img_width = meta.width
+        img_height = meta.height
+
+        num_sprites = num
+
+        # base_x = self.one_sprite.x
+        # base_y = self.one_sprite.y
+        base_x = self.base_x
+        base_y = self.base_y
+
+        # x_vals = [10] * 10
+        # y_vals = [10] * 10
+
+        # print("*** STARTED AGAIN ***")
+
+        prof.start_profile('scaler.show_all')
+        for i in range(num_sprites):
+            self.scaler.show(image, base_x, base_y, img_width, img_height)
+
+
+            x_vals[i] += random.choice(self.speed_range_list)
+            y_vals[i] += random.choice(self.speed_range_list)
+
+            base_x = abs(x_vals[i])
+            base_y = abs(y_vals[i])
+
+            base_x = min((self.display.height - img_height) - 10, base_x)
+            base_y = min((self.display.width - img_width) - 10, base_y)
+
+        prof.end_profile('scaler.show_all')
 
     async def start_fps_counter(self):
         while True:
@@ -209,33 +246,22 @@ class TestScreen(Screen):
             # print(f"z: {sprite.z}")
         self.last_tick = utime.ticks_ms()
 
-    async def display_line_test(self):
-        while True:
-            self.mgr.update(0)
-            await asyncio.sleep(1 / 60)
+    # async def display_line_test(self):
+    #     while True:
+    #         self.mgr.update(0)
+    #         await asyncio.sleep(1 / 60)
 
     def create_sprites(self):
-        # Create n * n * n sprites
-        num_sprites = 2
+        num_sprites = 1
         print(f"Creating {num_sprites} sprites")
 
-        # base_enemy1 = ScaledSprite(
-        #     camera=self.camera,
-        #     filename='/img/laser_wall.bmp',
-        #     frame_width=24,
-        #     frame_height=10)
-        # base_enemy1.set_alpha(0)
-        # base_enemy1.is3d = True
-        # base_enemy1.active = True
-        # base_enemy1.visible = True
         sprite_type = SPRITE_TEST_SQUARE
         meta = self.mgr.sprite_metadata[sprite_type]
 
         for i in range(0, num_sprites):
             sprite, _ = self.mgr.create(sprite_type, x=45, y=34, z=0)
-            sprite.current_frame = 19
-            sprite.x = 40
-            sprite.y = 15
+            sprite.x = 20
+            sprite.y = 10
             sprite.z = 0
             self.sprites.append(sprite)
 
@@ -244,10 +270,6 @@ class TestScreen(Screen):
         self.one_sprite_meta = meta
         self.one_sprite_image = self.mgr.sprite_images[sprite_type][-1]
 
-        # print(self.mgr.sprite_images[sprite_type][-1])
-        # print(f"\tSPRITE_IMAGES: {len(self.mgr.sprite_images)}")
-        # self.mgr.sprite_images[sprite_type][-1].palette_bytes
-
     def load_types(self):
         self.mgr.add_type(
             sprite_type=SPRITE_TEST_SQUARE,
@@ -255,6 +277,16 @@ class TestScreen(Screen):
             width=32,
             height=32,
             speed=0)
+        #
+        # self.mgr.add_type(
+        #     sprite_type=SPRITE_LASER_WALL,
+        #     sprite_class=SpriteType,
+        #     image_path="/img/laser_wall.bmp",
+        #     width=24,
+        #     height=10,
+        #     speed=0)
+        #
+
 
     def init_camera(self):
         # Camera
@@ -279,9 +311,9 @@ class TestScreen(Screen):
     #     bg_color = colors.hex_to_565(CYAN)
     #     while True:
     #         self.display.fill(bg_color)
-    #         self.show_lines()
-    #         self.mgr.show()
-    #         self.fps_text.show(self.display)
+    #         # self.show_lines()
+    #         # self.mgr.show()
+    #         # self.fps_text.show(self.display)
     #         self.do_refresh()
     #
     #         await asyncio.sleep(1/100)

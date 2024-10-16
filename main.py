@@ -28,9 +28,9 @@ from screens.test_screen import TestScreen
 def main():
     # micropython.opt_level(0)
 
-    # machine.freq(250_000_000)
+    machine.freq(250_000_000)
     # machine.freq(125_000_000)
-    machine.freq(40_000_000)
+    # machine.freq(40_000_000)
 
     current_freq = machine.freq()
     print(f"CPU: {current_freq / 1_000_000} MHz")
@@ -53,6 +53,7 @@ def check_mem():
     print(micropython.mem_info())
 
 def midi_test():
+    pwm_player = None
     player = pwm_player.audio_pwmSimplePwmPlayer(Pin(18))
 
     print("Play 440")

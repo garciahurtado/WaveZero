@@ -166,7 +166,7 @@ class SSD1331PIO():
         # Set up the PIO state machine
         freq = 120 * 1000 * 1000
         # freq = 62500000
-        freq = 2000000
+        freq = 30_000_000
 
         sm = StateMachine(0)
 
