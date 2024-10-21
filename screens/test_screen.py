@@ -1,18 +1,22 @@
-import math
+import sys
 
-from dma_scaler import DMAScaler
+from screen import Screen
+
+from sprites2.test_square import TestSquare
+from sprites2.sprite_manager_2d import SpriteManager2D
+from sprites2.sprite_types import SPRITE_TEST_SQUARE
+import math
+from profiler import Profiler as prof
+
+from images.image_loader import ImageLoader
 
 import fonts.vtks_blocketo_6px as font_vtks
 from rp2 import DMA
+from scaler.dma_scaler import DMAScaler
 
 from font_writer_new import ColorWriter
 
 import utime
-from sprites2.test_square import TestSquare
-
-from images.image_loader import ImageLoader
-from screen import Screen
-
 import uasyncio as asyncio
 import gc
 
@@ -22,10 +26,6 @@ from color.framebuffer_palette import FramebufferPalette
 import framebuf as fb
 import random
 
-from sprites2.laser_wall import LaserWall
-from sprites2.sprite_manager_2d import SpriteManager2D
-from sprites2.sprite_types import *
-from profiler import Profiler as prof
 
 CYAN =  0x00FFFF
 GREEN = 0x00FF00
@@ -35,7 +35,7 @@ class TestScreen(Screen):
     screen_width = 96
     screen_height = 64
 
-    sprite_max_z = const(1000)
+    sprite_max_z = 1000
     display_task = None
 
     last_perf_dump_ms = None
@@ -51,39 +51,41 @@ class TestScreen(Screen):
     scaler = None
 
     """ wobble speed of the squares """
-    speed = 5
-    rev_speed = int(10 / speed)
-    speed_range_list = [-1] + [0] * rev_speed + [+1]
+    speed = 100
+    rev_speed = int(100 / speed)
+    speed_range_list = [-1,] + [0] * rev_speed + [+1,]
+
+    fps_counter_task = None
 
     def __init__(self, display, *args, **kwargs):
         super().__init__(display)
+        self.preload_images()
+        self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
+
         print(f"Free memory __init__: {gc.mem_free():,} bytes")
+
+        # self.score_palette.set_rgb(0, colors.hex_to_rgb(BLACK))
+        # self.score_palette.set_rgb(0, colors.hex_to_rgb(CYAN))
 
         self.num_sprites = num_sprites = 1
         print()
         print(f"=== Testing performance of {num_sprites} sprites ===")
         print()
+        self.base_x = 32
+        self.base_y = 16
 
-        self.base_x = base_x = 25
-        self.base_y = base_y = 15
+        self.x_vals = [(random.randrange(-20, 20)) for _ in range(num_sprites)]
+        self.y_vals = [(random.randrange(-5, 5)) for _ in range(num_sprites)]
 
-        self.x_vals = [(base_x + random.randrange(-20, 20)) for _ in range(num_sprites)]
-        self.y_vals = [(base_y + random.randrange(-10, 10)) for _ in range(num_sprites)]
+        self.sprite_scales = [(random.randrange(100, 200)) for _ in range(num_sprites)]
 
-        self.score_palette.set_rgb(0, colors.hex_to_rgb(BLACK))
-        self.score_palette.set_rgb(0, colors.hex_to_rgb(CYAN))
         self.init_camera()
         self.init_fps()
 
         display.fill(0x00AA)
         display.show()
 
-        self.check_mem()
-        print("-- Creating Sprite Manager...")
-        self.max_sprites = num_sprites
-        self.mgr = SpriteManager2D(display, self.max_sprites, self.camera)
-        self.preload_images()
-        self.load_types()
+        self.create_sprite_manager(display, num_sprites=num_sprites)
 
         """ Channels 0 and 1 are already reserved by the display driver """
         ch_2 = DMA()
@@ -93,10 +95,18 @@ class TestScreen(Screen):
         ch_6 = DMA()
         ch_7 = DMA()
         ch_8 = DMA()
+        ch_9 = DMA()
 
-        num_colors = 4
+        num_colors = 16
 
-        self.scaler = DMAScaler(self.display, num_colors, ch_2, ch_3, ch_4, ch_5, ch_6, ch_7, ch_8)
+        self.scaler = DMAScaler(self.display, num_colors, ch_2, ch_3, ch_4, ch_5, ch_6, ch_7, ch_8, ch_9)
+
+    def create_sprite_manager(self, display, num_sprites=0):
+        self.check_mem()
+        print("-- Creating Sprite Manager...")
+        self.max_sprites = num_sprites
+        self.mgr = SpriteManager2D(display, self.max_sprites, self.camera)
+        self.load_types()
 
     def run(self):
         self.check_mem()
@@ -111,6 +121,7 @@ class TestScreen(Screen):
         images = [
             # {"name": "bike_sprite.bmp", "width": 32, "height": 22, "color_depth": 4},
             # {"name": "laser_wall.bmp", "width": 24, "height": 10, "color_depth": 4},
+            # {"name": "laser_orb_grey.bmp", "width": 16, "height": 16, "color_depth": 4},
         ]
 
         ImageLoader.load_images(images, self.display)
@@ -159,10 +170,9 @@ class TestScreen(Screen):
         self.display.fill(0xAA00)
 
         self.draw_image_group(self.one_sprite_image, self.one_sprite_meta, self.num_sprites, self.x_vals, self.y_vals)
-
         self.display.show()
-        # exit(1)
 
+        # sys.exit(1)
         self.show_prof()
         self.fps.tick()
 
@@ -177,40 +187,50 @@ class TestScreen(Screen):
         base_x = self.base_x
         base_y = self.base_y
 
-        # x_vals = [10] * 10
-        # y_vals = [10] * 10
+        # x_vals = [1] * num_sprites
+        # y_vals = [1] * num_sprites
 
-        # print("*** STARTED AGAIN ***")
+        # print("*** STARTED DRAWING ALL SPRITES ***")
 
         prof.start_profile('scaler.show_all')
         for i in range(num_sprites):
-            self.scaler.show(image, base_x, base_y, img_width, img_height)
+                # if False and round(random.random()):
+                #     x_vals[i] += random.choice(self.speed_range_list)
+                #     y_vals[i] += random.choice(self.speed_range_list)
 
+                draw_x = abs(x_vals[i] + base_x)
+                draw_y = abs(y_vals[i] + base_y)
 
-            x_vals[i] += random.choice(self.speed_range_list)
-            y_vals[i] += random.choice(self.speed_range_list)
+                draw_x = max(0, draw_x)
+                draw_y = max(0, draw_y)
 
-            base_x = abs(x_vals[i])
-            base_y = abs(y_vals[i])
+                draw_x = min((self.display.width - img_width)-1, draw_x)
+                draw_y = min((self.display.height - img_height) - 2, draw_y)
 
-            base_x = min((self.display.height - img_height) - 10, base_x)
-            base_y = min((self.display.width - img_width) - 10, base_y)
+                # DEBUG
+                draw_x = 16
+                draw_y = 16
+
+                scale = self.sprite_scales[i]
+
+                self.scaler.show(image, draw_x, draw_y, img_width, img_height, scale)
 
         prof.end_profile('scaler.show_all')
 
     async def start_fps_counter(self):
         while True:
-            # Show the FPS in the score label
             fps = self.fps.fps()
             if fps is False:
                 pass
             else:
                 fps = int(fps)
-                # ColorWriter.set_textpos(self.display.write_framebuf, 0, 0)
-                self.fps_text.row_clip = True
                 fps_str = "{: >6}".format(fps)
-                self.fps_text.render_text(fps_str)
                 print(f"FPS: {fps_str}")
+
+                # # ColorWriter.set_textpos(self.display.write_framebuf, 0, 0)
+                # self.fps_text.row_clip = True
+                # self.fps_text.render_text(fps_str)
+
 
             await asyncio.sleep(1)
 
@@ -271,13 +291,20 @@ class TestScreen(Screen):
         self.one_sprite_image = self.mgr.sprite_images[sprite_type][-1]
 
     def load_types(self):
+        # self.mgr.add_type(
+        #     sprite_type=SPRITE_LASER_ORB,
+        #     sprite_class=LaserOrb,
+        #     width=16,
+        #     height=16,
+        #     speed=0)
+
         self.mgr.add_type(
             sprite_type=SPRITE_TEST_SQUARE,
             sprite_class=TestSquare,
             width=32,
             height=32,
             speed=0)
-        #
+
         # self.mgr.add_type(
         #     sprite_type=SPRITE_LASER_WALL,
         #     sprite_class=SpriteType,
@@ -285,7 +312,7 @@ class TestScreen(Screen):
         #     width=24,
         #     height=10,
         #     speed=0)
-        #
+
 
 
     def init_camera(self):
