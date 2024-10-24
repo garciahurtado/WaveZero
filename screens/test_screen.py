@@ -1,9 +1,9 @@
-import sys
-
 from screen import Screen
+from scaler.dma_scaler import DMAScaler
 
 from sprites2.test_square import TestSquare
 from sprites2.sprite_manager_2d import SpriteManager2D
+
 from sprites2.sprite_types import SPRITE_TEST_SQUARE
 import math
 from profiler import Profiler as prof
@@ -12,7 +12,6 @@ from images.image_loader import ImageLoader
 
 import fonts.vtks_blocketo_6px as font_vtks
 from rp2 import DMA
-from scaler.dma_scaler import DMAScaler
 
 from font_writer_new import ColorWriter
 
@@ -96,10 +95,11 @@ class TestScreen(Screen):
         ch_7 = DMA()
         ch_8 = DMA()
         ch_9 = DMA()
+        ch_10 = DMA()
 
         num_colors = 16
 
-        self.scaler = DMAScaler(self.display, num_colors, ch_2, ch_3, ch_4, ch_5, ch_6, ch_7, ch_8, ch_9)
+        self.scaler = DMAScaler(self.display, num_colors, ch_2, ch_3, ch_4, ch_5, ch_6, ch_7, ch_8, ch_9, ch_10)
 
     def create_sprite_manager(self, display, num_sprites=0):
         self.check_mem()
@@ -165,12 +165,11 @@ class TestScreen(Screen):
     def do_refresh(self):
         """ Overrides parent method """
         # self.mgr.show(self.display)
-        self.scaler.reset()
 
         self.display.fill(0xAA00)
 
         self.draw_image_group(self.one_sprite_image, self.one_sprite_meta, self.num_sprites, self.x_vals, self.y_vals)
-        self.display.show()
+        self.scaler.reset()
 
         # sys.exit(1)
         self.show_prof()
@@ -312,8 +311,6 @@ class TestScreen(Screen):
         #     width=24,
         #     height=10,
         #     speed=0)
-
-
 
     def init_camera(self):
         # Camera

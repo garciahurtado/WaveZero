@@ -1,13 +1,18 @@
+from micropython import const
+from machine import mem32
+
 from uarray import array
 
 from scaler.dma_scaler_const import *
-from machine import mem32
-import gc
-gc.collect()
+
+DMA_DBG_TCR = const(0x804)
 
 class ScalerDebugger():
     sm_indices = None
     sm_row_start = None
+    channel_names = {}
+    channels = {}
+    debug_bytes = array("L", [0] * 16)
 
     def __init__(self, sm_indices, sm_row_start):
         self.sm_indices = sm_indices
@@ -19,6 +24,7 @@ class ScalerDebugger():
         return status
 
     def debug_fifos(self):
+        print()
         print("=====================================================")
         print(f"SM0 TX FIFO: {self.sm_indices.tx_fifo()}")
         print(f"SM0 RX FIFO: {self.sm_indices.rx_fifo()}")
@@ -27,15 +33,10 @@ class ScalerDebugger():
         print(f"SM1 TX FIFO: {self.sm_row_start.tx_fifo()}")
         print(f"SM1 RX FIFO: {self.sm_row_start.rx_fifo()}")
         print("=====================================================")
-
-    def debug_pio_status(self):
-        # status = self.status_to_bytes(mem32[addr])
-        # print(f"DMA {num} STATUS: 0x{mem32[addr]:08x}")
-        # print(" 3          2          1          0")
-        # print("10987654-32109876-54321098-76543210")
-        # print(f"{status[0]:08b}-{status[1]:08b}-{status[2]:08b}-{status[3]:08b}")
         print()
 
+    def debug_pio_status(self):
+        print()
         print("SM0 -------------")
         inst_code = mem32[PIO1_BASE + SM0_INST_DEBUG]
         self.read_pio_opcode(inst_code)
@@ -80,7 +81,7 @@ class ScalerDebugger():
         print()
 
         """ all sizes in bytes"""
-        rows= 8
+        rows = 4
         cols = 4
         out_str = ""
 
@@ -120,10 +121,22 @@ class ScalerDebugger():
         else:
             print("Unknown instruction")
 
-    def make_debug_bytes(self, num=32):
-        debug_bytes = array("L", [0] * num)
+    def get_debug_bytes(self):
+        debug_bytes = self.debug_bytes
+
         for i in range(0, len(debug_bytes), 2):
             debug_bytes[i] = 0x12345678  # easier to see when its set vs 00000000
             debug_bytes[i + 1] = 0x90ABCDEF
 
         return debug_bytes
+
+    def debug_dma_channel(self, idx, section=None):
+        ch = self.channels[idx]
+        ch_alias = self.channel_names[idx]
+        ch_alias = ch_alias.upper()
+        self.debug_dma(ch, ch_alias, section, idx)
+        self.debug_pio_status()
+        print("- - - - - - - - - - - - - - - - - - - - - ")
+        self.debug_register()
+        self.debug_fifos()
+

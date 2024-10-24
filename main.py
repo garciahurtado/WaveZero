@@ -4,9 +4,10 @@ from utime import sleep
 
 # import frozen_img # Created with freezefs: https://github.com/bixb922/freezeFS
 from screens.screen_app import ScreenApp
-from screens.game_screen import GameScreen
+# from screens.game_screen import GameScreen
+from screens.title_screen import TitleScreen
+from screens.test_screen import TestScreen
 
-# from test_screen import TestScreen
 import micropython
 import time
 import machine
@@ -22,9 +23,6 @@ import machine
 
 from machine import Pin
 
-from screens.test_screen import TestScreen
-
-
 def main():
     # micropython.opt_level(0)
 
@@ -38,7 +36,7 @@ def main():
     check_mem()
     print("Compiler opt level: " + str(micropython.opt_level()))
 
-    time.sleep(1)
+    time.sleep(1.5)
 
     app = ScreenApp(96, 64)
     # app.load_screen(GameScreen(app.display))

@@ -1,5 +1,7 @@
 from micropython import const
 
+""" DMA """
+
 CH0_DBG_TCR = const(0x804)
 DMA_BASE = const(0x50000000)
 DMA_BASE_1 = const(0x50000040)
@@ -11,6 +13,7 @@ DMA_BASE_6 = const(0x50000180)
 DMA_BASE_7 = const(0x500001C0)
 DMA_BASE_8 = const(0x50000200)
 DMA_BASE_9 = const(0x50000240)
+DMA_BASE_10 = const(0x50000280)
 
 DMA_READ_ADDR = const(0x000)
 DMA_WRITE_ADDR = const(0x004)
@@ -21,8 +24,10 @@ DMA_TRANS_COUNT_TRIG = const(0x01c)
 DMA_WRITE_ADDR_TRIG = const(0x02C)
 DMA_DBG_TCR = const(0x804)
 
-PIO0_BASE = const(0x50200000)
-PIO1_BASE = const(0x50300000)
+""" PIO """
+
+PIO0_BASE = 0x50200000
+PIO1_BASE = 0x50300000
 
 PIO1_TX0 = PIO1_BASE + const(0x010)
 PIO1_RX0 = PIO1_BASE + const(0x020)
@@ -43,3 +48,4 @@ PIO_FSTAT = const(0x004)
 PIO_FDEBUG = const(0x008)
 SM0_INST_DEBUG = const(0x0d8)
 SM1_INST_DEBUG = const(0x0f0)
+
