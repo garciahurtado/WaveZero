@@ -165,10 +165,10 @@ class TestScreen(Screen):
     def do_refresh(self):
         """ Overrides parent method """
         # self.mgr.show(self.display)
-
         self.display.fill(0xAA00)
 
         self.draw_image_group(self.one_sprite_image, self.one_sprite_meta, self.num_sprites, self.x_vals, self.y_vals)
+        # self.display.show()
         self.scaler.reset()
 
         # sys.exit(1)
@@ -193,26 +193,28 @@ class TestScreen(Screen):
 
         prof.start_profile('scaler.show_all')
         for i in range(num_sprites):
-                # if False and round(random.random()):
-                #     x_vals[i] += random.choice(self.speed_range_list)
-                #     y_vals[i] += random.choice(self.speed_range_list)
+            # if False and round(random.random()):
+            #     x_vals[i] += random.choice(self.speed_range_list)
+            #     y_vals[i] += random.choice(self.speed_range_list)
 
-                draw_x = abs(x_vals[i] + base_x)
-                draw_y = abs(y_vals[i] + base_y)
+            draw_x = abs(x_vals[i] + base_x)
+            draw_y = abs(y_vals[i] + base_y)
 
-                draw_x = max(0, draw_x)
-                draw_y = max(0, draw_y)
+            draw_x = max(0, draw_x)
+            draw_y = max(0, draw_y)
 
-                draw_x = min((self.display.width - img_width)-1, draw_x)
-                draw_y = min((self.display.height - img_height) - 2, draw_y)
+            draw_x = min((self.display.width - img_width)-1, draw_x)
+            draw_y = min((self.display.height - img_height) - 2, draw_y)
 
-                # DEBUG
-                draw_x = 16
-                draw_y = 16
+            # DEBUG
+            draw_x = 16
+            draw_y = 16
 
-                scale = self.sprite_scales[i]
+            scale = self.sprite_scales[i]
 
-                self.scaler.show(image, draw_x, draw_y, img_width, img_height, scale)
+            prof.start_profile('scaler.show_one')
+            self.scaler.show(image, draw_x, draw_y, img_width, img_height, scale)
+            prof.end_profile('scaler.show_one')
 
         prof.end_profile('scaler.show_all')
 

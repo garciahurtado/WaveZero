@@ -39,7 +39,7 @@ class DMAScaler:
     sm_row_start = None
     row_tx_count = 0
 
-    debug = True
+    debug = False
     debug_buffer_enable = False
     dbg:ScalerDebugger = None
 
@@ -153,15 +153,15 @@ class DMAScaler:
         pull()
         mov(y, osr)
 
-        jmp("test")         [4]
+        jmp("test")         [8]
                                             # this loop is equivalent to the following C code:
         label("incr")                       # while (y--)
-        jmp(x_dec, "test")  [4]                #     x--
+        jmp(x_dec, "test")  [8]                #     x--
 
         label("test")                       # This has the effect of subtracting y from x, eventually.
-        jmp(y_dec, "incr")  [4]
+        jmp(y_dec, "incr")  [8]
 
-        mov(isr, invert(x)) [4]             # The final result has to be 1s complement inverted
+        mov(isr, invert(x)) [8]             # The final result has to be 1s complement inverted
         push()
 
     dma_pixel_read = None
@@ -173,7 +173,7 @@ class DMAScaler:
         # Set up the PIO state machines
         # freq = 125 * 1000 * 1000
         # freq = 62 * 1000 * 1000
-        freq = 20 * 1000
+        freq = 100 * 1000 * 1000
 
         """ SM0: Pixel demuxer / palette reader """
         sm_indices = self.sm_indices
@@ -322,11 +322,13 @@ class DMAScaler:
         self.init_dma()
 
     def reset(self):
+        self.dma_pixel_read.count = self.row_tx_count
+        self.dma_pixel_out.count = 1
+        self.write_start_addr = addressof(self.display.write_framebuf)
+
         self.sm_indices.restart()
         self.sm_row_start.restart()
 
-        self.dma_pixel_read.count = self.row_tx_count
-        self.write_start_addr = addressof(self.display.write_framebuf)
         # self.h_scale_ptr = self.h_patterns_ptr[self.scale_index]
         # self.dma_h_scale.read = self.h_scale_ptr
         # self.dma_h_scale.active(0)
@@ -447,7 +449,7 @@ class DMAScaler:
             inc_write=scale_inc_write,
             chain_to=self.dma_color_addr.channel,
             ring_sel=0,
-            ring_size=2,
+            ring_size=4,
             # treq_sel=DREQ_PIO1_RX0,
             # bswap=True
         )
@@ -561,25 +563,6 @@ class DMAScaler:
         self.dma_row_start.count = 1                                    # CH8 -
         self.dma_h_scale.read = self.h_patterns_ptr[self.scale_index]   # CH9 -
         prof.end_profile('scaler.dma_init_values')
-
-        """ Lets setup the scaling pattern """
-        if False and scale > 100:
-            if scale > 200:
-                scale = 200
-            rel_scale = scale - 100
-            rel_scale = rel_scale / 100
-            # idx = round(rel_scale * (len(self.h_patterns)))
-            # if idx >= len(self.h_patterns):
-            #     idx = len(self.h_patterns) - 1
-            idx=0
-
-            self.h_scale_ptr = self.h_patterns_ptr[idx]
-
-            ctrl = self.dma_h_scale.unpack_ctrl(self.dma_h_scale.ctrl)
-            ctrl['ring_sel'] = True
-            ctrl['ring_size'] = 2
-
-            self.dma_h_scale.pack_ctrl(**ctrl)
 
         if self.debug:
             for idx in self.channel_names.keys():
