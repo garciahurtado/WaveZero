@@ -55,20 +55,26 @@ def row_start():
     https://github.com/raspberrypi/pico-examples/blob/master/pio/addition/addition.pio
     """
     pull()
-    mov(x, invert(osr))  # Before doing the math, store the first number as its 1s complement
+    mov(x, invert(osr))  # Before doing the math, store the first number (base address) as its 1s complement
 
     wrap_target()
+    pull()              # Pull the size of the next row
 
-    pull()
     mov(y, osr)
+    jmp(not_y, "skip")     # When row size=0, resend the address of the previous row start
 
-    jmp("test")[4]
+    jmp("test")
     # this loop is equivalent to the following C code:
     label("incr")  # while (y--)
-    jmp(x_dec, "test")[4]  # x--
+    jmp(x_dec, "test")[2]  # x--
 
     label("test")  # This has the effect of subtracting y from x, eventually.
-    jmp(y_dec, "incr")[4]
+    jmp(y_dec, "incr")[2]
 
-    mov(isr, invert(x))[4]  # The final result has to be 1s complement inverted
+    mov(isr, invert(x))[2]  # The final result has to be 1s complement inverted
+    push()
+
+    wrap()
+    label("skip")           # When row size=0, resend the address of the previous row start without modifying it, and
+    mov(isr, invert(x))     # restart the loop
     push()

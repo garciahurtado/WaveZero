@@ -14,9 +14,10 @@ class ScalerDebugger():
     channels = {}
     debug_bytes = array("L", [0] * 16)
 
-    def __init__(self, sm_indices, sm_row_start):
+    def __init__(self, sm_indices, sm_row_start, sm_row_scale):
         self.sm_indices = sm_indices
         self.sm_row_start = sm_row_start
+        self.sm_row_scale = sm_row_scale
 
     def status_to_bytes(self, status_int):
         status_int = status_int.to_bytes(4, 'big')
@@ -32,6 +33,10 @@ class ScalerDebugger():
         print("=====================================================")
         print(f"SM1 TX FIFO: {self.sm_row_start.tx_fifo()}")
         print(f"SM1 RX FIFO: {self.sm_row_start.rx_fifo()}")
+
+        print("=====================================================")
+        print(f"SM2 TX FIFO: {self.sm_row_scale.tx_fifo()}")
+        print(f"SM2 RX FIFO: {self.sm_row_scale.rx_fifo()}")
         print("=====================================================")
         print()
 
@@ -40,8 +45,13 @@ class ScalerDebugger():
         print("SM0 -------------")
         inst_code = mem32[PIO1_BASE + SM0_INST_DEBUG]
         self.read_pio_opcode(inst_code)
+
         print("SM1 -------------")
         inst_code = mem32[PIO1_BASE + SM1_INST_DEBUG]
+        self.read_pio_opcode(inst_code)
+
+        print("SM2 -------------")
+        inst_code = mem32[PIO1_BASE + SM2_INST_DEBUG]
         self.read_pio_opcode(inst_code)
 
     def debug_register(self):

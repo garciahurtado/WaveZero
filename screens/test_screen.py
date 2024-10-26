@@ -36,7 +36,7 @@ class TestScreen(Screen):
     screen_width = 96
     screen_height = 64
 
-    num_sprites = 1
+    num_sprites = 2
     sprite_max_z = 1000
     display_task = None
 
@@ -93,10 +93,11 @@ class TestScreen(Screen):
         ch_5 = DMA()
         ch_6 = DMA()
         ch_7 = DMA()
+        ch_8 = DMA()
 
         num_colors = 16
 
-        self.scaler = DMAScaler(self.display, num_colors, ch_2, ch_3, ch_4, ch_5, ch_6, ch_7)
+        self.scaler = DMAScaler(self.display, num_colors, ch_2, ch_3, ch_4, ch_5, ch_6, ch_7, ch_8)
 
     def create_sprite_manager(self, display, num_sprites=0):
         self.check_mem()
@@ -192,7 +193,7 @@ class TestScreen(Screen):
 
             # DEBUG
             draw_x = 32
-            draw_y = 16
+            draw_y = 0 + (i*32)
 
             scale = self.sprite_scales[i]
 
