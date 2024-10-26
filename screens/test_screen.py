@@ -1,3 +1,5 @@
+import sys
+
 from screen import Screen
 from scaler.dma_scaler import DMAScaler
 
@@ -34,6 +36,7 @@ class TestScreen(Screen):
     screen_width = 96
     screen_height = 64
 
+    num_sprites = 1
     sprite_max_z = 1000
     display_task = None
 
@@ -49,15 +52,16 @@ class TestScreen(Screen):
     mgr = None
     scaler = None
 
-    """ wobble speed of the squares """
-    speed = 100
-    rev_speed = int(100 / speed)
-    speed_range_list = [-1,] + [0] * rev_speed + [+1,]
-
     fps_counter_task = None
 
     def __init__(self, display, *args, **kwargs):
+        num_sprites = self.num_sprites
+
         super().__init__(display)
+        print()
+        print(f"=== Testing performance of {num_sprites} sprites ===")
+        print()
+
         self.preload_images()
         self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
 
@@ -66,17 +70,13 @@ class TestScreen(Screen):
         # self.score_palette.set_rgb(0, colors.hex_to_rgb(BLACK))
         # self.score_palette.set_rgb(0, colors.hex_to_rgb(CYAN))
 
-        self.num_sprites = num_sprites = 1
-        print()
-        print(f"=== Testing performance of {num_sprites} sprites ===")
-        print()
-        self.base_x = 32
-        self.base_y = 16
+        self.base_x = 32 - (32//2)
+        self.base_y = 16 - (32//2)
 
-        self.x_vals = [(random.randrange(-20, 20)) for _ in range(num_sprites)]
-        self.y_vals = [(random.randrange(-5, 5)) for _ in range(num_sprites)]
+        self.x_vals = [(random.randrange(-30, 30)) for _ in range(num_sprites)]
+        self.y_vals = [(random.randrange(-30, 30)) for _ in range(num_sprites)]
 
-        self.sprite_scales = [(random.randrange(100, 200)) for _ in range(num_sprites)]
+        self.sprite_scales = [random.choice(range(0, 9)) for _ in range(num_sprites)]
 
         self.init_camera()
         self.init_fps()
@@ -93,13 +93,10 @@ class TestScreen(Screen):
         ch_5 = DMA()
         ch_6 = DMA()
         ch_7 = DMA()
-        ch_8 = DMA()
-        ch_9 = DMA()
-        ch_10 = DMA()
 
         num_colors = 16
 
-        self.scaler = DMAScaler(self.display, num_colors, ch_2, ch_3, ch_4, ch_5, ch_6, ch_7, ch_8, ch_9, ch_10)
+        self.scaler = DMAScaler(self.display, num_colors, ch_2, ch_3, ch_4, ch_5, ch_6, ch_7)
 
     def create_sprite_manager(self, display, num_sprites=0):
         self.check_mem()
@@ -164,14 +161,12 @@ class TestScreen(Screen):
 
     def do_refresh(self):
         """ Overrides parent method """
-        # self.mgr.show(self.display)
         self.display.fill(0xAA00)
 
         self.draw_image_group(self.one_sprite_image, self.one_sprite_meta, self.num_sprites, self.x_vals, self.y_vals)
         # self.display.show()
         self.scaler.reset()
 
-        # sys.exit(1)
         self.show_prof()
         self.fps.tick()
 
@@ -181,22 +176,11 @@ class TestScreen(Screen):
 
         num_sprites = num
 
-        # base_x = self.one_sprite.x
-        # base_y = self.one_sprite.y
         base_x = self.base_x
         base_y = self.base_y
 
-        # x_vals = [1] * num_sprites
-        # y_vals = [1] * num_sprites
-
-        # print("*** STARTED DRAWING ALL SPRITES ***")
-
         prof.start_profile('scaler.show_all')
         for i in range(num_sprites):
-            # if False and round(random.random()):
-            #     x_vals[i] += random.choice(self.speed_range_list)
-            #     y_vals[i] += random.choice(self.speed_range_list)
-
             draw_x = abs(x_vals[i] + base_x)
             draw_y = abs(y_vals[i] + base_y)
 
@@ -207,7 +191,7 @@ class TestScreen(Screen):
             draw_y = min((self.display.height - img_height) - 2, draw_y)
 
             # DEBUG
-            draw_x = 16
+            draw_x = 32
             draw_y = 16
 
             scale = self.sprite_scales[i]
@@ -273,7 +257,7 @@ class TestScreen(Screen):
     #         await asyncio.sleep(1 / 60)
 
     def create_sprites(self):
-        num_sprites = 1
+        num_sprites = self.num_sprites
         print(f"Creating {num_sprites} sprites")
 
         sprite_type = SPRITE_TEST_SQUARE
