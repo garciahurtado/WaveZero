@@ -1,8 +1,7 @@
-import math
-
 import utime
 
 from scaler.dma_scaler_debug import ScalerDebugger
+from scaler.dma_scaler_pio import *
 from uctypes import addressof
 
 from machine import Pin
@@ -43,7 +42,7 @@ class DMAScaler:
     sm_row_start = None
     row_tx_count = 0
 
-    debug = False
+    debug = True
     debug_buffer_enable = False
     dbg:ScalerDebugger = None
 
@@ -52,18 +51,6 @@ class DMAScaler:
 
     h_skew = 0
 
-    # channel_names = [
-    #     'row_read',
-    #     'pixel_read',
-    #     'palette',
-    #     'pixel_out',
-    #     'palette_rst',
-    #     'row_size',
-    #     'row_start',
-    #     'h_scale',
-    #     'color_addr',
-    # ]
-
     channel_names = {
         "2": 'row_read',
         "3": 'color_addr',
@@ -71,102 +58,12 @@ class DMAScaler:
         "5": 'h_scale',
         "6": 'row_size',
         "7": 'row_start',
+        # "8": 'v_scale',
     }
     channels = {}
 
     h_scale_ptr = None # Ptr to the current scale pattern array
     scale_index_flip = 1
-
-    @rp2.asm_pio(
-        in_shiftdir=PIO.SHIFT_LEFT,
-    )
-
-    def _pixel_demux():
-        """Takes a full 4 byte word from a 16bit indexed image, and splits it into one word for each pixel (so 8 total)"""
-        # set(x, null)
-        pull()
-        set(x, 7)           [0]       # Set up loop counter (8 iterations, 8 pixels per word, 0-7)
-
-        label("loop")
-
-        out(y, 4)           [0]       # pull 4 bits from OSR
-        in_(y, 32)          [0]       # spit them out as padded bytes
-        push()              [0]
-
-        jmp(x_dec, "loop")  [0]        # Decrement counter and loop if not zero
-
-    @rp2.asm_pio(
-        in_shiftdir=PIO.SHIFT_RIGHT,
-        out_shiftdir=PIO.SHIFT_LEFT,
-        autopull=True,
-        # autopush=True,
-        # pull_thresh=16, # interesting things happen with weird levels
-        pull_thresh=8
-        # push_thresh=32,
-    )
-    def read_palette():
-        """
-        This SM does two things:
-        1.Demultiplex bytes
-        Takes a full 4 byte word from a 16bit indexed image, and splits it into its individual pixels (so 8 total)
-
-        2. Palette Lookup.
-        Uses the 4 bit pixel indices to generate the address which points to the specified color in the palette
-        """
-        pull()                           # First word is the palette base address
-        mov(isr, osr)            # Keep it in the ISR for later
-
-        wrap_target()
-        # pull() # @ This extra pull can be used for horiz 1/2 scale, amusingly
-
-        # PIXEL PROCESSING ----------------------------------------------------
-        out(y, 4)              # pull 4 bits from OSR
-
-        """ Index lookup logic (reverse addition) """
-        mov(x, invert(isr))         # ISR has the base addr
-        jmp("test_inc1")
-                                    # this loop is equivalent to the following C code:
-        label("incr1")              # while (y--)
-        jmp(x_dec, "test_inc1")     # x--
-        label("test_inc1")          # This has the effect of subtracting y from x, eventually.
-        jmp(x_dec, "test_inc2")     # We double the substraction because each color is 2 bytes, so we are doing x = x+2
-        label("test_inc2")
-
-        jmp(y_dec, "incr1")
-
-        # Before pushing anything at all, save the ISR in the Y reg, which we are not using
-        mov(y, isr)
-        mov(isr, invert(x))         # The final result has to be 1s complement inverted
-        push()                      # 4 bytes pushed (pixel 1)
-        mov(isr, y)                 # restore the ISR with the base addr
-
-    @rp2.asm_pio()
-    def row_start():
-        """
-        Generates the next row start address by remembering the first pixel address and
-        progressively adding one row worth of pixels at a time to it.
-
-        Uses one's complement addition through substraction:
-        https://github.com/raspberrypi/pico-examples/blob/master/pio/addition/addition.pio
-        """
-        pull()
-        mov(x, invert(osr))                 # Before doing the math, store the first number as its 1s complement
-
-        wrap_target()
-
-        pull()
-        mov(y, osr)
-
-        jmp("test")         [4]
-                                            # this loop is equivalent to the following C code:
-        label("incr")                       # while (y--)
-        jmp(x_dec, "test")  [4]                #     x--
-
-        label("test")                       # This has the effect of subtracting y from x, eventually.
-        jmp(y_dec, "incr")  [4]
-
-        mov(isr, invert(x)) [4]             # The final result has to be 1s complement inverted
-        push()
 
     dma_pixel_read = None
     dma_palette = None
@@ -182,14 +79,14 @@ class DMAScaler:
         """ SM0: Pixel demuxer / palette reader """
         sm_indices = self.sm_indices
         sm_indices.init(
-            self.read_palette,
+            read_palette,
             freq=freq,
         )
 
         """ SM1:  Row start address generator State Machine """
         sm_row_start = self.sm_row_start
         sm_row_start.init(
-            self.row_start,
+            row_start,
             freq=freq,
             sideset_base=Pin(22), # off board LED
         )
