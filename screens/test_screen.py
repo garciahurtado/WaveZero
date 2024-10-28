@@ -36,7 +36,7 @@ class TestScreen(Screen):
     screen_width = 96
     screen_height = 64
 
-    num_sprites = 2
+    num_sprites = 1
     sprite_max_z = 1000
     display_task = None
 
@@ -193,7 +193,7 @@ class TestScreen(Screen):
 
             # DEBUG
             draw_x = 32
-            draw_y = 0 + (i*32)
+            draw_y = 16 + (i*32)
 
             scale = self.sprite_scales[i]
 
@@ -287,8 +287,6 @@ class TestScreen(Screen):
         self.mgr.add_type(
             sprite_type=SPRITE_TEST_SQUARE,
             sprite_class=TestSquare,
-            width=32,
-            height=32,
             speed=0)
 
         # self.mgr.add_type(

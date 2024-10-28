@@ -5,7 +5,7 @@ from rp2 import PIO, asm_pio
     in_shiftdir=PIO.SHIFT_RIGHT,
     out_shiftdir=PIO.SHIFT_LEFT,
     autopull=True,
-    pull_thresh=8
+    pull_thresh=5 # n < 5 can be used for horizontal downscaling, 0 seems to do upscaling
     # pull_thresh=16, # interesting things happen with weird levels
 )
 def read_palette():
@@ -17,14 +17,14 @@ def read_palette():
     2. Palette Lookup.
     Uses the 4 bit pixel indices to generate the address which points to the specified color in the palette
     """
-    pull()  # First word is the palette base address
-    mov(isr, osr)  # Keep it in the ISR for later
+    out(isr, 32)            # First word is the palette base address
+                            # Keep it in the ISR for later
 
     wrap_target()
     # pull() # An extra pull could be used for horiz downscaling, since it discards pixels
 
     # PIXEL PROCESSING ----------------------------------------------------
-    out(y, 4)  # pull 4 bits from OSR
+    out(y, 4)               [0] # pull 4 bits from OSR
 
     """ Index lookup logic (reverse addition) """
     mov(x, invert(isr))  # ISR has the base addr
@@ -49,7 +49,7 @@ def read_palette():
 def row_start():
     """
     Generates the next row start address by remembering the first pixel address and
-    progressively adding one row worth of pixels at a time to it.
+    progressively adding one row worth of pixels to it every loop.
 
     Uses one's complement addition through substraction:
     https://github.com/raspberrypi/pico-examples/blob/master/pio/addition/addition.pio
@@ -58,23 +58,24 @@ def row_start():
     mov(x, invert(osr))  # Before doing the math, store the first number (base address) as its 1s complement
 
     wrap_target()
-    pull()              # Pull the size of the next row
+    pull()              [6]    # Pull the size of the next row
 
     mov(y, osr)
     jmp(not_y, "skip")     # When row size=0, resend the address of the previous row start
 
-    jmp("test")
+    jmp("test")             [2]
     # this loop is equivalent to the following C code:
     label("incr")  # while (y--)
-    jmp(x_dec, "test")[2]  # x--
+    jmp(x_dec, "test") # x--
 
     label("test")  # This has the effect of subtracting y from x, eventually.
-    jmp(y_dec, "incr")[2]
+    jmp(y_dec, "incr")[4]
 
-    mov(isr, invert(x))[2]  # The final result has to be 1s complement inverted
+    mov(isr, invert(x))[4]  # The final result has to be 1s complement inverted
     push()
 
     wrap()
+
     label("skip")           # When row size=0, resend the address of the previous row start without modifying it, and
-    mov(isr, invert(x))     # restart the loop
+    # mov(isr, invert(x))     # restart the loop
     push()

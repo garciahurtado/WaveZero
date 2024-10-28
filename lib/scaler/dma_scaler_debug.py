@@ -67,14 +67,14 @@ class ScalerDebugger():
         DMA_NAME = f"DMA_BASE_{index}"
         DMA_ADDR = globals()[DMA_NAME]
 
-        tcr = mem32[DMA_ADDR + DMA_DBG_TCR]
+        # tcr = mem32[DMA_ADDR + DMA_DBG_TCR]
 
         active_txt = 'ACTIVE' if dma.active() else 'INACTIVE'
         print()
         print(f"CH '{alias}' (#{dma.channel}) | ({active_txt}) | ({label}):")
         print("---------------------------------------------------")
         print(f". ........ {dma.registers[0]:08x} R \t........ {dma.registers[9]:08x} TX (current)")
-        print(f". ........ {dma.registers[1]:08x} W \t........ {tcr:08x} TCR (next)")
+        print(f". ........ {dma.registers[1]:08x} W \t........ {0:08x} TCR (next)")
         print(f". ........ {dma.registers[3]:08x} CTRL")
         print(f"*. CTRL UNPACKED |")
         print(f"                 v")
@@ -102,7 +102,7 @@ class ScalerDebugger():
             val = data_bytes[i]
             out_str += f"{val:08x}-"
 
-        print(out_str)
+        # print(out_str)
 
     def read_pio_opcode(self, instr):
         opcode = (instr & 0xE000) >> 13
