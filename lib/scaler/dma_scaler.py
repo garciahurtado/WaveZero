@@ -44,7 +44,7 @@ class DMAScaler:
     last_scale_shift = 0 #
     scale_shift_freq = 21 # every X ms, scale shifts one step
     bytes_per_pixel = 2
-    sm_indices = None
+    sm_palette_idx = None
     sm_row_start = None
     row_tx_count = 0
 
@@ -53,7 +53,8 @@ class DMAScaler:
     dbg:ScalerDebugger = None
 
     dma_row_read = None
-    read_complete = False
+    read_finished = False
+    rows_finished = False
 
     h_skew = 0
 
@@ -84,7 +85,7 @@ class DMAScaler:
         freq = 10 * 1000
 
         """ SM0: Pixel demuxer / palette reader """
-        sm_indices = self.sm_indices
+        sm_indices = self.sm_palette_idx
         sm_indices.init(
             read_palette,
             freq=freq,
@@ -105,7 +106,7 @@ class DMAScaler:
         #     sideset_base=Pin(22),  # off board LED
         # )
 
-        self.sm_indices.active(1)
+        self.sm_palette_idx.active(1)
         self.sm_row_start.active(1)
         # self.sm_row_scale.active(1)
 
@@ -156,7 +157,7 @@ class DMAScaler:
         self.palette_size = palette_size
 
         """ SM0: Pixel demuxer / index reader """
-        self.sm_indices = rp2.StateMachine(4)               # 1st SM in PIO1
+        self.sm_palette_idx = rp2.StateMachine(4)               # 1st SM in PIO1
 
         """ SM1:  Row start address generator """
         self.sm_row_start = rp2.StateMachine(5)             # 2nd SM in PIO1
@@ -167,7 +168,7 @@ class DMAScaler:
 
         """ Debug Buffer """
         if self.debug:
-            self.dbg = ScalerDebugger(self.sm_indices, self.sm_row_start, self.sm_row_scale)
+            self.dbg = ScalerDebugger(self.sm_palette_idx, self.sm_row_start, self.sm_row_scale)
             self.dbg.channel_names = self.channel_names
             self.dbg.channels = self.channels
             self.debug_bytes = self.dbg.get_debug_bytes()
@@ -271,7 +272,7 @@ class DMAScaler:
         self.dma_pixel_out.count = 1
         self.write_start_addr = addressof(self.display.write_framebuf)
 
-        self.sm_indices.restart()
+        self.sm_palette_idx.restart()
         self.sm_row_start.restart()
 
 
@@ -279,11 +280,6 @@ class DMAScaler:
         print("  >>>> DMA TRANSFER <<<< complete for: #", end='')
         print(irq.channel)
 
-    def pio_handler(self, event):
-        """ Handle an IRQ from a SM"""
-        print()
-        print("+++ A PIO IRQ OCCURRED ++++")
-        print()
 
     def init_dma(self):
         """ Configure and initialize the DMA channels general settings (once only) """
@@ -390,7 +386,7 @@ class DMAScaler:
             ctrl=dma_row_size_ctrl,
             # trigger=True
         )
-        self.dma_row_size.irq(handler=self.img_end_irq_handler)
+        self.dma_row_size.irq(handler=self.irq_rows_finished)
 
         """ Row Start DMA channel - CH #7 - Reloads the write reg of pixel_out to the start of the next row  """
         dma_row_start_ctrl = self.dma_row_start.pack_ctrl(
@@ -432,12 +428,15 @@ class DMAScaler:
             ctrl=dma_v_scale_ctrl,
         )
 
-    def img_end_irq_handler(self, irq_obj):
+    def irq_img_end(self, irq_obj):
         if self.debug:
             print()
             print("<<<<<< IMG END IRQ - Triggered / Read Complete >>>>>>")
             print()
-        self.read_complete = True
+        self.read_finished = True
+
+    def irq_rows_finished(self):
+        self.rows_finished = True
 
     def config_dma(self, image, x, y, width, height):
         display = self.display
@@ -524,7 +523,7 @@ class DMAScaler:
         self.dma_h_scale.read = self.h_patterns_ptr[self.scale_index]   # CH5 -
         # self.dma_h_scale.read = self.h_patterns_ptr[0]   # CH5 -
 
-        self.dma_row_size.count = image.height                       # CH6
+        self.dma_row_size.count = image.height - 1                      # CH6
         # self.dma_v_scale.read = self.v_patterns_ptr[self.scale_index]   # CH8
         # self.dma_v_scale.count = 1
 
@@ -536,18 +535,21 @@ class DMAScaler:
 
         """ State Machine startup -----------------------"""
         prof.start_profile('scaler.start_pio')
-        self.sm_indices.restart()
+        self.sm_palette_idx.restart()
         self.sm_row_start.restart()
 
+        self.sm_palette_idx.active(1)
         self.sm_row_start.active(1)
-        self.sm_indices.active(1)
 
+        self.sm_palette_idx.irq(self.irq_palette_end)
+
+        # sm.irq(lambda p: print(time.ticks_ms()))
         """ Prime color SM with first palette addr. """
         color_addr = addressof(image.palette_bytes)
         if self.debug:
             print(f"~~~ Priming SM0 with {color_addr:08x} ~~~")
 
-        self.sm_indices.put(color_addr)
+        self.sm_palette_idx.put(color_addr)
 
         if self.debug:
             print(f"~~~ Priming SM1 with {self.write_addr:08x} ~~~")
@@ -592,7 +594,7 @@ class DMAScaler:
         if self.debug:
             print("- Entering inner write loop -")
 
-        while (not self.read_complete):
+        while (not self.read_finished):
 
             if self.debug:
                 for idx in self.channel_names.keys():
@@ -617,8 +619,10 @@ class DMAScaler:
         self.stop_scaler()
         # self.update_scale()
 
-    def irq_clear(self):
-        pass
+    def irq_palette_end(self):
+        """ This is the IRQ handler for SM 0 """
+        if self.rows_finished:
+            self.read_finished = True
 
     def stop_scaler(self):
         self.dma_row_read.active(0)
