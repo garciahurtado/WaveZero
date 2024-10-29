@@ -21,6 +21,9 @@ def read_palette():
                             # Keep it in the ISR for later
 
     wrap_target()
+    # prevent SM1 from changing rows
+    irq(6)
+
     # pull() # An extra pull could be used for horiz downscaling, since it discards pixels
 
     # PIXEL PROCESSING ----------------------------------------------------
@@ -38,11 +41,17 @@ def read_palette():
 
     jmp(y_dec, "incr1")
 
+
     # Before pushing anything at all, save the ISR in the Y reg, which we are not using
     mov(y, isr)
     mov(isr, invert(x))  # The final result has to be 1s complement inverted
     push()  # 4 bytes pushed (pixel 1)
+
+
     mov(isr, y)  # restore the ISR with the base addr
+
+    # Allow the row start SM to proceed
+    irq(clear, 6)
 
 
 @asm_pio()
@@ -58,21 +67,25 @@ def row_start():
     mov(x, invert(osr))  # Before doing the math, store the first number (base address) as its 1s complement
 
     wrap_target()
-    pull()              [0]    # Pull the size of the next row
+    pull()              [4]    # Pull the size of the next row
 
     mov(y, osr)
     jmp(not_y, "skip")     # When row size=0, resend the address of the previous row start
 
-    jmp("test")             [2]
+    jmp("test")             [0]
     # this loop is equivalent to the following C code:
     label("incr")  # while (y--)
     jmp(x_dec, "test") # x--
 
     label("test")  # This has the effect of subtracting y from x, eventually.
-    jmp(y_dec, "incr")[4]
+    jmp(y_dec, "incr")[6]
 
-    mov(isr, invert(x))[4]  # The final result has to be 1s complement inverted
+    mov(isr, invert(x))[6]  # The final result has to be 1s complement inverted
+
     push()
+
+    # Before continue, wait for IRQ
+    wait(1, irq, 6)
 
     wrap()
 

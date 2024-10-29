@@ -28,7 +28,7 @@ def main():
 
     # machine.freq(250_000_000)
     # machine.freq(125_000_000)
-    machine.freq(30_000_000)
+    machine.freq(40_000_000)
 
     current_freq = machine.freq()
     print(f"CPU: {current_freq / 1_000_000} MHz")
