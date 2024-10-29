@@ -22,13 +22,13 @@ def read_palette():
 
     wrap_target()
 
-    # prevent SM1 from changing rows
+    # prevent SM1 from changing rows on us
     irq(6)
 
     # pull() # An extra pull could be used for horiz downscaling, since it discards pixels
 
     # PIXEL PROCESSING ----------------------------------------------------
-    out(y, 4)               [0] # pull 4 bits from OSR
+    out(y, 4)               # pull 4 bits from OSR
 
     """ Index lookup logic (reverse addition) """
     mov(x, invert(isr))  # ISR has the base addr
@@ -42,7 +42,6 @@ def read_palette():
 
     jmp(y_dec, "incr1")
 
-
     # Before pushing anything at all, save the ISR in the Y reg, which we are not using
     mov(y, isr)
     mov(isr, invert(x))  # The final result has to be 1s complement inverted
@@ -51,7 +50,7 @@ def read_palette():
     mov(isr, y)  # restore the ISR with the base addr
 
     # Raise 'row end' irq
-    irq(rel(0))
+    # irq(rel(0))
 
     # Allow the row start SM to proceed
     irq(clear, 6)
@@ -78,12 +77,12 @@ def row_start():
     jmp("test")             [4]
                                     # this loop is equivalent to the following C code:
     label("incr")                   # while (y--)
-    jmp(x_dec, "test")      [4]     # x--
+    jmp(x_dec, "test")      [0]     # x--
 
     label("test")                   # This has the effect of subtracting y from x, eventually.
-    jmp(y_dec, "incr")      [4]
+    jmp(y_dec, "incr")      [1]
 
-    mov(isr, invert(x))     [4]     # The final result has to be 1s complement inverted
+    mov(isr, invert(x))     [0]     # The final result has to be 1s complement inverted
 
     push()
 
