@@ -58,7 +58,7 @@ def row_start():
     mov(x, invert(osr))  # Before doing the math, store the first number (base address) as its 1s complement
 
     wrap_target()
-    pull()              [6]    # Pull the size of the next row
+    pull()              [0]    # Pull the size of the next row
 
     mov(y, osr)
     jmp(not_y, "skip")     # When row size=0, resend the address of the previous row start

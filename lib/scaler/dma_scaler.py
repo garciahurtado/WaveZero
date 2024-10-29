@@ -1,5 +1,6 @@
 import math
 
+import sys
 import utime
 
 from scaler.dma_scaler_debug import ScalerDebugger
@@ -38,7 +39,7 @@ class DMAScaler:
 
     v_patterns_ptr = []
     v_pattern_buf_all = []
-    max_scale_idx = 8
+    max_scale_idx = 16
     scale_index = 0
     last_scale_shift = 0 #
     scale_shift_freq = 21 # every X ms, scale shifts one step
@@ -80,7 +81,7 @@ class DMAScaler:
         # Set up the PIO state machines
         # freq = 125 * 1000 * 1000
         # freq = 40 * 1000 * 1000
-        freq = 50 * 1000
+        freq = 20 * 1000
 
         """ SM0: Pixel demuxer / palette reader """
         sm_indices = self.sm_indices
@@ -178,8 +179,7 @@ class DMAScaler:
         size = len(pattern)
         """
         h_patterns_int = [
-            [1, 1, 1, 1, 1, 1, 1, 1],
-            # [1, 0, 1, 0, 1, 0, 1, 0],
+            [4, 4, 4, 4, 4, 4, 4, 4],
             [1, 1, 1, 1, 2, 1, 1, 1],       # 12.5%
             [1, 1, 2, 1, 1, 1, 2, 1],       # 25%
             [1, 1, 2, 1, 1, 2, 1, 2],       # 37.5%
@@ -187,7 +187,15 @@ class DMAScaler:
             [2, 1, 2, 2, 1, 2, 1, 2],       # 62.5%
             [2, 1, 2, 2, 2, 1, 2, 2],       # 75%
             [2, 2, 2, 2, 1, 2, 2, 2],       # 87.5%
-            [2, 2, 2, 2, 2, 2, 2, 2]        # 100%
+            [2, 2, 2, 2, 2, 2, 2, 2],        # 100%
+            [2, 2, 2, 2, 3, 2, 2, 2],       # 112.5%
+            [2, 2, 3, 2, 2, 2, 3, 2],       # 135%
+            [2, 2, 3, 2, 2, 3, 2, 3],       # 137.5%
+            [2, 3, 2, 3, 2, 3, 2, 3],       # 150%
+            [3, 2, 3, 3, 2, 3, 2, 3],       # 162.5%
+            [3, 2, 3, 3, 3, 2, 3, 3],       # 175%
+            [3, 3, 3, 3, 2, 3, 3, 3],       # 187.5%
+            [3, 3, 3, 3, 3, 3, 3, 3]        # 200%
         ]
 
         v_patterns_int = [
@@ -203,7 +211,7 @@ class DMAScaler:
         ]
 
         """ We need to turn these lists into basic arrays so that the pointers are easier to pass to DMA """
-        self.h_patterns_ptr = array('L', [0x00000000] * 9)
+        self.h_patterns_ptr = array('L', [0x00000000] * 17)
         self.v_patterns_ptr = array('L', [0x00000000] * 9)
         all_patterns = self.all_h_patterns
 
@@ -215,14 +223,17 @@ class DMAScaler:
             for j, value in enumerate(scale_pattern):
                 h_pattern[j] = int(value)
 
+            print(f"#{i} PATTERN - len: {len(scale_pattern)} 0x{addressof(h_pattern):08x}")
+
             self.h_patterns_ptr[i] = addressof(h_pattern)
             all_patterns.append(h_pattern)
             self.h_pattern_buf_all.append(h_pattern_buf)
 
         print("//// SCALING PATTERNS (vert) \\\\\\\\")
+
         for i, scale_pattern in enumerate(v_patterns_int):
-            v_pattern_buf = bytearray(len(scale_pattern) * 4)
-            v_pattern = array('L', v_pattern_buf)
+            v_pattern_buf = bytearray(len(scale_pattern))
+            v_pattern = array('B', v_pattern_buf)
 
             for j, value in enumerate(scale_pattern):
                 v_pattern[j] = int(value)
@@ -233,6 +244,7 @@ class DMAScaler:
 
         # self.h_scale_ptr = self.h_patterns_ptr[self.scale_index]
         self.h_scale_ptr = self.h_patterns_ptr[0]
+        self.all_h_patterns = all_patterns
 
         print(f"CURRENT H PATTERN ADDR: 0x{self.h_scale_ptr:08x}")
 
@@ -277,13 +289,9 @@ class DMAScaler:
         """ Configure and initialize the DMA channels general settings (once only) """
 
         """ Image Read DMA channel - CH #2 - (feeds SM0) --------------------------------------- """
-        if self.debug_buffer_enable:
-            r_write = self.debug_bytes
-            r_inc_write = True
-        else:
-            r_write = PIO1_TX0
-            r_inc_write = False
 
+        r_write = PIO1_TX0
+        r_inc_write = False
 
         dma_row_read_ctrl = self.dma_row_read.pack_ctrl(
             size=0,
@@ -315,7 +323,7 @@ class DMAScaler:
         self.dma_color_addr.config(
             count=1,
             read=PIO1_RX0,
-            write=DMA_BASE_4 + DMA_READ_ADDR,
+            write=DMA_BASE_4 + DMA_READ_ADDR_TRIG,
             ctrl=dma_color_addr_ctrl,
         )
 
@@ -336,9 +344,12 @@ class DMAScaler:
         )
 
         """ Horizontal Upscale channel - CH #5 - uses a ring buffer t provide a pattern of pixel repetition for scaling """
-
-        scale_write = DMA_BASE_4 + DMA_TRANS_COUNT
-        scale_inc_write = False
+        if self.debug_buffer_enable:
+            scale_write = self.debug_bytes
+            scale_inc_write = True
+        else:
+            scale_write = DMA_BASE_4 + DMA_TRANS_COUNT
+            scale_inc_write = False
 
         dma_h_scale_ctrl = self.dma_h_scale.pack_ctrl(
             size=2,
@@ -346,15 +357,20 @@ class DMAScaler:
             inc_write=scale_inc_write,
             chain_to=self.dma_color_addr.channel,
             ring_sel=0,
-            ring_size=4,
+            ring_size=3, # 8 byte pattern
         )
 
         self.dma_h_scale.config(
             count=1,
             read=self.h_scale_ptr,
             write=scale_write,
+            # write=0,
             ctrl=dma_h_scale_ctrl,
+            # trigger=True
+
         )
+        # self.dma_h_scale.irq(handler=self.img_end_irq_handler)
+
 
 
         """ Row Size DMA channel - CH #6 - Sends the new row size to calculate another offset ------------------- """
@@ -376,7 +392,6 @@ class DMAScaler:
             ctrl=dma_row_size_ctrl,
             # trigger=True
         )
-        self.dma_row_size.irq(handler=self.img_end_irq_handler)
 
 
         """ Row Start DMA channel - CH #7 - Reloads the write reg of pixel_out to the start of the next row  """
@@ -426,6 +441,7 @@ class DMAScaler:
             print()
             # time.sleep_ms(100)
         self.read_complete = True
+        sys.exit(1)
 
     def config_dma(self, image, x, y, width, height):
         display = self.display
@@ -506,14 +522,15 @@ class DMAScaler:
         self.dma_row_read.read = image.pixel_bytes_addr                 # CH2
         self.dma_row_read.count = row_tx_count                         #   for 1byte width
         # self.dma_color_addr.count = image.width                     # CH3
-        self.dma_pixel_out.read = self.palette_buffer                   # CH5
+        self.dma_pixel_out.read = self.palette_buffer                   # CH4
         self.dma_pixel_out.write = self.write_addr
         self.dma_pixel_out.count = 1                                    # We can set the horizontal scale here (upscaling)
-        self.dma_h_scale.read = self.h_patterns_ptr[self.scale_index]   # CH5 -
+        # self.dma_h_scale.read = self.h_patterns_ptr[self.scale_index]   # CH5 -
+        self.dma_h_scale.read = self.h_patterns_ptr[0]   # CH5 -
 
         self.dma_row_size.count = image.height                         # CH6
         # self.dma_row_start.count = image.height                                    # CH7 -
-        self.dma_v_scale.read = self.v_patterns_ptr[self.scale_index]   # CH8
+        # self.dma_v_scale.read = self.v_patterns_ptr[self.scale_index]   # CH8
         # self.dma_v_scale.count = 1
 
         prof.end_profile('scaler.dma_init_values')
@@ -557,13 +574,14 @@ class DMAScaler:
         """ DMA - We only need to kick off the channels that don't have any other means to get started (like chain_to)"""
         prof.start_profile('scaler.start_dma')
 
-        self.dma_row_start.active(1)
-        self.dma_row_read.active(1)
+
         self.dma_row_size.active(1)
         self.dma_color_addr.active(1)
+        self.dma_row_read.active(1)
         self.dma_pixel_out.active(1)
 
         # self.dma_v_scale.active(1)
+        # self.dma_h_scale.active(1)
 
         if self.debug:
             print("- DMA channels started -")
@@ -580,11 +598,12 @@ class DMAScaler:
 
         while (not self.read_complete):
 
-            if self.debug:
+            if False and self.debug:
                 for idx in self.channel_names.keys():
                     self.dbg.debug_dma_channel(idx, 'IN_LOOP')
 
             if self.debug_buffer_enable:
+                print(self.dbg)
                 print("----------------------------------------------")
                 print("DEBUG BUFFER:")
                 self.dbg.debug_buffer(self.debug_bytes)
@@ -595,7 +614,8 @@ class DMAScaler:
             print("<<<-------- FINISHED READING IMAGE ---------->>>")
 
             for idx in self.channel_names.keys():
-                self.dbg.debug_dma_channel(idx, 'POST_DMA')
+                pass
+                # self.dbg.debug_dma_channel(idx, 'POST_DMA')
 
         # return False # debug
         self.stop_scaler()

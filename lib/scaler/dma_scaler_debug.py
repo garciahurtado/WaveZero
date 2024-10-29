@@ -102,7 +102,7 @@ class ScalerDebugger():
             val = data_bytes[i]
             out_str += f"{val:08x}-"
 
-        # print(out_str)
+        print(out_str)
 
     def read_pio_opcode(self, instr):
         opcode = (instr & 0xE000) >> 13
