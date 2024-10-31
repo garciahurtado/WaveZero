@@ -22,10 +22,8 @@ def read_palette():
 
     wrap_target()
 
-    # prevent SM1 from changing rows on us
-    irq(6)
-
     # pull() # An extra pull could be used for horiz downscaling, since it discards pixels
+    wait(0, irq, 6)    # Wait until row addr is ready
 
     # PIXEL PROCESSING ----------------------------------------------------
     out(y, 4)               # pull 4 bits from OSR
@@ -36,6 +34,7 @@ def read_palette():
     # this loop is equivalent to the following C code:
     label("incr1")  # while (y--)
     jmp(x_dec, "test_inc1")  # x--
+
     label("test_inc1")  # This has the effect of subtracting y from x, eventually.
     jmp(x_dec, "test_inc2")  # We double the substraction because each color is 2 bytes, so we are doing x = x+2
     label("test_inc2")
@@ -45,15 +44,15 @@ def read_palette():
     # Before pushing anything at all, save the ISR in the Y reg, which we are not using
     mov(y, isr)
     mov(isr, invert(x))  # The final result has to be 1s complement inverted
+
     push()  # 4 bytes pushed (pixel 1)
 
     mov(isr, y)  # restore the ISR with the base addr
 
-    # Raise 'row end' irq
-    # irq(rel(0))
 
     # Allow the row start SM to proceed
-    irq(clear, 6)
+    # irq(rel(6))
+    nop()       [0]
 
 
 @asm_pio()
@@ -69,28 +68,35 @@ def row_start():
     mov(x, invert(osr))  # Before doing the math, store the first number (base address) as its 1s complement
 
     wrap_target()
-    pull()                  [4]    # Pull the size of the next row
+
+    # allow pixel writing
+    irq(clear, 6)
+
+
+    pull()                  [2]    # Pull the size of the next row
+
 
     mov(y, osr)
     jmp(not_y, "skip")     # When row size=0, resend the address of the previous row start
 
-    jmp("test")             [4]
+    jmp("test")             [2]
                                     # this loop is equivalent to the following C code:
     label("incr")                   # while (y--)
-    jmp(x_dec, "test")      [0]     # x--
+    jmp(x_dec, "test")      [2]     # x--
 
     label("test")                   # This has the effect of subtracting y from x, eventually.
-    jmp(y_dec, "incr")      [1]
+    jmp(y_dec, "incr")      [2]
 
-    mov(isr, invert(x))     [0]     # The final result has to be 1s complement inverted
+
+    mov(isr, invert(x))     [2]     # The final result has to be 1s complement inverted
+
+    # New row address sent, signal ready for pixels
+    irq(6)
 
     push()
-
-    # Before continue, wait for IRQ
-    wait(1, irq, 6)
 
     wrap()
 
     label("skip")           # When row size=0, resend the address of the previous row start without modifying it, and
-    # mov(isr, invert(x))     # restart the loop
-    push()
+    # mov(isr, invert(x))   # restart the loop
+    push() # push what was already in the ISR

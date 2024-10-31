@@ -81,7 +81,8 @@ class TestScreen(Screen):
         self.init_camera()
         self.init_fps()
 
-        display.fill(0x00AA)
+        # display.fill(0x00AA)
+        display.fill(0x0000)
         display.show()
 
         self.create_sprite_manager(display, num_sprites=num_sprites)
@@ -192,8 +193,8 @@ class TestScreen(Screen):
             draw_y = min((self.display.height - img_height) - 2, draw_y)
 
             # DEBUG
-            draw_x = 32
-            draw_y = 16 + (i*32)
+            draw_x = 0
+            draw_y = 8 + (i*2)
 
             scale = self.sprite_scales[i]
 
