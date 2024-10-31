@@ -17,13 +17,16 @@ def read_palette():
     2. Palette Lookup.
     Uses the 4 bit pixel indices to generate the address which points to the specified color in the palette
     """
+    irq(rel(0))
+
     out(isr, 32)            # First word is the palette base address
                             # Keep it in the ISR for later
 
     wrap_target()
+    wait(1, irq, rel(0))
 
     # pull() # An extra pull could be used for horiz downscaling, since it discards pixels
-    wait(0, irq, 6)    # Wait until row addr is ready
+    # wait(0, irq, 6)    # Wait until row addr is ready
 
     # PIXEL PROCESSING ----------------------------------------------------
     out(y, 4)               # pull 4 bits from OSR
@@ -46,12 +49,11 @@ def read_palette():
     mov(isr, invert(x))  # The final result has to be 1s complement inverted
 
     push()  # 4 bytes pushed (pixel 1)
+    irq(rel(0))  # Signal to row_start that pixel is done
 
     mov(isr, y)  # restore the ISR with the base addr
 
 
-    # Allow the row start SM to proceed
-    # irq(rel(6))
     nop()       [0]
 
 
@@ -69,12 +71,7 @@ def row_start():
 
     wrap_target()
 
-    # allow pixel writing
-    irq(clear, 6)
-
-
     pull()                  [2]    # Pull the size of the next row
-
 
     mov(y, osr)
     jmp(not_y, "skip")     # When row size=0, resend the address of the previous row start
@@ -88,12 +85,14 @@ def row_start():
     jmp(y_dec, "incr")      [2]
 
 
+    # Wait for pixel pipeline to clear before changing row address
+    # wait(0, irq, 6)
+
     mov(isr, invert(x))     [2]     # The final result has to be 1s complement inverted
-
-    # New row address sent, signal ready for pixels
-    irq(6)
-
     push()
+
+    irq(rel(0))
+    wait(1, irq, rel(0))
 
     wrap()
 

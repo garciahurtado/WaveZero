@@ -312,7 +312,7 @@ class DMAScaler:
             inc_read=True,
             inc_write=r_inc_write,
             treq_sel= DREQ_PIO1_TX0,
-            chain_to=self.dma_row_size.channel,
+            chain_to=self.dma_row_start.channel,
             bswap=True,
         )
         self.dma_row_read.config(
@@ -340,7 +340,7 @@ class DMAScaler:
             write=DMA_BASE_4 + DMA_READ_ADDR_TRIG,
             ctrl=dma_color_addr_ctrl,
         )
-        self.dma_color_addr.irq(handler=self.irq_img_end)
+        # self.dma_color_addr.irq(handler=self.irq_img_end)
 
         """ Pixel out DMA channel - CH #4 --------------------- """
         dma_pixel_out_ctrl = self.dma_pixel_out.pack_ctrl(
@@ -387,12 +387,12 @@ class DMAScaler:
 
         dma_row_size_ctrl = self.dma_row_size.pack_ctrl(
             size=2,
-            inc_read=True,
+            inc_read=False,
             inc_write=False,
             treq_sel=DREQ_PIO1_TX1,
-            chain_to=self.dma_row_start.channel,
+            chain_to=self.dma_row_read.channel,
             ring_sel=True,
-            ring_size=1
+            ring_size=2
         )
         self.dma_row_size.config(
             count=1,
@@ -414,7 +414,7 @@ class DMAScaler:
             inc_read=False,
             inc_write=row_s_inc_write,
             treq_sel=DREQ_PIO1_RX1,
-            chain_to=self.dma_row_read.channel,
+            chain_to=self.dma_row_size.channel,
         )
         self.dma_row_start.config(
             count=1,
@@ -519,11 +519,11 @@ class DMAScaler:
         self.dma_h_scale.read = self.h_patterns_ptr[0]   # CH5 -
         self.dma_row_size.read = self.v_patterns_ptr[8]                  # CH6 -
         # self.dma_row_size.count = image.height - 1                      # CH6 - (-1) because the first row needed no address
-        # self.dma_row_size.count = 1
+        self.dma_row_size.count = 1
         # self.dma_v_scale.read = self.v_patterns_ptr[4]   # CH8
         # self.dma_v_scale.count = 1
 
-        # self.dma_row_start.count = image.height - 1    # 7
+        # self.dma_row_start.count = image.height - 1    # CH7
 
         prof.end_profile('scaler.dma_init_values')
 
@@ -550,10 +550,14 @@ class DMAScaler:
         if self.debug:
             print(f"~~~ Priming SM1 with {self.write_addr:08x} ~~~")
         """
-        Prime row start SM with first framebuffer addr. 1st, and the first row size 2nd
+        Prime row start SM with:
+         1. framebuffer addr. 
+         2. first row size
+         
         Both are needed for the first cycle of the SM, and so that later DMAs are triggered afterwards"""
+
         self.sm_row_start.put(self.write_addr)
-        # self.sm_row_start.put(self.row_tx_count // 2)
+        self.sm_row_start.put(self.row_tx_count // 2)
 
         # if self.debug:
         #     print(f"~~~ Priming SM2 with {self.write_addr:08x} ~~~")
@@ -573,9 +577,9 @@ class DMAScaler:
 
         # self.dma_pixel_out.active(1) # Omitting Avoids extra pixel on 1st row
         self.dma_color_addr.active(1)
-        self.dma_row_read.active(1)
+        # self.dma_row_read.active(1)
         self.dma_row_start.active(1)
-        self.dma_row_size.active(1)
+        # self.dma_row_size.active(1)
 
         # self.dma_v_scale.active(1)
         # self.dma_h_scale.active(1)
