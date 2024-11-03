@@ -70,19 +70,19 @@ class TestScreen(Screen):
         # self.score_palette.set_rgb(0, colors.hex_to_rgb(BLACK))
         # self.score_palette.set_rgb(0, colors.hex_to_rgb(CYAN))
 
-        self.base_x = 32 - (32//2)
-        self.base_y = 16 - (32//2)
+        self.base_x = 16
+        self.base_y = 10
 
-        self.x_vals = [(random.randrange(-30, 30)) for _ in range(num_sprites)]
-        self.y_vals = [(random.randrange(-30, 30)) for _ in range(num_sprites)]
+        self.x_vals = [(2*i) for i in range(num_sprites)]
+        self.y_vals = [(2*i) for i in range(num_sprites)]
+        # self.y_vals = [(random.randrange(-30, 30)) for _ in range(num_sprites)]
 
         self.sprite_scales = [random.choice(range(0, 9)) for _ in range(num_sprites)]
 
         self.init_camera()
-        self.init_fps()
+        # self.init_fps()
 
-        # display.fill(0x00AA)
-        display.fill(0x0000)
+        display.fill(0xAA00)
         display.show()
 
         self.create_sprite_manager(display, num_sprites=num_sprites)
@@ -183,24 +183,26 @@ class TestScreen(Screen):
 
         prof.start_profile('scaler.show_all')
         for i in range(num_sprites):
-            draw_x = abs(x_vals[i] + base_x)
-            draw_y = abs(y_vals[i] + base_y)
+            draw_x = abs(i*2 + base_x)
+            draw_y = abs(i*2 + base_y)
 
             draw_x = max(0, draw_x)
             draw_y = max(0, draw_y)
 
-            draw_x = min((self.display.width - img_width)-1, draw_x)
-            draw_y = min((self.display.height - img_height) - 2, draw_y)
+            draw_x = min(self.display.width, draw_x)
+            draw_y = min(self.display.height, draw_y)
 
             # DEBUG
-            draw_x = 0
-            draw_y = 8 + (i*2)
+            # draw_x = 0
+            # draw_y = 8 + (i*2)
 
             scale = self.sprite_scales[i]
 
             prof.start_profile('scaler.show_one')
             self.scaler.show(image, draw_x, draw_y, img_width, img_height, scale)
             prof.end_profile('scaler.show_one')
+
+            # print(f" . COORDS: x:{draw_x} y:{draw_y} ")
 
         prof.end_profile('scaler.show_all')
 
@@ -266,9 +268,9 @@ class TestScreen(Screen):
         meta = self.mgr.sprite_metadata[sprite_type]
 
         for i in range(0, num_sprites):
-            sprite, _ = self.mgr.create(sprite_type, x=45, y=34, z=0)
-            sprite.x = 20
-            sprite.y = 10
+            sprite, _ = self.mgr.create(sprite_type, x=0, y=0, z=0)
+            sprite.x = 0
+            sprite.y = 0
             sprite.z = 0
             self.sprites.append(sprite)
 

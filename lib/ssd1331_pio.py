@@ -72,7 +72,7 @@ class SSD1331PIO():
         self.framebuf0.fill(0x0)
 
         # A second buffer, the read buffer, is the one that gets sent to the display
-        # DMA copies the write buffer to this one over time
+        # DMA copies the write buffer to this one when the writing finishes
         self.framebuf1 = framebuf.FrameBuffer(self.buffer1, self.width, self.height, mode)
         self.framebuf1.fill(0x0)
 

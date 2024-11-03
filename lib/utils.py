@@ -1,4 +1,4 @@
-def aligned_buffer(size, alignment):
+def aligned_buffer(size, alignment=4):
     """ Create a buffer of 'size' bytes aligned to a memory address power of 'alignment'"""
 
     # Create a buffer slightly larger than needed
