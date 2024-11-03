@@ -26,7 +26,7 @@ def read_palette():
     # wait(1, irq, rel(0))
 
     # pull() # An extra pull could be used for horiz downscaling, since it discards pixels
-    wait(0, irq, 6)    # Wait until row addr is ready
+    # wait(0, irq, 6)    # Wait until row addr is ready
 
     # PIXEL PROCESSING ----------------------------------------------------
     out(y, 4)               # pull 4 bits from OSR
@@ -65,29 +65,27 @@ def row_start():
     """
     pull()
     mov(x, invert(osr))  # Before doing the addition, store the first number (base address) as its 1s complement
-    irq(6, 1)
 
     wrap_target()
 
-    pull()                  [2]    # Pull the size of the next row
+    pull()                  [4]    # Pull the size of the next row
 
     mov(y, osr)
     jmp(not_y, "skip")     # When row size=0, resend the address of the previous row start
 
-    jmp("test")             [2]
+    jmp("test")             [4]
                                     # this loop is equivalent to the following C code:
     label("incr")                   # while (y--)
-    jmp(x_dec, "test")      [2]     # x--
+    jmp(x_dec, "test")      [4]     # x--
 
     label("test")                   # This has the effect of subtracting y from x, eventually.
-    jmp(y_dec, "incr")      [2]
+    jmp(y_dec, "incr")      [4]
 
     # Wait for pixel pipeline to clear before changing row address
     # wait(0, irq, 6)
 
-    mov(isr, invert(x))     [2]     # The final result has to be 1s complement inverted
+    mov(isr, invert(x))     [4]     # The final result has to be 1s complement inverted
 
-    irq(6, 0)
     push()
 
     # wait(1, irq, rel(0))

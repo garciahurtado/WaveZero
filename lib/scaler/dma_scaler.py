@@ -1,13 +1,15 @@
 import math
 
 import sys
+
+import random
 import utime
 
 from scaler.dma_scaler_debug import ScalerDebugger
 from scaler.dma_scaler_pio import *
 from uctypes import addressof
 
-from machine import Pin
+from machine import Pin, mem32
 import time
 import uctypes
 
@@ -42,13 +44,13 @@ class DMAScaler:
     v_patterns_ptr = []
     scale_index = 0
     last_scale_shift = 0 #
-    scale_shift_freq = 10 # every X ms, scale shifts one step
+    scale_shift_freq = 50 # every X ms, scale shifts one step
     bytes_per_pixel = 2
     sm_palette_idx = None
     sm_row_start = None
     row_tx_count = 0
 
-    debug = True
+    debug = False
     debug_buffer_enable = False
     dbg: ScalerDebugger = None
 
@@ -79,8 +81,8 @@ class DMAScaler:
 
     def init_pio(self):
         # Set up the PIO state machines
-        freq = 125 * 1000 * 1000
-        # freq = 10 * 1000 * 1000
+        # freq = 125 * 1000 * 1000
+        freq = 2 * 1000 * 1000
         # freq = 1000 * 1000
 
         """ SM0: Pixel demuxer / palette reader """
@@ -359,7 +361,7 @@ class DMAScaler:
             inc_write=scale_inc_write,
             # chain_to=self.dma_color_addr.channel,
             ring_sel=0,
-            ring_size=2, # 8 byte pattern
+            ring_size=4, # 8 byte pattern
         )
 
         self.dma_h_scale.config(
@@ -503,11 +505,10 @@ class DMAScaler:
         self.dma_pixel_out.write = self.write_addr
         self.dma_pixel_out.count = 1                                    # We can set the horizontal scale here (upscaling)
 
-        # self.dma_h_scale.read = self.h_patterns_ptr[6]   # CH5 -
-        self.dma_h_scale.read = self.h_patterns_ptr[int(self.scale_index)]   # CH5 -
-        print(f"SCALEIDX: {self.scale_index}")
 
-        self.dma_row_size.read = self.v_patterns_ptr[8]                  # CH6 -
+        pattern_addr = self.h_patterns_ptr[self.scale_index]
+        self.dma_h_scale.read = pattern_addr                              # CH5 -
+        self.dma_row_size.read = self.v_patterns_ptr[8]                   # CH6 -
         # self.dma_row_size.count = image.height - 1                      # CH6 - (-1) because the first row needed no address
 
 
@@ -564,8 +565,6 @@ class DMAScaler:
         # self.dma_row_read.active(1)
         # self.dma_row_size.active(1)
 
-        # self.dma_v_scale.active(1)
-        # self.dma_h_scale.active(1)
 
         if self.debug:
             print("- DMA channels started -")
