@@ -5,8 +5,8 @@ from rp2 import PIO, asm_pio
     in_shiftdir=PIO.SHIFT_RIGHT,
     out_shiftdir=PIO.SHIFT_LEFT,
     autopull=True,
-    pull_thresh=5# n < 5 can be used for horizontal downscaling, 0 seems to do upscaling
-    # pull_thresh=16, # interesting things happen with weird levels
+    pull_thresh=5     # n < 5 might be usable for 50% horizontal downscaling, 0 and n > 5 seems to do upscaling
+    # pull_thresh=16, # interesting things happen at weird levels
 )
 def read_palette():
     """
@@ -58,15 +58,12 @@ def row_start():
     mov(y, osr)  # Store row size in Y
 
     wrap_target()
-    # Output current address
-    mov(isr, invert(x))  # Get true address
-    push()  # Push address
 
     # Get pattern and test
-    pull()  # Get pattern value
-    mov(isr, y)  # Save row size in ISR
-    mov(y, osr)  # Get pattern into Y for testing
-    jmp(not_y, "skip_add")  # Skip if pattern = 0
+    pull()                          # Get pattern value
+    mov(isr, y)                     # Save row size in ISR
+    mov(y, osr)                     # Get pattern into Y for testing
+    jmp(not_y, "skip_add")          # Skip if pattern = 0
 
     # Add row size to address
     mov(y, isr)  # Get row size back into Y
@@ -78,35 +75,8 @@ def row_start():
     label("skip_add")
     mov(y, isr)  # restore row size to Y
 
-# @asm_pio(
-#     autopull=True,
-#     pull_thresh=8
-# )
-@asm_pio()
-def _row_start():
-    # Init
-    pull()  # Get initial base address
-    mov(x, invert(osr))  # ~addr in X
-    pull()  # Get row size
-    mov(isr, osr)  # Save row size
+    # Output current address (this order fixes extra pixels on first row)
+    mov(isr, invert(x))  # Get true address
 
-    wrap_target()
-    # Output address
-    mov(isr, invert(x))  # Get true address11
-    push()
-    mov(isr, osr)  # Restore row size
+    push()  # Push address
 
-    # Get pattern
-    pull()  # Get pattern value
-    mov(y, osr)  # Y = pattern
-    jmp(not_y, "end")  # If pattern=0, next row
-
-    # Single decrement loop
-    mov(y, isr)  # Y = row size
-    label("subtract")
-    jmp(x_dec, "next")  # Decrement addr
-    label("next")
-    jmp(y_dec, "subtract")  # Loop while Y>0
-
-    label("end")
-    wrap()

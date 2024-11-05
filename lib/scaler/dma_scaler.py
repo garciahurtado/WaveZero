@@ -38,6 +38,10 @@ def dma_callback(callback: DMA):
 
 class DMAScaler:
     write_addr = None
+    h_patterns_int = []
+    v_patterns_up_int = []
+    v_patterns_down_int = []
+
     h_patterns_ptr = []
     h_pattern_buf_all = []
 
@@ -82,7 +86,7 @@ class DMAScaler:
     def init_pio(self):
         # Set up the PIO state machines
         # freq = 125 * 1000 * 1000
-        freq = 50 * 1000
+        freq = 10 * 1000
         # freq = 1000 * 1000
 
         """ SM0: Pixel demuxer / palette reader """
@@ -175,7 +179,7 @@ class DMAScaler:
         size = len(pattern)
         """
         h_patterns_int = [
-            [1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1], # 0s dont work at the moment :(
             [1, 1, 1, 1, 2, 1, 1, 1],       # 12.5%
             [1, 1, 2, 1, 1, 1, 2, 1],       # 25%
             [1, 1, 2, 1, 1, 2, 1, 2],       # 37.5%
@@ -201,19 +205,22 @@ class DMAScaler:
             # [4, 4, 4, 4, 3, 4, 4, 4],       # 287.5%
             # [4, 4, 4, 4, 4, 4, 4, 4]        # 300%
         ]
+        self.h_patterns_int = h_patterns_int
 
         """ Doubling a vert pattern value (row size) from 0xC0 to 0x0180 allows us to have a one-on / one-off type x2 pattern"""
         v_patterns_down_int = [
-            [1, 0, 1, 0, 1, 1, 1, 1],
-            [0, 0, 0, 0, 0x30, 0, 0, 0],  # 12.5%
-            [0, 0, 0x30, 0, 0, 0, 0x30, 0],  # 25%
-            [0, 0, 0x30, 0, 0, 0x30, 0, 0x30],  # 37.5%
-            [0, 0x30, 0, 0x30, 0, 0x30, 0, 0x30],  # 50%
-            [0x30, 0, 0x30, 0x30, 0, 0x30, 0, 0x30],  # 62.5%
-            [0x30, 0, 0x30, 0x30, 0x30, 0, 0x30, 0x30],  # 75%
-            [0x30, 0x30, 0x30, 0x30, 0, 0x30, 0x30, 0x30],  # 87.5%
-            [0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0],  # 100%
+            [1, 1, 1, 1, 1, 1, 1, 1],
+            [0, 0, 0, 0, 1, 0, 0, 0],  # 12.5%
+            [0, 0, 1, 0, 0, 0, 1, 0],  # 25%
+            [0, 0, 1, 0, 0, 1, 0, 1],  # 37.5%
+            [0, 1, 0, 1, 0, 1, 0, 1],  # 50%
+            [1, 0, 1, 1, 0, 1, 0, 1],  # 62.5%
+            [1, 0, 1, 1, 1, 0, 1, 1],  # 75%
+            [1, 1, 1, 1, 0, 1, 1, 1],  # 87.5%
+            [1, 1, 1, 1, 1, 1, 1, 1],  # 100%
         ]
+        self.v_patterns_down_int = v_patterns_down_int
+
         v_patterns_up_int = [
             [1, 1, 1, 1, 1, 1, 1, 1],
             [1, 1, 1, 1, 2, 1, 1, 1],  # 12.5%
@@ -225,6 +232,7 @@ class DMAScaler:
             [2, 2, 2, 2, 1, 2, 2, 2],  # 87.5%
             [2, 2, 2, 2, 2, 2, 2, 2],  # 100%
         ]
+        self.v_patterns_up_int = v_patterns_up_int
 
         """ We need to turn these lists into basic arrays so that the pointers are easier to pass to DMA """
         h_patt_len = len(h_patterns_int)
@@ -492,24 +500,29 @@ class DMAScaler:
     def show(self, image: Image, x, y, width, height, scale=1):
         self.read_finished = False
 
-        y = 0 # DEBUG
-
         """ ----------- Set variable per-image configuration on all the DMA channels -------------- """
+        hscale = sum(self.h_patterns_int[0]) / len(self.h_patterns_int)
+        vscale = sum(self.v_patterns_down_int[0]) / len(self.v_patterns_down_int)
+
+        actual_width = round(width * hscale)
+        actual_height = round(height * vscale)
 
         prof.start_profile('scaler.prep_img_vars')
-        # num_pixels = int(width * (height))
-        num_pixels = int(width * (height) / 2) # For 50% scale
+        num_pixels = int(actual_width * actual_height)
 
         # row_tx_count = int(width + self.h_skew) # Adding / substracting can apply skew to the image
-        row_tx_count = math.floor(width / 2)
+        row_tx_count = round(actual_width / 2) + 2
         prof.end_profile('scaler.prep_img_vars')
 
         if self.debug:
             print(f"IMAGE WIDTH (px): {width}")
+            print(f"IMAGE ACTUAL WIDTH (px): {actual_width}")
+            print(f"IMAGE HEIGHT (px): {height}")
+            print(f"IMAGE ACTUAL HEIGHT (px): {actual_height}")
             print(f"TOTAL IMG PX: {num_pixels}")
             print(f"ROW TX COUNT (32bit): {row_tx_count}")
             print(f"SCALE IDX: {self.scale_index}")
-        self.row_tx_count = row_tx_count
+        self.row_tx_count = row_tx_count + 32
 
         prof.start_profile('scaler.config_dma')
         self.config_dma(image, x, y, width, height)
@@ -592,11 +605,8 @@ class DMAScaler:
         prof.start_profile('scaler.start_dma')
 
         # self.dma_pixel_out.active(1) # Omitting Avoids extra pixel on 1st row
-        # self.dma_row_start.active(1)
         self.dma_color_addr.active(1)
         self.dma_row_read.active(1)
-        # self.dma_row_size.active(1)
-        # self.dma_v_scale.active(1)
 
         if self.debug:
             print("- DMA channels started -")
@@ -645,7 +655,8 @@ class DMAScaler:
 
             for one_dma in pending_counts:
                 attr = getattr(self, one_dma)
-                print(f"{one_dma}:   \tTX:{attr.count} \tACTIVE: {attr.active()}")
+                active = "ACTIVE" if attr.active() else ""
+                print(f"{one_dma: < 16}   TX:{attr.count} \t{active}")
 
 
         self.dma_row_read.active(0)
@@ -655,6 +666,8 @@ class DMAScaler:
         self.dma_row_size.active(0)
         self.dma_h_scale.active(0)
         self.dma_v_scale.active(0)
+
+        print()
 
     def update_scale(self):
         """ shift the scale"""
