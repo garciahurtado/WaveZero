@@ -42,17 +42,20 @@ class ScalerDebugger():
 
     def debug_pio_status(self):
         print()
-        print("SM0 -------------")
+
+        line_num = mem32[PIO1_BASE + SM0_ADDR]
         inst_code = mem32[PIO1_BASE + SM0_INST_DEBUG]
+        print(f"-- SM0 (#{line_num}) ----------------------------")
         self.read_pio_opcode(inst_code)
 
-        print("SM1 -------------")
+        line_num = mem32[PIO1_BASE + SM1_ADDR]
         inst_code = mem32[PIO1_BASE + SM1_INST_DEBUG]
+        print(f"-- SM1 (#{line_num}) -----------------------------")
         self.read_pio_opcode(inst_code)
 
-        print("SM2 -------------")
-        inst_code = mem32[PIO1_BASE + SM2_INST_DEBUG]
-        self.read_pio_opcode(inst_code)
+        # print("SM2 -------------")
+        # inst_code = mem32[PIO1_BASE + SM2_INST_DEBUG]
+        # self.read_pio_opcode(inst_code)
 
     def debug_register(self):
         deb1 = mem32[FDEBUG] >> 24
@@ -112,22 +115,25 @@ class ScalerDebugger():
         ]
 
         if opcode < len(opcodes):
-            print(f"Instruction: {opcodes[opcode]}")
 
             if opcode == 0:  # JMP
+                print("JMP")
                 condition = (instr >> 5) & 0x7
                 address = instr & 0x1F
                 conditions = ["ALWAYS", "!X", "X--", "!Y", "Y--", "X!=Y", "PIN", "!OSRE"]
                 print(f"Condition: {conditions[condition]}, Address: {address}")
             elif opcode == 4:  # PUSH/PULL
                 if instr & 0x80:
-                    print("PULL instruction")
+                    print("PULL")
                 else:
-                    print("PUSH instruction")
+                    print("PUSH")
                 if instr & 0x60:  # Check if blocking
-                    print("Blocking")
+                    print("(blocking)")
                 else:
-                    print("Non-blocking")
+                    print("(non-blocking)")
+            else:
+                print(f"{opcodes[opcode]}")
+
         else:
             print("Unknown instruction")
 

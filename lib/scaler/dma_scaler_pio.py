@@ -5,7 +5,7 @@ from rp2 import PIO, asm_pio
     in_shiftdir=PIO.SHIFT_RIGHT,
     out_shiftdir=PIO.SHIFT_LEFT,
     autopull=True,
-    pull_thresh=5 # n < 5 can be used for horizontal downscaling, 0 seems to do upscaling
+    pull_thresh=5# n < 5 can be used for horizontal downscaling, 0 seems to do upscaling
     # pull_thresh=16, # interesting things happen with weird levels
 )
 def read_palette():
@@ -17,16 +17,12 @@ def read_palette():
     2. Palette Lookup.
     Uses the 4 bit pixel indices to generate the address which points to the specified color in the palette
     """
-    # irq(rel(0))
-
     out(isr, 32)            # First word is the palette base address
                             # Keep it in the ISR for later
 
     wrap_target()
-    # wait(1, irq, rel(0))
 
     # pull() # An extra pull could be used for horiz downscaling, since it discards pixels
-    # wait(0, irq, 6)    # Wait until row addr is ready
 
     # PIXEL PROCESSING ----------------------------------------------------
     out(y, 4)               # pull 4 bits from OSR
@@ -48,53 +44,69 @@ def read_palette():
     mov(y, isr)
     mov(isr, invert(x))  # The final result has to be 1s complement inverted
 
-    push()  # 4 bytes pushed (pixel 1)
-    # irq(rel(0))  # Signal to row_start that pixel is done
+    push()  # 4 bytes pushed
 
     mov(isr, y)  # restore the ISR with the base addr
-
+    irq(4)  # Signal to row_start that pixel is done
 
 @asm_pio()
 def row_start():
-    """
-    Generates the next row start address by remembering the first pixel address and
-    progressively adding one row worth of pixels to it every loop.
-
-    Uses one's complement addition through substraction:
-    https://github.com/raspberrypi/pico-examples/blob/master/pio/addition/addition.pio
-    """
-    pull()
-    mov(x, invert(osr))  # Before doing the addition, store the first number (base address) as its 1s complement
+    # Initialize
+    pull()  # Get initial base address
+    mov(x, invert(osr))  # Store ~base_addr in X
+    pull()  # Get initial row size
+    mov(y, osr)  # Store row size in Y
 
     wrap_target()
+    # Output current address
+    mov(isr, invert(x))  # Get true address
+    push()  # Push address
 
-    pull()                  [4]    # Pull the size of the next row
+    # Get pattern and test
+    pull()  # Get pattern value
+    mov(isr, y)  # Save row size in ISR
+    mov(y, osr)  # Get pattern into Y for testing
+    jmp(not_y, "skip_add")  # Skip if pattern = 0
 
-    mov(y, osr)
-    jmp(not_y, "skip")     # When row size=0, resend the address of the previous row start
+    # Add row size to address
+    mov(y, isr)  # Get row size back into Y
+    label("add_loop")
+    jmp(x_dec, "test")  # Decrement inverted address
+    label("test")
+    jmp(y_dec, "add_loop")  # Loop while row size > 0
 
-    jmp("test")             [4]
-                                    # this loop is equivalent to the following C code:
-    label("incr")                   # while (y--)
-    jmp(x_dec, "test")      [4]     # x--
+    label("skip_add")
+    mov(y, isr)  # restore row size to Y
 
-    label("test")                   # This has the effect of subtracting y from x, eventually.
-    jmp(y_dec, "incr")      [4]
+# @asm_pio(
+#     autopull=True,
+#     pull_thresh=8
+# )
+@asm_pio()
+def _row_start():
+    # Init
+    pull()  # Get initial base address
+    mov(x, invert(osr))  # ~addr in X
+    pull()  # Get row size
+    mov(isr, osr)  # Save row size
 
-    # Wait for pixel pipeline to clear before changing row address
-    # wait(0, irq, 6)
-
-    mov(isr, invert(x))     [4]     # The final result has to be 1s complement inverted
-
+    wrap_target()
+    # Output address
+    mov(isr, invert(x))  # Get true address11
     push()
+    mov(isr, osr)  # Restore row size
 
-    # wait(1, irq, rel(0))
+    # Get pattern
+    pull()  # Get pattern value
+    mov(y, osr)  # Y = pattern
+    jmp(not_y, "end")  # If pattern=0, next row
 
+    # Single decrement loop
+    mov(y, isr)  # Y = row size
+    label("subtract")
+    jmp(x_dec, "next")  # Decrement addr
+    label("next")
+    jmp(y_dec, "subtract")  # Loop while Y>0
+
+    label("end")
     wrap()
-
-    label("skip")           # When row size=0, resend the address of the previous row start without modifying it, and
-    mov(isr, invert(x))   # restart the loop
-    # irq(rel(0))
-    # wait(1, irq, rel(0))
-
-    push() # push what was already in the ISR

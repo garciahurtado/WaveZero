@@ -57,4 +57,8 @@ SM0_INST_DEBUG = const(0x0d8)
 SM1_INST_DEBUG = const(0x0f0)
 SM2_INST_DEBUG = const(0x108)
 
+SM0_ADDR = const(0x0d4)
+SM1_ADDR = const(0x0ec)
+
+
 
