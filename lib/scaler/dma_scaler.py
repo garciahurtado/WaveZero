@@ -54,7 +54,7 @@ class DMAScaler:
     sm_row_start = None
     row_tx_count = 0
 
-    debug = True
+    debug = False
     debug_buffer_enable = False
     dbg: ScalerDebugger = None
 
@@ -86,7 +86,7 @@ class DMAScaler:
     def init_pio(self):
         # Set up the PIO state machines
         # freq = 125 * 1000 * 1000
-        freq = 10 * 1000
+        freq = 2 * 1000 * 1000
         # freq = 1000 * 1000
 
         """ SM0: Pixel demuxer / palette reader """
@@ -178,8 +178,10 @@ class DMAScaler:
         The data will be sent to the pixel_out DMA count field. from another channel with a ring buffer of 
         size = len(pattern)
         """
+        self.pattern_size = pattern_size = 8 # num elements in one pattern
+
         h_patterns_int = [
-            [1, 1, 1, 1, 1, 1, 1, 1], # 0s dont work at the moment :(
+            [1, 1, 1, 1, 1, 1, 1, 1], # 0s dont work at the moment, nor the last 4 bits :(
             [1, 1, 1, 1, 2, 1, 1, 1],       # 12.5%
             [1, 1, 2, 1, 1, 1, 2, 1],       # 25%
             [1, 1, 2, 1, 1, 2, 1, 2],       # 37.5%
@@ -235,34 +237,27 @@ class DMAScaler:
         self.v_patterns_up_int = v_patterns_up_int
 
         """ We need to turn these lists into basic arrays so that the pointers are easier to pass to DMA """
-        h_patt_len = len(h_patterns_int)
-        v_patt_down_len = len(v_patterns_down_int)
-        v_patt_up_len = len(v_patterns_up_int)
+        self.h_patterns_ptr = array('L', [0x00000000] * len(h_patterns_int))
+        self.v_patterns_down_ptr = array('L', [0x00000000] * len(v_patterns_down_int))
+        self.v_patterns_up_ptr = array('L', [0x00000000] * len(v_patterns_up_int))
 
-        self.h_patterns_ptr = array('L', [0x00000000] * 9)
-        self.v_patterns_down_ptr = array('L', [0x00000000] * 9)
-        self.v_patterns_up_ptr = array('L', [0x00000000] * 9)
-
-        all_patterns = self.all_patterns = []
-        all_buffers = self.all_buffers = []
 
         # print("//// SCALING PATTERNS (horiz upscaling) \\\\\\\\")
         for i, scale_pattern in enumerate(h_patterns_int):
-            h_pattern_buf = bytearray(h_patt_len * 4)
+            h_pattern_buf = bytearray(pattern_size * 4)
             h_pattern = array('L', h_pattern_buf)
 
-            for j, value in enumerate(scale_pattern):
-                h_pattern[j] = int(value)
+            for j, element in enumerate(scale_pattern):
+                h_pattern[j] = int(element)
 
             # print(f"#{i} PATTERN - len: {len(scale_pattern)} 0x{addressof(h_pattern):08x}")
 
             self.h_patterns_ptr[i] = addressof(h_pattern)
-            # all_patterns.append(h_pattern)
-            # all_buffers.append(h_pattern_buf)
+            self.all_h_patterns.append(h_pattern)
 
         # print("//// SCALING PATTERNS (vertical downscaling) \\\\\\\\")
         for i, scale_pattern in enumerate(v_patterns_down_int):
-            v_pattern_buf = bytearray(v_patt_down_len * 4)
+            v_pattern_buf = bytearray(pattern_size * 4)
             v_pattern = array('L', v_pattern_buf)
 
             for j, value in enumerate(scale_pattern):
@@ -274,7 +269,7 @@ class DMAScaler:
 
         # print("//// SCALING PATTERNS (vertical upscaling) \\\\\\\\")
         for i, scale_pattern in enumerate(v_patterns_up_int):
-            v_pattern_buf = bytearray(v_patt_up_len * 4)
+            v_pattern_buf = bytearray(pattern_size * 4)
             v_pattern = array('L', v_pattern_buf)
 
             for j, value in enumerate(scale_pattern):
@@ -393,7 +388,7 @@ class DMAScaler:
             inc_write=scale_inc_write,
             # chain_to=self.dma_color_addr.channel,
             ring_sel=0,
-            ring_size=4, # 8 byte pattern
+            ring_size=4, # 4 el pattern
         )
 
         self.dma_h_scale.config(
@@ -501,28 +496,30 @@ class DMAScaler:
         self.read_finished = False
 
         """ ----------- Set variable per-image configuration on all the DMA channels -------------- """
-        hscale = sum(self.h_patterns_int[0]) / len(self.h_patterns_int)
-        vscale = sum(self.v_patterns_down_int[0]) / len(self.v_patterns_down_int)
+        hscale = sum(self.h_patterns_int[self.scale_index]) / self.pattern_size
+        vscale = sum(self.v_patterns_down_int[0]) / self.pattern_size
 
-        actual_width = round(width * hscale)
+        actual_width = int(width * hscale)
         actual_height = round(height * vscale)
 
         prof.start_profile('scaler.prep_img_vars')
         num_pixels = int(actual_width * actual_height)
 
         # row_tx_count = int(width + self.h_skew) # Adding / substracting can apply skew to the image
-        row_tx_count = round(actual_width / 2) + 2
+        row_tx_count = math.ceil(actual_width / (2 * hscale))
         prof.end_profile('scaler.prep_img_vars')
 
         if self.debug:
             print(f"IMAGE WIDTH (px): {width}")
+            print(f"IMAGE HSCALE: {hscale:04f}")
+            print(f"IMAGE SUM/SIZE: {sum(self.h_patterns_int[0])}/{self.pattern_size}")
             print(f"IMAGE ACTUAL WIDTH (px): {actual_width}")
             print(f"IMAGE HEIGHT (px): {height}")
+            print(f"IMAGE VSCALE: {vscale:04f}")
             print(f"IMAGE ACTUAL HEIGHT (px): {actual_height}")
             print(f"TOTAL IMG PX: {num_pixels}")
             print(f"ROW TX COUNT (32bit): {row_tx_count}")
             print(f"SCALE IDX: {self.scale_index}")
-        self.row_tx_count = row_tx_count + 32
 
         prof.start_profile('scaler.config_dma')
         self.config_dma(image, x, y, width, height)
@@ -637,7 +634,7 @@ class DMAScaler:
         if self.debug:
             print("<<<<-------- FINISHED READING IMAGE ---------->>>>")
 
-        # self.update_scale()
+        self.update_scale()
 
     def stop_scaler(self):
         self.sm_palette_idx.active(0)

@@ -63,17 +63,19 @@ def row_start():
     pull()                          # Get pattern value
     mov(isr, y)                     # Save row size in ISR
     mov(y, osr)                     # Get pattern into Y for testing
-    jmp(not_y, "skip_add")          # Skip if pattern = 0
+    jmp(not_y, "skip_add")   [0]       # Skip if pattern = 0
 
     # Add row size to address
-    mov(y, isr)  # Get row size back into Y
+    mov(y, isr)             [0] # Get row size back into Y
     label("add_loop")
-    jmp(x_dec, "test")  # Decrement inverted address
+    jmp(x_dec, "test")      [0]# Decrement inverted address
     label("test")
-    jmp(y_dec, "add_loop")  # Loop while row size > 0
 
+    jmp(y_dec, "add_loop")  [0] # Loop while row size > 0
+    nop()                   [0]
+    nop()                   [0]
     label("skip_add")
-    mov(y, isr)  # restore row size to Y
+    mov(y, isr)             [0] # restore row size to Y
 
     # Output current address (this order fixes extra pixels on first row)
     mov(isr, invert(x))  # Get true address
