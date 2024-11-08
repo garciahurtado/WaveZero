@@ -51,13 +51,13 @@ class DMAScaler:
     v_patterns_up_ptr = []
     scale_index = 0
     last_scale_shift = 0 #
-    scale_shift_freq = 50 # every X ms, scale shifts one step
+    scale_shift_freq = 300 # every X ms, scale shifts one step
     bytes_per_pixel = 2
     sm_palette_idx = None
     sm_row_start = None
     row_tx_count = 0
 
-    debug = False
+    debug = True
     debug_buffer_enable = False
     dbg: ScalerDebugger = None
 
@@ -89,7 +89,7 @@ class DMAScaler:
     def init_pio(self):
         # Set up the PIO state machines
         # freq = 125 * 1000 * 1000
-        freq = 40 * 1000 * 1000
+        freq = 1 * 1000 * 1000
         # freq = 5 * 1000
 
         """ SM0: Pixel demuxer / palette reader """
@@ -246,14 +246,26 @@ class DMAScaler:
         self.v_patterns_up_ptr = array('L', [0x00000000] * len(v_patterns_up_int))
 
 
+
         # print("//// SCALING PATTERNS (horiz upscaling) \\\\\\\\")
+        # Store patterns as 32-bit values, but only use values 1-4
         for i, scale_pattern in enumerate(h_patterns_int):
-            h_pattern_buf = bytearray(pattern_size * 4)
+            # Get 32-byte aligned buffer for 8 x 4-byte elements
+            h_pattern_buf = aligned_buffer(8 * 4, alignment=32)
             h_pattern = array('L', h_pattern_buf)
-            print(f"#{i} PATTERN - len: {len(scale_pattern)} 0x{addressof(h_pattern):08x}")
+
+            # Debug verification
+            pattern_addr = addressof(h_pattern)
+            if self.debug:
+                print(f"Pattern {i} address: 0x{pattern_addr:08x}")
+                print(f"Alignment check: {pattern_addr % 32}/32")
+
+            print(f"Pattern buffer address: 0x{addressof(h_pattern):08x}")
+            print(f"Buffer alignment: {addressof(h_pattern) % 32}")  # Should be 0 for 32-byte alignment
 
             for j, element in enumerate(scale_pattern):
-                h_pattern[j] = int(element)
+                h_pattern[j] = int(element)  # Values 1-4 stored in 32-bit words
+                print(f"Element {j} at 0x{addressof(h_pattern) + (j * 4):08x}: {element}")
 
             self.h_patterns_ptr[i] = addressof(h_pattern)
             self.all_h_patterns.append(h_pattern)
@@ -380,7 +392,7 @@ class DMAScaler:
             inc_write=scale_inc_write,
             # chain_to=self.dma_color_addr.channel,
             ring_sel=0,
-            ring_size=4, # 5 makes everything freak out and it would be great to know why
+            ring_size=5, # 5 makes everything freak out and it would be great to know why
         )
 
         self.dma_h_scale.config(
@@ -389,6 +401,10 @@ class DMAScaler:
             write=scale_write,
             ctrl=dma_h_scale_ctrl,
         )
+
+        print(f"> DMA h_scale read addr: 0x{self.dma_h_scale.read:08x}")
+        print(f"> DMA h_scale read increment: {self.dma_h_scale.ctrl >> 4 & 1}")
+        # print(f"> DMA h_scale ring size: {1 << self.dma_h_scale.ctrl >> 19 & 0xf} bytes")
 
 
         """ Row Size DMA channel - CH #6 - Sends the new row size to calculate another offset ------------------- """
@@ -505,7 +521,7 @@ class DMAScaler:
         # actual_height = round(height * v_scale)
 
         self.dma_color_addr.count = actual_width * height
-        row_tx_count = math.ceil(actual_width / (math.ceil(h_scale)) / 2)
+        row_tx_count = math.ceil(actual_width / h_scale / 2)
         self.num_pixels = actual_width * height
         # v_scale = sum(self.v_patterns_down_int[0]) / self.pattern_size
         v_scale = 1
@@ -713,7 +729,6 @@ class DMAScaler:
             self.last_scale_shift = utime.ticks_ms()
 
             prof.end_profile('scaler.scale_shift')
-
 
     def __del__(self):
         # Clean up DMA channels
