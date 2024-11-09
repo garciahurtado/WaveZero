@@ -95,10 +95,11 @@ class TestScreen(Screen):
         ch_6 = DMA()
         ch_7 = DMA()
         ch_8 = DMA()
+        ch_9 = DMA()
 
         num_colors = 16
 
-        self.scaler = DMAScaler(self.display, num_colors, ch_2, ch_3, ch_4, ch_5, ch_6, ch_7, ch_8)
+        self.scaler = DMAScaler(self.display, num_colors, ch_2, ch_3, ch_4, ch_5, ch_6, ch_7, ch_8, ch_9)
 
     def create_sprite_manager(self, display, num_sprites=0):
         self.check_mem()

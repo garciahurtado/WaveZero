@@ -49,19 +49,27 @@ def read_palette():
     mov(isr, y)  # restore the ISR with the base addr
     irq(4)  # Signal to row_start that pixel is done
 
-@asm_pio()
+@asm_pio(
+    set_init=PIO.OUT_LOW,
+    sideset_init=PIO.OUT_LOW
+)
 def row_start():
     # Initialize
-    pull()  # Get initial base address
-    mov(x, invert(osr))  # Store ~base_addr in X
-    pull()  # Get initial row size
-    mov(y, osr)  # Store row size in Y
+
+    nop()                   .side(0x1) [4]
+    pull()                               [1]            # Get initial base address
+    nop()                   .side(0x0)
+
+    mov(x, invert(osr))      .side(0x1)[4]                   # Store ~base_addr in X
+    pull()                   [1]                          # Get initial row size
+    mov(y, osr)               .side(0x0)              # Store row size in Y
 
     wrap_target()
 
     # Get pattern and test
-    pull()                          # Get pattern value
-    mov(isr, y)                     # Save row size in ISR
+    nop()               .side(0x1)[4]
+    pull()                  [1]             # Get pattern value
+    mov(isr, y)              .side(0x0)        # Save row size in ISR
     mov(y, osr)                     # Get pattern into Y for testing
     jmp(not_y, "skip_add")   [0]       # Skip if pattern = 0
 
@@ -71,14 +79,15 @@ def row_start():
     jmp(x_dec, "test")      [0]# Decrement inverted address
     label("test")
 
-    jmp(y_dec, "add_loop")  [0] # Loop while row size > 0
-    nop()                   [0]
-    nop()                   [0]
+    jmp(y_dec, "add_loop")  [4] # Loop while row size > 0
+
     label("skip_add")
     mov(y, isr)             [0] # restore row size to Y
 
     # Output current address (this order fixes extra pixels on first row)
     mov(isr, invert(x))  # Get true address
 
-    push()  # Push address
+    set(pins, 0x1)          [2]
+    push()                  [2]
+    set(pins, 0x0)
 

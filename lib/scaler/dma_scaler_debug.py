@@ -53,9 +53,10 @@ class ScalerDebugger():
         print(f"-- SM1 (#{line_num}) -----------------------------")
         self.read_pio_opcode(inst_code)
 
-        # print("SM2 -------------")
-        # inst_code = mem32[PIO1_BASE + SM2_INST_DEBUG]
-        # self.read_pio_opcode(inst_code)
+        line_num = mem32[PIO1_BASE + SM2_ADDR]
+        inst_code = mem32[PIO1_BASE + SM2_INST_DEBUG]
+        print(f"-- SM2 (#{line_num}) -----------------------------")
+        self.read_pio_opcode(inst_code)
 
     def debug_register(self):
         deb1 = mem32[FDEBUG] >> 24
