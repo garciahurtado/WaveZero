@@ -47,7 +47,6 @@ def read_palette():
     push()  # 4 bytes pushed
 
     mov(isr, y)  # restore the ISR with the base addr
-    irq(4)  # Signal to row_start that pixel is done
 
 @asm_pio(
     set_init=PIO.OUT_LOW,
@@ -55,21 +54,22 @@ def read_palette():
 )
 def row_start():
     # Initialize
+    # nop()                   .side(0x1) [0]
+    pull()                               [0]            # Get initial base address
+    mov(isr, osr)
+    push()
 
-    nop()                   .side(0x1) [4]
-    pull()                               [1]            # Get initial base address
-    nop()                   .side(0x0)
 
-    mov(x, invert(osr))      .side(0x1)[4]                   # Store ~base_addr in X
+    mov(x, invert(osr))    #  .side(0x1)[0]                   # Store ~base_addr in X
     pull()                   [1]                          # Get initial row size
-    mov(y, osr)               .side(0x0)              # Store row size in Y
+    mov(y, osr)            #   .side(0x0)              # Store row size in Y
 
     wrap_target()
 
     # Get pattern and test
-    nop()               .side(0x1)[4]
-    pull()                  [1]             # Get pattern value
-    mov(isr, y)              .side(0x0)        # Save row size in ISR
+    # nop()               .side(0x1)[0]
+    pull()                  [0]             # Get pattern value
+    mov(isr, y)           #   .side(0x0)        # Save row size in ISR
     mov(y, osr)                     # Get pattern into Y for testing
     jmp(not_y, "skip_add")   [0]       # Skip if pattern = 0
 
@@ -87,7 +87,7 @@ def row_start():
     # Output current address (this order fixes extra pixels on first row)
     mov(isr, invert(x))  # Get true address
 
-    set(pins, 0x1)          [2]
+    # set(pins, 0x1)          [2]
     push()                  [2]
-    set(pins, 0x0)
+    # set(pins, 0x0)
 
