@@ -21,7 +21,6 @@ def read_palette():
                             # Keep it in the ISR for later
 
     wrap_target()
-
     # pull() # An extra pull could be used for horiz downscaling, since it discards pixels
 
     # PIXEL PROCESSING ----------------------------------------------------
@@ -45,6 +44,7 @@ def read_palette():
     mov(isr, invert(x))  # The final result has to be 1s complement inverted
 
     push()  # 4 bytes pushed
+    # wait(0, irq, 4)         # wait in case new row is still starting
 
     mov(isr, y)  # restore the ISR with the base addr
 
@@ -68,6 +68,8 @@ def row_start():
 
     # Get pattern and test
     # nop()               .side(0x1)[0]
+    # irq(rel(4))
+
     pull()                  [0]             # Get pattern value
     mov(isr, y)           #   .side(0x0)        # Save row size in ISR
     mov(y, osr)                     # Get pattern into Y for testing
@@ -89,5 +91,19 @@ def row_start():
 
     # set(pins, 0x1)          [2]
     push()                  [2]
-    # set(pins, 0x0)
+    # set(pins, 0x0)              # LED DEBUG
+
+
+@asm_pio()
+def _row_counter():
+    pull()  # Get total rows
+    mov(y, osr)  # Y = row count
+
+    wrap_target()
+
+    wait(1, irq, 4)  # Wait for IRQ 4 from row_start
+    irq(clear, 4)  # Clear the flag
+    jmp(y_dec, "cont")  # Dec counter, continue if not zero
+    irq(0)  # Signal completion on IRQ 0
+    label("cont")
 
