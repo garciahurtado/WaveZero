@@ -20,8 +20,8 @@ def read_palette():
     out(isr, 32)            # First word is the palette base address
                             # Keep it in the ISR for later
 
+    pull() # An extra pull could be used for horiz downscaling, since it discards pixels
     wrap_target()
-    # pull() # An extra pull could be used for horiz downscaling, since it discards pixels
 
     # PIXEL PROCESSING ----------------------------------------------------
     out(y, 4)               # pull 4 bits from OSR
@@ -49,8 +49,6 @@ def read_palette():
     mov(isr, y)  # restore the ISR with the base addr
 
 @asm_pio(
-    set_init=PIO.OUT_LOW,
-    sideset_init=PIO.OUT_LOW
 )
 def row_start():
     # Initialize
@@ -81,16 +79,16 @@ def row_start():
     jmp(x_dec, "test")      [0]# Decrement inverted address
     label("test")
 
-    jmp(y_dec, "add_loop")  [4] # Loop while row size > 0
+    jmp(y_dec, "add_loop")  [2] # Loop while row size > 0
 
     label("skip_add")
-    mov(y, isr)             [0] # restore row size to Y
+    mov(y, isr)             [2] # restore row size to Y
 
     # Output current address (this order fixes extra pixels on first row)
     mov(isr, invert(x))  # Get true address
 
     # set(pins, 0x1)          [2]
-    push()                  [2]
+    push()                    [8]
     # set(pins, 0x0)              # LED DEBUG
 
 
