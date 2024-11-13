@@ -71,25 +71,35 @@ def row_start():
     pull()                  [0]             # Get pattern value
     mov(isr, y)           #   .side(0x0)        # Save row size in ISR
     mov(y, osr)                     # Get pattern into Y for testing
-    jmp(not_y, "skip_add")   [0]       # Skip if pattern = 0
+    jmp(not_y, "skip_add")   [8]       # Skip if pattern = 0
 
     # Add row size to address
-    mov(y, isr)             [0] # Get row size back into Y
+    mov(y, isr)             [8] # Get row size back into Y
     label("add_loop")
-    jmp(x_dec, "test")      [0]# Decrement inverted address
+    jmp(x_dec, "test")      [8]# Decrement inverted address
     label("test")
 
     jmp(y_dec, "add_loop")  [2] # Loop while row size > 0
 
-    label("skip_add")
     mov(y, isr)             [2] # restore row size to Y
 
+    label("after_loop")
     # Output current address (this order fixes extra pixels on first row)
     mov(isr, invert(x))  # Get true address
 
     # set(pins, 0x1)          [2]
     push()                    [8]
     # set(pins, 0x0)              # LED DEBUG
+
+    wrap()
+
+    label("skip_add")       # This causes an addtl row addr to be sent when "skip"
+    mov(y, isr)[2]  # save row size to Y, for later
+    #
+    mov(isr, invert(x))
+    push()                  [8]
+
+    jmp("after_loop")
 
 
 @asm_pio()

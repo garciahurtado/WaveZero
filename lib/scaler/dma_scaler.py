@@ -53,7 +53,8 @@ class DMAScaler:
 
     v_patterns_up_ptr = []
     scale_index = 0
-    v_scale_index = 0
+    v_scale_up_index = 0
+    v_scale_down_index = 0
     h_scale_index = 0
     last_scale_shift = 0 #
     scale_shift_freq = 50 # every X ms, scale shifts one step
@@ -198,7 +199,7 @@ class DMAScaler:
             [1, 0, 1, 1, 0, 1, 0, 1],  # 62.5%
             [1, 0, 1, 1, 1, 0, 1, 1],  # 75%
             [1, 1, 1, 1, 0, 1, 1, 1],  # 87.5%
-            [1, 1, 1, 1, 1, 1, 1, 1],  # 100%
+            [1, 1, 1, 1, 1, 1, 1, 1]  # 100%
         ]
         self.v_patterns_down_int = v_patterns_down_int
 
@@ -207,12 +208,12 @@ class DMAScaler:
             [1, 1, 1, 1, 1, 1, 1, 1],  # 100%
             [1, 1, 1, 1, 0, 1, 1, 1],  # 112%
             [1, 1, 0, 1, 1, 0, 1, 1],  # 125%
-            [1, 1, 0, 1, 1, 0, 1, 1],  # 150%?
-            [1, 1, 0, 1, 1, 0, 1, 0],  # 175%?
-            [1, 0, 1, 0, 1, 0, 1, 0],  # 200%
-            [1, 0, 0, 0, 1, 0, 0, 0],  # 400%
-            [1, 0, 0, 0, 0, 0, 0, 1],  # 600%
-            [1, 0, 0, 0, 0, 0, 0, 0],  # 800%
+            [1, 1, 0, 1, 1, 0, 1, 0],  # 137%
+            [1, 0, 1, 0, 1, 0, 1, 0],  # 150%
+            [1, 0, 1, 1, 1, 0, 1, 0],  # 162%
+            [1, 0, 0, 0, 1, 0, 0, 0],  # 175%
+            [1, 0, 0, 0, 0, 0, 0, 1],  # 187%
+            [1, 0, 0, 0, 0, 0, 0, 0]   # 200%
         ]
         self.v_patterns_up_int = v_patterns_up_int
         self.pattern_size = pattern_size = 8 # num elements in one pattern
@@ -274,7 +275,8 @@ class DMAScaler:
         self.v_scale_up_ptr = self.v_patterns_up_ptr[0]
 
         self.h_scale_index = 0
-        self.v_scale_index = 0
+        self.v_scale_up_index = 0
+        self.v_scale_down_index = 0
 
         print(f"INIT H PATTERN ADDR: 0x{self.h_scale_ptr:08x}")
         print(f"INIT V PATTERN ADDR: 0x{self.v_scale_down_ptr:08x}")
@@ -290,8 +292,8 @@ class DMAScaler:
         # Set up the PIO state machines
         # freq = 125 * 1000 * 1000
         # freq = 40 * 1000 * 1000
-        # freq = 200 * 1000
-        freq = 1000 * 1000
+        freq = 300 * 1000
+        # freq = 40 * 1000
         # freq = 25 * 1000
 
         """ SM0: Pixel demuxer / palette reader """
@@ -566,7 +568,7 @@ class DMAScaler:
             print()
         self.read_finished = True
 
-    def config_dma(self, image, x, y, width, height):
+    def config_dma(self, image, x, y, width, height, actual_height):
         # print(f"DMA: x:{x} y:{y} ")
 
         display = self.display
@@ -628,7 +630,6 @@ class DMAScaler:
 
         # Double check total pixel count
         # actual_width = sum(self.h_patterns_int[self.h_scale_index])
-        actual_width = math.ceil(width * h_scale)
         # actual_height = round(height * v_scale)
 
         row_tx_count = byte_width # for 1byte tx size
@@ -636,27 +637,30 @@ class DMAScaler:
         v_scale = 1
 
         # actual_width = int(width * h_scale)
-        # actual_height = round(height * v_scale)
+
+        up_pattern = self.v_patterns_up_int[self.v_scale_up_index]
+        actual_height = self.get_upscaled_height(height, up_pattern)
+
+        print(f"-- HEIGHT: {height} / IDX: [{self.v_scale_up_index}] / ACTUAL=HEIGHT: {actual_height}")
 
 
         # row_tx_count = int(width + self.h_skew) # Adding / substracting can apply skew to the image
         prof.end_profile('scaler.prep_img_vars')
 
         prof.start_profile('scaler.config_dma')
-        self.config_dma(image, x, y, width, height)
+        self.config_dma(image, x, y, width, height, actual_height)
         prof.end_profile('scaler.config_dma')
 
         if self.debug:
             print(f"IMAGE WIDTH (px): {width}")
             print(f"IMAGE HSCALE: {h_scale:04f}")
             print(f"IMAGE SUM/SIZE: {sum(self.h_patterns_int[0])}/{self.pattern_size}")
-            print(f"IMAGE ACTUAL WIDTH (px): {actual_width}")
             print(f"IMAGE HEIGHT (px): {height}")
+            print(f"IMAGE ACTUAL HEIGHT (px): {actual_height}")
             print(f"IMAGE VSCALE: {v_scale:04f}")
-            print(f"IMAGE ACTUAL HEIGHT (px): {height}")
             print(f"ROW TX COUNT (32bit): {row_tx_count}")
             print(f"H SCALE IDX: {self.h_scale_index}")
-            print(f"V SCALE IDX: {self.v_scale_index}")
+            print(f"V SCALE IDX: {self.v_scale_up_index}")
 
         # print(f"SCALER WRITING TO WRITE BUFF @:{self.write_addr_base:08x}")
         color_addr = addressof(image.palette_bytes)
@@ -674,12 +678,13 @@ class DMAScaler:
 
         self.dma_h_scale.read = self.h_patterns_ptr[self.h_scale_index]                              # CH5 -
         self.dma_h_scale.count = 1                             # CH5 -
-        self.dma_row_size.read = self.v_patterns_down_ptr[self.v_scale_index]                         # CH6 -
+        self.dma_row_size.read = self.v_patterns_down_ptr[self.v_scale_down_index]                         # CH6 -
         self.dma_row_size.count = 1
 
         """ CH 8"""
-        self.dma_v_scale.count = image.height - 1
-        self.dma_v_scale.read = self.v_patterns_up_ptr[self.v_scale_index]
+        self.dma_v_scale.count = actual_height
+        # self.dma_v_scale.count = height - 1
+        self.dma_v_scale.read = self.v_patterns_up_ptr[self.v_scale_up_index]
 
         prof.end_profile('scaler.dma_init_values')
 
@@ -811,7 +816,8 @@ class DMAScaler:
 
     def update_scale(self):
         """ shift the scale"""
-        max_idx = len(self.h_patterns_ptr) - 1
+        max_h_idx = len(self.h_patterns_ptr) - 1
+        max_v_idx = len(self.v_patterns_up_ptr) - 1
 
         # print(f"MAXIDX::: {max_idx}")
         # max_idx = 8
@@ -821,14 +827,33 @@ class DMAScaler:
         if diff > self.scale_shift_freq:
             prof.start_profile('scaler.scale_shift')
 
+            """
+            Animates all 4 scaling operations that the scaler can do:
+            - Horizontal upscaling
+            - Horizontal downscaling
+            - Vertical upscaling
+            - Vertical downscaling
+            """
             self.h_scale_index += (1 * self.scale_index_flip)
+            self.v_scale_up_index += (1 * self.scale_index_flip)
+            # self.v_scale_down_index += (1 * self.scale_index_flip)
 
-            if self.h_scale_index > max_idx:
-                self.h_scale_index = max_idx
+            """ HORIZ index """
+            if self.h_scale_index >= max_h_idx:
+                self.h_scale_index = max_h_idx
                 self.scale_index_flip = self.scale_index_flip * -1
 
-            if self.h_scale_index < 1:
-                self.h_scale_index = 1
+            if self.h_scale_index < 0:
+                self.h_scale_index = 0
+                self.scale_index_flip = self.scale_index_flip * -1
+
+            """ VERT index """
+            if self.v_scale_up_index >= max_v_idx:
+                self.v_scale_up_index = max_v_idx
+                self.scale_index_flip = self.scale_index_flip * -1
+
+            if self.v_scale_up_index < 0:
+                self.v_scale_up_index = 0
                 self.scale_index_flip = self.scale_index_flip * -1
 
             if self.debug:
@@ -837,6 +862,33 @@ class DMAScaler:
             self.last_scale_shift = utime.ticks_ms()
 
             prof.end_profile('scaler.scale_shift')
+
+    def get_upscaled_height(self, height, up_pattern):
+        """ Calculate the actual height of a sprite to be drawn, given the original height, and the upscaling pattern.
+        The pattern is made of 1s and 0s, where 1 means normal 1:1 row, and 0 means repeat row (ie: all zeros is 2x)"""
+        print(f"UPPATTERN IS --> {up_pattern}")
+
+        pattern_len = len(up_pattern)
+        one_pattern_zeros = up_pattern.count(0)
+        one_pattern_ones = up_pattern.count(1)
+        pattern_count = int(height/pattern_len)
+
+        print(f"WITH {one_pattern_zeros} zeros and {one_pattern_ones} ones (pattern count: {pattern_count})")
+
+        carry = height % pattern_len
+        carry_zeros = up_pattern[0:carry].count(0)
+        carry_ones = up_pattern[0:carry].count(1)
+        print(f"CARRY: {carry} / CARRY_z: {carry_zeros} / CARRY_0: {carry_zeros}")
+
+        zeros = (one_pattern_zeros * pattern_count) + carry_zeros
+        ones = (one_pattern_ones * pattern_count) + carry_ones
+        new_height = (zeros) + height
+
+        print(f"RETURNING HEIGHT: {new_height}(z)")
+        print()
+
+        return new_height
+
 
     def __del__(self):
         # Clean up DMA channels
