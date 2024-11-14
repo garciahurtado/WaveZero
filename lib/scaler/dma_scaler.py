@@ -300,8 +300,8 @@ class DMAScaler:
     def init_pio(self):
         # Set up the PIO state machines
         # freq = 125 * 1000 * 1000
-        freq = 40 * 1000 * 1000
-        # freq = 10 * 1000 * 1000
+        # freq = 40 * 1000 * 1000
+        freq = 200 * 1000
         # freq = 40 * 1000
         # freq = 25 * 1000
 
@@ -607,8 +607,8 @@ class DMAScaler:
 
     def show(self, image: Image, x, y, width, height, scale=1):
         """Adjust coords for scale"""
-        x = x - self.h_scale_index
-        y = y - self.v_scale_up_index
+        x = x - self.h_scale_index + 1
+        y = y - self.v_scale_up_index + 1
 
         # Ensure previous frame is complete
         if not self.read_finished:
@@ -848,7 +848,7 @@ class DMAScaler:
             - Vertical downscaling
             """
             self.h_scale_index += (1 * self.scale_index_flip)
-            self.v_scale_up_index += (1 * self.scale_index_flip)
+            # self.v_scale_up_index += (1 * self.scale_index_flip)
             # self.v_scale_down_index += (1 * self.scale_index_flip)
 
             """ HORIZ index """

@@ -5,7 +5,7 @@ from rp2 import PIO, asm_pio
     in_shiftdir=PIO.SHIFT_RIGHT,
     out_shiftdir=PIO.SHIFT_LEFT,
     autopull=True,
-    pull_thresh=5     # n < 5 might be usable for 50% horizontal downscaling, 0 and n > 5 seems to do upscaling
+    pull_thresh=6     # n < 5 might be usable for 50% horizontal downscaling, 0 and n > 5 seems to do upscaling
     # pull_thresh=16, # interesting things happen at weird levels
 )
 def read_palette():
@@ -68,7 +68,7 @@ def row_start():
     # nop()               .side(0x1)[0]
     # irq(rel(4))
 
-    pull()                  [0]             # Get pattern value
+    pull()                  [2]             # Get pattern value
     mov(isr, y)           #   .side(0x0)        # Save row size in ISR
     mov(y, osr)                     # Get pattern into Y for testing
     jmp(not_y, "skip_add")   [0]       # Skip if pattern = 0
@@ -88,20 +88,8 @@ def row_start():
     mov(isr, invert(x))  # Get true address
 
     # set(pins, 0x1)          [2]
-    push()                    [0]
+    push()                    [3]
     # set(pins, 0x0)              # LED DEBUG
 
 
-@asm_pio()
-def _row_counter():
-    pull()  # Get total rows
-    mov(y, osr)  # Y = row count
-
-    wrap_target()
-
-    wait(1, irq, 4)  # Wait for IRQ 4 from row_start
-    irq(clear, 4)  # Clear the flag
-    jmp(y_dec, "cont")  # Dec counter, continue if not zero
-    irq(0)  # Signal completion on IRQ 0
-    label("cont")
 

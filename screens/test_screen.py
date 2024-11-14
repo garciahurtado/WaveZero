@@ -36,7 +36,7 @@ class TestScreen(Screen):
     screen_width = 96
     screen_height = 64
 
-    num_sprites = 3
+    num_sprites = 1
     sprite_max_z = 1000
     display_task = None
 
@@ -70,10 +70,10 @@ class TestScreen(Screen):
         # self.score_palette.set_rgb(0, colors.hex_to_rgb(BLACK))
         # self.score_palette.set_rgb(0, colors.hex_to_rgb(CYAN))
 
-        self.base_x = 24
+        self.base_x = 36
         self.base_y = 18
 
-        self.x_vals = [(32*i) for i in range(num_sprites)]
+        self.x_vals = [(0*i) for i in range(num_sprites)]
         self.y_vals = [(0*i) for i in range(num_sprites)]
         # self.y_vals = [(random.randrange(-30, 30)) for _ in range(num_sprites)]
 
@@ -185,8 +185,12 @@ class TestScreen(Screen):
 
         prof.start_profile('scaler.show_all')
         for i in range(num_sprites):
-            draw_x = abs(i*2 + base_x + x_vals[i])
-            draw_y = abs(i*2 + base_y + y_vals[i])
+            # draw_x = abs(i*2 + base_x + x_vals[i])
+            # draw_y = abs(i*2 + base_y + y_vals[i])
+
+            #DEBUG#
+            draw_x = 20
+            draw_y = 12
 
             draw_x = max(0, draw_x)
             draw_y = max(0, draw_y)
