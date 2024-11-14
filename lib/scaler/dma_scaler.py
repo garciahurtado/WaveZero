@@ -170,15 +170,15 @@ class DMAScaler:
             [2, 1, 2, 2, 1, 2, 1, 2],       # 62.5%
             [2, 1, 2, 2, 2, 1, 2, 2],       # 75%
             [2, 2, 2, 2, 1, 2, 2, 2],       # 87.5%
-            [2, 2, 2, 2, 2, 2, 2, 2],        # 100%
-            # [2, 2, 2, 2, 3, 2, 2, 2],       # 112.5%
-            # [2, 2, 3, 2, 2, 2, 3, 2],       # 135%
-            # [2, 2, 3, 2, 2, 3, 2, 3],       # 137.5%
-            # [2, 3, 2, 3, 2, 3, 2, 3],       # 150%
-            # [3, 2, 3, 3, 2, 3, 2, 3],       # 162.5%
-            # [3, 2, 3, 3, 3, 2, 3, 3],       # 175%
-            # [3, 3, 3, 3, 2, 3, 3, 3],       # 187.5%
-            # [3, 3, 3, 3, 3, 3, 3, 3],       # 200%
+            [2, 2, 2, 2, 2, 2, 2, 2],       # 100%
+            [2, 2, 2, 2, 3, 2, 2, 2],       # 112.5%
+            [2, 2, 3, 2, 2, 2, 3, 2],       # 135%
+            [2, 2, 3, 2, 2, 3, 2, 3],       # 137.5%
+            [2, 3, 2, 3, 2, 3, 2, 3],       # 150%
+            [3, 2, 3, 3, 2, 3, 2, 3],       # 162.5%
+            [3, 2, 3, 3, 3, 2, 3, 3],       # 175%
+            [3, 3, 3, 3, 2, 3, 3, 3],       # 187.5%
+            [3, 3, 3, 3, 3, 3, 3, 3],       # 200%
             # [3, 3, 3, 3, 4, 3, 3, 3],       # 212.5%
             # [3, 3, 4, 3, 3, 3, 4, 3],       # 235%
             # [3, 3, 4, 3, 3, 4, 3, 4],       # 237.5%
@@ -189,6 +189,28 @@ class DMAScaler:
             # [4, 4, 4, 4, 4, 4, 4, 4]        # 300%
         ]
         self.h_patterns_int = h_patterns_int
+
+        v_patterns_up_int = [
+            # Vertical upscaling patterns. Doubled up because there are less total combinations
+            [1, 1, 1, 1, 1, 1, 1, 1],  # 100%
+            [0, 1, 1, 1, 1, 1, 1, 1],
+            [0, 1, 1, 1, 1, 1, 1, 1],
+            [0, 1, 1, 1, 0, 1, 1, 1],
+            [0, 1, 1, 1, 0, 1, 1, 1],
+            [0, 1, 1, 0, 1, 0, 1, 1],
+            [0, 1, 1, 0, 1, 0, 1, 1],
+            [0, 1, 0, 1, 0, 1, 0, 1],  # 200%
+            [0, 1, 0, 1, 0, 1, 0, 1],  # 200%'
+            [0, 1, 0, 1, 0, 1, 0, 1],  # 200%'
+            [0, 1, 0, 0, 1, 0, 0, 1],
+            [0, 1, 0, 0, 1, 0, 0, 1],
+            [0, 1, 0, 0, 1, 0, 0, 0],
+            [0, 1, 0, 0, 1, 0, 0, 0],
+            [0, 0, 0, 1, 0, 0, 0, 0],  # 400%
+            [0, 0, 0, 1, 0, 0, 0, 0],  # 400%
+            [0, 0, 0, 1, 0, 0, 0, 0],  # 400%
+        ]
+        self.v_patterns_up_int = v_patterns_up_int
 
         v_patterns_down_int = [
             [1, 1, 1, 1, 1, 1, 1, 1],
@@ -203,20 +225,7 @@ class DMAScaler:
         ]
         self.v_patterns_down_int = v_patterns_down_int
 
-        v_patterns_up_int = [
-            # Vertical upscaling examples:
-            [1, 1, 1, 1, 1, 1, 1, 1],  # 100%
-            [1, 1, 1, 1, 0, 1, 1, 1],  # 112%
-            [1, 1, 0, 1, 1, 0, 1, 1],  # 125%
-            [1, 1, 0, 1, 1, 0, 1, 0],  # 137%
-            [1, 0, 1, 0, 1, 0, 1, 0],  # 150%
-            [1, 0, 1, 1, 1, 0, 1, 0],  # 162%
-            [1, 0, 0, 0, 1, 0, 0, 0],  # 175%
-            [1, 0, 0, 0, 0, 0, 0, 1],  # 187%
-            [1, 0, 0, 0, 0, 0, 0, 0]   # 200%
-        ]
-        self.v_patterns_up_int = v_patterns_up_int
-        self.pattern_size = pattern_size = 8 # num elements in one pattern
+        self.pattern_size = pattern_size = 16 # num elements in one pattern
 
         """ We need to turn these lists into basic arrays so that the pointers are easier to pass to DMA """
         self.h_patterns_ptr = array('L', [0x00000000] * len(h_patterns_int))
@@ -291,8 +300,8 @@ class DMAScaler:
     def init_pio(self):
         # Set up the PIO state machines
         # freq = 125 * 1000 * 1000
-        # freq = 40 * 1000 * 1000
-        freq = 300 * 1000
+        freq = 40 * 1000 * 1000
+        # freq = 10 * 1000 * 1000
         # freq = 40 * 1000
         # freq = 25 * 1000
 
@@ -454,7 +463,7 @@ class DMAScaler:
             inc_write=v_scale_inc_write,
             treq_sel=DREQ_PIO1_TX2,
             ring_sel=0,
-            ring_size=4, # why not 5???
+            ring_size=4,
             irq_quiet=False
         )
         self.dma_v_scale.config(
@@ -597,6 +606,10 @@ class DMAScaler:
 
 
     def show(self, image: Image, x, y, width, height, scale=1):
+        """Adjust coords for scale"""
+        x = x - self.h_scale_index
+        y = y - self.v_scale_up_index
+
         # Ensure previous frame is complete
         if not self.read_finished:
             return
@@ -641,8 +654,8 @@ class DMAScaler:
         up_pattern = self.v_patterns_up_int[self.v_scale_up_index]
         actual_height = self.get_upscaled_height(height, up_pattern)
 
-        print(f"-- HEIGHT: {height} / IDX: [{self.v_scale_up_index}] / ACTUAL=HEIGHT: {actual_height}")
-
+        if self.debug:
+            print(f"-- HEIGHT: {height} / IDX: [{self.v_scale_up_index}] / ACTUAL=HEIGHT: {actual_height}")
 
         # row_tx_count = int(width + self.h_skew) # Adding / substracting can apply skew to the image
         prof.end_profile('scaler.prep_img_vars')
@@ -682,8 +695,8 @@ class DMAScaler:
         self.dma_row_size.count = 1
 
         """ CH 8"""
-        self.dma_v_scale.count = actual_height
-        # self.dma_v_scale.count = height - 1
+        # self.dma_v_scale.count = actual_height
+        self.dma_v_scale.count = actual_height - 1
         self.dma_v_scale.read = self.v_patterns_up_ptr[self.v_scale_up_index]
 
         prof.end_profile('scaler.dma_init_values')
@@ -847,14 +860,14 @@ class DMAScaler:
                 self.h_scale_index = 0
                 self.scale_index_flip = self.scale_index_flip * -1
 
-            """ VERT index """
-            if self.v_scale_up_index >= max_v_idx:
-                self.v_scale_up_index = max_v_idx
-                self.scale_index_flip = self.scale_index_flip * -1
-
-            if self.v_scale_up_index < 0:
-                self.v_scale_up_index = 0
-                self.scale_index_flip = self.scale_index_flip * -1
+            # """ VERT index """
+            # if self.v_scale_up_index >= max_v_idx:
+            #     self.v_scale_up_index = max_v_idx
+            #     self.scale_index_flip = self.scale_index_flip * -1
+            #
+            # if self.v_scale_up_index < 0:
+            #     self.v_scale_up_index = 0
+            #     self.scale_index_flip = self.scale_index_flip * -1
 
             if self.debug:
                 print(f"=== Shifted scale to: {self.h_scale_index}")
@@ -866,26 +879,26 @@ class DMAScaler:
     def get_upscaled_height(self, height, up_pattern):
         """ Calculate the actual height of a sprite to be drawn, given the original height, and the upscaling pattern.
         The pattern is made of 1s and 0s, where 1 means normal 1:1 row, and 0 means repeat row (ie: all zeros is 2x)"""
-        print(f"UPPATTERN IS --> {up_pattern}")
 
         pattern_len = len(up_pattern)
         one_pattern_zeros = up_pattern.count(0)
         one_pattern_ones = up_pattern.count(1)
         pattern_count = int(height/pattern_len)
 
-        print(f"WITH {one_pattern_zeros} zeros and {one_pattern_ones} ones (pattern count: {pattern_count})")
-
         carry = height % pattern_len
         carry_zeros = up_pattern[0:carry].count(0)
         carry_ones = up_pattern[0:carry].count(1)
-        print(f"CARRY: {carry} / CARRY_z: {carry_zeros} / CARRY_0: {carry_zeros}")
 
-        zeros = (one_pattern_zeros * pattern_count) + carry_zeros
+        zeros = (one_pattern_zeros * pattern_count * 2) + carry_zeros
         ones = (one_pattern_ones * pattern_count) + carry_ones
         new_height = (zeros) + height
 
-        print(f"RETURNING HEIGHT: {new_height}(z)")
-        print()
+        if self.debug:
+            print(f"UPPATTERN IS --> {up_pattern}")
+            print(f"WITH {one_pattern_zeros} zeros and {one_pattern_ones} ones (pattern count: {pattern_count})")
+            print(f"CARRY: {carry} / CARRY_z: {carry_zeros} / CARRY_0: {carry_zeros}")
+            print(f"RETURNING HEIGHT: {new_height}(z)")
+            print()
 
         return new_height
 
