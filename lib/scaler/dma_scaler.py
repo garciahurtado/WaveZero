@@ -64,7 +64,7 @@ class DMAScaler:
     sm_vert_scale = None
     row_tx_count = 0
 
-    debug = False
+    debug = True
     debug_buffer_enable = False
     dbg: ScalerDebugger = None
 
@@ -171,14 +171,14 @@ class DMAScaler:
             [2, 1, 2, 2, 2, 1, 2, 2],       # 75%
             [2, 2, 2, 2, 1, 2, 2, 2],       # 87.5%
             [2, 2, 2, 2, 2, 2, 2, 2],       # 100%
-            [2, 2, 2, 2, 3, 2, 2, 2],       # 112.5%
-            [2, 2, 3, 2, 2, 2, 3, 2],       # 135%
-            [2, 2, 3, 2, 2, 3, 2, 3],       # 137.5%
-            [2, 3, 2, 3, 2, 3, 2, 3],       # 150%
-            [3, 2, 3, 3, 2, 3, 2, 3],       # 162.5%
-            [3, 2, 3, 3, 3, 2, 3, 3],       # 175%
-            [3, 3, 3, 3, 2, 3, 3, 3],       # 187.5%
-            [3, 3, 3, 3, 3, 3, 3, 3],       # 200%
+            # [2, 2, 2, 2, 3, 2, 2, 2],       # 112.5%
+            # [2, 2, 3, 2, 2, 2, 3, 2],       # 135%
+            # [2, 2, 3, 2, 2, 3, 2, 3],       # 137.5%
+            # [2, 3, 2, 3, 2, 3, 2, 3],       # 150%
+            # [3, 2, 3, 3, 2, 3, 2, 3],       # 162.5%
+            # [3, 2, 3, 3, 3, 2, 3, 3],       # 175%
+            # [3, 3, 3, 3, 2, 3, 3, 3],       # 187.5%
+            # [3, 3, 3, 3, 3, 3, 3, 3],       # 200%
             # [3, 3, 3, 3, 4, 3, 3, 3],       # 212.5%
             # [3, 3, 4, 3, 3, 3, 4, 3],       # 235%
             # [3, 3, 4, 3, 3, 4, 3, 4],       # 237.5%
@@ -201,14 +201,14 @@ class DMAScaler:
             [0, 1, 1, 0, 1, 0, 1, 1],
             [0, 1, 0, 1, 0, 1, 0, 1],  # 200%
             [0, 1, 0, 1, 0, 1, 0, 1],  # 200%'
-            [0, 1, 0, 1, 0, 1, 0, 1],  # 200%'
-            [0, 1, 0, 0, 1, 0, 0, 1],
-            [0, 1, 0, 0, 1, 0, 0, 1],
-            [0, 1, 0, 0, 1, 0, 0, 0],
-            [0, 1, 0, 0, 1, 0, 0, 0],
-            [0, 0, 0, 1, 0, 0, 0, 0],  # 400%
-            [0, 0, 0, 1, 0, 0, 0, 0],  # 400%
-            [0, 0, 0, 1, 0, 0, 0, 0],  # 400%
+            # [0, 1, 0, 1, 0, 1, 0, 1],  # 200%'
+            # [0, 1, 0, 0, 1, 0, 0, 1],
+            # [0, 1, 0, 0, 1, 0, 0, 1],
+            # [0, 1, 0, 0, 1, 0, 0, 0],
+            # [0, 1, 0, 0, 1, 0, 0, 0],
+            # [0, 0, 0, 1, 0, 0, 0, 0],  # 400%
+            # [0, 0, 0, 1, 0, 0, 0, 0],  # 400%
+            # [0, 0, 0, 1, 0, 0, 0, 0],  # 400%
         ]
         self.v_patterns_up_int = v_patterns_up_int
 
@@ -299,9 +299,9 @@ class DMAScaler:
 
     def init_pio(self):
         # Set up the PIO state machines
-        # freq = 125 * 1000 * 1000
-        # freq = 40 * 1000 * 1000
-        freq = 200 * 1000
+        # freq = 80 * 1000 * 1000
+        freq = 80 * 1000
+        # freq = 200 * 1000
         # freq = 40 * 1000
         # freq = 25 * 1000
 
@@ -331,17 +331,10 @@ class DMAScaler:
         """ Configure and initialize the DMA channels general settings (once only) """
 
         """ CH #2 - Image Read DMA channel - (feeds SM0) --------------------------------------- """
-        if self.debug_buffer_enable:
-            r_scale_write = self.debug_bytes
-            r_scale_inc_write = True
-        else:
-            r_scale_write = PIO1_TX0
-            r_scale_inc_write = False
-
         dma_row_read_ctrl = self.dma_row_read.pack_ctrl(
             size=0,
             inc_read=True,
-            inc_write=r_scale_inc_write,
+            inc_write=False,
             treq_sel=DREQ_PIO1_TX0,
             chain_to=self.dma_row_addr.channel,
             # sniff_en=True,
@@ -350,19 +343,18 @@ class DMAScaler:
         self.dma_row_read.config(
             count=0,  # To be set later: img pixels per row // 2
             read=0,  # To be set later: memory address of the first pixel of the framebuffer of the sprite
-            write=r_scale_write,
+            write=PIO1_TX0,
             ctrl=dma_row_read_ctrl,
         )
 
 
         """ CH #3 - Color address - pass the resulting palette address to the pixel writer """
-
         dma_color_addr_ctrl = self.dma_color_addr.pack_ctrl(
             size=2,
             inc_read=False,
             inc_write=False,
             treq_sel=DREQ_PIO1_RX0,
-            chain_to=self.dma_pixel_out.channel,
+            # chain_to=self.dma_pixel_out.channel,
         )
 
         self.dma_color_addr.config(
@@ -381,33 +373,26 @@ class DMAScaler:
         )
 
         self.dma_pixel_out.config(
-            count=0,  # Increasing this above 1 will stretch pixels horizontally for upscaling
+            count=1,  # Increasing this above 1 will stretch pixels horizontally for upscaling
             read=0,
             write=0,  # To be set later
             ctrl=dma_pixel_out_ctrl,
         )
 
         """CH #5 - Horizontal Upscale channel - uses a ring buffer t provide a pattern of pixel repetition for scaling """
-        # if self.debug_buffer_enable:
-        #     scale_write = self.debug_bytes
-        #     scale_inc_write = True
-        # else:
-        scale_write = DMA_BASE_4 + DMA_TRANS_COUNT
-        scale_inc_write = False
-
         dma_h_scale_ctrl = self.dma_h_scale.pack_ctrl(
             size=2,
             inc_read=True,
-            inc_write=scale_inc_write,
+            inc_write=False,
             chain_to=self.dma_color_addr.channel,
             ring_sel=0,
-            ring_size=4,  # 5 finally works! (8 elements)
+            ring_size=4,
         )
 
         self.dma_h_scale.config(
             count=1,
             read=self.h_scale_ptr,
-            write=scale_write,
+            write=DMA_BASE_4 + DMA_TRANS_COUNT,
             ctrl=dma_h_scale_ctrl,
         )
 
@@ -454,13 +439,10 @@ class DMAScaler:
 
         """ CH #8 - Vert Scale DMA channel - Reconfigures the start addr of the read head, in order to implement
           vertical upscaling."""
-        v_scale_write = PIO1_TX2
-        v_scale_inc_write = False
-
         dma_v_scale_ctrl = self.dma_v_scale.pack_ctrl(
             size=2,
             inc_read=True,
-            inc_write=v_scale_inc_write,
+            inc_write=False,
             treq_sel=DREQ_PIO1_TX2,
             ring_sel=0,
             ring_size=4,
@@ -469,7 +451,7 @@ class DMAScaler:
         self.dma_v_scale.config(
             count=0,  # TBD
             read=self.v_scale_up_ptr,
-            write=v_scale_write,
+            write=PIO1_TX2,
             ctrl=dma_v_scale_ctrl,
         )
         self.dma_v_scale.irq(handler=self.irq_img_end)
@@ -696,7 +678,7 @@ class DMAScaler:
 
         """ CH 8"""
         # self.dma_v_scale.count = actual_height
-        self.dma_v_scale.count = actual_height - 1
+        self.dma_v_scale.count = height - 1
         self.dma_v_scale.read = self.v_patterns_up_ptr[self.v_scale_up_index]
 
         prof.end_profile('scaler.dma_init_values')
@@ -728,7 +710,6 @@ class DMAScaler:
         """
         self.sm_row_start.put(self.write_addr)
         self.sm_row_start.put(self.row_size[0])  # full display width
-        # self.sm_row_start.put(1)                 # 1st pattern
         if self.debug:
             print(f"~~~ Priming SM1 (write) with addr:{self.write_addr:08x} and row size:{self.row_size[0]:08x} ~~~")
 
@@ -847,7 +828,7 @@ class DMAScaler:
             - Vertical upscaling
             - Vertical downscaling
             """
-            self.h_scale_index += (1 * self.scale_index_flip)
+            # self.h_scale_index += (1 * self.scale_index_flip)
             # self.v_scale_up_index += (1 * self.scale_index_flip)
             # self.v_scale_down_index += (1 * self.scale_index_flip)
 

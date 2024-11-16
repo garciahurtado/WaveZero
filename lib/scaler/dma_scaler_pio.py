@@ -5,8 +5,10 @@ from rp2 import PIO, asm_pio
     in_shiftdir=PIO.SHIFT_RIGHT,
     out_shiftdir=PIO.SHIFT_LEFT,
     autopull=True,
-    pull_thresh=6     # n < 5 might be usable for 50% horizontal downscaling, 0 and n > 5 seems to do upscaling
+    pull_thresh=5,     # n < 5 might be usable for 50% horizontal downscaling, 0 and n > 5 seems to do upscaling
     # pull_thresh=16, # interesting things happen at weird levels
+    # autopush=True,
+    # push_thresh=28  # Leave headroom
 )
 def read_palette():
     """
@@ -44,6 +46,7 @@ def read_palette():
     mov(isr, invert(x))  # The final result has to be 1s complement inverted
 
     push()  # 4 bytes pushed
+
     # wait(0, irq, 4)         # wait in case new row is still starting
 
     mov(isr, y)  # restore the ISR with the base addr
@@ -57,26 +60,21 @@ def row_start():
     mov(isr, osr)
     push()
 
-
     mov(x, invert(osr))    #  .side(0x1)[0]                   # Store ~base_addr in X
     pull()                   [1]                          # Get initial row size
     mov(y, osr)            #   .side(0x0)              # Store row size in Y
 
     wrap_target()
 
-    # Get pattern and test
-    # nop()               .side(0x1)[0]
-    # irq(rel(4))
-
-    pull()                  [2]             # Get pattern value
+    pull()                  [0]             # Get pattern value
     mov(isr, y)           #   .side(0x0)        # Save row size in ISR
     mov(y, osr)                     # Get pattern into Y for testing
     jmp(not_y, "skip_add")   [0]       # Skip if pattern = 0
 
     # Add row size to address
-    mov(y, isr)             [0] # Get row size back into Y
+    mov(y, isr)             [2] # Get row size back into Y
     label("add_loop")
-    jmp(x_dec, "test")      [0]# Decrement inverted address
+    jmp(x_dec, "test")      [2]# Decrement inverted address
     label("test")
 
     jmp(y_dec, "add_loop")  [0] # Loop while row size > 0
@@ -85,11 +83,8 @@ def row_start():
     mov(y, isr)             [0] # restore row size to Y
 
     # Output current address (this order fixes extra pixels on first row)
-    mov(isr, invert(x))  # Get true address
+    mov(isr, invert(x))       [8] # Get true address
 
     # set(pins, 0x1)          [2]
-    push()                    [3]
+    push()                    [8]
     # set(pins, 0x0)              # LED DEBUG
-
-
-

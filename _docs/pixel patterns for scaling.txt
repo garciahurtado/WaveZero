@@ -1,3 +1,6 @@
+Horizontal (upscaling)
+----------------------
+
 From 100% to 200%:
 
 100 + ...
