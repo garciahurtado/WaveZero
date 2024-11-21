@@ -61,9 +61,10 @@ def row_start():
     push()
 
     mov(x, invert(osr))    #  .side(0x1)[0]                   # Store ~base_addr in X
-    pull()                   [1]                          # Get initial row size
+    pull()                   [0]                          # Get initial row size
     mov(y, osr)            #   .side(0x0)              # Store row size in Y
 
+    label("wrap_target")
     wrap_target()
 
     pull()                  [0]             # Get pattern value
@@ -74,16 +75,16 @@ def row_start():
     # Add row size to address
     mov(y, isr)             [2] # Get row size back into Y
     label("add_loop")
-    jmp(x_dec, "test")      [2]# Decrement inverted address
+    jmp(x_dec, "test")      [0]# Decrement inverted address
     label("test")
 
-    jmp(y_dec, "add_loop")  [0] # Loop while row size > 0
+    jmp(y_dec, "add_loop")  [2] # Loop while row size > 0
 
     label("skip_add")
-    mov(y, isr)             [0] # restore row size to Y
+    mov(y, isr)             [4] # restore row size to Y
 
     # Output current address (this order fixes extra pixels on first row)
-    mov(isr, invert(x))       [8] # Get true address
+    mov(isr, invert(x))       [4] # Get true address
 
     # set(pins, 0x1)          [2]
     push()                    [8]

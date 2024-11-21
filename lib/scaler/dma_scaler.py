@@ -1,10 +1,11 @@
 import math
 import micropython
+
+from scaler.scaler_interp import SpriteScaler
+from scaler.scaler_interp_pio import indexed_sprite_handler
+
 micropython.alloc_emergency_exception_buf(100)
 
-import sys
-
-import random
 import utime
 
 from scaler.dma_scaler_debug import ScalerDebugger
@@ -12,8 +13,6 @@ from scaler.dma_scaler_pio import *
 from uctypes import addressof
 
 from machine import Pin, mem32
-import time
-import uctypes
 
 import rp2
 from rp2 import DMA, PIO
@@ -23,7 +22,6 @@ from images.indexed_image import Image
 from array import array
 
 from scaler.dma_scaler_const import *
-from utils import *
 
 class DummyException(Exception):
     def __init__(self):
@@ -57,11 +55,12 @@ class DMAScaler:
     v_scale_down_index = 0
     h_scale_index = 0
     last_scale_shift = 0 #
-    scale_shift_freq = 50 # every X ms, scale shifts one step
+    scale_shift_freq = 20 # every X ms, scale shifts one step
     bytes_per_pixel = 2
     sm_palette_idx = None
     sm_row_start = None
     sm_vert_scale = None
+    sm_indexed_scaler = None
     row_tx_count = 0
 
     debug = True
@@ -97,6 +96,11 @@ class DMAScaler:
                  channel2, channel3, channel4, channel5, channel6, channel7, channel8, channel9):
         self.write_addr_base = display.write_addr
 
+        """ Set the DMA fractional timer x/y * sysclock"""
+        # frac_x = bytearray([0, 1])
+        # frac_y = bytearray([0, 32])
+        # regval = frac_y + frac_x
+        # mem32[DMA_FRAC_TIMER] = 0x0020001
 
         """ DMA Channels"""
         self.dma_row_read = channel2
@@ -106,7 +110,8 @@ class DMAScaler:
         self.dma_row_size = channel6
         self.dma_row_start = channel7
         self.dma_v_scale = channel8
-        self.dma_row_addr = channel9
+        # self.dma_row_addr = channel9
+        self.dma_interp = channel9
 
         self.channels = {
             "2" : self.dma_row_read,
@@ -137,19 +142,26 @@ class DMAScaler:
         self.screen_height = self.display.height
         self.palette_size = palette_size
 
-        """ SM0: Pixel demuxer / index reader """
-        self.sm_palette_idx = rp2.StateMachine(4)               # 1st SM in PIO1
+        # """ SM0: Pixel demuxer / index reader """
+        # self.sm_palette_idx = rp2.StateMachine(4)               # 1st SM in PIO1
+        #
+        # """ SM1: Row start address generator (write) """
+        # self.sm_row_start = rp2.StateMachine(5)             # 2nd SM in PIO1
+        #
+        # """ SM2:  Row start address generator (read) """
+        # self.sm_vert_scale = rp2.StateMachine(6)             # 3nd SM in PIO1
 
-        """ SM1: Row start address generator (write) """
-        self.sm_row_start = rp2.StateMachine(5)             # 2nd SM in PIO1
 
-        """ SM2:  Row start address generator (read) """
-        self.sm_vert_scale = rp2.StateMachine(6)             # 3nd SM in PIO1
-
+        self.sm_indexed_scaler = rp2.StateMachine(4)               # 1st SM in PIO1 (#0)
 
         """ Debug Buffer """
         if self.debug:
-            self.dbg = ScalerDebugger(self.sm_palette_idx, self.sm_row_start, self.sm_vert_scale)
+            self.dbg = ScalerDebugger(
+                self.sm_palette_idx,
+                self.sm_row_start,
+                self.sm_vert_scale,
+                self.sm_indexed_scaler,
+                self.dma_interp)
             self.dbg.channel_names = self.channel_names
             self.dbg.channels = self.channels
             self.debug_bytes = self.dbg.get_debug_bytes()
@@ -171,22 +183,22 @@ class DMAScaler:
             [2, 1, 2, 2, 2, 1, 2, 2],       # 75%
             [2, 2, 2, 2, 1, 2, 2, 2],       # 87.5%
             [2, 2, 2, 2, 2, 2, 2, 2],       # 100%
-            # [2, 2, 2, 2, 3, 2, 2, 2],       # 112.5%
-            # [2, 2, 3, 2, 2, 2, 3, 2],       # 135%
-            # [2, 2, 3, 2, 2, 3, 2, 3],       # 137.5%
-            # [2, 3, 2, 3, 2, 3, 2, 3],       # 150%
-            # [3, 2, 3, 3, 2, 3, 2, 3],       # 162.5%
-            # [3, 2, 3, 3, 3, 2, 3, 3],       # 175%
-            # [3, 3, 3, 3, 2, 3, 3, 3],       # 187.5%
-            # [3, 3, 3, 3, 3, 3, 3, 3],       # 200%
-            # [3, 3, 3, 3, 4, 3, 3, 3],       # 212.5%
-            # [3, 3, 4, 3, 3, 3, 4, 3],       # 235%
-            # [3, 3, 4, 3, 3, 4, 3, 4],       # 237.5%
-            # [3, 4, 3, 4, 3, 4, 3, 4],       # 250%
-            # [4, 3, 4, 4, 3, 4, 3, 4],       # 262.5%
-            # [4, 3, 4, 4, 4, 3, 4, 4],       # 275%
-            # [4, 4, 4, 4, 3, 4, 4, 4],       # 287.5%
-            # [4, 4, 4, 4, 4, 4, 4, 4]        # 300%
+            [2, 2, 2, 2, 3, 2, 2, 2],       # 112.5%
+            [2, 2, 3, 2, 2, 2, 3, 2],       # 135%
+            [2, 2, 3, 2, 2, 3, 2, 3],       # 137.5%
+            [2, 3, 2, 3, 2, 3, 2, 3],       # 150%
+            [3, 2, 3, 3, 2, 3, 2, 3],       # 162.5%
+            [3, 2, 3, 3, 3, 2, 3, 3],       # 175%
+            [3, 3, 3, 3, 2, 3, 3, 3],       # 187.5%
+            [3, 3, 3, 3, 3, 3, 3, 3],       # 200%
+            [3, 3, 3, 3, 4, 3, 3, 3],       # 212.5%
+            [3, 3, 4, 3, 3, 3, 4, 3],       # 235%
+            [3, 3, 4, 3, 3, 4, 3, 4],       # 237.5%
+            [3, 4, 3, 4, 3, 4, 3, 4],       # 250%
+            [4, 3, 4, 4, 3, 4, 3, 4],       # 262.5%
+            [4, 3, 4, 4, 4, 3, 4, 4],       # 275%
+            [4, 4, 4, 4, 3, 4, 4, 4],       # 287.5%
+            [4, 4, 4, 4, 4, 4, 4, 4]        # 300%
         ]
         self.h_patterns_int = h_patterns_int
 
@@ -242,12 +254,9 @@ class DMAScaler:
 
             # Debug verification
             pattern_addr = addressof(h_pattern)
-            if self.debug:
-                print(f"Pattern {i} address: 0x{pattern_addr:08x}")
-                print(f"Alignment check: {pattern_addr % 32}/32")
 
-            print(f"Pattern buffer address: 0x{addressof(h_pattern):08x}")
-            print(f"Buffer alignment: {addressof(h_pattern) % 32}")  # Should be 0 for 32-byte alignment
+            # print(f"Pattern buffer address: 0x{addressof(h_pattern):08x}")
+            # print(f"Buffer alignment: {addressof(h_pattern) % 32}")  # Should be 0 for 32-byte alignment
 
             for j, element in enumerate(scale_pattern):
                 h_pattern[j] = int(element)  # Values 1-4 stored in 32-bit words
@@ -290,41 +299,41 @@ class DMAScaler:
         print(f"INIT H PATTERN ADDR: 0x{self.h_scale_ptr:08x}")
         print(f"INIT V PATTERN ADDR: 0x{self.v_scale_down_ptr:08x}")
 
-        self.write_start_addr = addressof(display.write_framebuf)
+        self.write_start_addr = addressof(display.write_framebuf) # This is probably where the frame flickering gets resolved
 
         self.init_pio()
         print(f"Screen dimensions: {self.screen_width}x{self.screen_height}")
-        self.init_dma()
+        # self.init_dma()
         # self.init_sniff()
 
     def init_pio(self):
         # Set up the PIO state machines
         # freq = 80 * 1000 * 1000
-        freq = 80 * 1000
+        freq = 5 * 1000
         # freq = 200 * 1000
         # freq = 40 * 1000
         # freq = 25 * 1000
 
         """ SM0: Pixel demuxer / palette reader """
-        sm_indices = self.sm_palette_idx
-        sm_indices.init(
-            read_palette,
-            freq=freq,
-        )
+        # sm_indices = self.sm_palette_idx
+        # sm_indices.init(
+        #     read_palette,
+        #     freq=freq,
+        # )
 
         """ SM1:  Row start address generator (write) """
-        sm_row_start = self.sm_row_start
-        sm_row_start.init(
-            row_start,
-            freq=freq,
-        )
+        # sm_row_start = self.sm_row_start
+        # sm_row_start.init(
+        #     row_start,
+        #     freq=freq,
+        # )
 
         """ SM2:  Row start address generator (read) """
-        sm_vert_scale = self.sm_vert_scale
-        sm_vert_scale.init(
-            row_start,
-            freq=freq,
-        )
+        # sm_vert_scale = self.sm_vert_scale
+        # sm_vert_scale.init(
+        #     row_start,
+        #     freq=freq,
+        # )
 
 
     def init_dma(self):
@@ -354,6 +363,7 @@ class DMAScaler:
             inc_read=False,
             inc_write=False,
             treq_sel=DREQ_PIO1_RX0,
+            high_pri=True,
             # chain_to=self.dma_pixel_out.channel,
         )
 
@@ -369,6 +379,7 @@ class DMAScaler:
             size=1,  # output one pixel at a time (2 bytes)
             inc_read=False,
             inc_write=True,
+            high_pri=True,
             chain_to=self.dma_h_scale.channel,
         )
 
@@ -385,6 +396,7 @@ class DMAScaler:
             inc_read=True,
             inc_write=False,
             chain_to=self.dma_color_addr.channel,
+            high_pri=True,
             ring_sel=0,
             ring_size=4,
         )
@@ -406,7 +418,8 @@ class DMAScaler:
             size=2,
             inc_read=True,
             inc_write=False,
-            treq_sel=DREQ_PIO1_TX1,
+            # treq_sel=DREQ_PIO1_TX1,
+            treq_sel=DREQ_TIMER_0,
             chain_to=self.dma_row_start.channel,
             ring_sel=0,
             ring_size=4
@@ -472,41 +485,18 @@ class DMAScaler:
             ctrl=dma_row_addr_ctrl
         )
 
-    def init_sniff(self):
-        """ Configure sniffing initial setup """
-        sniff_ctrl_val = (
-                1 << 16  # Enable accumulator
-                | 0 << 8  # No bit reversal
-                | 0 << 5  # No output shift
-                | 1 << 0  # Enable sniffing
-        )
-        mem32[SNIFF_CTRL] = sniff_ctrl_val
-
-        # Point sniff to channel 2 (row_read)
-        # mem32[SNIFF_CHAN] = self.dma_row_read.channel
-
-    def config_sniff(self, total_count):
-        """ Complete sniffing configuration with image specific values """
-        # Set target accumulator value
-        total_transfers = total_count
-        mem32[SNIFF_DATA] = total_transfers
-
-        # Enable IRQ on match
-        IRQ0_INTE = 0x50000430  # DMA_IRQ0_INTE register address
-        # mem32[IRQ0_INTE] |= (1 << self.dma_row_read.channel)
-
     def reset(self):
         """Clean shutdown and reset sequence"""
         # 1. Disable DMA first to stop new requests
         self.dma_v_scale.active(0)  # Stop the trigger for vertical scaling
         self.dma_row_read.active(0)  # Stop pixel reads
-        self.dma_row_addr.active(0)
+        # self.dma_row_addr.active(0)
         self.dma_row_size.active(0)
 
         # 2. Stop state machines to prevent new DREQ triggers
-        self.sm_vert_scale.active(0)
-        self.sm_row_start.active(0)
-        self.sm_palette_idx.active(0)
+        # self.sm_vert_scale.active(0)
+        # self.sm_row_start.active(0)
+        # self.sm_palette_idx.active(0)
 
         # 3. Now disable remaining DMA channels
         self.dma_color_addr.active(0)
@@ -514,8 +504,9 @@ class DMAScaler:
         self.dma_h_scale.active(0)
 
         # 4. Reset state machines to known state
-        for sm in [self.sm_palette_idx, self.sm_row_start, self.sm_vert_scale]:
-            sm.restart()
+        # for sm in [self.sm_palette_idx, self.sm_row_start, self.sm_vert_scale]:
+        #     sm.restart()
+        self.sm_indexed_scaler.restart()
 
         # 5. Reset write address for next frame
         self.write_start_addr = addressof(self.display.write_framebuf)
@@ -524,7 +515,6 @@ class DMAScaler:
     def dma_handler_debug(self, irq):
         print("  >>>> DMA TRANSFER <<<< complete for: #", end='')
         print(irq.channel)
-
 
 
     def irq_img_end(self, dma_ch):
@@ -559,35 +549,48 @@ class DMAScaler:
             print()
         self.read_finished = True
 
-    def config_dma(self, image, x, y, width, height, actual_height):
-        # print(f"DMA: x:{x} y:{y} ")
-
+    def config_dma(self, image, x, y, width, height):
         display = self.display
         self.num_pixels = num_pixels = width * height
-        write_addr_base = self.write_addr_base
 
-        write_addr = display.write_addr
+        write_addr_base = self.write_addr_base
         write_offset = (((y * display.width) + x) * 2) - 8  # since the display is 16 bit, we multiply x 2
         self.write_addr = write_addr_base + write_offset
 
         if self.debug:
-            print(f"WRITE START ADDR: 0x{write_addr_base:08x}")
-            print(f"DRAWING AT {x},{y} (size {width}x{height})")
-            print(f"READING {len(image.pixel_bytes)} BYTES FROM ADDR: 0x{addressof(image.pixel_bytes):08x}")
-
-            print("DISPLAY & MEM DETAILS:")
-            print("------------------------")
-            print(f"\twidth: {display.width}px")
-            print(f"\theight: {display.height}px")
-            print(f"\tdisplay_out_start: 0x{write_addr_base:08x}")
-            print(f"\tsprite_out_addr + offset: 0x{write_addr:08x}")
-            print(f"\timg_read_addr: 0x{addressof(image.pixel_bytes):08x}")
-            print(f"\tcolor_addr: 0x{addressof(image.palette_bytes):08x}")
-            # print(f"\tcolor_addr_ptr: 0x{addressof(self.rst_addr_ptr):08x}")
-            print(f"\trow_size: 0x{self.row_size[0]:08x}")
+            self.dbg.debug_addresses(display, image, x, y)
 
 
     def show(self, image: Image, x, y, width, height, scale=1):
+        """ Version that uses the interpolator """
+
+        if self.debug:
+            debugger = self.dbg
+        else:
+            debugger = False
+
+        if self.debug:
+            print(f"IMAGE READ ADDR: 0x{image.pixel_bytes_addr:08x}")
+            print(f"IMAGE SCALE: {scale:04f}")
+            print(f"IMAGE WIDTH (px): {width}")
+            print(f"IMAGE HEIGHT (px): {height}")
+            print(f"IMAGE ACTUAL HEIGHT (px): {height}")
+            print(f"IMAGE VSCALE: {scale:04f}")
+
+        self.config_dma(image, x, y, width, height)
+
+        self.read_finished = False
+        scaler = SpriteScaler(self.display, self.sm_indexed_scaler, self.dma_interp, debugger)
+        write_offset = (((y * self.display.width) + x) * 2) - 8  # since the display is 16 bit, we multiply x 2
+        self.write_addr = self.display.write_addr + write_offset
+
+        # Draw sprite scaled 2x horizontally, 1.5x vertically
+        # scaler.draw_scaled_sprite(image, x=10, y=20, h_scale=2.0, v_scale=1.5)
+        # scaler.draw_scaled_sprite(image, x=0, y=0)
+        scaler.draw_test_pattern(image)
+
+
+    def _show(self, image: Image, x, y, width, height, scale=1):
         """Adjust coords for scale"""
         x = x - self.h_scale_index + 1
         y = y - self.v_scale_up_index + 1
@@ -688,7 +691,7 @@ class DMAScaler:
 
         if self.debug:
             for idx in self.channel_names.keys():
-                self.dbg.debug_dma_channel(idx, 'BEFORE_START')
+                self.dbg.debug_all_dma_channels(idx, 'BEFORE_START')
 
         """ SNIFFING CONFIG """
         # self.config_sniff(height * byte_width)
@@ -761,7 +764,7 @@ class DMAScaler:
         while (not self.read_finished):
             if self.debug:
                 for idx in self.channel_names.keys():
-                    self.dbg.debug_dma_channel(idx, 'IN_LOOP')
+                    self.dbg.debug_all_dma_channels(idx, 'IN_LOOP')
 
             if self.debug_buffer_enable:
                 print(self.dbg)
@@ -774,7 +777,7 @@ class DMAScaler:
         if self.debug:
             print("<<<<-------- FINISHED READING IMAGE ---------->>>>")
 
-        self.update_scale()
+        # self.update_scale()
 
     def stop_scaler(self):
         self.sm_palette_idx.active(0)
@@ -828,7 +831,7 @@ class DMAScaler:
             - Vertical upscaling
             - Vertical downscaling
             """
-            # self.h_scale_index += (1 * self.scale_index_flip)
+            self.h_scale_index += (1 * self.scale_index_flip)
             # self.v_scale_up_index += (1 * self.scale_index_flip)
             # self.v_scale_down_index += (1 * self.scale_index_flip)
 

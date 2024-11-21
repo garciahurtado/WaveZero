@@ -35,7 +35,7 @@ class SSD1331PIO():
     swap_ready = False
     fps = None
     paused = True
-    curr_read_addr = False
+    curr_read_buf = None
 
     HEIGHT: int = const(64)
     WIDTH: int = const(96)

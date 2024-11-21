@@ -2,6 +2,7 @@ import gc
 import sys
 from utime import sleep
 
+from scaler.scaler_interp_test import InterpTestScreen
 # import frozen_img # Created with freezefs: https://github.com/bixb922/freezeFS
 from screens.screen_app import ScreenApp
 # from screens.game_screen import GameScreen
@@ -24,11 +25,11 @@ import machine
 from machine import Pin
 
 def main():
-    # micropython.opt_level(0)
+    micropython.opt_level(0)
 
     # machine.freq(250_000_000)
-    machine.freq(125_000_000)
-    # machine.freq(80_000_000)
+    # machine.freq(120_000_000)
+    machine.freq(80_000_000)
     # machine.freq(40_000_000)
 
     current_freq = machine.freq()
@@ -42,7 +43,8 @@ def main():
     app = ScreenApp(96, 64)
     # app.load_screen(GameScreen(app.display))
     # app.load_screen(TitleScreen(app.display))
-    app.load_screen(TestScreen(app.display))
+    # app.load_screen(TestScreen(app.display))
+    app.load_screen(InterpTestScreen(app.display))
 
     print("After loading screen class")
     app.run()

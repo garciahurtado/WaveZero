@@ -82,8 +82,8 @@ class TestScreen(Screen):
         self.init_camera()
         # self.init_fps()
 
-        display.fill(0x0000)
-        # display.fill(0xAA00)
+        # display.fill(0x0000)
+        display.fill(0xAA00)
         display.show()
 
         self.create_sprite_manager(display, num_sprites=num_sprites)
@@ -189,8 +189,8 @@ class TestScreen(Screen):
             # draw_y = abs(i*2 + base_y + y_vals[i])
 
             #DEBUG#
-            draw_x = 20
-            draw_y = 12
+            draw_x = 24
+            draw_y = 12 + (15*i)
 
             draw_x = max(0, draw_x)
             draw_y = max(0, draw_y)
@@ -274,10 +274,7 @@ class TestScreen(Screen):
         meta = self.mgr.sprite_metadata[sprite_type]
 
         for i in range(0, num_sprites):
-            sprite, _ = self.mgr.create(sprite_type, x=0, y=0, z=0)
-            sprite.x = 0
-            sprite.y = 0
-            sprite.z = 0
+            sprite, _ = self.mgr.create(sprite_type)
             self.sprites.append(sprite)
 
         """ Create single sprite for simple tests """
