@@ -8,8 +8,14 @@ from uctypes import addressof
 
 from scaler.dma_scaler_const import *
 from scaler.dma_scaler_debug import ScalerDebugger
+from scaler.sprite_scaler_test import test_sprite_scaling
 from screens.screen import Screen
 
+"""
+NOTE: the interpolator does NOT work with DMA, since they are not connected to the same bus, 
+so all of the below is futile
+
+"""
 
 class InterpTestScreen(Screen):
     sprite_width: int
@@ -20,6 +26,9 @@ class InterpTestScreen(Screen):
     def __init__(self, display):
         self.screen_width = display.width
         self.screen_height = display.height
+        self.sprite_width = 4
+        self.sprite_height = 4
+
         self.write_addr = display.write_addr
         self.display = display
         self.dbg = ScalerDebugger(None, None, None, None, None)
@@ -43,19 +52,13 @@ class InterpTestScreen(Screen):
 
         # self.init_interpolator(palette_addr, sprite_addr, fb_addr)
 
-    def init_interpolator(self, sprite_data, scale_factor=0.5):
-        self.sprite_width = 4
-        self.sprite_height = 4
-
-        # Calculate scaled width
-        self.scaled_width = max(1, math.ceil(self.sprite_width * scale_factor))
-
+    def init_interpolator(self, sprite_data, scale):
         # For byte-aligned sprite data
         sprite_width_bits = int(math.log2(self.sprite_width))
 
         # Calculate step size in fixed point (16.16)
         # For downscaling, step needs to be larger; for upscaling, smaller
-        step = int(65536 / scale_factor)  # Fixed point step
+        step = int(65536 / scale)  # Fixed point step
 
         uv_fractional_bits = 16
 
@@ -84,27 +87,53 @@ class InterpTestScreen(Screen):
         mem32[INTERP0_BASE1] = step    # Row stride (bytes per row)
         mem32[INTERP0_BASE2] = addressof(sprite_data)
 
-    def init_fb_interpolator(self, screen_width):
-        """Configure INTERP1 for framebuffer addressing"""
-        x = 0
-        y = 0 # DEBUG
-        self.display_addr = self.write_addr + (y * self.display.width + x) * 2
+    def init_fb_interpolator(self, x=0, y=0):
+        """Configure INTERP1 for framebuffer addressing
 
-        # Configure lane 0 for addressing
+        Args:
+            x: Screen X coordinate
+            y: Screen Y coordinate
+            scaled_width: Width of scaled sprite
+            scaled_height: Height of scaled sprite
+        """
+        # Calculate base framebuffer address for sprite position
+        fb_base = self.write_addr + (y * self.screen_width + x) * 2
+
+        # Configure lane 0 for X position handling
         ctrl0 = (
-                (0 << 0) |  # No shift needed
-                (0 << 5) |  # No LSB mask
-                (0 << 10) |  # No MSB mask
-                (1 << 17)  # ADD_RAW for increment
+                (0 << 0) |  # No shift needed for direct addressing
+                (0 << 5) |  # No mask LSB - we want full values
+                (15 << 10) |  # Mask MSB to prevent overflow
+                (1 << 17) |  # ADD_RAW for direct increment
+                (0 << 18)  # Don't force MSB
         )
 
-        mem32[INTERP1_CTRL_LANE0] = ctrl0
+        # Configure lane 1 for Y position handling
+        ctrl1 = (
+                (1 << 0) |  # Shift by 1 to account for 16-bit pixels
+                (0 << 5) |  # No mask LSB
+                (15 << 10) |  # Mask MSB to prevent overflow
+                (0 << 16) |  # No cross input
+                (1 << 17) |  # ADD_RAW for direct increment
+                (0 << 18)  # Don't force MSB
+        )
 
-        # Base0 = 2 (16-bit pixel increment)
-        # Base1 = screen_width * 2 (row stride in bytes)
-        mem32[INTERP1_BASE0] = 2  # Pixel increment (16-bit color)
-        mem32[INTERP1_BASE1] = screen_width * 2  # Row stride
-        mem32[INTERP1_ACCUM0] = self.display_addr   # Starting framebuffer address
+        # Set up interpolator registers
+        mem32[INTERP1_CTRL_LANE0] = ctrl0
+        mem32[INTERP1_CTRL_LANE1] = ctrl1
+
+        # BASE0: Pixel increment (2 bytes per pixel)
+        mem32[INTERP1_BASE0] = 2
+
+        # BASE1: Row stride in bytes
+        mem32[INTERP1_BASE1] = self.screen_width * 2
+
+        # BASE2: Framebuffer base address
+        mem32[INTERP1_BASE2] = fb_base
+
+        # Initialize accumulators
+        mem32[INTERP1_ACCUM0] = 0  # Start at first pixel
+        mem32[INTERP1_ACCUM1] = 0  # Start at first row
 
     def _scale_sprite_span(self, sprite_data, x, y, dx, dy, count):
         # Calculate step size in fixed point (16.16)
@@ -151,92 +180,105 @@ class InterpTestScreen(Screen):
 
         return output
 
-    def scale_sprite_span(self, sprite_data, x, y, dx, dy, count, scaled_width):
-        # Calculate step size in fixed point (16.16)
+    def scale_sprite_span(self, sprite_data, scale):
+        output_width = max(1, math.ceil(self.sprite_width * scale))
+        output_height = max(1, math.ceil(self.sprite_height * scale))
+        bytesize = output_width * output_height
+        output = bytearray(bytesize)
 
-        output = bytearray(count)
+        for pixel_index in range(bytesize):
+            # Integer division by scale gives us proper pixel repetition
+            curr_y = (pixel_index // output_width) // scale
+            curr_x = (pixel_index % output_width) // scale
 
-        # Set INTERP initial coordinates and scaled x/y steps
-        # mem32[INTERP0_ACCUM0] = x
-        # mem32[INTERP0_BASE0] = dx
-        # mem32[INTERP0_ACCUM1] = y
-        # mem32[INTERP0_BASE1] = dy
+            # Clamp to source boundaries
+            curr_x = min(curr_x, self.sprite_width - 1)
+            curr_y = min(curr_y, self.sprite_height - 1)
 
-        mem32[INTERP0_ACCUM0] = x << 16  # Start X position
-        mem32[INTERP0_ACCUM1] = y << 16  # Start Y position
-
-
-        # addr = addressof(sprite_data)
-
-        pixel_index = 0
-
-        for row in range(count):
-            """
-            Get scaled address from INTERP0, one at a time
-            """
-            pos = mem32[INTERP0_POP_FULL]
-
-            # Raw debug of interpolator output
-            raw_x = pos & 0xFFFF
-            raw_y = (pos >> 16) & 0xFFFF
-            # print(f"Raw pos: x=0x{raw_x:04x} y=0x{raw_y:04x}")
-
-            # Calculate sprite offset
-            x_pos = raw_x & 0x3  # 4 pixel width
-            y_pos = raw_y & 0x3  # 4 pixel height
-
-            # Extract coordinates
-            x_pos = (pos & 0xFFFF) & 0x3
-            y_pos = (pos >> 16) & 0x3
-
-            offset = y_pos * self.sprite_width + x_pos
+            offset = int(curr_y * self.sprite_width + curr_x)
             output[pixel_index] = sprite_data[offset]
-
-            print(f"For {pixel_index} pos: {pos:08x} / x-off: {x_pos} / y-off: {y_pos}")
-            pixel_index += 1
 
         return output
 
     def sprite_scaling_demo(self):
-        print("INTERP Sprite scaling demo (with wrap):")
-
-        sprite_data = bytearray([
-            0b00000001, 0b00000011, 0b00000111, 0b00001111,  # Row 0
-            0b00000001, 0b00000011, 0b00000111, 0b00001111,  # Row 1
-            0b00000001, 0b00000011, 0b00000111, 0b00001111,  # Row 2
-            0b00000001, 0b00000011, 0b00000111, 0b00001111,  # Row 3
-        ])
+        test_sprite_scaling(self.display)
+        return
 
         start_x = 0
         start_y = 0
 
         """ Test the scaler using different scale factors, both upscale and downscale """
         for scale in [0.12, 0.25, 0.5, 0.75, 0.80, 1, 1.2, 1.5, 2, 3, 4]:
+        # for scale in [1, 2, 3, 4]:
             print()
             print()
             print(f"\n=== Testing {scale * 100}% scaling ===")
-            self.init_interpolator(sprite_data, scale_factor=scale) # @TODO: add independent horiz and vert scaling
+
+            # Calculate scaled width
+            scaled_width = max(1, math.ceil(self.sprite_width * scale))
+            scaled_height = max(1, math.ceil(self.sprite_height * scale))
+
+            # self.init_interpolator(sprite_data, scale) # @TODO: add independent horiz and vert scaling
             # self.init_fb_interpolator(self.screen_width)
             self.out_addr = self.write_addr + (start_y * self.screen_width + start_x) * 2
 
             # Calculate output size based on scale
-            output_size = self.scaled_width * self.sprite_height
-            output = self.scale_sprite_span(sprite_data, 0, 0, 0, 0, output_size, self.scaled_width)
+            output = self.scale_sprite_span(sprite_data, scale)
 
             # Print results with proper line breaks
+            print()
+            print()
             print("\nOutput pattern:")
-            for r in range(self.sprite_height):
-                print("")
-                for c in range(self.scaled_width):
-                    idx = r * self.scaled_width + c
-                    print(f"{output[idx]:04b} ", end="")
 
-                    if c > 2 and not (c % (self.scaled_width)):
+            for r in range(scaled_height):
+                print("")
+                for c in range(scaled_width):
+                    idx = int(r * scaled_width + c)
+                    print(f"{output[idx]:08b} ", end="")
+
+                    if c > 2 and not (c % (scaled_width)):
                         print()
 
             print("\n")
             print()
             print()
+
+    def _setup_dma_transfer(self, sprite: Sprite, config: ScalingConfig):
+        """Set up and start DMA transfer chain"""
+        scaled_width = int(sprite.width * config.scale_x)
+        scaled_height = int(sprite.height * config.scale_y)
+
+        # Configure read channel
+        read_config = (
+                (0 << 0) |  # increment read
+                (0 << 1) |  # increment write
+                (DMA_SIZE_16 << 2) |  # transfer size
+                (0 << 4) |  # read increment
+                (0 << 5) |  # write increment
+                (self.write_dma.channel_id << 11)  # chain to write channel
+        )
+
+        mem32[self.read_dma.base + DMA_READ_ADDR] = INTERP0_POP_FULL
+        mem32[self.read_dma.base + DMA_WRITE_ADDR] = INTERP1_ACCUM0
+        mem32[self.read_dma.base + DMA_TRANS_COUNT] = scaled_width
+        mem32[self.read_dma.base + DMA_CTRL_TRIG] = read_config
+
+        # Configure write channel
+        write_config = (
+                (0 << 0) |  # increment read
+                (1 << 1) |  # increment write
+                (DMA_SIZE_16 << 2) |  # transfer size
+                (0 << 4) |  # read increment
+                (1 << 5) |  # write increment
+                (1 << 15)  # enable
+        )
+
+        mem32[self.write_dma.base + DMA_READ_ADDR] = INTERP1_POP_FULL
+        mem32[self.write_dma.base + DMA_WRITE_ADDR] = self.display.write_addr
+        mem32[self.write_dma.base + DMA_TRANS_COUNT] = scaled_width
+
+        # Writing to CTRL_TRIG starts the channel
+        mem32[self.write_dma.base + DMA_CTRL_TRIG] = write_config
 
     def configure_palette_dma(self, read_chan, palette_chan, write_chan,
                               source_addr, dest_addr, width):

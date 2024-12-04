@@ -254,14 +254,14 @@ class SpriteScaler:
 
         # Monitor with timeout
         timeout = 100000
-        self.dbg.debug_buffer(self.dbg.debug_bytes)
+        self.dbg.print_debug_bytes(self.dbg.debug_bytes)
 
         while timeout > 0 and not self.finished:
             if timeout % 100 == 0:
                 print(f"-- IN LOOP ... ({timeout})")
                 self.dbg.debug_register()
                 self.dbg.debug_dma(self.dma_out, "SM RX DEBUG", "SM RX DEBUG", 0)
-                self.dbg.debug_buffer(self.dbg.debug_bytes)
+                self.dbg.print_debug_bytes(self.dbg.debug_bytes)
 
             timeout -= 1
 

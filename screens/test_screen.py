@@ -1,5 +1,6 @@
 import sys
 
+from scaler.sprite_scaler_test import test_sprite_scaling
 from screen import Screen
 from scaler.dma_scaler import DMAScaler
 
@@ -100,7 +101,7 @@ class TestScreen(Screen):
 
         num_colors = 16
 
-        self.scaler = DMAScaler(self.display, num_colors, ch_2, ch_3, ch_4, ch_5, ch_6, ch_7, ch_8, ch_9)
+        # self.scaler = DMAScaler(self.display, num_colors, ch_2, ch_3, ch_4, ch_5, ch_6, ch_7, ch_8, ch_9)
 
     def create_sprite_manager(self, display, num_sprites=0):
         self.check_mem()
@@ -167,7 +168,10 @@ class TestScreen(Screen):
         """ Overrides parent method """
         self.display.fill(0xAA00)
 
-        self.draw_image_group(self.one_sprite_image, self.one_sprite_meta, self.num_sprites, self.x_vals, self.y_vals)
+        test_sprite_scaling(self.display)
+        exit(1)
+
+        # self.draw_image_group(self.one_sprite_image, self.one_sprite_meta, self.num_sprites, self.x_vals, self.y_vals)
         # self.display.show()
         self.scaler.reset()
 

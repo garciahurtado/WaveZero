@@ -16,9 +16,9 @@ class ScalerDebugger():
 
     channel_names = {}
     channels = {}
-    debug_bytes = array("L", [0] * 16)
+    debug_bytes = []
 
-    def __init__(self, sm_indices, sm_row_start, sm_row_scale, sm_indexed_scaler, dma_ch):
+    def __init__(self, sm_indices=None, sm_row_start=None, sm_row_scale=None, sm_indexed_scaler=None, dma_ch=None):
         self.sm_indices = sm_indices
         self.sm_row_start = sm_row_start
         self.sm_row_scale = sm_row_scale
@@ -101,23 +101,46 @@ class ScalerDebugger():
             value2 = ctrl[key2]
             print(f".{key1:_<12} {value1:02X} \t\t .{key2:_<12} {value2:02X}")
 
-    def debug_buffer(self, data_bytes):
-        print(f"Debug Buffer Contents: ")
+    def get_debug_bytes(self, count=32, byte_size=2):
+        """
+        count: number of elements
+        byte_size: 0 or 1 for bytes, 2 for words
+        """
+        if byte_size >= 2:
+            debug_bytes = array("L", [0] * count)  # 32-bit words
+            init_value = 0x12345678
+        else:
+            debug_bytes = array("B", [0] * count)  # bytes
+            init_value = 0x78  # Just lowest byte
+
+        # Initialize all elements
+        for i in range(len(debug_bytes)):
+            debug_bytes[i] = init_value
+
+        return debug_bytes
+
+    def print_debug_bytes(self, data_bytes, format='hex', num_cols=4):
+        print(
+            f"Debug Buffer Contents ({len(data_bytes)} {'bytes' if isinstance(data_bytes[0], int) and data_bytes[0] < 256 else 'words'})")
         print()
 
-        """ all sizes in bytes"""
-        rows = 4
-        cols = 4
-        out_str = ""
+        # Calculate actual number of rows needed
+        total_items = len(data_bytes)
+        rows = (total_items + num_cols - 1) // num_cols
 
-        for i in range(0, rows * cols):
-            if (i and (i % cols) == 0):
-                out_str += "\n"
+        for row in range(rows):
+            for col in range(num_cols):
+                idx = row * num_cols + col
+                if idx >= total_items:
+                    break
 
-            val = data_bytes[i]
-            out_str += f"{val:08X}-"
-
-        print(out_str)
+                val = data_bytes[idx]
+                if format == 'bin':
+                    out_str = f"{val:08b}-"
+                else:
+                    out_str = f"{val:02X}-" if val < 256 else f"{val:08X}-"
+                print(out_str, end='')
+            print()
 
     def read_pio_opcode(self, instr):
         opcode = (instr & 0xE000) >> 13
@@ -148,15 +171,6 @@ class ScalerDebugger():
 
         else:
             print("Unknown instruction")
-
-    def get_debug_bytes(self):
-        debug_bytes = self.debug_bytes
-
-        for i in range(0, len(debug_bytes), 2):
-            debug_bytes[i] = 0x12345678  # easier to see when its set vs 00000000
-            debug_bytes[i + 1] = 0x90ABCDEF
-
-        return debug_bytes
 
     def debug_all_dma_channels(self, idx, section=None):
         ch = self.channels[idx]

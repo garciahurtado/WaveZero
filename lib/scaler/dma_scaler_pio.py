@@ -89,3 +89,40 @@ def row_start():
     # set(pins, 0x1)          [2]
     push()                    [8]
     # set(pins, 0x0)              # LED DEBUG
+
+
+@asm_pio(
+    out_shiftdir=PIO.SHIFT_RIGHT,
+    in_shiftdir=PIO.SHIFT_RIGHT,
+    autopull=False
+)
+def pixel_scaler():
+    # Get repeat count from pattern
+    pull()  # Get from FIFO
+    mov(x, osr)  # Store count in X
+
+    # Get packed pixel byte
+    pull()  # Get from FIFO
+    mov(y, osr)  # Store in Y
+
+    # Handle high nibble
+    in_(y, 4)  # Get high 4 bits
+    mov(isr, y)  # Use as index
+    mov(y, isr)  # Get palette color
+
+    # Output high pixel X times
+    label("repeat_high")
+    mov(osr, y)  # Load color
+    push()  # Output RGB565
+    jmp(x_dec, "repeat_high")
+
+    # Handle low nibble
+    in_(y, 4)  # Get low 4 bits
+    mov(isr, y)  # Use as index
+    mov(y, isr)  # Get palette color
+
+    # Output low pixel X times
+    label("repeat_low")
+    mov(osr, y)  # Load color
+    push()  # Output RGB565
+    jmp(x_dec, "repeat_low")
