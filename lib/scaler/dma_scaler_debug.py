@@ -6,6 +6,7 @@ from uarray import array
 from uctypes import addressof
 
 from scaler.dma_scaler_const import *
+from utils import aligned_buffer
 
 DMA_DBG_TCR = const(0x804)
 
@@ -52,23 +53,28 @@ class ScalerDebugger():
         print("=====================================================")
         print()
 
-    def debug_pio_status(self):
+    def debug_pio_status(self, sm0=False, sm1=False, sm2=False):
         print()
 
-        line_num = mem32[PIO1_BASE + SM0_ADDR]
-        inst_code = mem32[PIO1_BASE + SM0_INST_DEBUG]
-        print(f"-- SM0 (#{line_num}) ----------------------------")
-        self.read_pio_opcode(inst_code)
+        if sm0:
+            line_num = mem32[PIO1_BASE + SM0_ADDR]
+            inst_code = mem32[PIO1_BASE + SM0_INST_DEBUG]
+            print(f"-- SM0 (line {line_num}) ----------------------------")
+            self.read_pio_opcode(inst_code)
 
-        line_num = mem32[PIO1_BASE + SM1_ADDR]
-        inst_code = mem32[PIO1_BASE + SM1_INST_DEBUG]
-        print(f"-- SM1 (#{line_num}) -----------------------------")
-        self.read_pio_opcode(inst_code)
+        if sm1:
+            line_num = mem32[PIO1_BASE + SM1_ADDR]
+            inst_code = mem32[PIO1_BASE + SM1_INST_DEBUG]
+            print(f"-- SM1 (line {line_num}) -----------------------------")
+            self.read_pio_opcode(inst_code)
 
-        line_num = mem32[PIO1_BASE + SM2_ADDR]
-        inst_code = mem32[PIO1_BASE + SM2_INST_DEBUG]
-        print(f"-- SM2 (#{line_num}) -----------------------------")
-        self.read_pio_opcode(inst_code)
+        if sm2:
+            line_num = mem32[PIO1_BASE + SM2_ADDR]
+            inst_code = mem32[PIO1_BASE + SM2_INST_DEBUG]
+            print(f"-- SM2 (line {line_num}) -----------------------------")
+            self.read_pio_opcode(inst_code)
+
+        print()
 
     def debug_register(self):
         deb1 = mem32[FDEBUG] >> 24
@@ -101,13 +107,18 @@ class ScalerDebugger():
             value2 = ctrl[key2]
             print(f".{key1:_<12} {value1:02X} \t\t .{key2:_<12} {value2:02X}")
 
-    def get_debug_bytes(self, count=32, byte_size=2):
+    def get_debug_bytes(self, count=32, byte_size=2, aligned=False):
         """
         count: number of elements
         byte_size: 0 or 1 for bytes, 2 for words
         """
         if byte_size >= 2:
-            debug_bytes = array("L", [0] * count)  # 32-bit words
+            if aligned:
+                buf = aligned_buffer(count)
+                debug_bytes = array("L", [0] * buf)
+            else:
+                debug_bytes = array("L", [0] * count)  # 32-bit words
+
             init_value = 0x12345678
         else:
             debug_bytes = array("B", [0] * count)  # bytes

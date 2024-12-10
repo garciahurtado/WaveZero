@@ -5,8 +5,8 @@ from rp2 import PIO, asm_pio
     in_shiftdir=PIO.SHIFT_RIGHT,
     out_shiftdir=PIO.SHIFT_LEFT,
     autopull=True,
-    pull_thresh=5,     # n < 5 might be usable for 50% horizontal downscaling, 0 and n > 5 seems to do upscaling
-    # pull_thresh=16, # interesting things happen at weird levels
+    pull_thresh=32,
+    # pull_thresh=16,
     # autopush=True,
     # push_thresh=28  # Leave headroom
 )
@@ -22,11 +22,11 @@ def read_palette():
     out(isr, 32)            # First word is the palette base address
                             # Keep it in the ISR for later
 
-    pull() # An extra pull could be used for horiz downscaling, since it discards pixels
+    # pull()                  # L:21 - An extra pull could be used for horiz downscaling, since it discards pixels
     wrap_target()
 
     # PIXEL PROCESSING ----------------------------------------------------
-    out(y, 4)               # pull 4 bits from OSR
+    out(y, 4)               # L:22 - pull 4 bits from OSR
 
     """ Index lookup logic (reverse addition) """
     mov(x, invert(isr))             # ISR has the base addr

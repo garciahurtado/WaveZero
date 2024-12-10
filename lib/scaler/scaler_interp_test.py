@@ -8,7 +8,7 @@ from uctypes import addressof
 
 from scaler.dma_scaler_const import *
 from scaler.dma_scaler_debug import ScalerDebugger
-from scaler.sprite_scaler_test import test_sprite_scaling
+from scaler.sprite_scaler_test import init_test_sprite_scaling
 from screens.screen import Screen
 
 """
@@ -33,16 +33,8 @@ class InterpTestScreen(Screen):
         self.display = display
         self.dbg = ScalerDebugger(None, None, None, None, None)
 
-        self.sprite_scaling_demo()
-        sys.exit(1)
-
-        read_chan = DMA()       # 2
-        palette_chan = DMA()    # 3
-        write_chan = DMA()      # 4
-
         width = 32
-        self.configure_palette_dma(read_chan, palette_chan, write_chan,
-                              0, 0, width)
+
 
     def show(self, sprite, x=0, y=0):
         # Address setup
@@ -51,6 +43,8 @@ class InterpTestScreen(Screen):
         fb_addr = self.write_addr + (y * self.display.width + x) * 2
 
         # self.init_interpolator(palette_addr, sprite_addr, fb_addr)
+
+        init_test_sprite_scaling(self.display)
 
     def init_interpolator(self, sprite_data, scale):
         # For byte-aligned sprite data
@@ -201,8 +195,7 @@ class InterpTestScreen(Screen):
         return output
 
     def sprite_scaling_demo(self):
-        test_sprite_scaling(self.display)
-        return
+        init_test_sprite_scaling(self.display)
 
         start_x = 0
         start_y = 0
@@ -242,43 +235,6 @@ class InterpTestScreen(Screen):
             print("\n")
             print()
             print()
-
-    def _setup_dma_transfer(self, sprite: Sprite, config: ScalingConfig):
-        """Set up and start DMA transfer chain"""
-        scaled_width = int(sprite.width * config.scale_x)
-        scaled_height = int(sprite.height * config.scale_y)
-
-        # Configure read channel
-        read_config = (
-                (0 << 0) |  # increment read
-                (0 << 1) |  # increment write
-                (DMA_SIZE_16 << 2) |  # transfer size
-                (0 << 4) |  # read increment
-                (0 << 5) |  # write increment
-                (self.write_dma.channel_id << 11)  # chain to write channel
-        )
-
-        mem32[self.read_dma.base + DMA_READ_ADDR] = INTERP0_POP_FULL
-        mem32[self.read_dma.base + DMA_WRITE_ADDR] = INTERP1_ACCUM0
-        mem32[self.read_dma.base + DMA_TRANS_COUNT] = scaled_width
-        mem32[self.read_dma.base + DMA_CTRL_TRIG] = read_config
-
-        # Configure write channel
-        write_config = (
-                (0 << 0) |  # increment read
-                (1 << 1) |  # increment write
-                (DMA_SIZE_16 << 2) |  # transfer size
-                (0 << 4) |  # read increment
-                (1 << 5) |  # write increment
-                (1 << 15)  # enable
-        )
-
-        mem32[self.write_dma.base + DMA_READ_ADDR] = INTERP1_POP_FULL
-        mem32[self.write_dma.base + DMA_WRITE_ADDR] = self.display.write_addr
-        mem32[self.write_dma.base + DMA_TRANS_COUNT] = scaled_width
-
-        # Writing to CTRL_TRIG starts the channel
-        mem32[self.write_dma.base + DMA_CTRL_TRIG] = write_config
 
     def configure_palette_dma(self, read_chan, palette_chan, write_chan,
                               source_addr, dest_addr, width):

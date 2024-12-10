@@ -1,3 +1,4 @@
+from machine import mem32
 from micropython import const
 
 """ DMA """
@@ -67,6 +68,20 @@ DREQ_PIO1_TX2 = 10
 DREQ_PIO1_RX2 = 14
 
 DREQ_TIMER_0 = 0x3B
+DREQ_TIMER_1 = 0x3C
+
+TIMER0_OFFSET = 0x00000420
+TIMER0_BITS = 0x00000000
+
+TIMER1_OFFSET = 0x00000424
+TIMER1_BITS = 0x0001000F
+
+mem32[DMA_BASE + TIMER1_OFFSET] = TIMER1_BITS
+
+""" Pacing Timer Dividend bits
+[31:16] Specifies the X value for the (X/Y) fractional timer.
+[15:0] Pacing Timer Divisor. Specifies the Y value for the (X/Y) fractional timer. """
+
 
 PIO_FSTAT = const(0x004)
 PIO_FDEBUG = const(0x008)

@@ -1,6 +1,6 @@
 import sys
 
-from scaler.sprite_scaler_test import test_sprite_scaling
+from scaler.sprite_scaler_test import init_test_sprite_scaling
 from screen import Screen
 from scaler.dma_scaler import DMAScaler
 
@@ -54,8 +54,10 @@ class TestScreen(Screen):
     scaler = None
 
     fps_counter_task = None
+    sprite = None
 
     def __init__(self, display, *args, **kwargs):
+
         num_sprites = self.num_sprites
 
         super().__init__(display)
@@ -63,6 +65,7 @@ class TestScreen(Screen):
         print(f"=== Testing performance of {num_sprites} sprites ===")
         print()
 
+        self.sprite_type = SPRITE_TEST_SQUARE
         self.preload_images()
         self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
 
@@ -84,24 +87,27 @@ class TestScreen(Screen):
         # self.init_fps()
 
         # display.fill(0x0000)
-        display.fill(0xAA00)
+        display.fill(0x000011)
         display.show()
 
         self.create_sprite_manager(display, num_sprites=num_sprites)
 
         """ Channels 0 and 1 are already reserved by the display driver """
-        ch_2 = DMA()
-        ch_3 = DMA()
-        ch_4 = DMA()
-        ch_5 = DMA()
-        ch_6 = DMA()
-        ch_7 = DMA()
-        ch_8 = DMA()
-        ch_9 = DMA()
+        # ch_2 = DMA()
+        # ch_3 = DMA()
+        # ch_4 = DMA()
+        # ch_5 = DMA()
+        # ch_6 = DMA()
+        # ch_7 = DMA()
+        # ch_8 = DMA()
+        # ch_9 = DMA()
 
         num_colors = 16
 
         # self.scaler = DMAScaler(self.display, num_colors, ch_2, ch_3, ch_4, ch_5, ch_6, ch_7, ch_8, ch_9)
+
+
+        _, self.scaler = init_test_sprite_scaling(self.display)
 
     def create_sprite_manager(self, display, num_sprites=0):
         self.check_mem()
@@ -166,14 +172,24 @@ class TestScreen(Screen):
 
     def do_refresh(self):
         """ Overrides parent method """
-        self.display.fill(0xAA00)
+        # self.sprite.image = self.sprite_img
+        self.sprite.x = 20
+        self.sprite.y = 15
 
-        test_sprite_scaling(self.display)
-        exit(1)
+        meta = self.mgr.get_meta(self.sprite)
+        image = self.mgr.sprite_images[self.sprite_type][0]
+
+        # for scale in [1, 2, 3]:
+        for scale in [1]:
+            print()
+            print(f"\n=== Testing {scale * 100}% scaling ===")
+            self.scaler.debug = True
+            self.scaler.draw_sprite(self.sprite, meta, image, scale_x=1, scale_y=scale)
 
         # self.draw_image_group(self.one_sprite_image, self.one_sprite_meta, self.num_sprites, self.x_vals, self.y_vals)
+        # self.scaler.reset()
+
         # self.display.show()
-        self.scaler.reset()
 
         self.show_prof()
         self.fps.tick()
@@ -277,14 +293,17 @@ class TestScreen(Screen):
         sprite_type = SPRITE_TEST_SQUARE
         meta = self.mgr.sprite_metadata[sprite_type]
 
+
+        """ Due to a current limitation / feature, the mgr.sprite_images array is not populated until at least one sprite of that
+        type is created. """
         for i in range(0, num_sprites):
             sprite, _ = self.mgr.create(sprite_type)
             self.sprites.append(sprite)
 
+        self.sprite = self.sprites[0]
+        self.sprite_img = self.mgr.sprite_images[sprite_type]
+
         """ Create single sprite for simple tests """
-        self.one_sprite = self.sprites[0]
-        self.one_sprite_meta = meta
-        self.one_sprite_image = self.mgr.sprite_images[sprite_type][-1]
 
     def load_types(self):
         # self.mgr.add_type(

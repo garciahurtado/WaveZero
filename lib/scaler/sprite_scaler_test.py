@@ -1,8 +1,10 @@
 # sprite_scaler_test.py
 """Test harness matching original demo code"""
 from scaler.dma_interp_scaler import SpriteScaler
+from sprites2.test_square import TestSquare
 
-def test_sprite_scaling(display):
+
+def init_test_sprite_scaling(display):
     # Port original demo code here
     print()
     print(">>> INTERP Sprite scaling demo <<< ")
@@ -24,17 +26,19 @@ def test_sprite_scaling(display):
         0b00110010, 0b00000001, 0b00010000, 0b00100011,
         0b00100011, 0b00010000, 0b00000001, 0b00110010,
     ])
-    sprite = TestSprite(sprite_data, width=4, height=4)
+    # sprite = TestSprite(sprite_data, width=4, height=4)
+
+    sprite = TestSquare()
     scaler = SpriteScaler(display)
 
     # for scale in [1, 2, 3]:
-    for scale in [1]:
-        print()
-        print(f"\n=== Testing {scale * 100}% scaling ===")
-        scaler.debug = True
-        scaler.draw_sprite(sprite, 1, scale)
+    # for scale in [1]:
+    #     print()
+    #     print(f"\n=== Testing {scale * 100}% scaling ===")
+    #     scaler.debug = True
+    #     scaler.draw_sprite(sprite, 1, scale)
 
-    return True
+    return sprite, scaler
 
 class TestSprite():
     def __init__(self, sprite_data, width, height):

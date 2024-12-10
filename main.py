@@ -2,7 +2,6 @@ import gc
 import sys
 from utime import sleep
 
-from scaler.scaler_interp_test import InterpTestScreen
 # import frozen_img # Created with freezefs: https://github.com/bixb922/freezeFS
 from screens.screen_app import ScreenApp
 # from screens.game_screen import GameScreen
@@ -44,7 +43,7 @@ def main():
     # app.load_screen(GameScreen(app.display))
     # app.load_screen(TitleScreen(app.display))
     # app.load_screen(TestScreen(app.display))
-    app.load_screen(InterpTestScreen(app.display))
+    app.load_screen(TestScreen(app.display))
 
     print("After loading screen class")
     app.run()
