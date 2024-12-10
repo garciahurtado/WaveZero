@@ -19,6 +19,7 @@ ROW_ADDR_TARGET_DMA_BASE = DMA_BASE_3
 COLOR_LOOKUP_DMA_BASE = DMA_BASE_4
 READ_DMA_BASE = DMA_BASE_5
 WRITE_DMA_BASE = DMA_BASE_6
+PX_READ_BYTE_SIZE = 2
 
 class SpriteScaler():
     def __init__(self, display):
@@ -38,7 +39,7 @@ class SpriteScaler():
 
         # Write addr, then read addr + trigger
         self.target_addrs[0] = int(DMA_BASE_6 + DMA_WRITE_ADDR)
-        self.target_addrs[1] = int(DMA_BASE_5)
+        self.target_addrs[1] = int(DMA_BASE_5 + DMA_READ_ADDR_TRIG)
 
         print("~~ TARGET ADDRESSES: ~~")
         for addr in self.target_addrs:
@@ -126,6 +127,8 @@ class SpriteScaler():
         # Start the PIO/DMA chain
         self.row_addr_target.active(1)
         self.color_lookup.active(1)
+        self.sm_read_palette.active(1)
+
 
         start = time.ticks_ms()
         timeout = 10
@@ -209,9 +212,9 @@ class SpriteScaler():
             read_addr = base_read_addr + (row_idx * (row_width_4bit))
             count = v_pattern[row_idx % 8]  # Apply vertical scaling pattern, which repeats every 8 items
 
-            # print(f"* ROW id = {row_idx} / scale repeat = {count} ")
-            # print(f"* value_addrs array size: {len(self.value_addrs)})")
-            # print(f"")
+            print(f"* ROW id = {row_idx} / scale repeat = {count} ")
+            print(f"* value_addrs array size: {len(self.value_addrs)})")
+            print(f"")
 
             """ For vertical up and downscaling, we repeat the source row 0-x times """
             for rep in range(count):
@@ -223,15 +226,15 @@ class SpriteScaler():
                 self.value_addrs[(row_idx*2)+1]=read_addr       # 2nd for the reader
 
         """ DEBUG array """
-        # print(f"\nVALUE ADDRS ({len(self.value_addrs)}): ")
-        # for i, addr in enumerate(self.value_addrs):
-        #     print(f"  #{i}: 0x{addr:08x}")
+        print(f"\nVALUE ADDRS ({len(self.value_addrs)}): ")
+        for i, addr in enumerate(self.value_addrs):
+            print(f"  #{i}: 0x{addr:08x}")
 
         print("POINTERS -----------")
         print(f"  VALUE ADDR PTR: 0x{addressof(self.value_addrs):08X}")
         print(f"  TARGET ADDR PTR: 0x{addressof(self.target_addrs):08X}")
-        print(f"TARGET ADDRS --------")
 
+        print(f"TARGET ADDRS --------")
         for addr in self.target_addrs:
             print(f"  ADDR: 0x{addr:08X}")
 
@@ -245,7 +248,6 @@ class SpriteScaler():
             inc_read=True,  # Through control blocks
             inc_write=False,  # Fixed write target
             # treq_sel=DREQ_TIMER_0,
-            # chain_to=self.color_lookup.channel,
             # bswap=True
         )
 
@@ -263,7 +265,7 @@ class SpriteScaler():
             inc_write=False,    # always write to DMA2 WRITE
             ring_sel=0,         # ring on read channel (read/write TARGET address)
             ring_size=3,        # 2 addresses (8 bytes) in ring buffer which we'll loop through (read & write)
-            chain_to=self.px_read_dma.channel,
+            chain_to=self.color_lookup.channel,
             treq_sel=DREQ_TIMER_1,
         )
 
@@ -292,11 +294,11 @@ class SpriteScaler():
 
         """ CH:5. Pixel reading DMA --------------------------- """
         px_read_ctrl = self.px_read_dma.pack_ctrl(
-            size=2,
+            size=PX_READ_BYTE_SIZE,
             inc_read=True,      # Through sprite data
             inc_write=False,    # debug_bytes: True / PIO: False
-            chain_to=self.row_addr_target.channel,
             treq_sel=DREQ_PIO1_TX0,
+            bswap=True
         )
 
         # tx_per_row = (width + 1) // 2  # Round up for 4-bit pixels
@@ -316,7 +318,6 @@ class SpriteScaler():
             size=1, # 16 bit pixels
             inc_read=False,  # from PIO
             inc_write=True,  # Through display
-            # chain_to=self.color_lookup.channel,  # Chain back to v_ctrl
         )
 
         self.px_write_dma.config(
@@ -351,13 +352,15 @@ class SpriteScaler():
         self.dbg.debug_pio_status(sm0=True)
 
     def init_dma_sprite(self, height, width, scaled_height, scaled_width):
-        """ Sprite specific DMA configuration goes here """
+        """ Sprite-specific DMA configuration goes here """
+
         self.row_addr.config(read=self.value_addrs)
-        # self.px_read_dma.config(count=width//8+1)
-        self.px_read_dma.config(count=width//8) # 4px per 2bytes
-        # self.px_write_dma.config(read=self.palette_addr)
-        # self.color_lookup.config(count=scaled_width)
-        self.color_lookup.config(count=scaled_width*scaled_height)
+        px_per_tx = 2 * (PX_READ_BYTE_SIZE*2)
+        print(f"READ PX PER TX: {px_per_tx}")
+
+        self.px_read_dma.config(count=scaled_width//px_per_tx)
+        self.px_write_dma.config(count=1)
+        self.color_lookup.config(count=scaled_width)
 
     def init_row_buffer(self, width):
         # Line buffer for one scaled row of RGB565 pixels
@@ -389,7 +392,6 @@ class SpriteScaler():
 
     def init_pio(self, palette_addr):
         self.sm_read_palette.put(palette_addr)
-        self.sm_read_palette.active(1)
 
     def init_ref_palette(self):
         img_name = '/img/scaler_test_pattern.bmp'
