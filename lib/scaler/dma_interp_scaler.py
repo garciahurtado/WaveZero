@@ -187,25 +187,23 @@ class SpriteScaler():
         """ @todo: init address calculations using interp, to speed things up """
 
         """ Testing Upscale / downscale ratios """
-        # scale_y = 2
-        scale_y = 1
         self.value_addrs = []
 
         v_pattern = self.v_patterns[scale_y]
-        row_width = (meta.width) // 2  # Packed pixels
         display_stride = self.display.width * 2
 
-        num_blocks = scaled_height * 2
-        print(f"Sprite HEIGHT = {scaled_height} / num addr blocks: {num_blocks}")
+        print(f"Sprite HEIGHT = {scaled_height} / num addr blocks: {scaled_height*2}")
 
         """ "value_addrs" contain the addresses that will be written to the destination,
         and "target_addrs" the addresses to which these values will be written (ie: the read and write DMAs) """
 
         # value_blocks_buf = aligned_buffer(size=num_blocks)
-        self.value_addrs = array('L', [0x00000000] * num_blocks)        # One word/addr per sprite row
 
         y_pos = 0
         row_width_4bit = math.ceil(meta.width / 2)
+        value_addrs = []
+        write_row_id = 0
+        read_addr = 0
 
         for row_idx in range(0, scaled_height):
             # Source sprite reading address
@@ -213,17 +211,20 @@ class SpriteScaler():
             count = v_pattern[row_idx % 8]  # Apply vertical scaling pattern, which repeats every 8 items
 
             print(f"* ROW id = {row_idx} / scale repeat = {count} ")
-            print(f"* value_addrs array size: {len(self.value_addrs)})")
+            print(f"* SCALED HEIGHT: {scaled_height})")
             print(f"")
 
             """ For vertical up and downscaling, we repeat the source row 0-x times """
             for rep in range(count):
                 # Display writing address
-                write_addr = base_write_addr + ((row_idx+rep) * display_stride)
+                write_addr = base_write_addr + (write_row_id * display_stride)
 
                 # print(f" R/W {read_addr:08X} / {write_addr:08X}")
-                self.value_addrs[row_idx*2]=write_addr        # 1st for the writer
-                self.value_addrs[(row_idx*2)+1]=read_addr       # 2nd for the reader
+                value_addrs.append(write_addr)        # 1st for the writer
+                value_addrs.append(read_addr)       # 2nd for the reader
+                write_row_id = write_row_id + 1
+
+        self.value_addrs = array('L', value_addrs)  # One word/addr per sprite row
 
         """ DEBUG array """
         print(f"\nVALUE ADDRS ({len(self.value_addrs)}): ")

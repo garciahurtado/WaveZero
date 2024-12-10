@@ -180,7 +180,7 @@ class TestScreen(Screen):
         image = self.mgr.sprite_images[self.sprite_type][-1]
 
         # for scale in [1, 2, 3]:
-        for scale in [1]:
+        for scale in [0.5]:
             print()
             print(f"\n=== Testing {scale * 100}% scaling ===")
             self.scaler.debug = True
