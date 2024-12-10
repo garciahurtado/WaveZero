@@ -22,7 +22,7 @@ def read_palette():
     out(isr, 32)            # First word is the palette base address
                             # Keep it in the ISR for later
 
-    # pull()                  # L:21 - An extra pull could be used for horiz downscaling, since it discards pixels
+    pull()                  # L:21
     wrap_target()
 
     # PIXEL PROCESSING ----------------------------------------------------

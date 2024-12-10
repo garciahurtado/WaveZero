@@ -177,7 +177,7 @@ class TestScreen(Screen):
         self.sprite.y = 15
 
         meta = self.mgr.get_meta(self.sprite)
-        image = self.mgr.sprite_images[self.sprite_type][0]
+        image = self.mgr.sprite_images[self.sprite_type][-1]
 
         # for scale in [1, 2, 3]:
         for scale in [1]:

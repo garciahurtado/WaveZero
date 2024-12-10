@@ -65,14 +65,14 @@ class SpriteScaler():
         # PIO setup (SM ID 4 is #1 on PIO1)
         self.sm_read_palette = StateMachine(
             4, read_palette,
-            freq=100_000,
+            freq=200_000,
         )
         self.init_vertical_patterns()
-        self.init_ref_palette()
+        # self.init_ref_palette() # We
         self.init_dma()
 
 
-    def draw_sprite(self, sprite:Image, meta:SpriteType, image:Image, scale_x=1.0, scale_y=1.0):
+    def draw_sprite(self, sprite, meta:SpriteType, image:Image, scale_x=1.0, scale_y=1.0):
         """Draw a scaled sprite at the specified position"""
         # Calculate bounds
         scaled_width = int(meta.width * scale_x)
@@ -94,8 +94,10 @@ class SpriteScaler():
             base_write_addr=base_write
         )
 
-        print(f"About to init PIO with palette addr.: 0x{self.palette_addr:08x}")
-        self.init_pio(self.palette_addr)
+        palette_addr = addressof(image.palette_bytes)
+        print(f"About to init PIO with palette addr.: 0x{palette_addr:08x}")
+        self.init_pio(palette_addr)
+        self.palette_addr = palette_addr
 
         print(f"About to Init DMA w/ w/h: {meta.width}x{meta.height} /// scaled_height: {scaled_height} / scaled_width: {scaled_width}")
         self.init_dma_sprite(meta.height, meta.width, scaled_height, scaled_width)
@@ -204,7 +206,7 @@ class SpriteScaler():
 
         for row_idx in range(0, scaled_height):
             # Source sprite reading address
-            read_addr = base_read_addr + (row_idx * (row_width))
+            read_addr = base_read_addr + (row_idx * (row_width_4bit))
             count = v_pattern[row_idx % 8]  # Apply vertical scaling pattern, which repeats every 8 items
 
             # print(f"* ROW id = {row_idx} / scale repeat = {count} ")
@@ -278,7 +280,7 @@ class SpriteScaler():
             inc_read=False,
             inc_write=False,  # always writes to DMA WRITE
             treq_sel=DREQ_PIO1_RX0,
-            chain_to=self.row_addr_target.channel
+            chain_to=self.row_addr_target.channel,
         )
 
         self.color_lookup.config(
@@ -301,7 +303,7 @@ class SpriteScaler():
         # print(f"tx_per_row: {tx_per_row}")
 
         self.px_read_dma.config(
-            count=1,
+            count=0,
             read=0,  # To be Set per row
             write=PIO1_TX0,
             ctrl=px_read_ctrl
@@ -352,7 +354,7 @@ class SpriteScaler():
         """ Sprite specific DMA configuration goes here """
         self.row_addr.config(read=self.value_addrs)
         # self.px_read_dma.config(count=width//8+1)
-        self.px_read_dma.config(count=4)
+        self.px_read_dma.config(count=width//8) # 4px per 2bytes
         # self.px_write_dma.config(read=self.palette_addr)
         # self.color_lookup.config(count=scaled_width)
         self.color_lookup.config(count=scaled_width*scaled_height)
