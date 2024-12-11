@@ -203,18 +203,22 @@ class SpriteScaler():
         row_width_4bit = math.ceil(meta.width / 2)
         value_addrs = []
         write_row_id = 0
-        read_addr = 0
+        read_row_id = 0
 
-        for row_idx in range(0, scaled_height):
+        for row_count in range(0, meta.height):
             # Source sprite reading address
-            read_addr = base_read_addr + (row_idx * (row_width_4bit))
-            count = v_pattern[row_idx % 8]  # Apply vertical scaling pattern, which repeats every 8 items
+            count = v_pattern[row_count % 8]  # Apply vertical scaling pattern, which repeats every 8 items
 
-            print(f"* ROW id = {row_idx} / scale repeat = {count} ")
+            """ Needed for downscaling. For every 0 in the scaling pattern, we increase the read row ID one extra time,
+            therefore skipping one source row"""
+
+            read_addr = base_read_addr + (read_row_id * (row_width_4bit))
+
+            print(f"* ROW id = {row_count} / scale repeat = {count} ")
             print(f"* SCALED HEIGHT: {scaled_height})")
             print(f"")
 
-            """ For vertical up and downscaling, we repeat the source row 0-x times """
+            """ For vertical upscaling, we repeat the source row 0-x times """
             for rep in range(count):
                 # Display writing address
                 write_addr = base_write_addr + (write_row_id * display_stride)
@@ -222,7 +226,10 @@ class SpriteScaler():
                 # print(f" R/W {read_addr:08X} / {write_addr:08X}")
                 value_addrs.append(write_addr)        # 1st for the writer
                 value_addrs.append(read_addr)       # 2nd for the reader
-                write_row_id = write_row_id + 1
+                write_row_id += 1
+
+            read_row_id += 1
+
 
         self.value_addrs = array('L', value_addrs)  # One word/addr per sprite row
 
