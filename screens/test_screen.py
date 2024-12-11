@@ -1,5 +1,7 @@
 import sys
 
+import time
+
 from scaler.sprite_scaler_test import init_test_sprite_scaling
 from screen import Screen
 from scaler.dma_scaler import DMAScaler
@@ -173,20 +175,23 @@ class TestScreen(Screen):
     def do_refresh(self):
         """ Overrides parent method """
         # self.sprite.image = self.sprite_img
-        self.sprite.x = 20
-        self.sprite.y = 15
+        draw_x = 20
+        draw_y = 15
 
         meta = self.mgr.get_meta(self.sprite)
         image = self.mgr.sprite_images[self.sprite_type][-1]
 
         # for scale in [1, 2, 3]:
-        for scale in [0.5]:
+        for scale in [1]:
             print()
             print(f"\n=== Testing {scale * 100}% scaling ===")
             self.scaler.debug = True
-            self.scaler.draw_sprite(self.sprite, meta, image, scale_x=1, scale_y=scale)
+            self.scaler.draw_sprite(meta, draw_x, draw_y, image, scale_x=1, scale_y=scale)
 
         # self.draw_image_group(self.one_sprite_image, self.one_sprite_meta, self.num_sprites, self.x_vals, self.y_vals)
+        # while not self.scaler.rows_finished:
+        time.sleep_ms(200)
+
         # self.scaler.reset()
 
         # self.display.show()

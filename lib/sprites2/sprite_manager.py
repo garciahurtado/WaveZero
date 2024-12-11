@@ -145,7 +145,7 @@ class SpriteManager:
 
         new_sprite.sprite_type = sprite_type
 
-        #Create images and frames
+        """ Load image and create scaling frames """
         if sprite_type not in self.sprite_images:
             print(f"sprite type: {sprite_type} - creating scaled images")
             prof.start_profile('mgr.create_images')

@@ -19,6 +19,8 @@ ROW_ADDR_TARGET_DMA_BASE = DMA_BASE_3
 COLOR_LOOKUP_DMA_BASE = DMA_BASE_4
 READ_DMA_BASE = DMA_BASE_5
 WRITE_DMA_BASE = DMA_BASE_6
+HSCALE_DMA_BASE = DMA_BASE_7
+
 PX_READ_BYTE_SIZE = 2
 
 class SpriteScaler():
@@ -28,9 +30,12 @@ class SpriteScaler():
         self.write_blocks = None
         self.value_addrs = []
 
+        self.rows_finished = False
+
         self.dbg = ScalerDebugger()
         self.debug_bytes1 = self.dbg.get_debug_bytes(byte_size=0, count=16, aligned=True)
         self.debug_bytes2 = self.dbg.get_debug_bytes(byte_size=0, count=16, aligned=True)
+        self.debug_dma = False
 
         """" Add two blocks, one for the pixel reader READ addr, and one for the pixel writer WRITE addr """
 
@@ -59,6 +64,7 @@ class SpriteScaler():
         self.color_lookup = DMA()           # 4. Palette color lookup / transfer
         self.px_read_dma = DMA()            # 5. Sprite data
         self.px_write_dma = DMA()           # 6. Display output
+        self.h_scale = DMA()                # 7. Horizontal scale pattern
 
         self.palette_addr = None
 
@@ -66,14 +72,12 @@ class SpriteScaler():
         # PIO setup (SM ID 4 is #1 on PIO1)
         self.sm_read_palette = StateMachine(
             4, read_palette,
-            freq=200_000,
+            freq=10_000_000,
         )
         self.init_vertical_patterns()
-        # self.init_ref_palette() # We
         self.init_dma()
 
-
-    def draw_sprite(self, sprite, meta:SpriteType, image:Image, scale_x=1.0, scale_y=1.0):
+    def draw_sprite(self, meta:SpriteType, x, y, image:Image, scale_x=1.0, scale_y=1.0):
         """Draw a scaled sprite at the specified position"""
         # Calculate bounds
         scaled_width = int(meta.width * scale_x)
@@ -81,13 +85,12 @@ class SpriteScaler():
 
         # Set up vertical control blocks
         base_read = addressof(image.pixel_bytes)
-        base_write = int(self.display.write_addr + ((sprite.y * self.display.width) + sprite.x) * 2)
-        # base_write = self.display.write_addr
+        base_write = int(self.display.write_addr + ((y * self.display.width) + x) * 2)
 
         print(f"Drawing a sprite of SCALED {scaled_width}x{scaled_height} @ base addr 0x{base_write:08X}")
+        print(f"(ROWS finished: {self.rows_finished})")
 
         self.init_v_ctrl_blocks(
-            sprite=sprite,
             meta=meta,
             scale_y=scale_y,
             scaled_height=scaled_height,
@@ -96,25 +99,27 @@ class SpriteScaler():
         )
 
         palette_addr = addressof(image.palette_bytes)
-        print(f"About to init PIO with palette addr.: 0x{palette_addr:08x}")
         self.init_pio(palette_addr)
         self.palette_addr = palette_addr
 
-        print(f"About to Init DMA w/ w/h: {meta.width}x{meta.height} /// scaled_height: {scaled_height} / scaled_width: {scaled_width}")
-        self.init_dma_sprite(meta.height, meta.width, scaled_height, scaled_width)
+        if self.debug_dma:
+            print(f"About to Init DMA w/ w/h: {meta.width}x{meta.height} /// scaled_height: {scaled_height} / scaled_width: {scaled_width}")
+        self.init_dma_sprite(scaled_height, scaled_width)
 
-        self.dbg.debug_pio_status(sm0=True)
+        if self.debug_dma:
+            self.dbg.debug_pio_status(sm0=True)
 
-        """ Show key addresses """
+        if self.debug_dma:
+            """ Show key addresses """
 
-        print()
-        print("~~ KEY MEMORY ADDRESSES ~~")
-        print(f"    ADDRS VALUE ADDR:          0x{addressof(self.value_addrs):08X}")
-        print(f"    TARGET ADDRS ADDR:         0x{addressof(self.target_addrs):08X}")
-        print(f"    PALETTE ADDR:              0x{self.palette_addr:08X}")
-        print(f"    SPRITE READ BASE ADDR:     0x{base_read:08X}")
-        print(f"    DISPLAY WRITE BASE ADDR:   0x{base_write:08X}")
-        print()
+            print()
+            print("~~ KEY MEMORY ADDRESSES ~~")
+            print(f"    ADDRS VALUE ADDR:          0x{addressof(self.value_addrs):08X}")
+            print(f"    TARGET ADDRS ADDR:         0x{addressof(self.target_addrs):08X}")
+            print(f"    PALETTE ADDR:              0x{self.palette_addr:08X}")
+            print(f"    SPRITE READ BASE ADDR:     0x{base_read:08X}")
+            print(f"    DISPLAY WRITE BASE ADDR:   0x{base_write:08X}")
+            print()
 
         # print("\n~~ DEBUG BYTES BEFORE DMA ~~")
         # self.dbg.print_debug_bytes(self.debug_bytes1)
@@ -129,15 +134,17 @@ class SpriteScaler():
         self.color_lookup.active(1)
         self.sm_read_palette.active(1)
 
-
         start = time.ticks_ms()
-        timeout = 10
+        timeout = 100
 
-        while time.ticks_diff(time.ticks_ms(), start) < timeout:
-            # print("\n~~ DEBUG BYTES AFTER DMA ~~\n")
-            # self.dbg.print_debug_bytes(self.debug_bytes1)
-            # self.dbg.print_debug_bytes(self.debug_bytes2, format='bin', num_cols=1)
+        # while time.ticks_diff(time.ticks_ms(), start) < timeout:
+        print(f"The TIMEDIFF is: {time.ticks_diff(time.ticks_ms(), start)}")
 
+        # print("\n~~ DEBUG BYTES AFTER DMA ~~\n")
+        # self.dbg.print_debug_bytes(self.debug_bytes1)
+        # self.dbg.print_debug_bytes(self.debug_bytes2, format='bin', num_cols=1)
+
+        if self.debug_dma:
             print("\n~~ DMA CHANNELS AFTER ~~~~~~~~~~~\n")
             self.dbg.debug_dma(self.row_addr, "row address", "row_addr", 2)
             self.dbg.debug_dma(self.row_addr_target, "row address target", "row_addr_target", 3)
@@ -147,10 +154,6 @@ class SpriteScaler():
 
             self.dbg.debug_pio_status(sm0=True)
             print()
-
-    def irq_end_row(self, hard):
-        print("<===---... IRQ END ROW ...---===>")
-        return True
 
     def init_vertical_patterns(self):
         """Similar to horizontal patterns but for row repeats"""
@@ -182,7 +185,7 @@ class SpriteScaler():
 
         return True
 
-    def init_v_ctrl_blocks(self, sprite, meta:SpriteType, scale_y, scaled_height, base_read_addr, base_write_addr):
+    def init_v_ctrl_blocks(self, meta:SpriteType, scale_y, scaled_height, base_read_addr, base_write_addr):
         """Create control blocks for vertical scaling"""
         """ @todo: init address calculations using interp, to speed things up """
 
@@ -214,10 +217,6 @@ class SpriteScaler():
 
             read_addr = base_read_addr + (read_row_id * (row_width_4bit))
 
-            print(f"* ROW id = {row_count} / scale repeat = {count} ")
-            print(f"* SCALED HEIGHT: {scaled_height})")
-            print(f"")
-
             """ For vertical upscaling, we repeat the source row 0-x times """
             for rep in range(count):
                 # Display writing address
@@ -230,22 +229,24 @@ class SpriteScaler():
 
             read_row_id += 1
 
+        """ Add a final tuple of blank addresses, to trigger the null IRQ on the channel """
+        value_addrs.append(0x00000000)
+        value_addrs.append(0x00000000)
+        self.value_addrs = array('L', value_addrs)
 
-        self.value_addrs = array('L', value_addrs)  # One word/addr per sprite row
+        if self.debug_dma:
+            """ DEBUG array """
+            print(f"\nVALUE ADDRS ({len(self.value_addrs)}): ")
+            for i, addr in enumerate(self.value_addrs):
+                print(f"  #{i}: 0x{addr:08x}")
 
-        """ DEBUG array """
-        print(f"\nVALUE ADDRS ({len(self.value_addrs)}): ")
-        for i, addr in enumerate(self.value_addrs):
-            print(f"  #{i}: 0x{addr:08x}")
+            print("POINTERS -----------")
+            print(f"  VALUE ADDR PTR: 0x{addressof(self.value_addrs):08X}")
+            print(f"  TARGET ADDR PTR: 0x{addressof(self.target_addrs):08X}")
 
-        print("POINTERS -----------")
-        print(f"  VALUE ADDR PTR: 0x{addressof(self.value_addrs):08X}")
-        print(f"  TARGET ADDR PTR: 0x{addressof(self.target_addrs):08X}")
-
-        print(f"TARGET ADDRS --------")
-        for addr in self.target_addrs:
-            print(f"  ADDR: 0x{addr:08X}")
-
+            print(f"TARGET ADDRS --------")
+            for addr in self.target_addrs:
+                print(f"  ADDR: 0x{addr:08X}")
 
     def init_dma(self):
         """Set up the complete DMA chain for sprite scaling"""
@@ -255,16 +256,14 @@ class SpriteScaler():
             size=2,  # 32-bit control blocks
             inc_read=True,  # Through control blocks
             inc_write=False,  # Fixed write target
-            # treq_sel=DREQ_TIMER_0,
-            # bswap=True
+            irq_quiet=1
         )
 
         self.row_addr.config(
             count=1,
-            # write=PATTERN_DMA_BASE + DMA_READ_ADDR,
-            # write=DMA_BASE_5 + DMA_READ_ADDR, # to be changed by DMA 3 @ runtime
             ctrl=row_addr_ctrl
         )
+        # self.row_addr.irq(self.irq_rows_end)
 
         """ CH:3 Row address target DMA """
         row_addr_target_ctrl = self.row_addr_target.pack_ctrl(
@@ -272,7 +271,7 @@ class SpriteScaler():
             inc_read=True,      # Through control blocks
             inc_write=False,    # always write to DMA2 WRITE
             ring_sel=0,         # ring on read channel (read/write TARGET address)
-            ring_size=3,        # 2 addresses (8 bytes) in ring buffer which we'll loop through (read & write)
+            ring_size=3,        # 2^3 or 8 bytes for 2 addresses in ring buffer to loop through (read & write)
             chain_to=self.color_lookup.channel,
             treq_sel=DREQ_TIMER_1,
         )
@@ -352,14 +351,18 @@ class SpriteScaler():
         #     ctrl=pattern_ctrl
         # )
 
-        self.dbg.debug_dma(self.row_addr, "row address", "row_addr", 2)
-        self.dbg.debug_dma(self.row_addr_target, "row address target", "row_addr_target", 3)
-        self.dbg.debug_dma(self.color_lookup, "color_lookup", "color_lookup", 4)
-        self.dbg.debug_dma(self.px_read_dma, "pixel read", "pixel_read", 5)
-        self.dbg.debug_dma(self.px_write_dma, "pixel write", "pixel_write", 6)
-        self.dbg.debug_pio_status(sm0=True)
+        if self.debug_dma:
+            self.dbg.debug_dma(self.row_addr, "row address", "row_addr", 2)
+            self.dbg.debug_dma(self.row_addr_target, "row address target", "row_addr_target", 3)
+            self.dbg.debug_dma(self.color_lookup, "color_lookup", "color_lookup", 4)
+            self.dbg.debug_dma(self.px_read_dma, "pixel read", "pixel_read", 5)
+            self.dbg.debug_dma(self.px_write_dma, "pixel write", "pixel_write", 6)
+            self.dbg.debug_pio_status(sm0=True)
 
-    def init_dma_sprite(self, height, width, scaled_height, scaled_width):
+    def irq_rows_end(self):
+        self.rows_finished = True
+
+    def init_dma_sprite(self, scaled_height, scaled_width):
         """ Sprite-specific DMA configuration goes here """
 
         self.row_addr.config(read=self.value_addrs)
@@ -389,14 +392,18 @@ class SpriteScaler():
             scale: sum(pattern) for scale, pattern in self.h_patterns.items()
         }
 
-    def close(self):
-        """Clean up resources"""
-        self.sm_read_palette.active(0)
-        self.row_addr.active(0)
+    def reset(self):
+        """Clean up / close resources"""
         self.row_addr_target.active(0)
+        self.row_addr.active(0)
         self.px_read_dma.active(0)
+        self.h_scale.active(0)
+        self.sm_read_palette.active(0)
         self.px_write_dma.active(0)
         self.color_lookup.active(0)
+
+        self.init_dma()
+
 
     def init_pio(self, palette_addr):
         self.sm_read_palette.put(palette_addr)
