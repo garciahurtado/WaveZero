@@ -74,7 +74,7 @@ TIMER0_OFFSET = 0x00000420
 TIMER0_BITS = 0x00000000
 
 TIMER1_OFFSET = 0x00000424
-TIMER1_BITS = 0x0001000F    # Eventually we should get rid of this artificial delay / hack
+TIMER1_BITS = 0x000100FF    # Eventually we should get rid of this artificial delay / hack
 
 mem32[DMA_BASE + TIMER1_OFFSET] = TIMER1_BITS
 

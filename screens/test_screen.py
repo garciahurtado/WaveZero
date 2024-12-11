@@ -191,8 +191,7 @@ class TestScreen(Screen):
         # self.draw_image_group(self.one_sprite_image, self.one_sprite_meta, self.num_sprites, self.x_vals, self.y_vals)
         # while not self.scaler.rows_finished:
         time.sleep_ms(200)
-
-        # self.scaler.reset()
+        self.scaler.reset()
 
         # self.display.show()
 

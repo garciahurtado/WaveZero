@@ -35,7 +35,7 @@ class SpriteScaler():
         self.dbg = ScalerDebugger()
         self.debug_bytes1 = self.dbg.get_debug_bytes(byte_size=0, count=16, aligned=True)
         self.debug_bytes2 = self.dbg.get_debug_bytes(byte_size=0, count=16, aligned=True)
-        self.debug_dma = False
+        self.debug_dma = True
 
         """" Add two blocks, one for the pixel reader READ addr, and one for the pixel writer WRITE addr """
 
@@ -72,7 +72,7 @@ class SpriteScaler():
         # PIO setup (SM ID 4 is #1 on PIO1)
         self.sm_read_palette = StateMachine(
             4, read_palette,
-            freq=10_000_000,
+            freq=40_000_000,
         )
         self.init_vertical_patterns()
         self.init_dma()
@@ -406,6 +406,7 @@ class SpriteScaler():
 
 
     def init_pio(self, palette_addr):
+        self.sm_read_palette.restart()
         self.sm_read_palette.put(palette_addr)
 
     def init_ref_palette(self):
