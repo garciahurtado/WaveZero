@@ -2,6 +2,7 @@ import sys
 
 import time
 
+from scaler.dma_interp_scaler import SpriteScaler
 from scaler.sprite_scaler_test import init_test_sprite_scaling
 from screen import Screen
 from scaler.dma_scaler import DMAScaler
@@ -39,7 +40,11 @@ class TestScreen(Screen):
     screen_width = 96
     screen_height = 64
 
+    base_x = 20
+    base_y = 15
+
     num_sprites = 1
+    scaler_num_sprites = 1
     sprite_max_z = 1000
     display_task = None
 
@@ -59,12 +64,9 @@ class TestScreen(Screen):
     sprite = None
 
     def __init__(self, display, *args, **kwargs):
-
-        num_sprites = self.num_sprites
-
         super().__init__(display)
         print()
-        print(f"=== Testing performance of {num_sprites} sprites ===")
+        print(f"=== Testing performance of {self.num_sprites} sprites ===")
         print()
 
         self.sprite_type = SPRITE_TEST_SQUARE
@@ -79,11 +81,11 @@ class TestScreen(Screen):
         self.base_x = 36
         self.base_y = 18
 
-        self.x_vals = [(0*i) for i in range(num_sprites)]
-        self.y_vals = [(0*i) for i in range(num_sprites)]
+        # self.x_vals = [(0*i) for i in range(num_sprites)]
+        # self.y_vals = [(0*i) for i in range(num_sprites)]
         # self.y_vals = [(random.randrange(-30, 30)) for _ in range(num_sprites)]
 
-        self.sprite_scales = [random.choice(range(0, 9)) for _ in range(num_sprites)]
+        self.sprite_scales = [random.choice(range(0, 9)) for _ in range(self.num_sprites)]
 
         self.init_camera()
         # self.init_fps()
@@ -92,24 +94,9 @@ class TestScreen(Screen):
         display.fill(0x000011)
         display.show()
 
-        self.create_sprite_manager(display, num_sprites=num_sprites)
-
-        """ Channels 0 and 1 are already reserved by the display driver """
-        # ch_2 = DMA()
-        # ch_3 = DMA()
-        # ch_4 = DMA()
-        # ch_5 = DMA()
-        # ch_6 = DMA()
-        # ch_7 = DMA()
-        # ch_8 = DMA()
-        # ch_9 = DMA()
-
-        num_colors = 16
-
-        # self.scaler = DMAScaler(self.display, num_colors, ch_2, ch_3, ch_4, ch_5, ch_6, ch_7, ch_8, ch_9)
-
-
-        _, self.scaler = init_test_sprite_scaling(self.display)
+        self.create_sprite_manager(display, num_sprites=10)
+        self.scaler = SpriteScaler(self.display)
+        self.scaler.prof = prof
 
     def create_sprite_manager(self, display, num_sprites=0):
         self.check_mem()
@@ -174,25 +161,38 @@ class TestScreen(Screen):
 
     def do_refresh(self):
         """ Overrides parent method """
-        # self.sprite.image = self.sprite_img
-        draw_x = 20
-        draw_y = 15
-
         meta = self.mgr.get_meta(self.sprite)
         image = self.mgr.sprite_images[self.sprite_type][-1]
 
         # for scale in [1, 2, 3]:
-        for scale in [1]:
-            print()
-            print(f"\n=== Testing {scale * 100}% scaling ===")
-            self.scaler.debug = True
-            self.scaler.draw_sprite(meta, draw_x, draw_y, image, scale_x=1, scale_y=scale)
+        scale_x = 1
+        scale_y = 1
+        rand_scales = [1, 2, 3]
+        rand_scales = [0.25, 0.33, 0.5, 0.75, 1, 2]
+        rand_scales = [1]
+
+        # print()
+        # print(f"\n=== Testing X:{scale_x * 100}% // Y:{scale_y * 100}% scaling ===")
+
+        for i in range(self.scaler_num_sprites):
+            scale_y = random.choice(rand_scales)
+
+            x = random.randrange(int(-10*scale_y), int(10// scale_y))
+            y = random.randrange(int(-5*scale_y), int(5// scale_y))
+            draw_x = self.base_x + x
+            draw_y = self.base_y
+            prof.start_profile('scaler.draw_sprite')
+            self.scaler.draw_sprite(meta, draw_x, draw_y, image, scale_x=1, scale_y=scale_y)
+            prof.end_profile('scaler.draw_sprite')
 
         # self.draw_image_group(self.one_sprite_image, self.one_sprite_meta, self.num_sprites, self.x_vals, self.y_vals)
-        # while not self.scaler.rows_finished:
-        time.sleep_ms(200)
-        self.scaler.reset()
+        prof.start_profile('scaler.wait_sleep')
+        while not SpriteScaler.rows_finished:
+            # time.sleep_ms(1)
+            pass
+        prof.end_profile('scaler.wait_sleep')
 
+        self.scaler.reset()
         # self.display.show()
 
         self.show_prof()

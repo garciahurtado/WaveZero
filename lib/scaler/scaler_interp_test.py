@@ -95,8 +95,10 @@ class InterpTestScreen(Screen):
 
         # Configure lane 0 for X position handling
         ctrl0 = (
-                (0 << 0) |  # No shift needed for direct addressing
-                (0 << 5) |  # No mask LSB - we want full values
+                (0 << 0) |  # No shift
+                (0 << 5) |  # No mask LSB
+                (31 << 10) |  # Mask MSB - changed to 31 for full range
+                (0 << 12) |  # unsigned
                 (15 << 10) |  # Mask MSB to prevent overflow
                 (1 << 17) |  # ADD_RAW for direct increment
                 (0 << 18)  # Don't force MSB
@@ -104,9 +106,10 @@ class InterpTestScreen(Screen):
 
         # Configure lane 1 for Y position handling
         ctrl1 = (
-                (1 << 0) |  # Shift by 1 to account for 16-bit pixels
+                (0 << 0) |  # No shift
                 (0 << 5) |  # No mask LSB
-                (15 << 10) |  # Mask MSB to prevent overflow
+                (31 << 10) |  # Mask MSB - changed to 31 for full range
+                (0 << 12)  | # unsigned
                 (0 << 16) |  # No cross input
                 (1 << 17) |  # ADD_RAW for direct increment
                 (0 << 18)  # Don't force MSB

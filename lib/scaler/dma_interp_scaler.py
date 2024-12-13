@@ -1,6 +1,9 @@
 import time
 
 import math
+
+from itertools import chain
+
 from _rp2 import DMA, StateMachine
 from uarray import array
 from uctypes import addressof
@@ -11,6 +14,7 @@ from scaler.dma_scaler_const import *
 from scaler.dma_scaler_pio import read_palette
 from scaler.dma_scaling_patterns import ScalingPatterns
 from scaler.dma_scaler_debug import ScalerDebugger
+from profiler import Profiler as prof, timed
 from sprites2.sprite_types import SpriteType
 from utils import aligned_buffer
 
@@ -24,23 +28,27 @@ HSCALE_DMA_BASE = DMA_BASE_7
 PX_READ_BYTE_SIZE = 2
 
 class SpriteScaler():
+    rows_finished = False
+
     def __init__(self, display):
         self.display = display
         self.read_blocks = []
         self.write_blocks = None
         self.value_addrs = []
 
-        self.rows_finished = False
-
         self.dbg = ScalerDebugger()
         self.debug_bytes1 = self.dbg.get_debug_bytes(byte_size=0, count=16, aligned=True)
         self.debug_bytes2 = self.dbg.get_debug_bytes(byte_size=0, count=16, aligned=True)
-        self.debug_dma = True
+        self.debug_dma = False
+        self.debug = True
+        self.debug_interp = True
+
+        self.display_stride = self.display.width * 2
 
         """" Add two blocks, one for the pixel reader READ addr, and one for the pixel writer WRITE addr """
 
-        target_addrs_buf = aligned_buffer(2, alignment=8)
-        self.target_addrs = array('L', target_addrs_buf)
+        # target_addrs_buf = aligned_buffer(2, alignment=8)
+        self.target_addrs = array('L', [0]*2)
 
         # Write addr, then read addr + trigger
         self.target_addrs[0] = int(DMA_BASE_6 + DMA_WRITE_ADDR)
@@ -72,39 +80,50 @@ class SpriteScaler():
         # PIO setup (SM ID 4 is #1 on PIO1)
         self.sm_read_palette = StateMachine(
             4, read_palette,
-            freq=40_000_000,
+            freq=120_000_000,
         )
         self.init_vertical_patterns()
         self.init_dma()
 
     def draw_sprite(self, meta:SpriteType, x, y, image:Image, scale_x=1.0, scale_y=1.0):
         """Draw a scaled sprite at the specified position"""
-        # Calculate bounds
+
+        prof.start_profile('scaler.scaled_width_height')
         scaled_width = int(meta.width * scale_x)
         scaled_height = int(meta.height * scale_y)
+        prof.end_profile('scaler.scaled_width_height')
 
         # Set up vertical control blocks
         base_read = addressof(image.pixel_bytes)
         base_write = int(self.display.write_addr + ((y * self.display.width) + x) * 2)
 
-        print(f"Drawing a sprite of SCALED {scaled_width}x{scaled_height} @ base addr 0x{base_write:08X}")
-        print(f"(ROWS finished: {self.rows_finished})")
+        if self.debug:
+            print(f"Drawing a sprite of SCALED {scaled_width}x{scaled_height} @ base addr 0x{base_write:08X}")
+            print(f"(ROWS finished: {self.rows_finished})")
 
+        prof.start_profile('scaler.init_v_ctrl_blocks')
         self.init_v_ctrl_blocks(
             meta=meta,
             scale_y=scale_y,
             scaled_height=scaled_height,
+            scaled_width=scaled_width,
             base_read_addr=base_read,
             base_write_addr=base_write
         )
+        prof.end_profile('scaler.init_v_ctrl_blocks')
 
+        prof.start_profile('scaler.init_pio')
         palette_addr = addressof(image.palette_bytes)
         self.init_pio(palette_addr)
         self.palette_addr = palette_addr
+        prof.end_profile('scaler.init_pio')
 
         if self.debug_dma:
             print(f"About to Init DMA w/ w/h: {meta.width}x{meta.height} /// scaled_height: {scaled_height} / scaled_width: {scaled_width}")
+
+        prof.start_profile('scaler.init_dma_sprite')
         self.init_dma_sprite(scaled_height, scaled_width)
+        prof.end_profile('scaler.init_dma_sprite')
 
         if self.debug_dma:
             self.dbg.debug_pio_status(sm0=True)
@@ -121,28 +140,10 @@ class SpriteScaler():
             print(f"    DISPLAY WRITE BASE ADDR:   0x{base_write:08X}")
             print()
 
-        # print("\n~~ DEBUG BYTES BEFORE DMA ~~")
-        # self.dbg.print_debug_bytes(self.debug_bytes1)
-        # self.dbg.print_debug_bytes(self.debug_bytes2, format='bin', num_cols=1)
-
-
-        """ Color lookup must be activated because it is right after a PIO, so there's no direct way to trigger it"""
-        # return True
-
-        # Start the PIO/DMA chain
+        """ START: Color lookup must be activated too, since it is right after a SM, so there's no direct way to trigger it"""
         self.row_addr_target.active(1)
         self.color_lookup.active(1)
         self.sm_read_palette.active(1)
-
-        start = time.ticks_ms()
-        timeout = 100
-
-        # while time.ticks_diff(time.ticks_ms(), start) < timeout:
-        print(f"The TIMEDIFF is: {time.ticks_diff(time.ticks_ms(), start)}")
-
-        # print("\n~~ DEBUG BYTES AFTER DMA ~~\n")
-        # self.dbg.print_debug_bytes(self.debug_bytes1)
-        # self.dbg.print_debug_bytes(self.debug_bytes2, format='bin', num_cols=1)
 
         if self.debug_dma:
             print("\n~~ DMA CHANNELS AFTER ~~~~~~~~~~~\n")
@@ -185,22 +186,64 @@ class SpriteScaler():
 
         return True
 
-    def init_v_ctrl_blocks(self, meta:SpriteType, scale_y, scaled_height, base_read_addr, base_write_addr):
+    def init_v_ctrl_blocks(self, meta:SpriteType, scale_y, scaled_height, scaled_width, base_read_addr, base_write_addr):
         """Create control blocks for vertical scaling"""
         """ @todo: init address calculations using interp, to speed things up """
 
         """ Testing Upscale / downscale ratios """
-        self.value_addrs = []
+        if self.debug:
+            print(f"Sprite HEIGHT = {scaled_height} / num addr blocks: {scaled_height*2}")
 
-        v_pattern = self.v_patterns[scale_y]
-        display_stride = self.display.width * 2
+        """ Config interpolator """
+        prof.start_profile('scaler.init_interp_sprite')
+        self.init_interp_sprite(base_read_addr, base_write_addr, scaled_width)
+        prof.end_profile('scaler.init_interp_sprite')
 
-        print(f"Sprite HEIGHT = {scaled_height} / num addr blocks: {scaled_height*2}")
+        """ Test self.init_interp_sprite() """
+
+        prof.start_profile('scaler.create_address_array')
+        # Create array first
+        self.value_addrs = self.create_address_array(scaled_height)
+        prof.end_profile('scaler.create_address_array')
+
+        prof.start_profile('scaler.fill_address_list')
+        # Fill it using viper function
+        self.fill_address_list(
+            addressof(self.value_addrs),  # Pass raw addresses as integers
+            INTERP0_PEEK_LANE0,
+            INTERP0_POP_LANE1,
+            scaled_height
+        )
+        prof.end_profile('scaler.fill_address_list')
+
+
+        if self.debug_interp:
+            i = 0
+            print("INTERP WRITE ADDR LIST")
+            print("----------------------")
+            while i < len(self.value_addrs)-1:
+                print(f"0x{self.value_addrs[i]:08x}")
+                i += 2
+
+            i = 0
+            print("INTERP READ ADDR LIST")
+            print("----------------------")
+            while i < len(self.value_addrs)-1:
+                print(f"0x{self.value_addrs[i+1]:08x}")
+                i += 2
+
+        prof.start_profile('scaler.convert_to_array')
+        self.value_addrs = array('L', self.value_addrs)
+        prof.end_profile('scaler.convert_to_array')
+
+        return True
+
+        """
+        DEBUGGING
+        """
 
         """ "value_addrs" contain the addresses that will be written to the destination,
         and "target_addrs" the addresses to which these values will be written (ie: the read and write DMAs) """
-
-        # value_blocks_buf = aligned_buffer(size=num_blocks)
 
         y_pos = 0
         row_width_4bit = math.ceil(meta.width / 2)
@@ -220,7 +263,7 @@ class SpriteScaler():
             """ For vertical upscaling, we repeat the source row 0-x times """
             for rep in range(count):
                 # Display writing address
-                write_addr = base_write_addr + (write_row_id * display_stride)
+                write_addr = base_write_addr + (write_row_id * self.display_stride)
 
                 # print(f" R/W {read_addr:08X} / {write_addr:08X}")
                 value_addrs.append(write_addr)        # 1st for the writer
@@ -248,6 +291,75 @@ class SpriteScaler():
             for addr in self.target_addrs:
                 print(f"  ADDR: 0x{addr:08X}")
 
+
+    def init_interp_sprite(self, read_base, write_base, sprite_width):
+        row_width_4bit = math.ceil(sprite_width / 2)
+
+        RW_BASE = 0x20010000 # this is the base address for all read (Sprite) and write (display) addresses
+        read_offset = read_base - RW_BASE
+        write_offset = write_base - RW_BASE
+
+        if self.debug_interp:
+            print(f"* INTERP SPRITE:")
+            print(f"\t row_width: {row_width_4bit}")
+            print(f"\t write_base: 0x{write_base:08X}")
+            print(f"\t write_offset: 0x{write_offset:08X}")
+            print(f"\t read_base: 0x{read_base:08X}")
+            print(f"\t read_offset: 0x{read_offset:08X}")
+
+        # Remaining interp config
+
+        # Common control config for address generation
+        ctrl_config = (
+                (0 << 0) |  # No shift
+                (0 << 5) |  # Mask LSB = 0
+                (31 << 10) |  # Full 32-bit mask
+                (0 << 15)   # FORCE_MSB = 0
+                # (1 << 17)   # ADD_RAW enabled
+        )
+
+        # INTERP0 for write addresses (display)
+        # mem32[INTERP0_BASE0] = write_base  # Base addr
+        mem32[INTERP0_BASE0] = self.display_stride  # write step
+        mem32[INTERP0_BASE1] = row_width_4bit       # read step
+        mem32[INTERP0_BASE2] = 0
+
+        # We use ACCUM0 for the WRITE initial address offset and ACCUM1 for the READ
+        # Substract one interval from the base addr, to avoid skipping 1st row
+        mem32[INTERP0_ACCUM0] = write_base - self.display_stride
+        mem32[INTERP0_ACCUM1] = read_base - row_width_4bit
+
+        mem32[INTERP0_CTRL_LANE0] = ctrl_config
+        mem32[INTERP0_CTRL_LANE1] = ctrl_config
+
+        if self.debug_interp:
+            print("Initial config:")
+            print("INTERP0 (ALL addresses):")
+            print(f"  BASE0: 0x{mem32[INTERP0_BASE0]:08x}")
+            print(f"  BASE1: 0x{mem32[INTERP0_BASE1]:08x}")
+            print(f"  BASE2: 0x{mem32[INTERP0_BASE2]:08x}")
+            print(f"  ACCU0: 0x{mem32[INTERP0_ACCUM0]:08x}")
+            print(f"  ACCU1: 0x{mem32[INTERP0_ACCUM1]:08x}")
+
+
+    def create_address_array(self, size: int) -> array:
+        total_size = size * 2 + 1
+        return array('L', [0] * total_size)
+
+    @micropython.viper
+    def fill_address_list(self, arr_ptr: ptr32, write_base_reg: ptr32, read_base_reg: ptr32, size: int):
+        idx = 0
+        while idx < size:
+            write_addr = ptr32(write_base_reg)[0]  # Reads from POP registers
+            read_addr = ptr32(read_base_reg)[0]
+
+            arr_ptr[idx * 2] = write_addr
+            arr_ptr[idx * 2 + 1] = read_addr
+            idx += 1
+
+        # Add null terminator
+        arr_ptr[size * 2] = 0
+
     def init_dma(self):
         """Set up the complete DMA chain for sprite scaling"""
 
@@ -256,14 +368,14 @@ class SpriteScaler():
             size=2,  # 32-bit control blocks
             inc_read=True,  # Through control blocks
             inc_write=False,  # Fixed write target
-            irq_quiet=1
+            irq_quiet=0
         )
 
         self.row_addr.config(
             count=1,
             ctrl=row_addr_ctrl
         )
-        # self.row_addr.irq(self.irq_rows_end)
+        self.row_addr.irq(handler=irq_rows_end)
 
         """ CH:3 Row address target DMA """
         row_addr_target_ctrl = self.row_addr_target.pack_ctrl(
@@ -333,8 +445,8 @@ class SpriteScaler():
             ctrl=px_write_ctrl
         )
 
-        # Pattern DMA (horizontal scale control)
-        # pattern_ctrl = self.pattern_dma.pack_ctrl(
+        """ CH:6. Horiz. scale DMA --------------------------- """
+        # hscale_dma_ctrl = self.hscale_dma.pack_ctrl(
         #     size=2,
         #     inc_read=True,
         #     inc_write=True,
@@ -343,12 +455,12 @@ class SpriteScaler():
         #     chain_to=self.px_read_dma.channel
         # )
         #
-        # self.pattern_dma.config(
+        # self.hscale_dma.config(
         #     count=8,  # 8-entry patterns
         #     # read=None,  # Current horizontal pattern (to be set later)
         #     # write=WRITE_DMA_BASE + DMA_TRANS_COUNT_TRIG,
         #
-        #     ctrl=pattern_ctrl
+        #     ctrl=hscale_dma_ctrl
         # )
 
         if self.debug_dma:
@@ -367,15 +479,10 @@ class SpriteScaler():
 
         self.row_addr.config(read=self.value_addrs)
         px_per_tx = 2 * (PX_READ_BYTE_SIZE*2)
-        print(f"READ PX PER TX: {px_per_tx}")
 
         self.px_read_dma.config(count=scaled_width//px_per_tx)
         self.px_write_dma.config(count=1)
         self.color_lookup.config(count=scaled_width)
-
-    def init_row_buffer(self, width):
-        # Line buffer for one scaled row of RGB565 pixels
-        self.row_buffer = array('H', [0] * width) # 16bit pixels
 
     def init_patterns(self):
         """Initialize horizontal scaling patterns"""
@@ -402,8 +509,32 @@ class SpriteScaler():
         self.px_write_dma.active(0)
         self.color_lookup.active(0)
 
-        self.init_dma()
+        # First, disable any ongoing interpolator operations by clearing control registers
+        mem32[INTERP0_CTRL_LANE0] = 0
+        mem32[INTERP0_CTRL_LANE1] = 0
 
+        mem32[INTERP1_CTRL_LANE0] = 0
+        mem32[INTERP1_CTRL_LANE1] = 0
+
+        # Reset all interp accumulators
+        mem32[INTERP0_BASE0] = 0
+        mem32[INTERP0_BASE1] = 0
+        mem32[INTERP0_BASE2] = 0
+
+        mem32[INTERP1_BASE0] = 0
+        mem32[INTERP1_BASE1] = 0
+        mem32[INTERP1_BASE2] = 0
+
+        mem32[INTERP0_ACCUM0] = 0
+        mem32[INTERP0_ACCUM1] = 0
+
+        mem32[INTERP1_ACCUM0] = 0
+        mem32[INTERP1_ACCUM1] = 0
+
+        if self.debug_interp:
+            # Read initial values to verify reset
+            print(f"Initial ACCUM0: 0x{mem32[INTERP0_ACCUM0]:08X}")
+            print(f"Initial ACCUM1: 0x{mem32[INTERP0_ACCUM1]:08X}")
 
     def init_pio(self, palette_addr):
         self.sm_read_palette.restart()
@@ -417,3 +548,6 @@ class SpriteScaler():
         self.palette_addr = palette_addr
 
         pass
+
+def irq_rows_end(irq):
+    SpriteScaler.rows_finished = True
