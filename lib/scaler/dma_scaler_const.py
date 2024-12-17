@@ -58,6 +58,11 @@ PIO1_RX2 = PIO1_BASE + const(0x028)
 FDEBUG = PIO1_BASE + const(0x008)
 FLEVEL = PIO1_BASE + const(0x00c)
 
+""" IRQs """
+PIO0_IRQ = PIO0_BASE + 0x128
+PIO1_IRQ = PIO1_BASE + 0x128
+
+""" DREQ signals """
 DREQ_PIO1_TX0 = 8
 DREQ_PIO1_RX0 = 12
 
@@ -74,7 +79,7 @@ TIMER0_OFFSET = 0x00000420
 TIMER0_BITS = 0x00000000
 
 TIMER1_OFFSET = 0x00000424
-TIMER1_BITS = 0x0001000F    # Eventually we should get rid of this artificial delay / hack
+TIMER1_BITS = 0x000100FF    # Eventually we should get rid of this artificial delay / hack
 
 mem32[DMA_BASE + TIMER1_OFFSET] = TIMER1_BITS
 

@@ -53,7 +53,16 @@ def read_palette():
 
 @asm_pio(
 )
-def row_start():
+def read_addr():
+    pull()                  # Get address from TX FIFO
+    mov(isr, osr)
+    push()                  # Push to RX FIFO
+    # irq(block, 0)           # Wait for CPU to clear
+    # irq(0)
+
+@asm_pio(
+)
+def _row_start():
     # Initialize
     # nop()                   .side(0x1) [0]
     pull()                               [0]            # Get initial base address
@@ -96,7 +105,7 @@ def row_start():
     in_shiftdir=PIO.SHIFT_RIGHT,
     autopull=False
 )
-def pixel_scaler():
+def _pixel_scaler():
     # Get repeat count from pattern
     pull()  # Get from FIFO
     mov(x, osr)  # Store count in X

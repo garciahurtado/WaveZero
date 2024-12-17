@@ -79,7 +79,7 @@ class TestScreen(Screen):
         # self.score_palette.set_rgb(0, colors.hex_to_rgb(CYAN))
 
         self.base_x = 36
-        self.base_y = 18
+        self.base_y = 12
 
         # self.x_vals = [(0*i) for i in range(num_sprites)]
         # self.y_vals = [(0*i) for i in range(num_sprites)]
@@ -174,13 +174,18 @@ class TestScreen(Screen):
         # print()
         # print(f"\n=== Testing X:{scale_x * 100}% // Y:{scale_y * 100}% scaling ===")
 
+        print("** 1.DRAWING LIST OF SPRITES **")
         for i in range(self.scaler_num_sprites):
+            print(f"\t2. WILL DRAW SPRITE {i}")
             scale_y = random.choice(rand_scales)
 
             x = random.randrange(int(-10*scale_y), int(10// scale_y))
             y = random.randrange(int(-5*scale_y), int(5// scale_y))
-            draw_x = self.base_x + x
+            # draw_x = self.base_x + x
+            # draw_y = self.base_y + y
+            draw_x = self.base_x
             draw_y = self.base_y
+
             prof.start_profile('scaler.draw_sprite')
             self.scaler.draw_sprite(meta, draw_x, draw_y, image, scale_x=1, scale_y=scale_y)
             prof.end_profile('scaler.draw_sprite')

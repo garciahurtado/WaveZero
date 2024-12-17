@@ -1,0 +1,47 @@
+INTERP DMA PROFILER (BEFORE INTERP ADDR FILL):
+
+func                             runs     avg ms          total ms
+--------------------------------------------------------------------
+scaler.draw_sprite               2880     4.6440          13374.67
+scaler.init_v_ctrl_blocks        2880     3.2324           9309.22
+scaler.init_dma_sprite           2880     0.2350            676.67
+scaler.init_pio                  2880     0.1998            575.56
+scaler.wait_sleep                144      0.1048             15.09
+
+--
+FPS:      9 (20 sprites)
+--
+
+INTERP DMA PROFILER (AFTER INTERP INTEGRATION):
+----------------------------------------------
+
+
+func                             runs     avg ms          total ms
+--------------------------------------------------------------------
+scaler.draw_sprite               59048    5.6228         332016.84
+scaler.init_v_ctrl_blocks        59048    4.0795         240885.64
+scaler.interp_pop_loop           59048    1.3207          77981.86
+scaler.convert_to_array          59048    0.8384          49506.29
+scaler.init_interp_sprite        59048    0.3016          17809.13
+scaler.init_dma_sprite           59048    0.2720          16063.32
+scaler.init_pio                  59048    0.2339          13809.49
+scaler.wait_sleep                59048    0.1037           6123.32
+
+
+AFTER VIPER fill_address_list (thanks, Claude!)
+
+func                             runs     avg ms          total ms
+--------------------------------------------------------------------
+scaler.draw_sprite               2740     3.8094          10437.89
+scaler.init_v_ctrl_blocks        2740     2.3342           6395.63
+scaler.init_interp_sprite        2740     0.3106            851.04
+scaler.init_dma_sprite           2740     0.2683            735.02
+scaler.init_pio                  2740     0.1996            547.02
+scaler.wait_sleep                2740     0.1040            284.86
+scaler.interp_pop_loop           N/A      N/A                  N/A
+
+
+FPS:     79
+FPS:     89
+FPS:     91
+

@@ -5,7 +5,7 @@ import asyncio
 class Profiler():
     profile_labels = OrderedDict()
     _task_local = {}
-    enabled = True
+    enabled = False
 
     @staticmethod
     def _get_current_task():
