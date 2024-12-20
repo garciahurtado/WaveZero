@@ -169,15 +169,14 @@ class TestScreen(Screen):
         scale_y = 1
         rand_scales = [1, 2, 3]
         rand_scales = [0.25, 0.33, 0.5, 0.75, 1, 2]
-        rand_scales = [1]
+        rand_scales = [1/4, 1/3, 1/2, 3/4, 2/3, 0.8, 0.9, 1] # working
+        rand_scales = [1, 2, 3, 4]
+        scale_id = 0
 
-        # print()
         # print(f"\n=== Testing X:{scale_x * 100}% // Y:{scale_y * 100}% scaling ===")
 
-        print("** 1.DRAWING LIST OF SPRITES **")
-        for i in range(self.scaler_num_sprites):
-            print(f"\t2. WILL DRAW SPRITE {i}")
-            scale_y = random.choice(rand_scales)
+        for scale_id in range(len(rand_scales)):
+            scale_y = rand_scales[scale_id]
 
             x = random.randrange(int(-10*scale_y), int(10// scale_y))
             y = random.randrange(int(-5*scale_y), int(5// scale_y))
@@ -189,15 +188,13 @@ class TestScreen(Screen):
             prof.start_profile('scaler.draw_sprite')
             self.scaler.draw_sprite(meta, draw_x, draw_y, image, scale_x=1, scale_y=scale_y)
             prof.end_profile('scaler.draw_sprite')
+            time.sleep_ms(1000)
 
         # self.draw_image_group(self.one_sprite_image, self.one_sprite_meta, self.num_sprites, self.x_vals, self.y_vals)
         prof.start_profile('scaler.wait_sleep')
-        while not SpriteScaler.rows_finished:
-            # time.sleep_ms(1)
-            pass
+        time.sleep_ms(1000)
         prof.end_profile('scaler.wait_sleep')
 
-        self.scaler.reset()
         # self.display.show()
 
         self.show_prof()
