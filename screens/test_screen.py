@@ -169,9 +169,11 @@ class TestScreen(Screen):
         scale_y = 1
         rand_scales = [1, 2, 3]
         rand_scales = [0.25, 0.33, 0.5, 0.75, 1, 2]
-        rand_scales = [1/4, 1/3, 1/2, 3/4, 2/3, 0.8, 0.9, 1] # working
-        rand_scales = [1, 2, 3, 4]
-        scale_id = 0
+        rand_scales = [1/4, 1/3, 1/2, 3/4, 2/3, 0.8, 0.9, 1] # all these downscaling scales work
+        """ works: 2/3, 1/2, 1/3, 1/4, 1/5, 1/6, 1/8, 1/10, 1/12, 1/16"""
+        """ dubious: 1/7 , 0.75 (use 0.76)"""
+        rand_scales = [1, 2, 4, 8]
+        rand_scales = [1]
 
         # print(f"\n=== Testing X:{scale_x * 100}% // Y:{scale_y * 100}% scaling ===")
 
@@ -188,11 +190,10 @@ class TestScreen(Screen):
             prof.start_profile('scaler.draw_sprite')
             self.scaler.draw_sprite(meta, draw_x, draw_y, image, scale_x=1, scale_y=scale_y)
             prof.end_profile('scaler.draw_sprite')
-            time.sleep_ms(1000)
 
         # self.draw_image_group(self.one_sprite_image, self.one_sprite_meta, self.num_sprites, self.x_vals, self.y_vals)
         prof.start_profile('scaler.wait_sleep')
-        time.sleep_ms(1000)
+        time.sleep_ms(1)
         prof.end_profile('scaler.wait_sleep')
 
         # self.display.show()

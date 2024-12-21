@@ -41,12 +41,14 @@ class SpriteScaler():
         self.debug_bytes1 = self.dbg.get_debug_bytes(byte_size=0, count=32)
         self.debug_bytes2 = self.dbg.get_debug_bytes(byte_size=0, count=32)
         self.debug_dma = False
-        self.debug = True
-        self.debug_interp = False
+        self.debug = False
+        self.debug_interp = True
         self.debug_interp_list = False
         self.debug_with_debug_bytes = False
 
         self.display_stride = self.display.width * 2
+        display_pixels = (self.display.height+1) * self.display_stride
+        self.last_write_addr = self.display.write_addr + display_pixels
 
         """" Add two blocks, one for the pixel reader READ addr, and one for the pixel writer WRITE addr """
         self.target_addrs = array('L', [0]*2)
@@ -74,15 +76,14 @@ class SpriteScaler():
         # PIO1 setup (#4 is SM #1 on PIO1)
         self.sm_read_palette = StateMachine(
             4, read_palette,
-            freq=10_000_000,
+            freq=120_000_000,
         )
         # PIO1 SM #2
         self.sm_read_addr = StateMachine(
             5, read_addr,
-            freq=10_000_000,
+            freq=120_000_000,
         )
-        # self.sm_read_addr.irq(handler=self.read_addr_irq)
-        self.init_vertical_patterns()
+
         self.init_dma()
 
     def feed_address_pair(self):
@@ -95,6 +96,11 @@ class SpriteScaler():
 
         new_write = mem32[INTERP0_POP_FULL]
         new_read = mem32[INTERP1_POP_FULL]
+
+        """ check bounds """
+        if new_write > self.last_write_addr:
+            self.finish()
+            return False
 
         if self.debug_interp_list:
             print(f"ADDR PAIR:")
@@ -126,16 +132,10 @@ class SpriteScaler():
             print(f"Drawing a sprite of SCALED {scaled_width}x{scaled_height} @ base addr 0x{base_write:08X}")
             print(f"(ROWS finished: {self.rows_finished})")
 
-        prof.start_profile('scaler.init_v_ctrl_blocks')
-        self.init_v_ctrl_blocks(
-            meta=meta,
-            scale_y=scale_y,
-            scaled_height=scaled_height,
-            scaled_width=scaled_width,
-            base_read_addr=base_read,
-            base_write_addr=base_write
-        )
-        prof.end_profile('scaler.init_v_ctrl_blocks')
+        """ Config interpolator """
+        prof.start_profile('scaler.init_interp_sprite')
+        self.init_interp_sprite(base_read, base_write, scaled_width, scaled_height, scale_y)
+        prof.end_profile('scaler.init_interp_sprite')
 
         prof.start_profile('scaler.init_pio')
         palette_addr = addressof(image.palette_bytes)
@@ -205,6 +205,11 @@ class SpriteScaler():
             if self.debug_with_debug_bytes:
                 self.dbg.print_debug_bytes(self.debug_bytes1)
 
+    def finish(self):
+        self.read_finished = True
+
+        if self.debug:
+            print("<<<< SPRITE FINISHED >>>>")
 
     def init_vertical_patterns(self):
         """Similar to horizontal patterns but for row repeats"""
@@ -237,10 +242,7 @@ class SpriteScaler():
         if self.debug:
             print(f"Sprite HEIGHT = {scaled_height} / num addr blocks: {scaled_height*2}")
 
-        """ Config interpolator """
-        prof.start_profile('scaler.init_interp_sprite')
-        self.init_interp_sprite(base_read_addr, base_write_addr, scaled_width, scaled_height, scale_y)
-        prof.end_profile('scaler.init_interp_sprite')
+
 
         """ Test self.init_interp_sprite() """
 
@@ -269,34 +271,11 @@ class SpriteScaler():
 
         return True
 
-    def feed_interp_addr(self, scaled_height):
-        print(f"** Feeding addresses up to {scaled_height}")
-
-        if self.debug_interp_list:
-            print(f"SM PUT: ")
-
-        # for i in range(0, scaled_height):
-        for i in range(0, 1):
-            new_write = mem32[INTERP0_PEEK_LANE0]
-            new_read = mem32[INTERP0_POP_LANE1]
-
-            if self.debug_interp_list:
-                print(f"\t W:0x{new_write:08X}")
-                print(f"\t R:0x{new_read:08X}")
-
-            self.sm_read_addr.put(new_write) # write addr
-            self.sm_read_addr.put(new_read)    # read addr
-
-        self.dbg.print_debug_bytes(self.debug_bytes1)
-
-        print()
-        # self.sm_read_addr.put(0x00000000)  # NULL terminator
-
-
-    def init_interp_sprite(self, read_base, write_base, sprite_width, sprite_height, scale_y = 1):
+    def init_interp_sprite(self, read_base, write_base, sprite_width, sprite_height, scale_y_one = 1.0):
         self.scaled_height = sprite_height
         row_width_4bit = math.ceil(sprite_width / 2)
-        FRAC_BITS = 5  # Use x.y fixed point
+        FRAC_BITS = 4  # Use x.y fixed point
+        INT_BITS = 32 - FRAC_BITS
         BASE_SCALE = 16
 
         """
@@ -308,18 +287,22 @@ class SpriteScaler():
         scale_y = 32 # 50%
         scale_y = 64 # 25%
         """
-        scale_y = BASE_SCALE / scale_y
+        scale_y = BASE_SCALE / scale_y_one
 
         # Calculate scaling values
         step = int((scale_y) * (1 << FRAC_BITS))  # Convert step to fixed point
-
+        int_bits_str = '^'*INT_BITS
+        frac_bits_str = '`'*FRAC_BITS
         if self.debug_interp:
             print(f"* INTERP SPRITE:")
             print(f"\t row_width:       {row_width_4bit}")
             print(f"\t write_base:      0x{write_base:08X}")
             print(f"\t read_base:       0x{read_base:08X}")
             print(f"\t scale_y:         {scale_y}")
-            print(f"\t step:   0x{step:08X}")
+            print(f"\t scale_y_one:     {int(scale_y_one*100)}%")
+            print(f"\t step:            0x{step:08X}")
+            print(f"\t step b.:         {step:>032b}")
+            print(f"\t int/frac bits:   {int_bits_str}{frac_bits_str}")
 
         # INTERP0: Write address generation (display)
         write_ctrl_config = (
@@ -349,7 +332,7 @@ class SpriteScaler():
         read_ctrl_lane1 = (
                 (FRAC_BITS << 0) |  # Shift right to get integer portion
                 (FRAC_BITS << 5) |  # Start mask at bit 0
-                (31 << 10) |  # Full 32-bit mask to preserve address
+                (INT_BITS << 10) |  # Full 32-bit mask to preserve address
                 (0 << 15) | # No sign extension
                 (1 << 18)   # ADD_RAW - Enable raw accumulator addition
         )
@@ -580,9 +563,6 @@ class SpriteScaler():
         if self.rows_read_count < self.scaled_height:
             self.feed_address_pair()
         else:
-            self.read_finished = True
-
-            if self.debug:
-                print("<<<< SPRITE FINISHED >>>>")
+            self.finish()
 
 
