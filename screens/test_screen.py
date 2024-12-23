@@ -40,8 +40,6 @@ class TestScreen(Screen):
     screen_width = 96
     screen_height = 64
     scale_id = 0
-    rand_scales = [1/16, 1/12, 1/10, 1/8, 1/6, 1/5, 1/4, 1/3, 1/2, 2/3, 1, 2, 4, 8, 8,
-        4, 2, 1, 2/3, 1/2, 1/3, 1/4, 1/5, 1/6, 1/8, 1/10, 1/12, 1/16]
 
     base_x = 0
     base_y = 0
@@ -96,7 +94,7 @@ class TestScreen(Screen):
         self.scaler.prof = prof
 
         self.h_scales = [0.5, 0.75, 1.0, 1.5, 2.0, 3.0]
-        self.v_scales = [0.5, 1.0, 1.0, 1.6, 2.0, 2.0]
+        self.v_scales = [0.5, 1.0, 1.0, 1.6, 2.0, 3.0]
 
     def create_sprite_manager(self, display, num_sprites=0):
         self.check_mem()
@@ -176,7 +174,7 @@ class TestScreen(Screen):
 
         h_scale = self.h_scales[self.scale_id]
         v_scale = self.v_scales[self.scale_id]
-        h_scale = v_scale = 2.0
+        h_scale = v_scale = 1.0
 
         prof.start_profile('screen.calc_x_y')
         x = self.screen_width - (h_scale * meta.width // 2)
@@ -190,8 +188,14 @@ class TestScreen(Screen):
         draw_y = self.base_y + y
         prof.end_profile('screen.calc_x_y')
 
+        draw_y = draw_x = 0
+
         prof.start_profile('scaler.draw_sprite')
+
         self.scaler.draw_sprite(meta, draw_x, draw_y, image, h_scale=h_scale, v_scale=v_scale)
+        self.scaler.draw_sprite(meta, draw_x+32, draw_y, image, h_scale=h_scale, v_scale=v_scale)
+        self.scaler.draw_sprite(meta, draw_x+64, draw_y, image, h_scale=h_scale, v_scale=v_scale)
+
         self.fps.tick()
         prof.end_profile('scaler.draw_sprite')
 

@@ -41,8 +41,9 @@ class SpriteScaler():
         self.dbg = ScalerDebugger()
         self.debug_bytes1 = self.dbg.get_debug_bytes(byte_size=2, count=32)
         self.debug_bytes2 = self.dbg.get_debug_bytes(byte_size=0, count=32)
-        self.debug = False
-        self.debug_dma = False
+        self.debug = True
+        self.debug_dma = True
+        self.debug_irq = False
         self.debug_interp = False
         self.debug_interp_list = False
         self.debug_with_debug_bytes = False
@@ -73,7 +74,7 @@ class SpriteScaler():
 
         self.palette_addr = None
 
-        sm_freq = 120_000_000
+        sm_freq = 40_000_000
         # PIO1 setup (#4 is SM #1 on PIO1)
         self.sm_read_palette = StateMachine(
             4, read_palette,
@@ -123,9 +124,6 @@ class SpriteScaler():
         This method is synchronous (will not return until the whole sprite has been drawn)
         """
         self.reset()
-
-        h_scale = 1.0
-        v_scale = 1.0
 
         prof.start_profile('scaler.scaled_width_height')
         scaled_height = int(meta.height * v_scale)
@@ -218,7 +216,8 @@ class SpriteScaler():
 
     def init_interp_sprite(self, read_base, write_base, sprite_height, scale_y_one = 1.0):
         self.scaled_height = sprite_height
-        FRAC_BITS = 4 # Use x.y fixed point
+        # FRAC_BITS = 5 # Use x.y fixed point (32x32)
+        FRAC_BITS = 3 # Use x.y fixed point   (16x16)
         INT_BITS = 32 - FRAC_BITS
         BASE_SCALE = 8  # The horiz scale's "base". Should be half the sprite's width
 
@@ -369,6 +368,7 @@ class SpriteScaler():
             irq_quiet=False,
             treq_sel=DREQ_PIO1_RX0,
             chain_to=self.row_addr_target.channel,
+            high_pri=True,
         )
 
         self.color_lookup.config(
@@ -422,18 +422,18 @@ class SpriteScaler():
     def init_dma_sprite(self, height, width, h_scale=1.0):
         """ Sprite-specific DMA configuration goes here """
 
-        h_pattern_arr = self.h_patterns[h_scale]
-        self.h_scale.read = addressof(h_pattern_arr)  # Make sure we're using the address
-        self.h_scale.count = width
-        # self.h_scale.count = 0
         self.color_lookup.count = width
 
         tx_per_row = math.ceil(width / self.px_per_tx)
         self.px_read_dma.count = tx_per_row
 
         prof.start_profile('scaler.h_pattern')
+
         h_pattern_arr = self.h_patterns[h_scale]
         self.h_scale.read = h_pattern_arr
+        # self.h_scale.count = width
+        self.h_scale.count = 1
+
         prof.end_profile('scaler.h_pattern')
 
         if self.debug_dma:
@@ -545,6 +545,6 @@ class SpriteScaler():
 
         prof.end_profile('scaler.irq_color_lookup')
 
-        if self.debug:
+        if self.debug_irq:
             print(f"!!! COLOR LOOKUP IRQ - rows read: {self.rows_read_count}!!!")
 
