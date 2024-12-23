@@ -44,7 +44,7 @@ class TestScreen(Screen):
         4, 2, 1, 2/3, 1/2, 1/3, 1/4, 1/5, 1/6, 1/8, 1/10, 1/12, 1/16]
 
     base_x = 0
-    base_y = 15
+    base_y = 0
 
     num_sprites = 1
     scaler_num_sprites = 1
@@ -163,14 +163,19 @@ class TestScreen(Screen):
 
         self.display.fill(0x0)
 
-        """ works: 2/3, 1/2, 1/3, 1/4, 1/5, 1/6, 1/8, 1/10, 1/12, 1/16"""
-        """ dubious: 1/7 , 0.75 (use 0.76)"""
-        # rand_scales = [1, 2, 4, 8] # only power of 2 upscales working, why??
-        self.rand_scales = [1, 2]
+        """ Working vertical scaling ratios:
+            works: 2/3, 1/2, 1/3, 1/4, 1/5, 1/6, 1/8, 1/10, 1/12, 1/16
+            dubious: 1/7 , 0.75 (use 0.76)
+            upscales = [1, 2, 4, 8] # only power of 2 upscales working, why??
+        """
+        self.h_scales = [0.5, 0.75, 1.0, 1.5, 2.0, 3.0]
+        self.v_scales = [0.5, 1.0, 1.0, 1.6, 2.0, 2.0]
 
         # print(f"\n=== Testing X:{scale_x * 100}% // Y:{scale_y * 100}% scaling ===")
 
-        scale_y = self.rand_scales[self.scale_id]
+        self.scale_id = 5
+        h_scale = self.h_scales[self.scale_id]
+        v_scale = self.v_scales[self.scale_id]
 
         # draw_x = self.base_x + x
         # draw_y = self.base_y + y
@@ -178,9 +183,13 @@ class TestScreen(Screen):
         draw_y = self.base_y
 
         prof.start_profile('scaler.draw_sprite')
-        self.scaler.draw_sprite(meta, draw_x, draw_y, image, scale_x=1, scale_y=scale_y)
+        self.scaler.draw_sprite(meta, draw_x, draw_y, image, h_scale=h_scale, v_scale=v_scale)
         self.fps.tick()
         prof.end_profile('scaler.draw_sprite')
+
+        self.scale_id += 1
+        if self.scale_id >= len(self.h_scales):
+            self.scale_id = 0
 
         # self.draw_image_group(self.one_sprite_image, self.one_sprite_meta, self.num_sprites, self.x_vals, self.y_vals)
         prof.start_profile('scaler.wait_sleep')
