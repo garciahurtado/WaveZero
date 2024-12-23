@@ -47,8 +47,7 @@ def read_palette():
 
     mov(isr, y)  # restore the ISR with the base addr
 
-@asm_pio(
-)
+@asm_pio()
 def read_addr():
     pull()                  # Get address from TX FIFO
     mov(isr, osr)

@@ -36,6 +36,7 @@ class SpriteScaler():
         self.rows_read_count = 0
         self.scaled_height = 0
         self.read_finished = False
+        self.px_per_tx = PX_READ_BYTE_SIZE * 2
 
         self.dbg = ScalerDebugger()
         self.debug_bytes1 = self.dbg.get_debug_bytes(byte_size=2, count=32)
@@ -72,16 +73,16 @@ class SpriteScaler():
 
         self.palette_addr = None
 
-        print("About to start sm_pixel_scaler")
+        sm_freq = 120_000_000
         # PIO1 setup (#4 is SM #1 on PIO1)
         self.sm_read_palette = StateMachine(
             4, read_palette,
-            freq=5_000_000,
+            freq=sm_freq,
         )
         # PIO1 SM #2
         self.sm_read_addr = StateMachine(
             5, read_addr,
-            freq=5_000_000,
+            freq=sm_freq,
         )
         self.init_patterns()
         self.init_dma()
@@ -94,20 +95,25 @@ class SpriteScaler():
         # Get both results with one register access each
         # This is more efficient and ensures better synchronization
 
+
+        prof.start_profile('scaler.interp_pop')
         new_write = mem32[INTERP0_POP_FULL]
         new_read = mem32[INTERP1_POP_FULL]
+        prof.end_profile('scaler.interp_pop')
 
         """ check bounds """
-        # if new_write > self.max_write_addr:
-        #     return False
+        if new_write > self.max_write_addr:
+            return False
 
         if self.debug_interp_list:
             print(f"ADDR PAIR:")
             print(f"\t W:0x{new_write:08X}")
             print(f"\t R:0x{new_read:08X}")
 
+        prof.start_profile('scaler.interp_sm_put')
         self.sm_read_addr.put(new_write)
         self.sm_read_addr.put(new_read)
+        prof.end_profile('scaler.interp_sm_put')
 
         return True
 
@@ -118,8 +124,8 @@ class SpriteScaler():
         """
         self.reset()
 
-        # h_scale = 1.0
-        # v_scale = 1.0
+        h_scale = 1.0
+        v_scale = 1.0
 
         prof.start_profile('scaler.scaled_width_height')
         scaled_height = int(meta.height * v_scale)
@@ -129,7 +135,7 @@ class SpriteScaler():
 
         # Set up base addresses
         base_read = addressof(image.pixel_bytes)
-        base_write = int(self.display.write_addr + (y * self.display.width * 2) + (x * 2))
+        base_write = int(self.display.write_addr + (((y * self.display.width) + x)*2))
 
         if self.debug_dma:
             print(f"Drawing a sprite of SCALED {meta.width}x{meta.height} @ base addr 0x{base_write:08X}")
@@ -183,12 +189,14 @@ class SpriteScaler():
 
         self.addr_counter = 0
 
+        prof.start_profile('scaler.start_channels')
         self.sm_read_palette.active(1)
         self.sm_read_addr.active(1)
 
         self.row_addr_target.active(1)
         self.color_lookup.active(1)
         self.h_scale.active(1)
+        prof.end_profile('scaler.start_channels')
 
         self.feed_address_pair() # We need to send the first one to kick things off
 
@@ -210,9 +218,9 @@ class SpriteScaler():
 
     def init_interp_sprite(self, read_base, write_base, sprite_height, scale_y_one = 1.0):
         self.scaled_height = sprite_height
-        FRAC_BITS = 5 # Use x.y fixed point
+        FRAC_BITS = 4 # Use x.y fixed point
         INT_BITS = 32 - FRAC_BITS
-        BASE_SCALE = 16 # The scale's "base"
+        BASE_SCALE = 8  # The horiz scale's "base". Should be half the sprite's width
 
         """
         scale_y = 1 # 500%
@@ -224,13 +232,14 @@ class SpriteScaler():
         scale_y = 64 # 25%
         """
 
-        scale_y = BASE_SCALE / scale_y_one
+        scale_y = (BASE_SCALE / scale_y_one)
 
         # Calculate scaling values
         read_step = int((scale_y) * (1 << FRAC_BITS))  # Convert step to fixed point
-        int_bits_str = '^'*INT_BITS
-        frac_bits_str = '`'*FRAC_BITS
+
         if self.debug_interp:
+            int_bits_str = '^' * INT_BITS
+            frac_bits_str = '`' * FRAC_BITS
             print(f"* INTERP SPRITE:")
             print(f"\t write_base:      0x{write_base:08X}")
             print(f"\t read_base:       0x{read_base:08X}")
@@ -257,7 +266,7 @@ class SpriteScaler():
         # INTERP1: Read address generation with scaling
         read_ctrl_lane0 = (
                 (0 << 0) |  # No shift on accumulator/raw value
-                ((FRAC_BITS) << 10) | # mask full (MSB)
+                # ((FRAC_BITS) << 10) | # mask full (MSB)
                 (0 << 15) | # No sign extension
                 (1 << 16) | # CROSS_INPUT - also add ACCUM1
                 (1 << 18) |  # ADD_RAW - Enable raw accumulator addition
@@ -277,8 +286,8 @@ class SpriteScaler():
         mem32[INTERP1_BASE0] = 0  # # Row increment in fixed point
         mem32[INTERP1_BASE1] = read_step
         mem32[INTERP1_BASE2] = read_base # Base sprite read address
-        mem32[INTERP1_ACCUM0] = 0
-        mem32[INTERP1_ACCUM1] = 0
+        # mem32[INTERP1_ACCUM0] = 0
+        # mem32[INTERP1_ACCUM1] = 0
 
         mem32[INTERP1_CTRL_LANE0] = read_ctrl_lane0
         mem32[INTERP1_CTRL_LANE1] = read_ctrl_lane1
@@ -394,7 +403,7 @@ class SpriteScaler():
             inc_write=False,
             ring_sel=False,  # ring on read
             ring_size=4,    # n bytes = 2^n
-            irq_quiet=False,
+            # irq_quiet=False,
             # chain_to=self.px_write_dma.channel  # Add this to make it cycle
         )
 
@@ -404,7 +413,7 @@ class SpriteScaler():
             write=WRITE_DMA_BASE + DMA_TRANS_COUNT_TRIG,
             ctrl=h_scale_ctrl
         )
-        self.h_scale.irq(handler=self.irq_hscale)
+        # self.h_scale.irq(handler=self.irq_hscale)
 
         if self.debug_dma:
             print("~~ DMA CHANNELS in INIT_DMA ~~~~~~~~~~~")
@@ -419,8 +428,7 @@ class SpriteScaler():
         # self.h_scale.count = 0
         self.color_lookup.count = width
 
-        px_per_tx = PX_READ_BYTE_SIZE * 2
-        tx_per_row = math.ceil(width / px_per_tx)
+        tx_per_row = math.ceil(width / self.px_per_tx)
         self.px_read_dma.count = tx_per_row
 
         prof.start_profile('scaler.h_pattern')
@@ -432,7 +440,7 @@ class SpriteScaler():
             print("DMA CONFIG'D for: ")
             print(f"\t h_scale = {h_scale}")
             print(f"\t height / width = {height} / {width}")
-            print(f"\t px_per_tx = {px_per_tx}")
+            print(f"\t px_per_tx = {self.px_per_tx}")
             print(f"\t tx_per_row = {tx_per_row}")
             print(f"\t count - px_read_dma: {self.px_read_dma.count}")
             print(f"\t count - color_lookup: {self.color_lookup.count}")
@@ -506,7 +514,8 @@ class SpriteScaler():
         self.sm_read_palette.restart()
         self.sm_read_palette.put(palette_addr)
 
-    def irq_hscale(self, ch):
+    def _irq_hscale(self, ch):
+        """ DEPRECATED """
         """ Every time the color lookup Channel finishes (a whole rows worth of lookups), we add +1 to the number
                 of rows read (should probably be rows written). Is there a better way without CPU involvement? """
 
@@ -523,7 +532,9 @@ class SpriteScaler():
     def irq_color_lookup(self, ch):
         """ This IRQ is called with the color_lookup DMA channel finishes all of its transactions. In order to work, the
         tx count needs to be set to the sprite width"""
-        self.rows_read_count += 1
+        prof.start_profile('scaler.irq_color_lookup')
+
+        self.rows_read_count = self.rows_read_count + 1
 
         if self.rows_read_count < self.scaled_height:
             res = self.feed_address_pair()
@@ -531,6 +542,8 @@ class SpriteScaler():
                 self.finish()
         else:
             self.finish()
+
+        prof.end_profile('scaler.irq_color_lookup')
 
         if self.debug:
             print(f"!!! COLOR LOOKUP IRQ - rows read: {self.rows_read_count}!!!")

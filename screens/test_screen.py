@@ -95,6 +95,9 @@ class TestScreen(Screen):
         self.scaler = SpriteScaler(self.display)
         self.scaler.prof = prof
 
+        self.h_scales = [0.5, 0.75, 1.0, 1.5, 2.0, 3.0]
+        self.v_scales = [0.5, 1.0, 1.0, 1.6, 2.0, 2.0]
+
     def create_sprite_manager(self, display, num_sprites=0):
         self.check_mem()
         print("-- Creating Sprite Manager...")
@@ -168,19 +171,24 @@ class TestScreen(Screen):
             dubious: 1/7 , 0.75 (use 0.76)
             upscales = [1, 2, 4, 8] # only power of 2 upscales working, why??
         """
-        self.h_scales = [0.5, 0.75, 1.0, 1.5, 2.0, 3.0]
-        self.v_scales = [0.5, 1.0, 1.0, 1.6, 2.0, 2.0]
 
         # print(f"\n=== Testing X:{scale_x * 100}% // Y:{scale_y * 100}% scaling ===")
 
-        self.scale_id = 5
         h_scale = self.h_scales[self.scale_id]
         v_scale = self.v_scales[self.scale_id]
+        h_scale = v_scale = 2.0
 
-        # draw_x = self.base_x + x
-        # draw_y = self.base_y + y
-        draw_x = self.base_x
-        draw_y = self.base_y
+        prof.start_profile('screen.calc_x_y')
+        x = self.screen_width - (h_scale * meta.width // 2)
+        if x:
+            x = x // 2
+        y = self.screen_height - (v_scale * meta.height)
+        if y:
+            y = y // 2
+
+        draw_x = self.base_x + x
+        draw_y = self.base_y + y
+        prof.end_profile('screen.calc_x_y')
 
         prof.start_profile('scaler.draw_sprite')
         self.scaler.draw_sprite(meta, draw_x, draw_y, image, h_scale=h_scale, v_scale=v_scale)
@@ -192,8 +200,6 @@ class TestScreen(Screen):
             self.scale_id = 0
 
         # self.draw_image_group(self.one_sprite_image, self.one_sprite_meta, self.num_sprites, self.x_vals, self.y_vals)
-        prof.start_profile('scaler.wait_sleep')
-        prof.end_profile('scaler.wait_sleep')
 
         self.show_prof()
 
