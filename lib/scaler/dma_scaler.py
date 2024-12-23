@@ -549,7 +549,6 @@ class DMAScaler:
 
     def config_dma(self, image, x, y, width, height):
         display = self.display
-        self.num_pixels = num_pixels = width * height
 
         write_addr_base = self.write_addr_base
         write_offset = (((y * display.width) + x) * 2) - 8  # since the display is 16 bit, we multiply x 2

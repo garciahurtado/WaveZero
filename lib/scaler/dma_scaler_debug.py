@@ -149,7 +149,7 @@ class ScalerDebugger():
                 if format == 'bin':
                     out_str = f"{val:08b}-"
                 else:
-                    out_str = f"{val:02X}-" if val < 256 else f"{val:08X}-"
+                    out_str = f"{val:08X}-"
                 print(out_str, end='')
             print()
 

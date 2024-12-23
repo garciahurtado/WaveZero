@@ -79,14 +79,15 @@ TIMER0_OFFSET = 0x00000420
 TIMER0_BITS = 0x00000000
 
 TIMER1_OFFSET = 0x00000424
-TIMER1_BITS = 0x000100FF    # Eventually we should get rid of this artificial delay / hack
+""" Bytes 0-1 are the numerator, and 2-3 the denominator of a fractional timer with respect to the CPU clock.
+So in this case, its 0001/0000F or 1/16 of the CPU freq (or 16 times slower) """
+TIMER1_BITS = 0x0001000F
 
 mem32[DMA_BASE + TIMER1_OFFSET] = TIMER1_BITS
 
 """ Pacing Timer Dividend bits
 [31:16] Specifies the X value for the (X/Y) fractional timer.
 [15:0] Pacing Timer Divisor. Specifies the Y value for the (X/Y) fractional timer. """
-
 
 PIO_FSTAT = const(0x004)
 PIO_FDEBUG = const(0x008)
