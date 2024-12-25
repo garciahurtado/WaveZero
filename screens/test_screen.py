@@ -174,10 +174,11 @@ class TestScreen(Screen):
 
         h_scale = self.h_scales[self.scale_id]
         v_scale = self.v_scales[self.scale_id]
-        h_scale = v_scale = 1.0
+        h_scale = 1.0
+        v_scale = 1.0
 
         prof.start_profile('screen.calc_x_y')
-        x = self.screen_width - (h_scale * meta.width // 2)
+        x = self.screen_width - (h_scale * meta.width / 2)
         if x:
             x = x // 2
         y = self.screen_height - (v_scale * meta.height)
@@ -191,10 +192,23 @@ class TestScreen(Screen):
         draw_y = draw_x = 0
 
         prof.start_profile('scaler.draw_sprite')
+        sprite_width = meta.width
+        sprite_scaled_width = int(sprite_width * h_scale)
+        sprite_height = meta.height
+        sprite_scaled_height = int(sprite_height * v_scale)
 
-        self.scaler.draw_sprite(meta, draw_x, draw_y, image, h_scale=h_scale, v_scale=v_scale)
-        self.scaler.draw_sprite(meta, draw_x+32, draw_y, image, h_scale=h_scale, v_scale=v_scale)
-        self.scaler.draw_sprite(meta, draw_x+64, draw_y, image, h_scale=h_scale, v_scale=v_scale)
+        width_step = self.screen_width//sprite_scaled_width
+        height_step = self.screen_height//sprite_scaled_height
+
+        for r in range(width_step):
+            for c in range(height_step):
+                self.scaler.draw_sprite(
+                    meta,
+                    draw_x+(r*sprite_scaled_width),
+                    draw_y+(c*sprite_scaled_height),
+                    image,
+                    h_scale=h_scale,
+                    v_scale=v_scale)
 
         self.fps.tick()
         prof.end_profile('scaler.draw_sprite')
