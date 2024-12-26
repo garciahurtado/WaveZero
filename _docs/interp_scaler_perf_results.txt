@@ -1,0 +1,33 @@
+STARTING FPS
+------------
+
+x24 16x16 sprites at 1:1 scale
+main freq: 120_000_000
+pio freq: 40_000_000
+All debug off
+
+FPS:     16
+FPS:     16
+
+STARTING PROFILE
+----------------
+
+func                             runs     avg ms          total ms
+--------------------------------------------------------------------
+scaler.draw_sprite               123      160.1995        19704.54
+scaler.irq_color_lookup          50184    0.2741          13756.22
+scaler.interp_pop                47232    0.0830           3918.22
+scaler.interp_sm_put             44280    0.0779           3449.51
+scaler.init_dma_sprite           2952     0.2765            816.10
+scaler.init_interp_sprite        2952     0.2124            626.88
+scaler.reset                     2952     0.1328            392.12
+scaler.scaled_width_height       2952     0.0975            287.89
+scaler.init_pio                  2952     0.0935            276.15
+scaler.h_pattern                 2952     0.0816            240.90
+scaler.start_channels            2952     0.0747            220.58
+scaler.dma_sprite_config         2952     0.0627            185.05
+
+
+
+
+
