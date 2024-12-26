@@ -31,13 +31,15 @@ class Screen:
         wait_s = 1/90 # max FPS
         try:
             while True:
+                print(" - at the start of refresh_display inf. loop")
                 self.do_refresh()
                 now = utime.ticks_ms()
 
                 if (now - self.last_gc) > self.gc_interval:
-                    # gc.collect()
+                    gc.collect()
                     self.last_gc = utime.ticks_ms()
 
+                print(" - at the end of refresh_display inf. loop")
                 await asyncio.sleep(wait_s)
         except asyncio.CancelledError:
             return True

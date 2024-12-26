@@ -174,8 +174,8 @@ class TestScreen(Screen):
 
         h_scale = self.h_scales[self.scale_id]
         v_scale = self.v_scales[self.scale_id]
-        h_scale = 1.0
-        v_scale = 1.0
+        h_scale = 0.5
+        v_scale = 0.5
 
         prof.start_profile('screen.calc_x_y')
         x = self.screen_width - (h_scale * meta.width / 2)
@@ -200,6 +200,7 @@ class TestScreen(Screen):
         width_step = self.screen_width//sprite_scaled_width
         height_step = self.screen_height//sprite_scaled_height
 
+        print(f"\tSCALER Drawing {width_step}x{height_step} = {width_step*height_step}")
         for r in range(width_step):
             for c in range(height_step):
                 self.scaler.draw_sprite(
@@ -220,6 +221,7 @@ class TestScreen(Screen):
         # self.draw_image_group(self.one_sprite_image, self.one_sprite_meta, self.num_sprites, self.x_vals, self.y_vals)
 
         self.show_prof()
+        print("At the end of DOREFRESH")
 
     def update_loop(self):
         print("UPD")
