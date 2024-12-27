@@ -146,7 +146,7 @@ class GameScreen(Screen):
         self.player.visible = True
 
         print("-- Starting stage")
-        self.stage.start()
+        self.stage.start(loop)
 
         print("-- Starting update_loop")
         asyncio.run(self.start_main_loop())

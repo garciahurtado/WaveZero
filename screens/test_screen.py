@@ -125,8 +125,6 @@ class TestScreen(Screen):
         print("-- Starting main Loop ...")
         self.check_mem()
 
-        # self.create_lines()
-
         await asyncio.gather(
             asyncio.create_task(self.start_fps_counter()),
         )
@@ -171,22 +169,24 @@ class TestScreen(Screen):
         """
 
         # print(f"\n=== Testing X:{scale_x * 100}% // Y:{scale_y * 100}% scaling ===")
+        self.h_scales = [3, 2, 1.5, 1, 0.5, 1, 0.5, 1, 1.5, 2, 3]
+        self.v_scales = [3, 2, 1.5, 1, 1, 1, 1, 1, 1.5, 2, 3]
 
         h_scale = self.h_scales[self.scale_id]
         v_scale = self.v_scales[self.scale_id]
-        h_scale = 0.5
-        v_scale = 0.5
+        h_scale = 2
+        v_scale = 2
 
         prof.start_profile('screen.calc_x_y')
-        x = self.screen_width - (h_scale * meta.width / 2)
-        if x:
-            x = x // 2
-        y = self.screen_height - (v_scale * meta.height)
-        if y:
-            y = y // 2
-
-        draw_x = self.base_x + x
-        draw_y = self.base_y + y
+        # x = self.screen_width - (h_scale * meta.width / 2)
+        # if x:
+        #     x = x // 2
+        # y = self.screen_height - (v_scale * meta.height)
+        # if y:
+        #     y = y // 2
+        #
+        # draw_x = self.base_x + x
+        # draw_y = self.base_y + y
         prof.end_profile('screen.calc_x_y')
 
         draw_y = draw_x = 0
@@ -200,7 +200,8 @@ class TestScreen(Screen):
         width_step = self.screen_width//sprite_scaled_width
         height_step = self.screen_height//sprite_scaled_height
 
-        print(f"\tSCALER Drawing {width_step}x{height_step} = {width_step*height_step}")
+        num_sprites = 0
+        # print(f"\tSCALER Drawing {width_step}x{height_step} = {width_step*height_step} sprites")
         for r in range(width_step):
             for c in range(height_step):
                 self.scaler.draw_sprite(
@@ -210,6 +211,7 @@ class TestScreen(Screen):
                     image,
                     h_scale=h_scale,
                     v_scale=v_scale)
+                num_sprites += 1
 
         self.fps.tick()
         prof.end_profile('scaler.draw_sprite')
@@ -221,10 +223,6 @@ class TestScreen(Screen):
         # self.draw_image_group(self.one_sprite_image, self.one_sprite_meta, self.num_sprites, self.x_vals, self.y_vals)
 
         self.show_prof()
-        print("At the end of DOREFRESH")
-
-    def update_loop(self):
-        print("UPD")
 
     async def start_fps_counter(self):
         while True:
