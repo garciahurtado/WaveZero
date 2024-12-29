@@ -53,7 +53,7 @@ class ScalerDebugger():
         print("=====================================================")
         print()
 
-    def debug_pio_status(self, sm0=False, sm1=False, sm2=False):
+    def debug_pio_status(self, sm0=False, sm1=False, sm2=False, all_code=True):
         print()
 
         if sm0:
@@ -81,7 +81,7 @@ class ScalerDebugger():
         deb2 = (mem32[FDEBUG] >> 16) & 0xFF
         deb3 = (mem32[FDEBUG] >> 8) & 0xFF
         deb4 = mem32[FDEBUG] & 0xFF
-        print( "              TXSTALL    TXOVER     RXUNDER    RXSTALL")
+        print("              TXSTALL    TXOVER     RXUNDER    RXSTALL")
         print(f"DEBUG REG >>> {deb1:08b} - {deb2:08b} - {deb3:08b} - {deb4:08b} <<<")
 
     def debug_dma(self, dma, alias, label, index):

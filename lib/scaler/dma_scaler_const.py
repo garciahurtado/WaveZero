@@ -29,6 +29,10 @@ DMA_CTRL_TRIG = const(0x00c)
 DMA_AL1_CTRL = const(0x010)
 DMA_DBG_TCR = const(0x804)
 
+DMA_PX_READ_BASE = DMA_BASE_5
+DMA_PX_WRITE_BASE = DMA_BASE_6
+DMA_HORIZ_SCALE_BASE = DMA_BASE_7
+
 # SNIFF_CTRL = 0x50000438  # DMA_SNIFF_CTRL register address
 # SNIFF_CHAN = 0x50000434  # DMA_SNIFF_CHAN register address
 # SNIFF_DATA = 0x50000440  # DMA_SNIFF_DATA register address
@@ -41,6 +45,7 @@ IRQ0_INTE = 0x50000430  # DMA_IRQ0_INTE register address
 
 DMA_FRAC_TIMER = DMA_BASE + 0x420
 DMA_TIMER0 = 0x3b
+
 """ PIO """
 
 PIO0_BASE = 0x50200000
@@ -62,6 +67,7 @@ FLEVEL = PIO1_BASE + const(0x00c)
 PIO0_IRQ = PIO0_BASE + 0x128
 PIO1_IRQ = PIO1_BASE + 0x128
 
+
 """ DREQ signals """
 DREQ_PIO1_TX0 = 8
 DREQ_PIO1_RX0 = 12
@@ -81,7 +87,7 @@ TIMER0_BITS = 0x00000000
 TIMER1_OFFSET = 0x00000424
 """ Bytes 0-1 are the numerator, and 2-3 the denominator of a fractional timer with respect to the CPU clock.
 So in this case, its 0001/0000F or 1/16 of the CPU freq (or 16 times slower) """
-TIMER1_BITS = 0x0001000F
+TIMER1_BITS = 0x000100FF
 
 mem32[DMA_BASE + TIMER1_OFFSET] = TIMER1_BITS
 
