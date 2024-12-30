@@ -63,6 +63,8 @@ class TestScreen(Screen):
 
     fps_counter_task = None
     sprite = None
+    sep = 2
+    sep_dir = 1
 
     def __init__(self, display, *args, **kwargs):
         super().__init__(display)
@@ -160,7 +162,7 @@ class TestScreen(Screen):
         meta = self.mgr.get_meta(self.sprite)
         image = self.mgr.sprite_images[self.sprite_type][-1]
 
-        self.display.fill(0x0)
+        self.display.fill(0xFFFFFF)
 
         """ Working vertical scaling ratios:
             works: 2/3, 1/2, 1/3, 1/4, 1/5, 1/6, 1/8, 1/10, 1/12, 1/16
@@ -174,8 +176,8 @@ class TestScreen(Screen):
 
         h_scale = self.h_scales[self.scale_id]
         v_scale = self.v_scales[self.scale_id]
-        h_scale = 4
-        v_scale = 4
+        h_scale = 2
+        v_scale = 2
 
         prof.start_profile('screen.calc_x_y')
         # x = self.screen_width - (h_scale * meta.width / 2)
@@ -197,21 +199,31 @@ class TestScreen(Screen):
         sprite_height = meta.height
         sprite_scaled_height = int(sprite_height * v_scale)
 
-        width_step = self.screen_width//sprite_scaled_width
-        height_step = self.screen_height//sprite_scaled_height
+        max_cols = 10
+        max_rows = 10
+
+        num_cols = min(self.screen_width//sprite_scaled_width, max_cols)
+        num_rows = min(self.screen_height//sprite_scaled_height, max_rows)
 
         num_sprites = 0
+        sep_max = 15
+
         # print(f"\tSCALER Drawing {width_step}x{height_step} = {width_step*height_step} sprites")
-        for r in range(width_step):
-            for c in range(height_step):
+        for c in range(num_cols):
+            for r in range(num_rows):
                 self.scaler.draw_sprite(
                     meta,
-                    draw_x+(r*sprite_scaled_width),
-                    draw_y+(c*sprite_scaled_height),
+                    draw_x+(c*sprite_scaled_width)-(self.sep*c),
+                    draw_y+(r*sprite_scaled_height),
                     image,
                     h_scale=h_scale,
                     v_scale=v_scale)
                 num_sprites += 1
+
+        self.sep += 1*self.sep_dir
+
+        if (self.sep > sep_max) or (self.sep < 2):
+            self.sep_dir *= -1
 
         self.fps.tick()
         prof.end_profile('scaler.draw_sprite')
@@ -223,6 +235,7 @@ class TestScreen(Screen):
         # self.draw_image_group(self.one_sprite_image, self.one_sprite_meta, self.num_sprites, self.x_vals, self.y_vals)
 
         self.show_prof()
+        self.display.swap_buffers()
 
     async def start_fps_counter(self):
         while True:

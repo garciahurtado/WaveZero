@@ -56,6 +56,9 @@ class SpriteScaler():
         self.debug_interp_list = False
         self.debug_with_debug_bytes = False
 
+        self.draw_x = 0
+        self.draw_y = 0
+
         if self.debug_with_debug_bytes:
             print(" * DEBUG BYTES ADDR *")
             print(f" * 0x{addressof(self.debug_bytes1):08X}")
@@ -63,7 +66,7 @@ class SpriteScaler():
 
         self.display_stride = self.display.width * 2
         display_pixels = (self.display.height) * self.display_stride
-        self.max_write_addr = self.display.write_addr + display_pixels
+        self.max_write_addr = self.display.trans_addr + display_pixels
 
         self.fill_target_addrs()
 
@@ -143,7 +146,7 @@ class SpriteScaler():
 
         self.palette_addr = None
 
-        sm_freq = 1_000_000
+        sm_freq = 40_000_000
         # PIO1 - SM0
         self.sm_read_palette = StateMachine(
             4, read_palette,
@@ -217,6 +220,8 @@ class SpriteScaler():
         Draw a scaled sprite at the specified position.
         This method is synchronous (will not return until the whole sprite has been drawn)
         """
+        self.draw_x = x
+        self.draw_y = y
         prof.start_profile('scaler.reset')
         self.reset()
         prof.end_profile('scaler.reset')
@@ -231,7 +236,8 @@ class SpriteScaler():
         # Set up base addresses
 
         """ INTERPOLATOR CONFIGURATION --------- """
-        base_write = int(self.display.write_addr + (((y * self.display.width) + x)*2))
+        # base_write = int(self.display.write_addr + (((y * self.display.width) + x)*2))
+        base_write = int(addressof(self.display.buffer2))
 
         if self.debug_dma:
             print(f"Drawing a sprite of {meta.width}x{meta.height} @ base addr 0x{base_write:08X}")
@@ -346,6 +352,12 @@ class SpriteScaler():
         self.read_finished = True
         self.rows_read_count = 0
         self.addr_idx = 0
+        self.copy_with_trans(self.draw_x, self.draw_y)
+
+    def copy_with_trans(self, x, y):
+        """ Copy the sprite from the "scratch" framebuffer to the final one in the display """
+        disp = self.display
+        disp.write_framebuf.blit(disp.trans_framebuf, x, y, 0)
 
     def init_interp_sprite(self, read_base, write_base, sprite_width, sprite_height, scale_y_one = 1.0):
         FRAC_BITS = self.frac_bits

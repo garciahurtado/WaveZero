@@ -45,6 +45,7 @@ class SSD1331PIO():
 
     buffer0 = bytearray(HEIGHT * WIDTH * 2)  # RGB565 is 2 bytes
     buffer1 = bytearray(HEIGHT * WIDTH * 2)  # RGB565 is 2 bytes
+    buffer2 = bytearray(HEIGHT * WIDTH * 2)  # RGB565 is 2 bytes
 
     """ 
     xA0 x72 -> RGB
@@ -67,27 +68,35 @@ class SSD1331PIO():
         mode = framebuf.RGB565
         gc.collect()
 
-        # The first buffer, the one we write to
+        # Buffer #1: the one we write to
         self.framebuf0 = framebuf.FrameBuffer(self.buffer0, self.width, self.height, mode)
-        self.framebuf0.fill(0x0)
+        self.framebuf0.fill(0xFF)
 
-        # A second buffer, the read buffer, is the one that gets sent to the display
+        # Buffer #1: the one we read from, is the one that gets sent to the display
         # DMA copies the write buffer to this one when the writing finishes
         self.framebuf1 = framebuf.FrameBuffer(self.buffer1, self.width, self.height, mode)
-        self.framebuf1.fill(0x0)
+        self.framebuf1.fill(0xFF)
+
+        # Buffer #3: used for implementing transparency
+        self.framebuf2 = framebuf.FrameBuffer(self.buffer2, self.width, self.height, mode)
+        self.framebuf2.fill(0x0)
 
         # Set starting alias to each buffer, so that we can easily flip them
         self.write_buffer = self.buffer0
         self.read_buffer = self.buffer1
+        self.trans_buffer = self.buffer2
 
         self.write_framebuf = self.framebuf0
         self.read_framebuf = self.framebuf1
+        self.trans_framebuf = self.framebuf2
 
         self.read_addr = uctypes.addressof(self.read_buffer)
         self.read_addr_buf = self.read_addr.to_bytes(4, "little")
 
         self.write_addr = uctypes.addressof(self.write_buffer)
         self.write_addr_buf = self.write_addr.to_bytes(4, "little")
+
+        self.trans_addr = uctypes.addressof(self.trans_buffer)
 
         self.curr_read_buf = self.read_addr_buf
 
