@@ -7,6 +7,7 @@ from scaler.dma_scaler_const import DMA_PX_WRITE_BASE
     out_shiftdir=PIO.SHIFT_LEFT,
     autopull=True,
     pull_thresh=32,
+    sideset_init=PIO.OUT_LOW,
 )
 def read_palette():
     """
@@ -22,12 +23,13 @@ def read_palette():
 
     pull()                  # L:21
     wrap_target()
+    # label("wrap_target")
 
     # PIXEL PROCESSING ----------------------------------------------------
     out(y, 4)               # L:22 - pull 4 bits from OSR
 
     """ First off, check for transparent pixels """
-    # jmp(not_y, "px_skip")
+    # jmp(not_y, "px_skip")   .side(0)    # disabled
 
     """ Index lookup logic (reverse addition) """
     mov(x, invert(isr))             # ISR has the base addr
@@ -37,7 +39,7 @@ def read_palette():
     jmp(x_dec, "test_inc1")         # x--
 
     label("test_inc1")  # This has the effect of subtracting y from x, eventually.
-    jmp(x_dec, "test_inc2")  # We double the substraction because each color is 2 bytes, so we are doing x = x+2
+    jmp(x_dec, "test_inc2")  # We double the substraction because each color is 2 bytes, so every loop we are doing x = x+2
     label("test_inc2")
 
     jmp(y_dec, "incr1")
@@ -50,39 +52,37 @@ def read_palette():
 
     mov(isr, y)  # restore the ISR with the base addr
 
+    # wrap()
+    #
     # label("px_skip")
-    # irq(0, block)
+    # nop()           .side(1)
+    # irq(2)          .side(1)  # disabled
+    # wait(0, irq, 2) .side(0)  # disabled
+    # jmp("wrap_target")
 
 @asm_pio()
 def read_addr():
+    """
+    The only purpose of this program is to provide a FIFO to synch DMA transfers to. could probably get rid of pull()
+    and push()
+    """
     pull()                  # Get address from TX FIFO
     mov(isr, osr)
     push()                  # Push to RX FIFO
 
 @asm_pio(
-    autopush=True,
-    push_thresh=32,
-    out_shiftdir=PIO.SHIFT_LEFT,
+    autopull=True,
+    pull_thresh=32,
+    sideset_init=PIO.OUT_LOW,
 )
 def pixel_skip():
-    wait(0, irq, 0)              # Wait for IRQ from READ_PALETTE
+    wait(1, irq, 2)            # Wait for IRQ from READ_PALETTE
 
-    mov(osr, null)  # all zeros value
-    in_(osr, 32)  # Output to FIFO/DMA
+    wrap_target()
+    push(null, 32)      # Only used as trigger
+    irq(2, clear)
 
-    mov(osr, 0x50000180 + 0x01C)     # Load PX WRITE COUNT TRIG value
-    in_(osr, 32)
+    # push(null, 32)      # Only used as trigger
 
-    mov(osr, 0x50000438)                # Load SNIFF_DATA value
-    in_(osr, 32)
 
-    # The sniffer addr should come in here via the TX FIFO
-    pull(block)
-    out(y, 32)
-    in_(y, 31)
-    in_(null, 1)        # shift an extra zero, effectively multiplying by 2
-    push()
 
-    mov(osr, 0x50300000 + 0x028)        # Load PIO1 SM2 RX FIFO address
-    in_(osr, 32)
-    irq(0, clear)

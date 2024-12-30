@@ -174,8 +174,8 @@ class TestScreen(Screen):
 
         h_scale = self.h_scales[self.scale_id]
         v_scale = self.v_scales[self.scale_id]
-        h_scale = 1
-        v_scale = 1
+        h_scale = 4
+        v_scale = 4
 
         prof.start_profile('screen.calc_x_y')
         # x = self.screen_width - (h_scale * meta.width / 2)
