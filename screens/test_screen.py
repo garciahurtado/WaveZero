@@ -85,11 +85,8 @@ class TestScreen(Screen):
         self.sprite_scales = [random.choice(range(0, 9)) for _ in range(self.num_sprites)]
 
         self.init_camera()
-        # self.init_fps()
-
-        # display.fill(0x0000)
-        display.fill(0x000011)
-        display.show()
+        self.init_fps()
+        self.create_lines()
 
         self.create_sprite_manager(display, num_sprites=10)
         self.scaler = SpriteScaler(self.display)
@@ -163,6 +160,8 @@ class TestScreen(Screen):
         image = self.mgr.sprite_images[self.sprite_type][-1]
 
         self.display.fill(0xFFFFFF)
+        # self.create_lines()
+        # self.show_lines()
 
         """ Working vertical scaling ratios:
             works: 2/3, 1/2, 1/3, 1/4, 1/5, 1/6, 1/8, 1/10, 1/12, 1/16
@@ -206,21 +205,23 @@ class TestScreen(Screen):
         num_rows = min(self.screen_height//sprite_scaled_height, max_rows)
 
         num_sprites = 0
-        sep_max = 15
+        sep_max = 20
+
+        self.sep = 0
 
         # print(f"\tSCALER Drawing {width_step}x{height_step} = {width_step*height_step} sprites")
         for c in range(num_cols):
             for r in range(num_rows):
                 self.scaler.draw_sprite(
                     meta,
-                    draw_x+(c*sprite_scaled_width)-(self.sep*c),
+                    draw_x+(c*sprite_scaled_width)+(self.sep*c),
                     draw_y+(r*sprite_scaled_height),
                     image,
                     h_scale=h_scale,
                     v_scale=v_scale)
                 num_sprites += 1
 
-        self.sep += 1*self.sep_dir
+        # self.sep += 2 * self.sep_dir
 
         if (self.sep > sep_max) or (self.sep < 2):
             self.sep_dir *= -1
@@ -243,14 +244,12 @@ class TestScreen(Screen):
             if fps is False:
                 pass
             else:
-                fps = int(fps)
-                fps_str = "{: >6}".format(fps)
+                fps_str = "{: >6.2f}".format(fps)
                 print(f"FPS: {fps_str}")
 
                 # # ColorWriter.set_textpos(self.display.write_framebuf, 0, 0)
                 # self.fps_text.row_clip = True
                 # self.fps_text.render_text(fps_str)
-
 
             await asyncio.sleep(1)
 

@@ -77,9 +77,24 @@ class SSD1331PIO():
         self.framebuf1 = framebuf.FrameBuffer(self.buffer1, self.width, self.height, mode)
         self.framebuf1.fill(0xFF)
 
-        # Buffer #3: used for implementing transparency
-        self.framebuf2 = framebuf.FrameBuffer(self.buffer2, self.width, self.height, mode)
-        self.framebuf2.fill(0x0)
+        # Buffers used for implementing transparency. All use the same underlying bytes, presented as different
+        # sizes to optimize for different sprite sizes
+
+        # 8x8
+        self.trans_framebuf_8 = framebuf.FrameBuffer(self.buffer2, 8, 8, mode)
+        self.trans_framebuf_8.fill(0x0)
+
+        # 16x16
+        self.trans_framebuf_16 = framebuf.FrameBuffer(self.buffer2, 16, 16, mode)
+        self.trans_framebuf_16.fill(0x0)
+
+        # 32x32
+        self.trans_framebuf_32 = framebuf.FrameBuffer(self.buffer2, 32, 32, mode)
+        self.trans_framebuf_32.fill(0x0)
+
+        # fullscreen
+        self.trans_framebuf_full = framebuf.FrameBuffer(self.buffer2, self.width, self.height, mode)
+        self.trans_framebuf_full.fill(0x0)
 
         # Set starting alias to each buffer, so that we can easily flip them
         self.write_buffer = self.buffer0
@@ -88,7 +103,6 @@ class SSD1331PIO():
 
         self.write_framebuf = self.framebuf0
         self.read_framebuf = self.framebuf1
-        self.trans_framebuf = self.framebuf2
 
         self.read_addr = uctypes.addressof(self.read_buffer)
         self.read_addr_buf = self.read_addr.to_bytes(4, "little")

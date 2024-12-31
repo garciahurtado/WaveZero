@@ -14,6 +14,7 @@ from scaler.dma_scaler_pio import read_palette, read_addr, pixel_skip
 from scaler.dma_scaler_debug import ScalerDebugger
 from profiler import Profiler as prof, timed
 from sprites2.sprite_types import SpriteType
+from ssd1331_pio import SSD1331PIO
 from utils import aligned_buffer
 
 ROW_ADDR_DMA_BASE = DMA_BASE_2
@@ -28,7 +29,7 @@ PX_READ_BYTE_SIZE = 4 # Bytes per word in the pixel reader
 class SpriteScaler():
     def __init__(self, display):
         self.addr_idx = 0
-        self.display = display
+        self.display:SSD1331PIO = display
         self.h_patterns = {} # Horizontal scaling patterns
 
         """ Create array with maximum possible number of addresses """
@@ -64,75 +65,11 @@ class SpriteScaler():
             print(f" * 0x{addressof(self.debug_bytes1):08X}")
             print(f" * 0x{addressof(self.debug_bytes2):08X}")
 
-        self.display_stride = self.display.width * 2
-        display_pixels = (self.display.height) * self.display_stride
-        self.max_write_addr = self.display.trans_addr + display_pixels
+        disp_width = self.display.width
+        disp_height = self.display.height
 
-        self.fill_target_addrs()
-
-        """ Transparency:
-         2 sets of addresses for read / write. 1 block equals all 4 pairs
-         """
-        # self.px_skip_read_addrs = array('L', [0]*4)
-        # self.px_skip_read_addrs[0] = 0x00000000     # disable px_write w. addr
-        # self.px_skip_read_addrs[1] = DMA_PX_WRITE_BASE + DMA_TRANS_COUNT_TRIG
-        # self.px_skip_read_addrs[2] = SNIFF_DATA
-        # self.px_skip_read_addrs[3] = PIO1_RX2
-
-        """ SKIP_CTRL values"""
-        self.px_skip_values = array('L', [0] * 2)
-        self.px_skip_values[0] = 0x00000000
-        self.px_skip_values[1] = DMA_PX_WRITE_BASE + DMA_TRANS_COUNT_TRIG
-
-        skip_values = int(addressof(self.px_skip_values))
-        print(f" - SKIP VALUES ADDR: 0x{skip_values:08x}")
-
-        """ Define 4, 3-word, control blocks for SKIP_CTRL. 
-        Using AL1 all 4 words:
-        0x10 (Alias 1) CTRL READ_ADDR WRITE_ADDR TRANS_COUNT_TRIG
-        """
-        buff = aligned_buffer(4*16)
-        # self.px_skip_ctrl = array('L', [0] * 16)
-        self.px_skip_ctrl = array('L', buff)
-        print(f" - PX SKIP CTRL BLOCKS ADDR: 0x{addressof(self.px_skip_ctrl):08x}")
-
-        ctrl_treq = 0x274839
-        ctrl_no_treq = 0x3FC839
-
-        self.px_skip_ctrl[0] = ctrl_treq
-        self.px_skip_ctrl[1] = skip_values
-        self.px_skip_ctrl[2] = DMA_PX_WRITE_BASE + DMA_WRITE_ADDR
-        self.px_skip_ctrl[3] = 0x00000001
-
-        self.px_skip_ctrl[4] = ctrl_no_treq
-        self.px_skip_ctrl[5] = skip_values
-        self.px_skip_ctrl[6] = DMA_HORIZ_SCALE_BASE + DMA_WRITE_ADDR_TRIG
-        self.px_skip_ctrl[7] = 0x00000001
-
-        self.px_skip_ctrl[8] = ctrl_no_treq
-        self.px_skip_ctrl[9] = SNIFF_DATA
-        self.px_skip_ctrl[10] = PIO1_TX2
-        self.px_skip_ctrl[11] = 0x00000001
-
-        self.px_skip_ctrl[12] = ctrl_treq
-        self.px_skip_ctrl[13] = PIO1_RX2
-        self.px_skip_ctrl[14] = DMA_PX_WRITE_BASE + DMA_WRITE_ADDR
-        self.px_skip_ctrl[15] = 0x00000001
-
-        # self.px_skip_ctrl[16] = 0x00000000 # NULL terminator
-        # self.px_skip_ctrl[17] = 0x00000000 # NULL terminator
-        # self.px_skip_ctrl[18] = 0x00000000 # NULL terminator
-        # self.px_skip_ctrl[19] = 0x00000000 # NULL terminator
-
-        # DEBUG
-        # debug_bytes = addressof(self.debug_bytes1)
-        # self.px_skip_ctrl[1] = debug_bytes
-        # self.px_skip_ctrl[3] = debug_bytes
-        # self.px_skip_ctrl[5] = debug_bytes
-        # self.px_skip_ctrl[7] = debug_bytes
-
-        # DEBUG
-        # self.px_skip_addrs[0] = addressof(self.debug_bytes1)
+        """ Calculate write address and strides """
+        self.trans_framebuf = self.display.trans_framebuf_32
 
         # DMA Channels
         self.row_addr = DMA()               # 2. Vertical / row control (read and write)
@@ -141,12 +78,11 @@ class SpriteScaler():
         self.px_read_dma = DMA()            # 5. Sprite data
         self.px_write_dma = DMA()           # 6. Display output
         self.h_scale = DMA()                # 7. Horizontal scale pattern
-        # self.addr_skip = DMA()              # 8. Pixel skip / transparency
-        # self.skip_ctrl = DMA()              # 9. Pixel skip control
 
+        self.fill_target_addrs()
         self.palette_addr = None
 
-        sm_freq = 40_000_000
+        sm_freq = 60_000_000 # must be 75% of the system freq or less, to avoid visual glitches
         # PIO1 - SM0
         self.sm_read_palette = StateMachine(
             4, read_palette,
@@ -158,12 +94,6 @@ class SpriteScaler():
             5, read_addr,
             freq=sm_freq,
         )
-        # PIO1 - SM2
-        # self.sm_pixel_skip = StateMachine(
-        #     6, pixel_skip,
-        #     freq=sm_freq,
-        #     sideset_base=9
-        # )
 
         self.init_patterns()
         self.init_dma()
@@ -177,8 +107,6 @@ class SpriteScaler():
 
         # Write addr, then read addr + trigger
         self.target_addrs[0] = int(DMA_BASE_6 + DMA_WRITE_ADDR)
-        # self.target_addrs[1] = int(SNIFF_DATA)  # Sniffer seed value will be sent here
-        # self.target_addrs[2] = int(SNIFF_DATA)  # Sniffer seed value (repeat)
         self.target_addrs[1] = int(DMA_BASE_5 + DMA_READ_ADDR_TRIG)
 
         print("~~ TARGET ADDRESSES: ~~")
@@ -197,8 +125,6 @@ class SpriteScaler():
             if self.value_addrs[i] > self.max_write_addr:
                 break
 
-            # self.value_addrs[i + 1] = write_addr + 2    # sniffer addr. We preadd the +2 to make it easier to skip later on
-            # self.value_addrs[i + 2] = write_addr + 2    # sniffer addr. repeat
             self.value_addrs[i + 1] = mem32[INTERP1_POP_FULL]   # read addr
 
         prof.end_profile('scaler.prefill_addrs')
@@ -207,12 +133,8 @@ class SpriteScaler():
             print("~~ Value Addresses ~~")
             for i in range(0, scaled_height * 2, 2):
                 write = self.value_addrs[i]
-                # sniff = self.value_addrs[i+1]
-                # sniff2 = self.value_addrs[i+2]
                 read = self.value_addrs[i+1]
-                print(f"W [{i//4:02}]: 0x{write:08X}")
-                # print(f"S     : ....0x{sniff:08X}")
-                # print(f"S     : ....0x{sniff2:08X}")
+                print(f"W [{i//2:02}]: 0x{write:08X}")
                 print(f"R     : ....0x{read:08X}")
 
     def draw_sprite(self, meta:SpriteType, x, y, image:Image, h_scale=1.0, v_scale=1.0):
@@ -235,9 +157,28 @@ class SpriteScaler():
 
         # Set up base addresses
 
-        """ INTERPOLATOR CONFIGURATION --------- """
         # base_write = int(self.display.write_addr + (((y * self.display.width) + x)*2))
-        base_write = int(addressof(self.display.buffer2))
+
+        """ Select the right framebuffer based on the (scaled) sprite dimensions """
+        if scaled_width <= 8:
+            self.trans_framebuf = self.display.trans_framebuf_8
+            disp_width = disp_height = 8
+        elif scaled_width <= 16:
+            self.trans_framebuf = self.display.trans_framebuf_16
+            disp_width = disp_height = 16
+        elif scaled_width <= 32:
+            self.trans_framebuf = self.display.trans_framebuf_32
+            disp_width = disp_height = 32
+        else:
+            self.trans_framebuf = self.display.trans_framebuf_full
+            disp_width = self.display.width
+            disp_height = self.display.height
+
+        # Since all 3 framebufs use the same buffer, the memory address is also the same
+        base_write = self.display.trans_addr
+        self.display_stride = disp_width * 2
+        display_total_bytes = (disp_height) * self.display_stride
+        self.max_write_addr = base_write + display_total_bytes
 
         if self.debug_dma:
             print(f"Drawing a sprite of {meta.width}x{meta.height} @ base addr 0x{base_write:08X}")
@@ -256,7 +197,8 @@ class SpriteScaler():
                 print("ERROR: only 16x16 or 32x32 sprites allowed")
                 sys.exit(1)
 
-            # INTERP0: Write address generation (display)
+            """ INTERPOLATOR CONFIGURATION --------- """
+            """ (read / write address generation) """
             write_ctrl_config = (
                     (0 << 0) |  # No shift needed for write addresses
                     (0 << 5) |  # No mask needed
@@ -310,8 +252,6 @@ class SpriteScaler():
         self.dbg.debug_dma(self.px_read_dma, "pixel read", "pixel_read", 5)
         self.dbg.debug_dma(self.px_write_dma, "pixel write", "pixel_write", 6)
         self.dbg.debug_dma(self.h_scale, "horiz_scale", "horiz_scale", 7)
-        # self.dbg.debug_dma(self.addr_skip, "addr skip", "addr_skip", 8)
-        # self.dbg.debug_dma(self.skip_ctrl, "skip control", "skip_ctrl", 9)
 
         if self.debug_pio:
             self.dbg.debug_pio_status(sm0=True, sm1=True)
@@ -324,14 +264,12 @@ class SpriteScaler():
         self.addr_counter = 0
 
         prof.start_profile('scaler.start_channels')
-        # self.sm_pixel_skip.active(1)
         self.sm_read_palette.active(1)
         self.sm_read_addr.active(1)
 
         """ Color lookup must be activated too, since it is right after a SM, so there's no direct way to trigger it"""
         self.color_lookup.active(1)
         self.h_scale.active(1)
-        # self.addr_skip.active(1)
         self.row_addr_target.active(1)
         prof.end_profile('scaler.start_channels')
 
@@ -357,7 +295,7 @@ class SpriteScaler():
     def copy_with_trans(self, x, y):
         """ Copy the sprite from the "scratch" framebuffer to the final one in the display """
         disp = self.display
-        disp.write_framebuf.blit(disp.trans_framebuf, x, y, 0)
+        disp.write_framebuf.blit(self.trans_framebuf, x, y, 0)
 
     def init_interp_sprite(self, read_base, write_base, sprite_width, sprite_height, scale_y_one = 1.0):
         FRAC_BITS = self.frac_bits
@@ -397,7 +335,6 @@ class SpriteScaler():
         # INTERP1: Read address generation with scaling
         read_ctrl_lane0 = (
                 (0 << 0) |  # No shift on accumulator/raw value
-                # ((FRAC_BITS) << 10) | # mask full (MSB)
                 (0 << 15) | # No sign extension
                 (1 << 16) | # CROSS_INPUT - also add ACCUM1
                 (1 << 18) |  # ADD_RAW - Enable raw accumulator addition
@@ -452,7 +389,6 @@ class SpriteScaler():
             size=2,  # 32-bit control blocks
             inc_read=False,  # Reads from FIFO
             inc_write=False,  # Fixed write target
-
         )
 
         self.row_addr.config(
@@ -502,7 +438,6 @@ class SpriteScaler():
             inc_read=False,
             inc_write=False,  # always writes to DMA WRITE
             treq_sel=DREQ_PIO1_RX0,
-            # chain_to=self.addr_skip.channel
         )
 
         self.color_lookup.config(
@@ -535,7 +470,7 @@ class SpriteScaler():
             inc_write=False,
             ring_sel=False,  # ring on read
             ring_size=4,    # n bytes = 2^n
-            # high_pri=True,
+            high_pri=True,
             irq_quiet=False,
             chain_to=self.row_addr_target.channel
         )
@@ -606,8 +541,7 @@ class SpriteScaler():
         """ Sprite-specific DMA configuration goes here """
 
         prof.start_profile('scaler.dma_sprite_config')
-        self.color_lookup.count = width
-        # self.color_lookup.count = 1
+        self.color_lookup.count = 1
 
         tx_per_row = math.ceil(width / self.px_per_tx)
         self.px_read_dma.count = tx_per_row

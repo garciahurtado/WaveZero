@@ -1,0 +1,85 @@
+6 sprites at x2
+
+
+Using full buffer
+-----------------
+FPS:   9.62
+FPS:   9.62
+FPS:   9.74
+FPS:   9.74
+FPS:   9.72
+
+
+Using 32x32 buffer
+------------------
+FPS:  10.36
+FPS:  10.37
+FPS:  10.25
+FPS:  10.36
+FPS:  10.40
+FPS:  10.29
+FPS:  10.39
+FPS:  10.39
+
+24 sprites at 1:1
+
+Using full buffer
+-----------------
+
+FPS:   4.34
+FPS:   4.35
+FPS:   4.35
+FPS:   4.35
+FPS:   4.36
+FPS:   4.35
+FPS:   4.35
+FPS:   4.37
+
+
+16x16 buffer
+------------
+FPS:   4.87
+FPS:   4.90
+FPS:   4.89
+FPS:   4.89
+FPS:   4.90
+FPS:   4.90
+FPS:   4.90
+FPS:   4.91
+FPS:   4.90
+FPS:   4.91
+FPS:   4.91
+
+80 px at 1/2
+
+16x16 buf
+----------
+
+FPS:   2.33
+FPS:   2.33
+FPS:   2.33
+FPS:   2.33
+FPS:   2.33
+FPS:   2.33
+FPS:   2.33
+FPS:   2.33
+FPS:   2.33
+FPS:   2.33
+FPS:   2.33
+
+
+8x8 buf
+-----------
+
+FPS:   2.43
+FPS:   2.43
+FPS:   2.43
+FPS:   2.43
+FPS:   2.43
+FPS:   2.43
+FPS:   2.43
+
+
+
+
+    
