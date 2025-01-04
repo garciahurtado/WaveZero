@@ -160,17 +160,7 @@ class TestScreen(Screen):
         h_scale = self.h_scales[self.scale_id]
         v_scale = self.v_scales[self.scale_id]
         h_scale = 1
-        v_scale = 2
-
-        # x = self.screen_width - (h_scale * meta.width / 2)
-        # if x:
-        #     x = x // 2
-        # y = self.screen_height - (v_scale * meta.height)
-        # if y:
-        #     y = y // 2
-        #
-        # draw_x = self.base_x + x
-        # draw_y = self.base_y + y
+        v_scale = 1
 
         draw_y = draw_x = 0
 
@@ -185,7 +175,7 @@ class TestScreen(Screen):
 
         num_cols = min(self.screen_width//sprite_scaled_width, max_cols)
         num_rows = min(self.screen_height//sprite_scaled_height, max_rows)
-        # num_cols = num_rows = 1
+        num_cols = num_rows = 1
 
         num_sprites = 0
         sep_max = 20
@@ -219,7 +209,7 @@ class TestScreen(Screen):
             self.scale_id = 0
 
         self.show_prof()
-        self.display.swap_buffers()
+        # self.display.swap_buffers()
         self.fps.tick()
 
     def create_lines(self):
