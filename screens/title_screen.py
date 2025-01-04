@@ -6,7 +6,7 @@ from machine import Pin
 from anim.anim_attr import AnimAttr
 from color.framebuffer_palette import FramebufferPalette
 from color import color_util as colors
-from screen import Screen
+from screens.screen import Screen
 from sprites.sprite import Sprite
 from collections import deque
 

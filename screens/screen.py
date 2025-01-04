@@ -1,4 +1,6 @@
 import gc
+import time
+
 import utime
 import uasyncio as asyncio
 
@@ -28,10 +30,9 @@ class Screen:
         self.sprites.append(sprite)
 
     async def refresh_display(self):
-        wait_s = 1/90 # max FPS
+        wait_s = 1/10# max FPS
         try:
             while True:
-                print(" - at the start of refresh_display inf. loop")
                 self.do_refresh()
                 now = utime.ticks_ms()
 
@@ -39,7 +40,6 @@ class Screen:
                     gc.collect()
                     self.last_gc = utime.ticks_ms()
 
-                print(" - at the end of refresh_display inf. loop")
                 await asyncio.sleep(wait_s)
         except asyncio.CancelledError:
             return True
@@ -57,7 +57,7 @@ class Screen:
     def do_refresh(self):
         """blocking, non-looping, version of refresh_display(), for when you need a refresh in a specific
         place in the code"""
-        self.last_tick = self.fps.tick()
+        # self.last_tick = self.fps.tick()
 
         # display_loop_wait = self.display_loop_wait
         # step = 10

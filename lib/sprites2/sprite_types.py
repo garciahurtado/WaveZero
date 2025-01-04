@@ -131,7 +131,7 @@ class SpriteType:
     rotate_pal_timer = 0
 
     alpha_index: int = -1
-    alpha_color: int = 0
+    alpha_color: None
     frames = None
     num_frames: int = 0
     upscale_width = None

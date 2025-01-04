@@ -93,8 +93,8 @@ TIMER0_BITS = 0x00000000
 
 TIMER1_OFFSET = 0x00000424
 """ Bytes 0-1 are the numerator, and 2-3 the denominator of a fractional timer with respect to the CPU clock.
-So in this case, its 0001/0000F or 1/16 of the CPU freq (or 16 times slower) """
-TIMER1_BITS = 0x000100FF
+So in this case, its 0001/000F or 1/16 of the CPU freq (or 16 times slower) """
+TIMER1_BITS = 0x0001000F
 
 mem32[DMA_BASE + TIMER1_OFFSET] = TIMER1_BITS
 

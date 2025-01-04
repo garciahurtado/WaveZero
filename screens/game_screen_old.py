@@ -23,7 +23,7 @@ from anim.anim_attr import AnimAttr
 from sprites.player_sprite import PlayerSprite
 from fx.crash import Crash
 
-from screen import Screen
+from screens.screen import Screen
 from road_grid import RoadGrid
 from perspective_camera import PerspectiveCamera
 from sprites.sprite import Sprite

@@ -1,10 +1,11 @@
+import _thread
 import sys
 
 import time
 
 from scaler.dma_interp_scaler import SpriteScaler
 from scaler.sprite_scaler_test import init_test_sprite_scaling
-from screen import Screen
+from screens.screen import Screen
 from scaler.dma_scaler import DMAScaler
 
 from sprites2.test_square import TestSquare
@@ -65,6 +66,7 @@ class TestScreen(Screen):
     sprite = None
     sep = 2
     sep_dir = 1
+    bg_color = colors.hex_to_565(CYAN)
 
     def __init__(self, display, *args, **kwargs):
         super().__init__(display)
@@ -103,12 +105,14 @@ class TestScreen(Screen):
         self.load_types()
 
     def run(self):
+        self.running = True
+
         self.check_mem()
         self.create_sprites()
 
-        loop = asyncio.get_event_loop()
-        loop.create_task(self.start_display_loop())
-        asyncio.run(self.start_main_loop())
+        # loop = asyncio.get_event_loop()
+        # loop.create_task(self.start_display_loop())
+        asyncio.run(self.start_display_loop())
         self.check_mem()
 
     def preload_images(self):
@@ -126,7 +130,97 @@ class TestScreen(Screen):
 
         await asyncio.gather(
             asyncio.create_task(self.start_fps_counter()),
+            self.do_update(),
         )
+
+    def do_update(self):
+        print(f" = EXEC ON CORE {_thread.get_ident()} (do_update)")
+
+
+    def do_refresh(self):
+        """ Overrides parent method """
+        # print(f" = EXEC ON CORE {_thread.get_ident()} (do_refresh)")
+
+        meta = self.mgr.get_meta(self.sprite)
+        image = self.mgr.sprite_images[self.sprite_type][-1]
+
+        # self.create_lines()
+        # self.show_lines()
+
+        """ Working vertical scaling ratios:
+            works: 2/3, 1/2, 1/3, 1/4, 1/5, 1/6, 1/8, 1/10, 1/12, 1/16
+            dubious: 1/7 , 0.75 (use 0.76)
+            upscales = [1, 2, 4, 8] # only power of 2 upscales working, why??
+        """
+
+        # print(f"\n=== Testing X:{scale_x * 100}% // Y:{scale_y * 100}% scaling ===")
+        self.h_scales = [3, 2, 1.5, 1, 0.5, 1, 0.5, 1, 1.5, 2, 3]
+        self.v_scales = [3, 2, 1.5, 1, 1, 1, 1, 1, 1.5, 2, 3]
+
+        h_scale = self.h_scales[self.scale_id]
+        v_scale = self.v_scales[self.scale_id]
+        h_scale = 1
+        v_scale = 1
+
+        # x = self.screen_width - (h_scale * meta.width / 2)
+        # if x:
+        #     x = x // 2
+        # y = self.screen_height - (v_scale * meta.height)
+        # if y:
+        #     y = y // 2
+        #
+        # draw_x = self.base_x + x
+        # draw_y = self.base_y + y
+
+        draw_y = draw_x = 0
+
+        prof.start_profile('scaler.screen_prep')
+        sprite_width = meta.width
+        sprite_scaled_width = int(sprite_width * h_scale)
+        sprite_height = meta.height
+        sprite_scaled_height = int(sprite_height * v_scale)
+
+        max_cols = 10
+        max_rows = 10
+
+        num_cols = min(self.screen_width//sprite_scaled_width, max_cols)
+        num_rows = min(self.screen_height//sprite_scaled_height, max_rows)
+        # num_cols = num_rows = 1
+
+        num_sprites = 0
+        sep_max = 20
+
+        self.sep = 0
+        self.display.fill(0xFFFFFF)
+        prof.end_profile('scaler.screen_prep')
+
+        # print(f"\tSCALER Drawing {width_step}x{height_step} = {width_step*height_step} sprites")
+        for c in range(num_cols):
+            for r in range(num_rows):
+                prof.start_profile('scaler.draw_sprite')
+                self.scaler.draw_sprite(
+                    meta,
+                    draw_x+(c*sprite_scaled_width)+(self.sep*c),
+                    draw_y+(r*sprite_scaled_height),
+                    image,
+                    h_scale=h_scale,
+                    v_scale=v_scale)
+                prof.end_profile('scaler.draw_sprite')
+                num_sprites += 1
+
+        # self.sep += 2 * self.sep_dir
+
+        if (self.sep > sep_max) or (self.sep < 2):
+            self.sep_dir *= -1
+
+
+        self.scale_id += 1
+        if self.scale_id >= len(self.h_scales):
+            self.scale_id = 0
+
+        self.show_prof()
+        self.display.swap_buffers()
+        self.fps.tick()
 
     def create_lines(self):
         count = 64
@@ -154,90 +248,6 @@ class TestScreen(Screen):
 
         return self.fps_text
 
-    def do_refresh(self):
-        """ Overrides parent method """
-        meta = self.mgr.get_meta(self.sprite)
-        image = self.mgr.sprite_images[self.sprite_type][-1]
-
-        self.display.fill(0xFFFFFF)
-        # self.create_lines()
-        # self.show_lines()
-
-        """ Working vertical scaling ratios:
-            works: 2/3, 1/2, 1/3, 1/4, 1/5, 1/6, 1/8, 1/10, 1/12, 1/16
-            dubious: 1/7 , 0.75 (use 0.76)
-            upscales = [1, 2, 4, 8] # only power of 2 upscales working, why??
-        """
-
-        # print(f"\n=== Testing X:{scale_x * 100}% // Y:{scale_y * 100}% scaling ===")
-        self.h_scales = [3, 2, 1.5, 1, 0.5, 1, 0.5, 1, 1.5, 2, 3]
-        self.v_scales = [3, 2, 1.5, 1, 1, 1, 1, 1, 1.5, 2, 3]
-
-        h_scale = self.h_scales[self.scale_id]
-        v_scale = self.v_scales[self.scale_id]
-        h_scale = 2
-        v_scale = 2
-
-        prof.start_profile('screen.calc_x_y')
-        # x = self.screen_width - (h_scale * meta.width / 2)
-        # if x:
-        #     x = x // 2
-        # y = self.screen_height - (v_scale * meta.height)
-        # if y:
-        #     y = y // 2
-        #
-        # draw_x = self.base_x + x
-        # draw_y = self.base_y + y
-        prof.end_profile('screen.calc_x_y')
-
-        draw_y = draw_x = 0
-
-        prof.start_profile('scaler.draw_sprite')
-        sprite_width = meta.width
-        sprite_scaled_width = int(sprite_width * h_scale)
-        sprite_height = meta.height
-        sprite_scaled_height = int(sprite_height * v_scale)
-
-        max_cols = 10
-        max_rows = 10
-
-        num_cols = min(self.screen_width//sprite_scaled_width, max_cols)
-        num_rows = min(self.screen_height//sprite_scaled_height, max_rows)
-
-        num_sprites = 0
-        sep_max = 20
-
-        self.sep = 0
-
-        # print(f"\tSCALER Drawing {width_step}x{height_step} = {width_step*height_step} sprites")
-        for c in range(num_cols):
-            for r in range(num_rows):
-                self.scaler.draw_sprite(
-                    meta,
-                    draw_x+(c*sprite_scaled_width)+(self.sep*c),
-                    draw_y+(r*sprite_scaled_height),
-                    image,
-                    h_scale=h_scale,
-                    v_scale=v_scale)
-                num_sprites += 1
-
-        # self.sep += 2 * self.sep_dir
-
-        if (self.sep > sep_max) or (self.sep < 2):
-            self.sep_dir *= -1
-
-        self.fps.tick()
-        prof.end_profile('scaler.draw_sprite')
-
-        self.scale_id += 1
-        if self.scale_id >= len(self.h_scales):
-            self.scale_id = 0
-
-        # self.draw_image_group(self.one_sprite_image, self.one_sprite_meta, self.num_sprites, self.x_vals, self.y_vals)
-
-        self.show_prof()
-        self.display.swap_buffers()
-
     async def start_fps_counter(self):
         while True:
             fps = self.fps.fps()
@@ -252,12 +262,6 @@ class TestScreen(Screen):
                 # self.fps_text.render_text(fps_str)
 
             await asyncio.sleep(1)
-
-    def sprite_fps_test_wrapper(self):
-
-        while True:
-            self.sprite_fps_test_func()
-            utime.sleep_ms(1)
 
     async def sprite_fps_test(self):
         # self.create_sprites()
@@ -347,18 +351,6 @@ class TestScreen(Screen):
             max_y=self.display.height + max_sprite_height,
             fov=90.0)
 
-    # async def refresh_display(self):
-    #     # _thread.start_new_thread(self.sprite_fps_test_wrapper, [])
-    #
-    #     bg_color = colors.hex_to_565(CYAN)
-    #     while True:
-    #         self.display.fill(bg_color)
-    #         # self.show_lines()
-    #         # self.mgr.show()
-    #         # self.fps_text.show(self.display)
-    #         self.do_refresh()
-    #
-    #         await asyncio.sleep(1/100)
 
     def show_lines(self):
         for line in self.lines:

@@ -60,29 +60,18 @@ def read_palette():
     # wait(0, irq, 2) .side(0)  # disabled
     # jmp("wrap_target")
 
-@asm_pio()
+@asm_pio(
+    autopull=True,
+    pull_thresh=32,
+)
 def read_addr():
     """
     The only purpose of this program is to provide a FIFO to synch DMA transfers to. could probably get rid of pull()
     and push()
     """
-    pull()                  # Get address from TX FIFO
-    mov(isr, osr)
+    out(isr, 32)
     push()                  # Push to RX FIFO
 
-@asm_pio(
-    autopull=True,
-    pull_thresh=32,
-    sideset_init=PIO.OUT_LOW,
-)
-def pixel_skip():
-    wait(1, irq, 2)            # Wait for IRQ from READ_PALETTE
-
-    wrap_target()
-    push(null, 32)      # Only used as trigger
-    irq(2, clear)
-
-    # push(null, 32)      # Only used as trigger
 
 
 
