@@ -59,7 +59,7 @@ class SpriteScaler():
         self.debug_pio = True
         self.debug_irq = True
         self.debug_interp = True
-        self.debug_interp_list = False
+        self.debug_interp_list = True
         self.debug_with_debug_bytes = False
 
         self.draw_x = 0
@@ -170,10 +170,14 @@ class SpriteScaler():
 
         prof.start_profile('scaler.scaled_width_height')
         scaled_height = meta.height * v_scale
-        scaled_width = meta.width * v_scale
+        scaled_width = meta.width * h_scale
 
         self.scaled_height = scaled_height
         self.scaled_width = scaled_width
+        if self.debug:
+            print("~~~ SPRITE SCALED DIMENSIONS ~~~")
+            print(f"scaled_width: {scaled_width}")
+            print(f"scaled_height: {scaled_height}")
         prof.end_profile('scaler.scaled_width_height')
 
         """ The following values can be cached from one sprite draw to the next, provided they are the same 
@@ -204,13 +208,15 @@ class SpriteScaler():
         
         Here we the right framebuffer based on the (scaled) sprite dimensions
         """
-        if scaled_width <= 8:
+        max_dim = scaled_width if scaled_width >= scaled_height else scaled_height
+
+        if max_dim <= 8:
             self.trans_framebuf = self.display.trans_framebuf_8
             self.disp_width = self.disp_height = 8
-        elif scaled_width <= 16:
+        elif max_dim <= 16:
             self.trans_framebuf = self.display.trans_framebuf_16
             self.disp_width = self.disp_height = 16
-        elif scaled_width <= 32:
+        elif max_dim <= 32:
             self.trans_framebuf = self.display.trans_framebuf_32
             self.disp_width = self.disp_height = 32
         else:
@@ -218,7 +224,8 @@ class SpriteScaler():
             self.disp_width = self.display.width
             self.disp_height = self.display.height
 
-
+        if self.debug:
+            print(f"* Will use a ({self.disp_width}x{self.disp_height}) Canvas - w/h")
         # DEBUG
         # self.trans_framebuf = self.display.trans_framebuf_full
         # disp_width = self.display.width
@@ -230,13 +237,15 @@ class SpriteScaler():
 
         prof.end_profile('scaler.setup_buffers')
 
-        # if self.debug_dma:
-            # print(f"Drawing a sprite of {meta.width}x{meta.height} @ base addr 0x{base_write:08X}")
-            # print(f"Display Stride: {self.display_stride}")
+        if self.debug_dma:
+            print(f"Drawing a sprite of {meta.width}x{meta.height} @ base addr 0x{addressof(self.trans_framebuf):08X}")
+            print(f"Hscale: x{h_scale} / Vscale: x{v_scale}")
+            print(f"Sprite Stride: {meta.width}")
+            print(f"Display Stride: {self.display_stride}")
 
         """ Config interpolator """
         prof.start_profile('scaler.init_interp_sprite')
-        self.init_interp_sprite(self.base_read, scaled_width, scaled_height, v_scale)
+        self.init_interp_sprite(self.base_read, scaled_width, scaled_height, h_scale, v_scale)
         prof.end_profile('scaler.init_interp_sprite')
 
         prof.start_profile('scaler.init_pio')
@@ -290,8 +299,8 @@ class SpriteScaler():
         """ Color lookup must be activated too, since it is right after a SM, so there's no direct way to trigger it"""
 
         # self.color_lookup.active(1)
-        self.h_scale.active(1)
         self.write_addr.active(1)
+        self.h_scale.active(1)
         self.sm_read_palette.active(1)
 
         prof.end_profile('scaler.start_channels')
@@ -337,7 +346,7 @@ class SpriteScaler():
 
         prof.end_profile('scaler.interp_init')
 
-    def init_interp_sprite(self, read_base, sprite_width, sprite_height, scale_y_one = 1.0):
+    def init_interp_sprite(self, read_base, sprite_width, sprite_height, scale_x_one = 1.0, scale_y_one = 1.0):
         prof.start_profile('scaler.interp_init_sprite')
         frac_bits = self.frac_bits
         int_bits = 32 - frac_bits
@@ -352,6 +361,8 @@ class SpriteScaler():
             print(f"\tsprite_height:{sprite_height}")
             print(f"\tscale_y_one:  {scale_y_one}")
             print(f"\t int/frac bits:   {int_bits}/{frac_bits}")
+
+        sprite_width_bytes = sprite_width // 2
 
         """ INTERPOLATOR CONFIGURATION --------- """
         """ (read / write address generation) """
@@ -386,8 +397,12 @@ class SpriteScaler():
         mem32[INTERP1_CTRL_LANE1] = read_ctrl_lane1
 
         """ Only Satan understands this formula, but it works """
-        scale_y = sprite_width // (2 * scale_y_one ** 2)
-        # scale_y = sprite_width / 4 * scale_y_one
+        # row_size = sprite_width_bytes // (2 * scale_x_one ** 2)
+        row_size = (sprite_width_bytes / (scale_y_one*scale_x_one))
+
+        if self.debug:
+            print("     >> row_size = sprite_width // (2 * scale_y_one ** 2)")
+            print(f"    >> {row_size} = {sprite_width} // (2 * {scale_y_one} ** 2)")
 
         """
         scale_y = 1 # 500%
@@ -400,7 +415,7 @@ class SpriteScaler():
         """
 
         # Calculate scaling values
-        read_step = int((scale_y) * (1 << frac_bits))  # Convert step to fixed point
+        read_step = int((row_size) * (1 << frac_bits))  # Convert step to fixed point
 
         if self.debug_interp:
             int_bits_str = '^' * int_bits
@@ -411,8 +426,9 @@ class SpriteScaler():
             print(f"\t read step (fixed):       0x{read_step:08X}")
             print(f"\t read step (fixed) b.:    {read_step:>032b}")
             print(f"\t int/frac bits:   {int_bits_str}{frac_bits_str}")
-            print(f"\t scale_y:         {scale_y}")
+            print(f"\t scale_y:         {row_size}")
             print(f"\t sprite_width:       {sprite_width}")
+            print(f"\t sprite_width_bytes:       {sprite_width_bytes}")
 
         prof.end_profile('scaler.interp_init_sprite')
 
