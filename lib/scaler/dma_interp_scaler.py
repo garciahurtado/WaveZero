@@ -57,12 +57,12 @@ class SpriteScaler():
         self.dbg = ScalerDebugger()
         self.debug_bytes1 = self.dbg.get_debug_bytes(byte_size=2, count=32)
         self.debug_bytes2 = self.dbg.get_debug_bytes(byte_size=0, count=32)
-        self.debug = True
-        self.debug_dma = True
+        self.debug = False
+        self.debug_dma = False
         self.debug_pio = True
-        self.debug_irq = False
+        self.debug_irq = True
         self.debug_interp = False
-        self.debug_display = True
+        self.debug_display = False
         self.debug_interp_list = False
         self.debug_with_debug_bytes = False
 
@@ -78,9 +78,6 @@ class SpriteScaler():
             print(f" * 0x{addressof(self.debug_bytes1):08X}")
             print(f" * 0x{addressof(self.debug_bytes2):08X}")
 
-        disp_width = self.display.width
-        disp_height = self.display.height
-
         """ Calculate write address and strides """
         self.trans_framebuf = self.display.trans_framebuf_32
 
@@ -91,7 +88,6 @@ class SpriteScaler():
         self.px_read = DMA()            # 5. Sprite data
         self.px_write = DMA()           # 6. Display output
         self.h_scale = DMA()                # 7. Horizontal scale pattern
-        # self.addr_push = DMA()              # 8. Read/write address pushing channel
 
         self.ch_names = {
             0: None,
@@ -106,7 +102,7 @@ class SpriteScaler():
 
         self.palette_addr = None
 
-        sm_freq = 100_000 # must be 75% of the system freq or less, to avoid visual glitches
+        sm_freq = 20_000_000 # must be 75% of the system freq or less, to avoid visual glitches
         # PIO1 - SM0
         self.sm_read_palette = StateMachine(
             4, read_palette,
@@ -116,22 +112,6 @@ class SpriteScaler():
 
         self.init_patterns()
         self.init_dma()
-
-    def fill_target_addrs(self):
-        # DEPRECATED
-        """" Add 2 target blocks:
-                    1. pixel reader READ addr
-                    2. pixel writer WRITE addr
-                """
-        self.target_addrs = array('L', [0] * 2)
-
-        # Write addr, then read addr + trigger
-        self.target_addrs[0] = int(DMA_BASE_6 + DMA_WRITE_ADDR)
-        self.target_addrs[1] = int(DMA_BASE_5 + DMA_READ_ADDR_TRIG)
-
-        print("~~ TARGET ADDRESSES: ~~")
-        for addr in self.target_addrs:
-            print(f"\t- 0x{addr:08x}")
 
     def fill_addrs(self, scaled_height):
         """ Uses INTERP to fill a sequence of Read/Write addresses indicating the start of each sprite row, and the
@@ -230,8 +210,8 @@ class SpriteScaler():
 
         # OPTIMIZATION DISABLED FOR NOW
         # self.trans_framebuf = self.display.trans_framebuf_full
-        self.disp_width = self.display.width
-        self.disp_height = self.display.height
+        # self.disp_width = self.display.width
+        # self.disp_height = self.display.height
 
         if self.debug:
             print(f"* Will use a ({self.disp_width}x{self.disp_height}) Canvas - w/h")
@@ -331,7 +311,7 @@ class SpriteScaler():
         self.read_finished = True
         self.rows_read_count = 0
         self.addr_idx = 0
-        self.reset()
+        # self.reset()
 
         prof.end_profile('scaler.finish_sprite')
 
@@ -342,7 +322,8 @@ class SpriteScaler():
         disp = self.display
 
         alpha = self.alpha
-        print(f" ~ ALPHA IS {alpha} of Type {type(alpha)}")
+        if self.debug:
+            print(f" ~ ALPHA IS {alpha} of Type {type(alpha)}")
 
         if self.debug_display:
             return False
@@ -673,8 +654,8 @@ class SpriteScaler():
                 print(f"><--- PXREAD END IRQ *FALSE* ---><")
         else:
             if self.debug_irq:
-                print(f"<>--- PXREAD END IRQ AFTER {self.rows_read_count} ROWS ---<>")
-                self.read_finished = True
+                last_row_addr = self.px_read.read
+                print(f"<>--- PXREAD END IRQ (Last px_read r: 0x{last_row_addr:08X})---<>")
                 self.finish_sprite()
 
     def irq_h_scale_end(self, ch):

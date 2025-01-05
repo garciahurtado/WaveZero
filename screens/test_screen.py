@@ -159,8 +159,8 @@ class TestScreen(Screen):
 
         h_scale = self.h_scales[self.scale_id]
         v_scale = self.v_scales[self.scale_id]
-        h_scale = 0.250
-        v_scale = 0.250
+        h_scale = 0.25
+        v_scale = 0.25
 
         draw_y = draw_x = 0
 
@@ -209,7 +209,7 @@ class TestScreen(Screen):
             self.scale_id = 0
 
         self.show_prof()
-        # self.display.swap_buffers()
+        self.display.swap_buffers()
         self.fps.tick()
 
     def create_lines(self):
