@@ -143,10 +143,13 @@ class TestScreen(Screen):
         sprite = self.mgr.get_meta(self.sprite)
         image = self.mgr.sprite_images[self.sprite_type][-1]
 
-        self.h_scales1 = [0.125, 0.250, 0.375, 0.500, 0.625, 0.750, 0.875, 1.0, 1.250, 1.500, 2.0, 2.500, 3, 4, 5]
+        self.h_scales1 = [0.125, 0.250, 0.375, 0.500, 0.625, 0.750, 0.875, 1.0, 1.250, 1.500, 2.0, 2.500, 3, 3.500, 4]
         self.h_scales2 = self.h_scales1.copy()
         self.h_scales2.reverse()
-        self.h_scales = self.h_scales2 + self.h_scales1
+        # self.h_scales = self.h_scales2 + self.h_scales1
+        self.h_scales = self.h_scales1
+        self.h_scales = [3]
+
         v_scale = 1
         h_scale = 1
 
@@ -157,6 +160,7 @@ class TestScreen(Screen):
         sprite_scaled_height = math.ceil(sprite.height * v_scale)
         draw_x = 48 - (sprite_scaled_width / 2)
         draw_y = 32 - (sprite_scaled_height / 2)
+        draw_y = -16
 
         self.display.fill(0xFFFFFF)
         self.scaler.draw_sprite(
@@ -170,7 +174,7 @@ class TestScreen(Screen):
         self.scale_id += 1
         self.show_prof()
         self.display.swap_buffers()
-        time.sleep_ms(50)
+        time.sleep_ms(5)
         self.fps.tick()
 
     def do_refresh(self):
