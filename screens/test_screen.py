@@ -136,8 +136,46 @@ class TestScreen(Screen):
     def do_update(self):
         print(f" = EXEC ON CORE {_thread.get_ident()} (do_update)")
 
+    def do_refresh_beating_heart(self):
+        """
+        Do a heart beating demo of several diverse horizontal scale ratios
+        """
+        sprite = self.mgr.get_meta(self.sprite)
+        image = self.mgr.sprite_images[self.sprite_type][-1]
+
+        self.h_scales1 = [0.125, 0.250, 0.375, 0.500, 0.625, 0.750, 0.875, 1.0, 1.250, 1.500, 2.0, 2.500, 3, 4, 5]
+        self.h_scales2 = self.h_scales1.copy()
+        self.h_scales2.reverse()
+        self.h_scales = self.h_scales2 + self.h_scales1
+        v_scale = 1
+        h_scale = 1
+
+        h_scale = self.h_scales[self.scale_id % len(self.h_scales)]
+        v_scale = h_scale
+
+        sprite_scaled_width = math.ceil(sprite.width * h_scale)
+        sprite_scaled_height = math.ceil(sprite.height * v_scale)
+        draw_x = 48 - (sprite_scaled_width / 2)
+        draw_y = 32 - (sprite_scaled_height / 2)
+
+        self.display.fill(0xFFFFFF)
+        self.scaler.draw_sprite(
+            sprite,
+            int(draw_x),
+            int(draw_y),
+            image,
+            h_scale=h_scale,
+            v_scale=v_scale)
+
+        self.scale_id += 1
+        self.show_prof()
+        self.display.swap_buffers()
+        time.sleep_ms(50)
+        self.fps.tick()
 
     def do_refresh(self):
+        return self.do_refresh_beating_heart()
+
         """ Overrides parent method """
         # print(f" = EXEC ON CORE {_thread.get_ident()} (do_refresh)")
 
@@ -204,9 +242,9 @@ class TestScreen(Screen):
             self.sep_dir *= -1
 
 
-        self.scale_id += 1
-        if self.scale_id >= len(self.h_scales):
-            self.scale_id = 0
+        # self.scale_id += 1
+        # if self.scale_id >= len(self.h_scales):
+        #     self.scale_id = 0
 
         self.show_prof()
         self.display.swap_buffers()

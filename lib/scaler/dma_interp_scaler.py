@@ -57,7 +57,7 @@ class SpriteScaler():
         self.dbg = ScalerDebugger()
         self.debug_bytes1 = self.dbg.get_debug_bytes(byte_size=2, count=32)
         self.debug_bytes2 = self.dbg.get_debug_bytes(byte_size=0, count=32)
-        self.debug = True
+        self.debug = False
         self.debug_dma = False
         self.debug_pio = False
         self.debug_irq = True
@@ -79,7 +79,7 @@ class SpriteScaler():
             print(f" * 0x{addressof(self.debug_bytes2):08X}")
 
         """ Calculate write address and strides """
-        self.trans_framebuf = self.display.trans_framebuf_32
+        # self.trans_framebuf = self.display.trans_framebuf_32
 
         # DMA Channels
         self.read_addr = DMA()               # 2. Vertical / row control (read and write)
@@ -143,6 +143,7 @@ class SpriteScaler():
         Draw a scaled sprite at the specified position.
         This method is synchronous (will not return until the whole sprite has been drawn)
         """
+        self.reset(h_scale)
         self.init_interp()
         self.read_finished = False
 
@@ -208,6 +209,7 @@ class SpriteScaler():
             self.disp_width = self.display.width
             self.disp_height = self.display.height
 
+        self.trans_framebuf.fill(0xFFFFFF)
         # OPTIMIZATION DISABLED FOR NOW
         # self.trans_framebuf = self.display.trans_framebuf_full
         # self.disp_width = self.display.width
@@ -311,7 +313,7 @@ class SpriteScaler():
         self.read_finished = True
         self.rows_read_count = 0
         self.addr_idx = 0
-        # self.reset()
+        self.reset()
 
         prof.end_profile('scaler.finish_sprite')
 
@@ -401,7 +403,7 @@ class SpriteScaler():
         row_size = sprite_width_bytes / scale_y_one
 
         if self.debug:
-            print("     >> row_size = sprite_width // (2 * scale_y_one ** 2)")
+            print( "    >> row_size = sprite_width // (2 * scale_y_one ** 2)")
             print(f"    >> {row_size} = {sprite_width} // (2 * {scale_y_one} ** 2)")
 
         """
@@ -543,7 +545,6 @@ class SpriteScaler():
             size=1, # 16 bit pixels
             inc_read=False,  # from PIO
             inc_write=True,  # Through display
-            # chain_to=self.h_scale.channel,
         )
 
         self.px_write.config(
@@ -733,7 +734,6 @@ class SpriteScaler():
         self.push_addr_set(new_write, new_read)
         prof.end_profile('scaler.push_addr_set')
 
-
     def init_patterns(self):
         """Initialize horizontal scaling patterns"""
         # Base patterns for different scaling factors
@@ -746,10 +746,13 @@ class SpriteScaler():
             0.750:  [0, 1, 1, 1, 0, 1, 1, 1],  # 75% - works
             0.875:  [1, 1, 1, 1, 0, 1, 1, 1],  # 87.5%
             1.0:    [1, 1, 1, 1, 1, 1, 1, 1],  # No scaling
-            1.5:    [1, 2, 1, 2, 1, 2, 1, 2],  # 1.5x scaling
+            1.250:  [1, 2, 1, 1, 1, 2, 1, 1],  # 1.25x
+            1.500:  [1, 2, 1, 2, 1, 2, 1, 2],  # 1.5x scaling
             2.0:    [2, 2, 2, 2, 2, 2, 2, 2],  # 2x scaling
+            2.500:  [2, 3, 2, 3, 2, 3, 2, 3],  # 2x scaling
             3.0:    [3, 3, 3, 3, 3, 3, 3, 3],  # 3x scaling
             4.0:    [4, 4, 4, 4, 4, 4, 4, 4],  # 4x scaling
+            5.0:    [5, 5, 5, 5, 5, 5, 5, 5],  # 5x scaling
             8.0:    [8, 8, 8, 8, 8, 8, 8, 8],  # 8x scaling
             16.0:   [16, 16, 16, 16, 16, 16, 16, 16],  # 8x scaling
         }
@@ -759,11 +762,6 @@ class SpriteScaler():
                 print(f"SCALE PATTERNS: {key} for {val}")
             array_pattern = self.create_aligned_pattern(val)
             self.h_patterns[key] = array_pattern
-
-        # Calculate pattern sums for DMA transfer counts
-        # self.h_pattern_sums = {
-        #     scale: sum(pattern) for scale, pattern in self.h_patterns.items()
-        # }
 
     def create_aligned_pattern(self, list):
         # Create ALIGNED array for scaling patterns
@@ -775,13 +773,20 @@ class SpriteScaler():
 
         return final_array
 
-    def reset(self):
+    def reset(self, h_scale=1):
         """Clean up / close resources"""
         self.read_addr.active(0)
-        self.px_read.active(0)
+        self.read_addr.read = self.read_addrs
+
         self.write_addr.active(0)
+        self.write_addr.read = self.write_addrs
+
+        self.px_read.active(0)
         self.color_lookup.active(0)
+
         self.h_scale.active(0)
+        self.h_scale.read = self.h_patterns[h_scale]
+
         self.sm_read_palette.active(0)
         self.px_write.active(0)
 
@@ -796,74 +801,8 @@ class SpriteScaler():
         mem32[INTERP1_ACCUM1] = 0
 
     def init_pio(self, palette_addr):
-        # self.sm_pixel_skip.restart()
-        # self.sm_read_addr.restart()
         self.sm_read_palette.restart()
         self.sm_read_palette.put(palette_addr)
 
-    async def async_start_feed(self):
-        print("~~@ IN async_start_feed() @~~")
-        asyncio.run(self.async_feed_addresses())
 
-    async def async_feed_addresses(self):
-        # DEPRECATED
-        """ This loop runs constantly waiting for a chance to feed the SM with a new set of write and read addresses."""
-        while True:
-
-            """
-             PIO1_BASE + PIO_FSTAT
-             SM:   1   2   3   4
-                   16, 17, 18, 19
-             check for NOT TXFULL
-            """
-            """ USE StateMachine.tx_fifo()!!! """
-            fifo_status = mem32[PIO1_BASE + PIO_FSTAT]
-            fifo_status = fifo_status >> 16 + 1 # Bit #1 is the flag for TX_FULL > SM 1
-            fifo_status = fifo_status & 0x0000000F
-            fifo_status_sm1 = fifo_status & 0b0000000000000000000000000001
-
-            if fifo_status_sm1:
-                """ Fifo is full, do another lap"""
-                if self.debug:
-                    print(f"!! FIFO TX FULL !! - b{fifo_status:>04b}")
-                continue
-            else:
-                if self.debug:
-                    print(f"__ FIFO TX NOT FULL __ - b{fifo_status:>04b}")
-
-                idx = self.addr_idx
-
-                prof.start_profile('scaler.interp_pop')
-                new_write = self.value_addrs[idx]
-                new_read = self.value_addrs[idx+1]
-                prof.end_profile('scaler.interp_pop')
-
-                """ check bounds """
-                prof.start_profile('scaler.check_bounds')
-                if new_write > self.max_write_addr:
-                    print("** BOUNDS EXCEEDED **")
-                    self.finish_sprite()
-                    return False
-                prof.end_profile('scaler.check_bounds')
-
-                if self.debug_interp_list:
-                    print(f"READ ADDR PAIR: (#{idx})")
-                    print(f"\t W:0x{new_write:08X}")
-                    print(f"\t R:0x{new_read:08X}")
-
-                if (new_write == 0) and (new_read == 0):
-                    if self.debug:
-                        print("~000 ZERO ADDR RETURNING FALSE 000~")
-                    self.finish_sprite()
-                    return False
-
-                prof.start_profile('scaler.interp_sm_put')
-                # self.sm_read_addr.put(new_write)
-                # self.sm_read_addr.put(new_read)
-                prof.end_profile('scaler.interp_sm_put')
-
-                self.addr_idx += 2
-                self.rows_read_count = self.addr_idx
-
-            await asyncio.sleep_ms(10)
 
