@@ -44,6 +44,9 @@ class TestScreen(Screen):
 
     base_x = 0
     base_y = 0
+    delta_y = 1
+    draw_y_dir = 1
+    draw_y = 0
 
     num_sprites = 1
     scaler_num_sprites = 1
@@ -148,7 +151,7 @@ class TestScreen(Screen):
         self.h_scales2.reverse()
         # self.h_scales = self.h_scales2 + self.h_scales1
         self.h_scales = self.h_scales1
-        self.h_scales = [3]
+        self.h_scales = [2]
 
         v_scale = 1
         h_scale = 1
@@ -160,13 +163,17 @@ class TestScreen(Screen):
         sprite_scaled_height = math.ceil(sprite.height * v_scale)
         draw_x = 48 - (sprite_scaled_width / 2)
         draw_y = 32 - (sprite_scaled_height / 2)
-        draw_y = -16
+
+        if abs(self.draw_y) > 32:
+            self.draw_y_dir *= -1
+
+        self.draw_y += self.delta_y * self.draw_y_dir
 
         self.display.fill(0xFFFFFF)
         self.scaler.draw_sprite(
             sprite,
             int(draw_x),
-            int(draw_y),
+            int(self.draw_y),
             image,
             h_scale=h_scale,
             v_scale=v_scale)
