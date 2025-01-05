@@ -57,9 +57,9 @@ class SpriteScaler():
         self.dbg = ScalerDebugger()
         self.debug_bytes1 = self.dbg.get_debug_bytes(byte_size=2, count=32)
         self.debug_bytes2 = self.dbg.get_debug_bytes(byte_size=0, count=32)
-        self.debug = False
+        self.debug = True
         self.debug_dma = False
-        self.debug_pio = True
+        self.debug_pio = False
         self.debug_irq = True
         self.debug_interp = False
         self.debug_display = False
@@ -102,7 +102,7 @@ class SpriteScaler():
 
         self.palette_addr = None
 
-        sm_freq = 20_000_000 # must be 75% of the system freq or less, to avoid visual glitches
+        sm_freq = 10_000_000 # must be 75% of the system freq or less, to avoid visual glitches
         # PIO1 - SM0
         self.sm_read_palette = StateMachine(
             4, read_palette,

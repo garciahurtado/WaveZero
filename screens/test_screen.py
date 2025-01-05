@@ -159,8 +159,8 @@ class TestScreen(Screen):
 
         h_scale = self.h_scales[self.scale_id]
         v_scale = self.v_scales[self.scale_id]
-        h_scale = 0.25
-        v_scale = 0.25
+        h_scale = 2
+        v_scale = 2
 
         draw_y = draw_x = 0
 
@@ -170,7 +170,7 @@ class TestScreen(Screen):
         sprite_scaled_width = math.ceil(sprite_width * h_scale)
         sprite_scaled_height = math.ceil(sprite_height * v_scale)
 
-        max_cols = 10
+        max_cols = 12
         max_rows = 10
 
         num_cols = min(self.screen_width//sprite_scaled_width, max_cols)
