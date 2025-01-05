@@ -1,0 +1,33 @@
+wr_addr > read_addr 
+read_addr -> px_read
+read_addr > h_scale
+px_read > color_lk
+color_lk -> px_write
+h_scale > wr_addr
+
+color_lookup.c = width
+h_scale.c = width
+
+===
+NO LUCK
+
+-----------------------------
+-> trigger
+>  chain_to
+
+wr_addr > read_addr 
+read_addr -> px_read
+px_read > h_scale
+read_addr > color_lk
+color_lk > wr_addr
+color_lk -> px_write
+h_scale -> px_write
+
+color_lookup.c = width
+h_scale.c = width
+
+===
+VERY PROMISING FOR HSCALE: 0.25, 0.50, 1, 2
+still have to work out glitches
+
+

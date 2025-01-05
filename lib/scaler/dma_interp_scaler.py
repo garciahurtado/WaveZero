@@ -60,10 +60,10 @@ class SpriteScaler():
         self.debug = True
         self.debug_dma = True
         self.debug_pio = True
-        self.debug_irq = True
-        self.debug_interp = True
+        self.debug_irq = False
+        self.debug_interp = False
         self.debug_display = True
-        self.debug_interp_list = True
+        self.debug_interp_list = False
         self.debug_with_debug_bytes = False
 
         self.draw_x = 0
@@ -265,7 +265,7 @@ class SpriteScaler():
         prof.end_profile('scaler.init_pio')
 
         prof.start_profile('scaler.init_dma_sprite')
-        self.init_dma_sprite(meta.height, meta.width, scaled_height, h_scale)
+        self.init_dma_sprite(meta.height, meta.width, scaled_width, scaled_height, h_scale)
         prof.end_profile('scaler.init_dma_sprite')
 
         if self.debug_dma:
@@ -308,10 +308,10 @@ class SpriteScaler():
 
         """ Color lookup must be activated too, since it is right after a SM, so there's no direct way to trigger it"""
 
-        self.sm_read_palette.active(1)
         # self.color_lookup.active(1)
-        self.write_addr.active(1)
+        self.sm_read_palette.active(1)
         # self.h_scale.active(1)
+        self.write_addr.active(1)
 
         prof.end_profile('scaler.start_channels')
 
@@ -417,8 +417,7 @@ class SpriteScaler():
         mem32[INTERP1_CTRL_LANE1] = read_ctrl_lane1
 
         """ Only Satan understands this formula, but it works """
-        row_size = sprite_width_bytes / ((scale_y_one))
-
+        row_size = sprite_width_bytes / scale_y_one
 
         if self.debug:
             print("     >> row_size = sprite_width // (2 * scale_y_one ** 2)")
@@ -529,7 +528,7 @@ class SpriteScaler():
             inc_read=False,
             inc_write=False,  # always writes to DMA WRITE
             treq_sel=DREQ_PIO1_RX0,
-            chain_to=self.write_addr.channel,
+            chain_to=self.write_addr.channel
         )
 
         self.color_lookup.config(
@@ -546,7 +545,8 @@ class SpriteScaler():
             inc_write=False,    # debug_bytes: True / PIO: False
             treq_sel=DREQ_PIO1_TX0,
             bswap=True,
-            irq_quiet=True
+            irq_quiet=True,
+            # chain_to=self.h_scale.channel
         )
 
         self.px_read.config(
@@ -557,13 +557,12 @@ class SpriteScaler():
         )
         self.px_read.irq(handler=self.irq_px_read_end)
 
-
         """ CH:6. Display write DMA --------------------------- """
         px_write_ctrl = self.px_write.pack_ctrl(
             size=1, # 16 bit pixels
             inc_read=False,  # from PIO
             inc_write=True,  # Through display
-            chain_to=self.h_scale.channel
+            chain_to=self.h_scale.channel,
         )
 
         self.px_write.config(
@@ -578,10 +577,9 @@ class SpriteScaler():
             size=2,
             inc_read=True,
             inc_write=False,
+            treq_sel=DREQ_PIO1_TX0,
             ring_sel=False,  # ring on read
             ring_size=4,    # n bytes = 2^n
-            # chain_to=self.write_addr.channel,
-            # treq_sel=DREQ_PIO1_RX0,
         )
 
         self.h_scale.config(
@@ -613,7 +611,7 @@ class SpriteScaler():
         #     print("~~ DMA CHANNELS in INIT_DMA ~~~~~~~~~~~")
         #     self.debug_dma_and_pio()
 
-    def init_dma_sprite(self, height, width, scaled_height, h_scale=1.0):
+    def init_dma_sprite(self, height, width, scaled_width, scaled_height, h_scale=1.0):
         """ Sprite-specific DMA configuration goes here """
 
         prof.start_profile('scaler.dma_sprite_config')
@@ -627,7 +625,8 @@ class SpriteScaler():
         if self.debug_dma:
             print(f"! HORIZ scale pattern index: #{h_scale}")
         self.h_scale.read = self.h_patterns[h_scale]
-        self.h_scale.count = 1
+        self.h_scale.count = width
+
         prof.end_profile('scaler.h_pattern')
 
         if self.debug_dma:
@@ -761,7 +760,7 @@ class SpriteScaler():
             0.125:  [0, 0, 0, 0, 1, 0, 0, 0],  # 12.5%
             0.250:  [0, 0, 1, 0, 0, 0, 1, 0],  # 25%
             0.375:  [0, 0, 1, 0, 0, 1, 0, 1],  # 37.5%
-            0.500:  [0, 1, 0, 1, 0, 1, 0, 1],  # 50% scaling - oddly only works if you start with zero
+            0.500:  [0, 1, 0, 1, 0, 1, 0, 1],  # 50% scaling
             0.625:  [0, 1, 1, 0, 1, 0, 1, 1],  # 62.5%
             0.750:  [0, 1, 1, 1, 0, 1, 1, 1],  # 75% - works
             0.875:  [1, 1, 1, 1, 0, 1, 1, 1],  # 87.5%

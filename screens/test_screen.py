@@ -159,7 +159,7 @@ class TestScreen(Screen):
 
         h_scale = self.h_scales[self.scale_id]
         v_scale = self.v_scales[self.scale_id]
-        h_scale = 1
+        h_scale = 0.750
         v_scale = 1
 
         draw_y = draw_x = 0
@@ -167,8 +167,8 @@ class TestScreen(Screen):
         prof.start_profile('scaler.screen_prep')
         sprite_width = meta.width
         sprite_height = meta.height
-        sprite_scaled_width = int(sprite_width * h_scale)
-        sprite_scaled_height = int(sprite_height * v_scale)
+        sprite_scaled_width = math.ceil(sprite_width * h_scale)
+        sprite_scaled_height = math.ceil(sprite_height * v_scale)
 
         max_cols = 10
         max_rows = 10
