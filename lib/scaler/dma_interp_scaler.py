@@ -106,7 +106,7 @@ class SpriteScaler():
 
         self.palette_addr = None
 
-        sm_freq = 10_000_000 # must be 75% of the system freq or less, to avoid visual glitches
+        sm_freq = 100_000 # must be 75% of the system freq or less, to avoid visual glitches
         # PIO1 - SM0
         self.sm_read_palette = StateMachine(
             4, read_palette,
@@ -310,7 +310,7 @@ class SpriteScaler():
 
         # self.color_lookup.active(1)
         self.sm_read_palette.active(1)
-        # self.h_scale.active(1)
+        self.h_scale.active(1)
         self.write_addr.active(1)
 
         prof.end_profile('scaler.start_channels')
@@ -534,7 +534,7 @@ class SpriteScaler():
         self.color_lookup.config(
             count=1, # TBD
             read=PIO1_RX0,
-            write=WRITE_DMA_BASE + DMA_READ_ADDR_TRIG,
+            write=WRITE_DMA_BASE + DMA_READ_ADDR,
             ctrl=color_lookup_ctrl,
         )
 
@@ -546,7 +546,7 @@ class SpriteScaler():
             treq_sel=DREQ_PIO1_TX0,
             bswap=True,
             irq_quiet=True,
-            # chain_to=self.h_scale.channel
+            chain_to=self.h_scale.channel
         )
 
         self.px_read.config(
@@ -562,7 +562,7 @@ class SpriteScaler():
             size=1, # 16 bit pixels
             inc_read=False,  # from PIO
             inc_write=True,  # Through display
-            chain_to=self.h_scale.channel,
+            # chain_to=self.h_scale.channel,
         )
 
         self.px_write.config(
@@ -577,7 +577,7 @@ class SpriteScaler():
             size=2,
             inc_read=True,
             inc_write=False,
-            treq_sel=DREQ_PIO1_TX0,
+            treq_sel=DREQ_PIO1_RX0,
             ring_sel=False,  # ring on read
             ring_size=4,    # n bytes = 2^n
         )
@@ -585,7 +585,7 @@ class SpriteScaler():
         self.h_scale.config(
             count=1,
             # read=xxx,  # Current horizontal pattern (to be set later)
-            write=WRITE_DMA_BASE + DMA_TRANS_COUNT,
+            write=WRITE_DMA_BASE + DMA_TRANS_COUNT_TRIG,
             ctrl=h_scale_ctrl
         )
 
