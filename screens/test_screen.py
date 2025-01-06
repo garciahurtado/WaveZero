@@ -47,8 +47,12 @@ class TestScreen(Screen):
     base_x = 0
     base_y = 0
     delta_y = 2
+    delta_x = 2
     draw_y_dir = 1
+    draw_x_dir = -1
     draw_y = 0
+    draw_x = 0
+    slide_sel = 'vert'
 
     num_sprites = 1
     scaler_num_sprites = 1
@@ -161,23 +165,35 @@ class TestScreen(Screen):
 
         sprite_scaled_width = math.ceil(sprite.width * h_scale)
         sprite_scaled_height = math.ceil(sprite.height * v_scale)
-        draw_x = 48 - (sprite_scaled_width / 2)
+        # draw_x = 48 - (sprite_scaled_width / 2)
+
+        x_max = 96
+        x_min = 0 - sprite_scaled_width
 
         y_max = 64
         y_min = 0 - sprite_scaled_height
 
-        if self.draw_y > y_max:
-            self.draw_y_dir = -1
-        elif self.draw_y < y_min:
-            self.draw_y_dir = +1
+        if self.slide_sel == 'horiz':
+            """ Modify draw_x over time"""
+            if self.draw_x > x_max:
+                self.draw_x_dir = -1
+            elif self.draw_x < x_min:
+                self.draw_x_dir = +1
+            self.draw_x += self.delta_x * self.draw_x_dir
 
-        """ Modify draw_y over time"""
-        self.draw_y += self.delta_y * self.draw_y_dir
+        elif self.slide_sel == 'vert':
+            """ Modify draw_y over time"""
+            if self.draw_y > y_max:
+                self.draw_y_dir = -1
+            elif self.draw_y < y_min:
+                self.draw_y_dir = +1
+            self.draw_y += self.delta_y * self.draw_y_dir
+
 
         self.display.fill(0xFFFFFF)
         self.scaler.draw_sprite(
             sprite,
-            int(draw_x),
+            int(self.draw_x),
             int(self.draw_y),
             image,
             h_scale=h_scale,
@@ -186,7 +202,7 @@ class TestScreen(Screen):
         self.scale_id += 1
         self.show_prof()
         self.display.swap_buffers()
-        time.sleep_ms(5)
+        time.sleep_ms(10)
         self.fps.tick()
 
 
@@ -211,7 +227,7 @@ class TestScreen(Screen):
         sprite_scaled_width = math.ceil(sprite.width * h_scale)
         sprite_scaled_height = math.ceil(sprite.height * v_scale)
         draw_x = 48 - (sprite_scaled_width / 2)
-        draw_y = 32 - (sprite_scaled_height / 2)
+        draw_y = 32 - ((sprite_scaled_height) / 2)
 
         self.display.fill(0xFFFFFF)
         self.scaler.draw_sprite(
@@ -225,11 +241,12 @@ class TestScreen(Screen):
         self.scale_id += 1
         self.show_prof()
         self.display.swap_buffers()
-        time.sleep_ms(20)
+        time.sleep_ms(10)
         self.fps.tick()
 
     def do_refresh(self):
-        return self.do_refresh_beating_heart()
+        return self.do_refresh_clipping_square()
+        # return self.do_refresh_beating_heart()
 
         """ Overrides parent method """
         # print(f" = EXEC ON CORE {_thread.get_ident()} (do_refresh)")

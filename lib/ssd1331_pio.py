@@ -80,6 +80,14 @@ class SSD1331PIO():
         # Buffers used for implementing transparency. All use the same underlying bytes, presented as different
         # sizes to optimize for different sprite sizes
 
+        # 2x2
+        self.trans_framebuf_2 = framebuf.FrameBuffer(self.buffer2, 2, 2, mode)
+        self.trans_framebuf_2.fill(0x0)
+
+        # 4x4
+        self.trans_framebuf_4 = framebuf.FrameBuffer(self.buffer2, 4, 4, mode)
+        self.trans_framebuf_4.fill(0x0)
+
         # 8x8
         self.trans_framebuf_8 = framebuf.FrameBuffer(self.buffer2, 8, 8, mode)
         self.trans_framebuf_8.fill(0x0)
