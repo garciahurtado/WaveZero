@@ -135,10 +135,6 @@ class SpriteScaler():
         max_row = scaled_height
 
         for i in range(0, max_row):
-            print()
-            print(f"MAX row idx: {max_row}")
-            print(f"WRITE row idx: {write_row_id}")
-            print(f"READ row idx: {read_row_id}")
             self.write_addrs[write_row_id] = write_addr = mem32[INTERP0_POP_FULL]
             self.read_addrs[read_row_id] = mem32[INTERP1_POP_FULL]
 
@@ -158,7 +154,6 @@ class SpriteScaler():
             #     read_row_id += 1
 
             if write_addr < self.min_write_addr:
-                print("  - SKIP -")
                 continue
 
             if write_addr >= self.min_write_addr:
@@ -739,7 +734,7 @@ class SpriteScaler():
         self.color_lookup.active(0)
 
         self.h_scale.active(0)
-        self.h_scale.read = self.patterns.get_pattern(h_scale)
+        self.h_scale.read = addressof(self.patterns.get_pattern(h_scale))
 
         self.sm_read_palette.active(0)
         self.px_write.active(0)

@@ -4,6 +4,7 @@ import sys
 import time
 
 from scaler.dma_interp_scaler import SpriteScaler
+from scaler.scaling_patterns import ScalingPatterns
 from scaler.sprite_scaler_test import init_test_sprite_scaling
 from screens.screen import Screen
 from scaler.dma_scaler import DMAScaler
@@ -77,6 +78,7 @@ class TestScreen(Screen):
         print()
         print(f"=== Testing performance of {self.num_sprites} sprites ===")
         print()
+        patt = ScalingPatterns()
 
         self.sprite_type = SPRITE_TEST_SQUARE
         self.preload_images()
@@ -100,6 +102,7 @@ class TestScreen(Screen):
 
         self.h_scales = [0.5, 0.75, 1.0, 1.5, 2.0, 3.0]
         self.v_scales = [0.5, 1.0, 1.0, 1.6, 2.0, 3.0]
+        self.all_scales = patt.get_horiz_patterns()
 
     def create_sprite_manager(self, display, num_sprites=0):
         self.check_mem()
@@ -112,6 +115,10 @@ class TestScreen(Screen):
         self.running = True
 
         self.check_mem()
+        # self.sprite_type = SPRITE_TEST_HEART
+        # self.load_sprite(SPRITE_TEST_HEART)
+
+        self.sprite_type = SPRITE_TEST_SQUARE
         self.load_sprite(SPRITE_TEST_SQUARE)
 
         # loop = asyncio.get_event_loop()
@@ -190,7 +197,14 @@ class TestScreen(Screen):
         sprite = self.mgr.get_meta(self.sprite)
         image = self.mgr.sprite_images[self.sprite_type][-1]
 
-        self.h_scales = [0.125, 0.250, 0.375, 0.500, 0.625, 0.750, 0.875, 1.0, 1.250, 1.500, 2.0, 2.500, 3, 4, 5]
+        # h_scales1 = [0.125, 0.250, 0.375, 0.500, 0.625, 0.750, 0.875, 1.0, 1.500, 2.0, 2.500, 3, 3.500, 4, 4.500, 5]
+        h_scales1 = list(self.all_scales.keys())
+        h_scales1.sort()
+        h_scales2 = h_scales1.copy()
+        h_scales2.reverse()
+
+        self.h_scales = h_scales1 + h_scales2
+
         h_scale = self.h_scales[self.scale_id % len(self.h_scales)]
         v_scale = h_scale
 
@@ -211,11 +225,11 @@ class TestScreen(Screen):
         self.scale_id += 1
         self.show_prof()
         self.display.swap_buffers()
-        time.sleep_ms(50)
+        time.sleep_ms(20)
         self.fps.tick()
 
     def do_refresh(self):
-        return self.do_refresh_clipping_square()
+        return self.do_refresh_beating_heart()
 
         """ Overrides parent method """
         # print(f" = EXEC ON CORE {_thread.get_ident()} (do_refresh)")
