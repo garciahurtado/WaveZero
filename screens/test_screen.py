@@ -9,9 +9,10 @@ from screens.screen import Screen
 from scaler.dma_scaler import DMAScaler
 
 from sprites2.test_square import TestSquare
+from sprites2.test_heart import TestHeart
 from sprites2.sprite_manager_2d import SpriteManager2D
 
-from sprites2.sprite_types import SPRITE_TEST_SQUARE
+from sprites2.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART
 import math
 from profiler import Profiler as prof
 
@@ -44,7 +45,7 @@ class TestScreen(Screen):
 
     base_x = 0
     base_y = 0
-    delta_y = 1
+    delta_y = 2
     draw_y_dir = 1
     draw_y = 0
 
@@ -111,7 +112,7 @@ class TestScreen(Screen):
         self.running = True
 
         self.check_mem()
-        self.create_sprites()
+        self.load_sprite(SPRITE_TEST_SQUARE)
 
         # loop = asyncio.get_event_loop()
         # loop.create_task(self.start_display_loop())
@@ -139,22 +140,14 @@ class TestScreen(Screen):
     def do_update(self):
         print(f" = EXEC ON CORE {_thread.get_ident()} (do_update)")
 
-    def do_refresh_beating_heart(self):
+    def do_refresh_clipping_square(self):
         """
         Do a heart beating demo of several diverse horizontal scale ratios
         """
         sprite = self.mgr.get_meta(self.sprite)
         image = self.mgr.sprite_images[self.sprite_type][-1]
 
-        self.h_scales1 = [0.125, 0.250, 0.375, 0.500, 0.625, 0.750, 0.875, 1.0, 1.250, 1.500, 2.0, 2.500, 3, 3.500, 4]
-        self.h_scales2 = self.h_scales1.copy()
-        self.h_scales2.reverse()
-        # self.h_scales = self.h_scales2 + self.h_scales1
-        self.h_scales = self.h_scales1
         self.h_scales = [2]
-
-        v_scale = 1
-        h_scale = 1
 
         h_scale = self.h_scales[self.scale_id % len(self.h_scales)]
         v_scale = h_scale
@@ -162,11 +155,16 @@ class TestScreen(Screen):
         sprite_scaled_width = math.ceil(sprite.width * h_scale)
         sprite_scaled_height = math.ceil(sprite.height * v_scale)
         draw_x = 48 - (sprite_scaled_width / 2)
-        draw_y = 32 - (sprite_scaled_height / 2)
 
-        if abs(self.draw_y) > 32:
-            self.draw_y_dir *= -1
+        y_max = 64
+        y_min = 0 - sprite_scaled_height
 
+        if self.draw_y > y_max:
+            self.draw_y_dir = -1
+        elif self.draw_y < y_min:
+            self.draw_y_dir = +1
+
+        """ Modify draw_y over time"""
         self.draw_y += self.delta_y * self.draw_y_dir
 
         self.display.fill(0xFFFFFF)
@@ -184,8 +182,40 @@ class TestScreen(Screen):
         time.sleep_ms(5)
         self.fps.tick()
 
+
+    def do_refresh_beating_heart(self):
+        """
+        Do a heart beating demo of several diverse horizontal scale ratios
+        """
+        sprite = self.mgr.get_meta(self.sprite)
+        image = self.mgr.sprite_images[self.sprite_type][-1]
+
+        self.h_scales = [0.125, 0.250, 0.375, 0.500, 0.625, 0.750, 0.875, 1.0, 1.250, 1.500, 2.0, 2.500, 3, 4, 5]
+        h_scale = self.h_scales[self.scale_id % len(self.h_scales)]
+        v_scale = h_scale
+
+        sprite_scaled_width = math.ceil(sprite.width * h_scale)
+        sprite_scaled_height = math.ceil(sprite.height * v_scale)
+        draw_x = 48 - (sprite_scaled_width / 2)
+        draw_y = 32 - (sprite_scaled_height / 2)
+
+        self.display.fill(0xFFFFFF)
+        self.scaler.draw_sprite(
+            sprite,
+            int(draw_x),
+            int(draw_y),
+            image,
+            h_scale=h_scale,
+            v_scale=v_scale)
+
+        self.scale_id += 1
+        self.show_prof()
+        self.display.swap_buffers()
+        time.sleep_ms(50)
+        self.fps.tick()
+
     def do_refresh(self):
-        return self.do_refresh_beating_heart()
+        return self.do_refresh_clipping_square()
 
         """ Overrides parent method """
         # print(f" = EXEC ON CORE {_thread.get_ident()} (do_refresh)")
@@ -333,13 +363,12 @@ class TestScreen(Screen):
     #         self.mgr.update(0)
     #         await asyncio.sleep(1 / 60)
 
-    def create_sprites(self):
+    def load_sprite(self, load_type):
         num_sprites = self.num_sprites
         print(f"Creating {num_sprites} sprites")
 
-        sprite_type = SPRITE_TEST_SQUARE
+        sprite_type = load_type
         meta = self.mgr.sprite_metadata[sprite_type]
-
 
         """ Due to a current limitation / feature, the mgr.sprite_images array is not populated until at least one sprite of that
         type is created. """
@@ -363,6 +392,11 @@ class TestScreen(Screen):
         self.mgr.add_type(
             sprite_type=SPRITE_TEST_SQUARE,
             sprite_class=TestSquare,
+            speed=0)
+
+        self.mgr.add_type(
+            sprite_type=SPRITE_TEST_HEART,
+            sprite_class=TestHeart,
             speed=0)
 
         # self.mgr.add_type(

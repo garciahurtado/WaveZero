@@ -11,8 +11,9 @@ from uctypes import addressof
 
 from images.indexed_image import Image
 from scaler.dma_scaler_const import *
-from scaler.dma_scaler_pio import read_palette, read_addr
+from scaler.dma_scaler_pio import read_palette
 from scaler.dma_scaler_debug import ScalerDebugger
+from scaler.scaling_patterns import ScalingPatterns
 from profiler import Profiler as prof, timed
 from sprites2.sprite_types import SpriteType
 from ssd1331_pio import SSD1331PIO
@@ -31,11 +32,12 @@ class SpriteScaler():
     def __init__(self, display):
         self.addr_idx = 0
         self.display:SSD1331PIO = display
-        self.h_patterns = {} # Horizontal scaling patterns
+        self.patterns = ScalingPatterns()
 
         """ Create array with maximum possible number of read and write addresses """
-        read_buf = aligned_buffer((display.height*2)*4)
-        write_buf = aligned_buffer((display.height*2)*4)
+        word_size = 4
+        read_buf = aligned_buffer((display.height+2))
+        write_buf = aligned_buffer((display.height+2))
 
         self.read_addrs = array('L', read_buf)
         self.write_addrs = array('L', write_buf)
@@ -107,15 +109,13 @@ class SpriteScaler():
 
         self.palette_addr = None
 
-        sm_freq = 10_000_000 # must be 75% of the system freq or less, to avoid visual glitches
+        sm_freq = 1_000_000 # must be 75% of the system freq or less, to avoid visual glitches
         # PIO1 - SM0
         self.sm_read_palette = StateMachine(
             4, read_palette,
             freq=sm_freq,
-            sideset_base=8
         )
 
-        self.init_patterns()
         self.init_dma()
 
     def fill_addrs(self, scaled_height, disp_height ,neg_y=0):
@@ -130,9 +130,15 @@ class SpriteScaler():
 
         read_row_id = 0
         write_row_id = 0
-        num_rows = disp_height - neg_y
+        num_rows = (scaled_height) - neg_y
+        num_rows = num_rows if num_rows < self.disp_height else self.disp_height
+        max_row = scaled_height
 
-        for i in range(0, num_rows):
+        for i in range(0, max_row):
+            print()
+            print(f"MAX row idx: {max_row}")
+            print(f"WRITE row idx: {write_row_id}")
+            print(f"READ row idx: {read_row_id}")
             self.write_addrs[write_row_id] = write_addr = mem32[INTERP0_POP_FULL]
             self.read_addrs[read_row_id] = mem32[INTERP1_POP_FULL]
 
@@ -152,6 +158,7 @@ class SpriteScaler():
             #     read_row_id += 1
 
             if write_addr < self.min_write_addr:
+                print("  - SKIP -")
                 continue
 
             if write_addr >= self.min_write_addr:
@@ -163,7 +170,7 @@ class SpriteScaler():
 
         if self.debug_interp_list:
             print("~~ Value Addresses ~~")
-            for i in range(0, scaled_height + 1):
+            for i in range(0, len(self.write_addrs)):
                 write = self.write_addrs[i]
                 read = self.read_addrs[i]
                 print(f"W [{i:02}]: 0x{write:08X}")
@@ -470,14 +477,17 @@ class SpriteScaler():
 
         prof.start_profile('scaler.interp_config')
 
+        interp_base_write = base_write
         self.display_stride = display_width * 2
+
+        if self.draw_y < 0:
+            """ We need to offset base_write into the negative in order to clip horizontally when generating addresses """
+            extra_rows = abs(self.draw_y)
+            interp_base_write = base_write - (extra_rows * self.display_stride)
+
         display_total_bytes = self.disp_height * self.disp_width * 2
         self.min_write_addr = base_write
         self.max_write_addr = base_write + display_total_bytes
-
-        # if self.draw_y < 0:
-        #     extra_rows = abs(self.draw_y)
-        #     base_write = base_write - (extra_rows * self.display_stride)
 
         if self.debug:
             print(f"DISPLAY STRIDE:         {self.display_stride} / 0x{self.display_stride:08X}")
@@ -488,7 +498,7 @@ class SpriteScaler():
         # For write addresses we want: BASE0 + ACCUM0
         mem32[INTERP0_BASE0] = 0  # Base address component
         mem32[INTERP0_BASE1] = self.display_stride # Row increment. Increasing beyond stride can be used to skew sprites.
-        mem32[INTERP0_ACCUM0] = base_write  # Starting address
+        mem32[INTERP0_ACCUM0] = interp_base_write  # Starting address
 
         # Configure remaining variables
         mem32[INTERP1_BASE0] = 0  # # Row increment in fixed point
@@ -653,7 +663,7 @@ class SpriteScaler():
         prof.start_profile('scaler.h_pattern')
         if self.debug_dma:
             print(f"! HORIZ scale pattern index: #{h_scale}")
-        self.h_scale.read = self.h_patterns[h_scale]
+        self.h_scale.read = self.patterns.get_pattern(h_scale)
         self.h_scale.count = width
 
         prof.end_profile('scaler.h_pattern')
@@ -665,35 +675,12 @@ class SpriteScaler():
             print(f"\t px_per_tx = {self.px_per_tx}")
             print(f"\t tx_per_row = {tx_per_row} (px_read_dma.count)")
             print(f"\t count - color_lookup: {width}")
-            print(f"\t h_scale addr:        0x{addressof(self.h_patterns[h_scale]):08X}")
+            print(f"\t h_scale addr:        0x{self.h_scale.read:08X}")
             print(f"\t Scaled height:        {scaled_height}")
 
             print()
             print("~~ DMA AFTER SPRITE CONFIG ~~~~~~~")
             self.debug_dma_and_pio()
-
-    def irq_row_end(self, ch=None):
-        """ DEPRECATED """
-        if self.debug_irq:
-            print(">> START LOOP AT IRQ_ROW_END")
-
-        """
-         check flag for NOT "TXFULL"
-        """
-
-        if self.is_fifo_full():
-            if self.debug_irq:
-                print(">>> FIFO IS FULL - Returning")
-
-            """ Fifo is full """
-            return True
-        else:
-            pass
-            # self.load_and_push_addr_set()
-
-    def irq_ch_end(self, ch):
-        ch_name = self.ch_names[ch.channel]
-        print(f"  >>> IRQ Channel end: #{ch.channel}. {ch_name}")
 
     def irq_px_read_end(self, ch):
         if self.read_finished:
@@ -706,9 +693,6 @@ class SpriteScaler():
                 print(f"<>--- PXREAD END IRQ (Last px_read r: 0x{last_row_addr:08X})---<>")
                 self.finish_sprite()
 
-    def irq_h_scale_end(self, ch):
-        print(">< >< H SCALE END IRQ REACHED >< ><")
-
     def is_fifo_full(self):
         return self.sm_read_addr.tx_fifo() == 4
 
@@ -717,19 +701,6 @@ class SpriteScaler():
         fifo_full = fifo_status & 0x0000000F
         fifo_full_sm1 = fifo_full & 0b0000000000000000000000000001
         return fifo_full_sm1
-
-    def load_addr_pair(self, idx):
-        # DEPRECATED
-        prof.start_profile('scaler.interp_pop')
-        new_write = self.value_addrs[idx]
-        new_read = self.value_addrs[idx + 1]
-        prof.end_profile('scaler.interp_pop')
-
-        if self.debug_interp_list:
-            print(f"READ ADDR PAIR: (#{idx//4})")
-            print(f"\t W:0x{new_write:08X}")
-            # print(f"\t S:0x{new_sniffer:08X}")
-            print(f"\t R:0x{new_read:08X}")
 
         return new_write, new_read
 
@@ -756,71 +727,6 @@ class SpriteScaler():
         if self.debug:
             print(f" * Addr 0x{addr:08X} PUT into SM")
 
-    def load_and_push_addr_set(self):
-        # DEPRECATED
-        prof.start_profile('scaler.load_addr_pair')
-        idx = self.addr_idx
-        new_write, new_read = self.load_addr_pair(idx)
-        prof.end_profile('scaler.load_addr_pair')
-
-        prof.start_profile('scaler.check_bounds')
-        """ check bounds """
-        if not new_write or not new_read:
-            if self.debug:
-                print("~000 ZERO ADDR = NULL TRIGGER 000~")
-            self.finish_sprite()
-            return False
-
-        if new_write > self.max_write_addr:
-            print("** BOUNDS EXCEEDED **")
-            self.finish_sprite()
-            return False
-        prof.end_profile('scaler.check_bounds')
-
-        prof.start_profile('scaler.push_addr_set')
-        self.push_addr_set(new_write, new_read)
-        prof.end_profile('scaler.push_addr_set')
-
-    def init_patterns(self):
-        """Initialize horizontal scaling patterns"""
-        # Base patterns for different scaling factors
-        raw_patterns = {
-            0.125:  [0, 0, 0, 0, 1, 0, 0, 0],  # 12.5%
-            0.250:  [0, 0, 1, 0, 0, 0, 1, 0],  # 25%
-            0.375:  [0, 0, 1, 0, 0, 1, 0, 1],  # 37.5%
-            0.500:  [0, 1, 0, 1, 0, 1, 0, 1],  # 50% scaling
-            0.625:  [0, 1, 1, 0, 1, 0, 1, 1],  # 62.5%
-            0.750:  [0, 1, 1, 1, 0, 1, 1, 1],  # 75% - works
-            0.875:  [1, 1, 1, 1, 0, 1, 1, 1],  # 87.5%
-            1.0:    [1, 1, 1, 1, 1, 1, 1, 1],  # No scaling
-            1.250:  [1, 2, 1, 1, 1, 2, 1, 1],  # 1.25x
-            1.500:  [1, 2, 1, 2, 1, 2, 1, 2],  # 1.5x scaling
-            2.0:    [2, 2, 2, 2, 2, 2, 2, 2],  # 2x scaling
-            2.500:  [2, 3, 2, 3, 2, 3, 2, 3],  # 2x scaling
-            3.0:    [3, 3, 3, 3, 3, 3, 3, 3],  # 3x scaling
-            3.500:  [3, 4, 3, 4, 3, 4, 3, 4],  # 3.5x scaling
-            4.0:    [4, 4, 4, 4, 4, 4, 4, 4],  # 4x scaling
-            5.0:    [5, 5, 5, 5, 5, 5, 5, 5],  # 5x scaling
-            8.0:    [8, 8, 8, 8, 8, 8, 8, 8],  # 8x scaling
-            16.0:   [16, 16, 16, 16, 16, 16, 16, 16],  # 8x scaling
-        }
-
-        for i, (key, val)  in enumerate(raw_patterns.items()):
-            if self.debug_scale_patterns:
-                print(f"SCALE PATTERNS: {key} for {val}")
-            array_pattern = self.create_aligned_pattern(val)
-            self.h_patterns[key] = array_pattern
-
-    def create_aligned_pattern(self, list):
-        # Create ALIGNED array for scaling patterns
-        arr_buff = aligned_buffer(8 * 4, alignment=4)
-        final_array = array('L', arr_buff)
-
-        for i in range(8):
-            final_array[i] = list[i]
-
-        return final_array
-
     def reset(self, h_scale=1):
         """Clean up / close resources"""
         self.read_addr.active(0)
@@ -833,7 +739,7 @@ class SpriteScaler():
         self.color_lookup.active(0)
 
         self.h_scale.active(0)
-        self.h_scale.read = self.h_patterns[h_scale]
+        self.h_scale.read = self.patterns.get_pattern(h_scale)
 
         self.sm_read_palette.active(0)
         self.px_write.active(0)

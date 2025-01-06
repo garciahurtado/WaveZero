@@ -7,7 +7,6 @@ from scaler.dma_scaler_const import DMA_PX_WRITE_BASE
     out_shiftdir=PIO.SHIFT_LEFT,
     autopull=True,
     pull_thresh=32,
-    sideset_init=PIO.OUT_LOW,
 )
 def read_palette():
     """
@@ -51,26 +50,7 @@ def read_palette():
     push()  # 4 bytes pushed
 
     mov(isr, y)  # restore the ISR with the base addr
-
-    # wrap()
-    #
-    # label("px_skip")
-    # nop()           .side(1)
-    # irq(2)          .side(1)  # disabled
-    # wait(0, irq, 2) .side(0)  # disabled
-    # jmp("wrap_target")
-
-@asm_pio(
-    autopull=True,
-    pull_thresh=32,
-)
-def read_addr():
-    """
-    The only purpose of this program is to provide a FIFO to synch DMA transfers to. could probably get rid of pull()
-    and push()
-    """
-    out(isr, 32)
-    push()                  # Push to RX FIFO
+               # Push to RX FIFO
 
 
 
