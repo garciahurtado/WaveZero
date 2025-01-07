@@ -119,11 +119,11 @@ class TestScreen(Screen):
         self.running = True
 
         self.check_mem()
-        # self.sprite_type = SPRITE_TEST_HEART
-        # self.load_sprite(SPRITE_TEST_HEART)
+        self.sprite_type = SPRITE_TEST_HEART
+        self.load_sprite(SPRITE_TEST_HEART)
 
-        self.sprite_type = SPRITE_TEST_SQUARE
-        self.load_sprite(SPRITE_TEST_SQUARE)
+        # self.sprite_type = SPRITE_TEST_SQUARE
+        # self.load_sprite(SPRITE_TEST_SQUARE)
 
         # loop = asyncio.get_event_loop()
         # loop.create_task(self.start_display_loop())
@@ -213,7 +213,6 @@ class TestScreen(Screen):
         sprite = self.mgr.get_meta(self.sprite)
         image = self.mgr.sprite_images[self.sprite_type][-1]
 
-        # h_scales1 = [0.125, 0.250, 0.375, 0.500, 0.625, 0.750, 0.875, 1.0, 1.500, 2.0, 2.500, 3, 3.500, 4, 4.500, 5]
         h_scales1 = list(self.all_scales.keys())
         h_scales1.sort()
         h_scales2 = h_scales1.copy()
@@ -227,9 +226,9 @@ class TestScreen(Screen):
         sprite_scaled_width = math.ceil(sprite.width * h_scale)
         sprite_scaled_height = math.ceil(sprite.height * v_scale)
         draw_x = 48 - (sprite_scaled_width / 2)
-        draw_y = 32 - ((sprite_scaled_height) / 2)
+        draw_y = 32 - (sprite_scaled_height / 2)
 
-        self.display.fill(0xFFFFFF)
+        self.display.fill(0x000000)
         self.scaler.draw_sprite(
             sprite,
             int(draw_x),

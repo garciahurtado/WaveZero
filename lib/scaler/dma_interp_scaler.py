@@ -68,7 +68,6 @@ class SpriteScaler():
         self.debug_dma_ch = False
         self.debug_pio = False
         self.debug_irq = True
-
         self.debug_interp = False
         self.debug_display = False
         self.debug_interp_list = False
@@ -83,7 +82,7 @@ class SpriteScaler():
         self.disp_height = 0
 
         if self.debug_with_debug_bytes:
-            print(" * DEBUG BYTES ADDR *")
+            print( " * DEBUG BYTES ADDR *")
             print(f" * 0x{addressof(self.debug_bytes1):08X}")
             print(f" * 0x{addressof(self.debug_bytes2):08X}")
 
@@ -143,9 +142,6 @@ class SpriteScaler():
 
         """ Addr generation loop"""
         for i in range(0, max_row):
-            if self.debug_interp_list:
-                print(f"  LOOPING TO max_row {max_row} [{i}] r:{read_row_id} / w:{write_row_id} ")
-
             self.write_addrs[write_row_id] = write_addr = mem32[INTERP0_POP_FULL]
             self.read_addrs[read_row_id] = mem32[INTERP1_POP_FULL]
 
@@ -180,6 +176,9 @@ class SpriteScaler():
         self.init_interp()
         self.read_finished = False
 
+        if self.debug:
+            print(f"ABOUT TO DRAW a Sprite on x,y: {x},{y} @ H: {h_scale}x / V: {v_scale}x")
+
         prof.start_profile('scaler.reset')
         self.draw_x = x
         self.draw_y = y
@@ -189,6 +188,10 @@ class SpriteScaler():
         prof.start_profile('scaler.scaled_width_height')
         scaled_height = meta.height * v_scale
         scaled_width = meta.width * h_scale
+
+        prof.start_profile('scaler.init_dma_sprite')
+        self.init_dma_sprite(meta.height, meta.width, scaled_width, scaled_height, h_scale)
+        prof.end_profile('scaler.init_dma_sprite')
 
         if x < 0:
             """ crop the sprites left side """
@@ -252,7 +255,7 @@ class SpriteScaler():
             self.disp_width = self.display.width
             self.disp_height = self.display.height
 
-        self.trans_framebuf.fill(0xFFFFFF)
+        self.trans_framebuf.fill(0x000000)
 
         if self.debug_dma:
             print(f"* Will use a ({self.disp_width}x{self.disp_height}) Canvas - w/h")
@@ -281,10 +284,6 @@ class SpriteScaler():
         self.init_pio(palette_addr)
         self.palette_addr = palette_addr
         prof.end_profile('scaler.init_pio')
-
-        prof.start_profile('scaler.init_dma_sprite')
-        self.init_dma_sprite(meta.height, meta.width, scaled_width, scaled_height, h_scale)
-        prof.end_profile('scaler.init_dma_sprite')
 
         if self.debug_pio:
             self.dbg.debug_pio_status(sm0=True)
@@ -366,8 +365,10 @@ class SpriteScaler():
             x = 0
 
         alpha = self.alpha
-        if self.debug_dma:
-            print(f" ~ BLITTING TO x/y: {x}/{y}")
+        if self.debug:
+            width = disp.width
+            height = disp.height
+            print(f" ~ BLITTING [{width}x{height}] FRAMEBUF TO x/y: {x}/{y} ")
             print(f" ~ ALPHA IS {alpha} of Type {type(alpha)}")
 
         if self.debug_display:
@@ -392,6 +393,12 @@ class SpriteScaler():
         frac_bits = self.frac_bits
         int_bits = 32 - frac_bits
 
+        if scale_y_one == 0:
+            scale_y_one = 0.0001
+
+        if scale_x_one == 0:
+            scale_x_one = 0.0001
+
         if self.debug_display:
             write_base = self.display.read_addr
         else:
@@ -399,16 +406,6 @@ class SpriteScaler():
 
         disp_width = self.disp_width
         disp_height = self.disp_height
-
-        if self.debug_interp:
-            print(f"* INTERP INIT:")
-            print(f"\tread_base:    0x{read_base:08X}")
-            print(f"\twrite_base:   0x{write_base:08X}")
-            print(f"\tdisplay_width: {disp_width}")
-            print(f"\tscaled_height:{scaled_height}")
-            print(f"\tscale_y_one:      {scale_y_one:>032b}")
-            print(f"\t int/frac bits:           {int_bits}{frac_bits}")
-
         sprite_width_bytes = sprite_width // 2
 
         """ INTERPOLATOR CONFIGURATION --------- """
@@ -445,6 +442,8 @@ class SpriteScaler():
 
         """ Only the devil understands this formula, but it works (not that hard, actually) """
         row_size = sprite_width_bytes / scale_y_one
+        """ Convert read step to fixed point """
+        read_step_fixed = int((row_size) * (1 << frac_bits))  # Convert step to fixed point
         read_step = row_size
 
         extra_bytes_x = 0
@@ -468,45 +467,40 @@ class SpriteScaler():
             """ We need to offset base_write into the negative in order to clip horizontally when generating addresses """
             extra_cols = abs(self.draw_x)
             extra_px_x = int(extra_cols)
-            extra_bytes_x = int(extra_px_x / scale_x_one / 2)
-            if extra_bytes_x % 2:
-                extra_bytes_x += 1
+            extra_bytes_x = extra_px_x / scale_x_one # from scaled px to px
+            # if int(extra_bytes_x) % 2:
+            #     extra_bytes_x += 1
 
-            read_step -= extra_bytes_x // 4 # We have shorter rows now, since some of it is cropped on the left side
+            read_step -= extra_bytes_x // 2 # We have shorter rows now, since some of it is cropped on the left side
 
-            if self.debug_interp_list:
-                print(f"NEGATIVE draw_x: extrabytes: {extra_bytes_x}")
+            if self.debug_interp:
+                print(f"NEGATIVE draw_x: extrabytes: {extra_bytes_x} (read_step:{read_step})")
 
         self.display_stride = disp_width * 2
 
         write_base -= extra_bytes_y
-        read_base -= extra_bytes_x
-
-        """
-        scale_y = 1 # 500%
-        scale_y = 2 # 400%
-        scale_y = 4 # 400%
-        scale_y = 8 # 200%
-        scale_y = 16 # 100% <
-        scale_y = 32 # 50%
-        scale_y = 64 # 25%
-        """
-
-        """ Convert read step to fixed point """
-        read_step_fixed = int((row_size) * (1 << frac_bits))  # Convert step to fixed point
+        read_base += extra_bytes_x
+        read_step = int(read_step)
+        read_base = int(read_base)
 
         if self.debug_interp:
             int_bits_str = '^' * int_bits
             frac_bits_str = '`' * frac_bits
-            print(f"* INTERP SPRITE:")
-            print(f"\t write_base:      0x{write_base:08X}")
-            print(f"\t read_base:       0x{read_base:08X}")
+            print(f"* INTERP SPRITE INIT:")
+            print(f"\t write_base:          0x{write_base:08X}")
+            print(f"\t read_base:           0x{read_base:08X}")
+            print(f"\t read step:           0x{read_step:08X} = {read_step} ")
             print(f"\t read step (fixed):       0x{read_step_fixed:08X}")
             print(f"\t read step (fixed) b.:    {read_step_fixed:>032b}")
             print(f"\t int/frac bits:           {int_bits_str}{frac_bits_str}")
-            print(f"\t scale_y:         {row_size}")
-            print(f"\t sprite_width:       {sprite_width}")
-            print(f"\t sprite_width_bytes:       {sprite_width_bytes}")
+            print(f"\t scale_x:             {scale_x_one:03f}")
+            print(f"\t scale_y:             {scale_y_one:03f}")
+            print(f"\t sprite_row_size:     {row_size}")
+            print(f"\t scaled_height:       {scaled_height}")
+            print(f"\t sprite_width:        {sprite_width}")
+            print(f"\t sprite_width_bytes:  {sprite_width_bytes}")
+            print(f"\t display_width:       {disp_width}")
+            print(f"\t extra_bytes_x:       {extra_bytes_x}")
 
         prof.end_profile('scaler.interp_init_sprite')
 

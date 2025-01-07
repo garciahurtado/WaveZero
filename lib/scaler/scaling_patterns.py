@@ -23,9 +23,13 @@ class ScalingPatterns:
         return self.horiz_patterns
 
     def create_horiz_patterns(self):
+        patterns1 = {}
         patterns1 = self.create_patterns(0, 1, step=0.125)
-        patterns2 = self.create_patterns(1, 8, step=0.125)
+        patterns2 = self.create_patterns(1, 4, step=0.500)
+        patterns3 = self.create_patterns(4, 8, step=1)
+
         patterns1.update(patterns2)
+        patterns1.update(patterns3)
 
         self.horiz_patterns = patterns1
 
@@ -36,10 +40,9 @@ class ScalingPatterns:
         scales_num = int((to_scale - from_scale) / step)
 
         for i in range(scales_num):
-            from_scale += step # First one doesn't count
-
             pattern = self.create_one_pattern(from_scale)
             pattern_list[from_scale] = pattern
+            from_scale += step # First one doesn't count
 
         return pattern_list
 
