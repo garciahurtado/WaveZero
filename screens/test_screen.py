@@ -84,7 +84,7 @@ class TestScreen(Screen):
         print()
         patt = ScalingPatterns()
 
-        self.sprite_type = SPRITE_TEST_SQUARE
+        self.sprite_type = None
         self.preload_images()
         self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
 
@@ -241,12 +241,12 @@ class TestScreen(Screen):
         self.scale_id += 1
         self.show_prof()
         self.display.swap_buffers()
-        time.sleep_ms(10)
+        time.sleep_ms(5)
         self.fps.tick()
 
     def do_refresh(self):
-        return self.do_refresh_clipping_square()
-        # return self.do_refresh_beating_heart()
+        # return self.do_refresh_clipping_square()
+        return self.do_refresh_beating_heart()
 
         """ Overrides parent method """
         # print(f" = EXEC ON CORE {_thread.get_ident()} (do_refresh)")

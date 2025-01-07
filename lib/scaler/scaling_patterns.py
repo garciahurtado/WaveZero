@@ -24,47 +24,12 @@ class ScalingPatterns:
 
     def create_horiz_patterns(self):
         patterns1 = self.create_patterns(0, 1, step=0.125)
-        patterns2 = self.create_patterns(1, 5, step=0.125)
+        patterns2 = self.create_patterns(1, 8, step=0.125)
         patterns1.update(patterns2)
 
         self.horiz_patterns = patterns1
-        # reprs = self.print_patterns(self.horiz_patterns)
-        # print(reprs)
 
         return self.horiz_patterns
-
-    def _create_static_patterns(self):
-        # DEPRECATED
-        """Initialize horizontal scaling patterns"""
-        # Base patterns for different scaling factors
-        raw_patterns = {
-            0.125: [0, 0, 0, 0, 1, 0, 0, 0],  # 12.5%
-            0.250: [0, 0, 1, 0, 0, 0, 1, 0],  # 25%
-            0.375: [0, 0, 1, 0, 0, 1, 0, 1],  # 37.5%
-            0.500: [0, 1, 0, 1, 0, 1, 0, 1],  # 50% scaling
-            0.625: [0, 1, 1, 0, 1, 0, 1, 1],  # 62.5%
-            0.750: [0, 1, 1, 1, 0, 1, 1, 1],  # 75% - works
-            0.875: [1, 1, 1, 1, 0, 1, 1, 1],  # 87.5%
-            1.0: [1, 1, 1, 1, 1, 1, 1, 1],  # No scaling
-            1.250: [1, 2, 1, 1, 1, 2, 1, 1],  # 1.25x
-            1.500: [2, 1, 2, 1, 2, 1, 2, 1],  # 1.5x scaling
-            2.0: [2, 2, 2, 2, 2, 2, 2, 2],  # 2x scaling
-            2.500: [3, 2, 3, 2, 3, 2, 3, 2],  # 2x scaling
-            3.0: [3, 3, 3, 3, 3, 3, 3, 3],  # 3x scaling
-            3.500: [4, 3, 4, 3, 4, 3, 4, 3],  # 3.5x scaling
-            4.0: [4, 4, 4, 4, 4, 4, 4, 4],  # 4x scaling
-            4.500: [5, 4, 5, 4, 5, 4, 5, 4],  # 4.5x scaling
-            5.0: [5, 5, 5, 5, 5, 5, 5, 5],  # 5x scaling
-            8.0: [8, 8, 8, 8, 8, 8, 8, 8],  # 8x scaling
-            16.0: [16, 16, 16, 16, 16, 16, 16, 16],  # 8x scaling
-        }
-
-        patterns = {}
-        for i, (key, val) in enumerate(raw_patterns.items()):
-            array_pattern = self.create_aligned_pattern(val)
-            patterns[key] = array_pattern
-
-        return patterns
 
     def create_patterns(self, from_scale, to_scale, step=0.125):
         pattern_list = {}
@@ -102,7 +67,7 @@ class ScalingPatterns:
                 idx = int(i/8)
                 pattern[idx] = whole_scale+1
 
-        pattern = self.create_aligned_pattern(pattern)  # Convert to array
+        pattern = self.pattern_to_array(pattern)  # Convert to array
         return pattern
 
     def print_patterns(self, patterns):
@@ -120,11 +85,11 @@ class ScalingPatterns:
 
         return str_out
 
-    def create_aligned_pattern(self, list):
+    def pattern_to_array(self, list):
         """
-        Create word-ALIGNED buffer to store scaling patterns
+        Create bytebuffer to store 1 scaling pattern of 8 elements
         """
-        arr_buff = aligned_buffer(8, alignment=4)
+        arr_buff = bytearray(8 * 4)
         final_array = array('L', arr_buff)
 
         for i in range(8):

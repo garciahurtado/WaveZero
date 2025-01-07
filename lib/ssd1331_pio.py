@@ -45,7 +45,7 @@ class SSD1331PIO():
 
     buffer0 = bytearray(HEIGHT * WIDTH * 2)  # RGB565 is 2 bytes
     buffer1 = bytearray(HEIGHT * WIDTH * 2)  # RGB565 is 2 bytes
-    buffer2 = bytearray(HEIGHT * WIDTH * 2)  # RGB565 is 2 bytes
+    buffer2 = bytearray(HEIGHT * WIDTH * 2)  # scratch framebuf
 
     """ 
     xA0 x72 -> RGB
@@ -99,6 +99,10 @@ class SSD1331PIO():
         # 32x32
         self.trans_framebuf_32 = framebuf.FrameBuffer(self.buffer2, 32, 32, mode)
         self.trans_framebuf_32.fill(0x0)
+
+        # 96x32
+        self.trans_framebuf_64 = framebuf.FrameBuffer(self.buffer2, 96, 64, mode)
+        self.trans_framebuf_64.fill(0x0)
 
         # fullscreen
         self.trans_framebuf_full = framebuf.FrameBuffer(self.buffer2, self.width, self.height, mode)
