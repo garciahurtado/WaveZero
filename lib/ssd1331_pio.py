@@ -136,7 +136,7 @@ class SSD1331PIO():
         self.swap_buffers()
         return
 
-    def swap_buffers(self):
+    async def swap_buffers(self):
         self.read_addr_buf, self.write_addr_buf = self.write_addr_buf, self.read_addr_buf
         self.read_framebuf, self.write_framebuf = self.write_framebuf, self.read_framebuf
 

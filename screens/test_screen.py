@@ -52,8 +52,10 @@ class TestScreen(Screen):
     draw_x_dir = -1
     draw_y = 0
     draw_x = 0
-    slide_sel = 'vert'
-
+    slide_sel = 'horiz'
+    h_scale = 1
+    v_scale = 1
+    current_loop = None
     num_sprites = 1
     scaler_num_sprites = 1
     sprite_max_z = 1000
@@ -70,9 +72,14 @@ class TestScreen(Screen):
     score_palette = FramebufferPalette(16, color_mode=fb.GS4_HMSB)
     mgr = None
     scaler = None
+    sprite_scaled_width = 0
+    sprite_scaled_height = 0
 
     fps_counter_task = None
     sprite = None
+    image = None
+    num_cols = None
+    num_rows = None
     sep = 2
     sep_dir = 1
     bg_color = colors.hex_to_565(CYAN)
@@ -117,16 +124,26 @@ class TestScreen(Screen):
 
     def run(self):
         self.running = True
-
+        test = 'heart'
         self.check_mem()
-        self.sprite_type = SPRITE_TEST_HEART
-        self.load_sprite(SPRITE_TEST_HEART)
+        self.current_loop = None
 
-        # self.sprite_type = SPRITE_TEST_SQUARE
-        # self.load_sprite(SPRITE_TEST_SQUARE)
+        if test == 'heart':
+            self.sprite_type = SPRITE_TEST_HEART
+            self.load_sprite(SPRITE_TEST_HEART)
+            self.init_beating_heart()
+            self.current_loop = self.do_refresh_beating_heart
+        elif test == 'grid':
+            self.sprite_type = SPRITE_TEST_HEART
+            self.load_sprite(SPRITE_TEST_HEART)
+            self.init_grid()
+            self.current_loop = self.do_refresh_grid
+        elif test == 'square':
+            self.sprite_type = SPRITE_TEST_SQUARE
+            self.load_sprite(SPRITE_TEST_SQUARE)
+            self.init_clipping_square()
+            self.current_loop = self.do_refresh_clipping_square
 
-        # loop = asyncio.get_event_loop()
-        # loop.create_task(self.start_display_loop())
         asyncio.run(self.start_display_loop())
         self.check_mem()
 
@@ -151,27 +168,113 @@ class TestScreen(Screen):
     def do_update(self):
         print(f" = EXEC ON CORE {_thread.get_ident()} (do_update)")
 
-    def do_refresh_clipping_square(self):
+
+
+    def init_grid(self):
+        self.sprite = self.mgr.get_meta(self.sprite)
+        self.image = self.mgr.sprite_images[self.sprite_type][-1]
+
+        self.sprite_scaled_width = math.ceil(self.sprite.width * self.h_scale)
+        self.sprite_scaled_height = math.ceil(self.sprite.height * self.v_scale)
+
+        max_cols = 12
+        max_rows = 10
+
+        self.num_cols = min(self.screen_width // self.sprite_scaled_width, max_cols)
+        self.num_rows = min(self.screen_height // self.sprite_scaled_height, max_rows)
+
+    def init_beating_heart(self):
+        self.sprite = self.mgr.get_meta(self.sprite)
+        self.image = self.mgr.sprite_images[self.sprite_type][-1]
+
+    def init_clipping_square(self):
+        self.sprite = self.mgr.get_meta(self.sprite)
+        self.image = self.mgr.sprite_images[self.sprite_type][-1]
+
+        self.sprite_scaled_width = math.ceil(self.sprite.width * self.h_scale)
+        self.sprite_scaled_height = math.ceil(self.sprite.height * self.v_scale)
+
+
+    def do_refresh_grid(self):
+        """
+        Show a grid of heart Sprites
+        """
+        self.display.fill(0x000000)
+        draw_x = 0
+        draw_y = 0
+
+        prof.end_profile('scaler.screen_prep')
+
+        # print(f"\tSCALER Drawing {width_step}x{height_step} = {width_step*height_step} sprites")
+        for c in range(self.num_cols):
+            for r in range(self.num_rows):
+                prof.start_profile('scaler.draw_sprite')
+                self.scaler.draw_sprite(
+                    self.sprite,
+                    draw_x + (c * self.sprite_scaled_width),
+                    draw_y + (r * self.sprite_scaled_height),
+                    self.image,
+                    h_scale=self.h_scale,
+                    v_scale=self.v_scale)
+                prof.end_profile('scaler.draw_sprite')
+
+        self.show_prof()
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.display.swap_buffers())
+        self.fps.tick()
+
+    def do_refresh_beating_heart(self):
         """
         Do a heart beating demo of several diverse horizontal scale ratios
         """
-        sprite = self.mgr.get_meta(self.sprite)
-        image = self.mgr.sprite_images[self.sprite_type][-1]
+        h_scales1 = list(self.all_scales.keys())
+        h_scales1.sort()
+        h_scales2 = h_scales1.copy()
+        h_scales2.reverse()
 
+        self.h_scales = h_scales1 + h_scales2
+
+        h_scale = self.h_scales[self.scale_id % len(self.h_scales)]
+        v_scale = h_scale
+
+        sprite_scaled_width = math.ceil(self.sprite.width * h_scale)
+        sprite_scaled_height = math.ceil(self.sprite.height * v_scale)
+        draw_x = 48 - (sprite_scaled_width / 2)
+        draw_y = 32 - (sprite_scaled_height / 2)
+
+        self.display.fill(0x000000)
+        self.scaler.draw_sprite(
+            self.sprite,
+            int(draw_x),
+            int(draw_y),
+            self.image,
+            h_scale=h_scale,
+            v_scale=v_scale)
+
+        self.scale_id += 1
+        self.show_prof()
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.display.swap_buffers())
+        # time.sleep_ms(5)
+        self.fps.tick()
+
+
+    def do_refresh_clipping_square(self):
+        """
+        Do a demo of several diverse horizontal scale ratios
+        """
         self.h_scales = [2]
 
         h_scale = self.h_scales[self.scale_id % len(self.h_scales)]
         v_scale = h_scale
 
-        sprite_scaled_width = math.ceil(sprite.width * h_scale)
-        sprite_scaled_height = math.ceil(sprite.height * v_scale)
-        # draw_x = 48 - (sprite_scaled_width / 2)
+        draw_x = 48 - (self.sprite_scaled_width / 2)
 
         x_max = 96
-        x_min = 0 - sprite_scaled_width
+        x_min = 0 - self.sprite_scaled_width
 
         y_max = 64
-        y_min = 0 - sprite_scaled_height
+        y_min = 0 - self.sprite_scaled_height
 
         if self.slide_sel == 'horiz':
             """ Modify draw_x over time"""
@@ -189,63 +292,26 @@ class TestScreen(Screen):
                 self.draw_y_dir = +1
             self.draw_y += self.delta_y * self.draw_y_dir
 
-
-        self.display.fill(0xFFFFFF)
-        self.scaler.draw_sprite(
-            sprite,
-            int(self.draw_x),
-            int(self.draw_y),
-            image,
-            h_scale=h_scale,
-            v_scale=v_scale)
-
-        self.scale_id += 1
-        self.show_prof()
-        self.display.swap_buffers()
-        time.sleep_ms(10)
-        self.fps.tick()
-
-
-    def do_refresh_beating_heart(self):
-        """
-        Do a heart beating demo of several diverse horizontal scale ratios
-        """
-        sprite = self.mgr.get_meta(self.sprite)
-        image = self.mgr.sprite_images[self.sprite_type][-1]
-
-        h_scales1 = list(self.all_scales.keys())
-        h_scales1.sort()
-        h_scales2 = h_scales1.copy()
-        h_scales2.reverse()
-
-        self.h_scales = h_scales1 + h_scales2
-
-        h_scale = self.h_scales[self.scale_id % len(self.h_scales)]
-        v_scale = h_scale
-
-        sprite_scaled_width = math.ceil(sprite.width * h_scale)
-        sprite_scaled_height = math.ceil(sprite.height * v_scale)
-        draw_x = 48 - (sprite_scaled_width / 2)
-        draw_y = 32 - (sprite_scaled_height / 2)
-
         self.display.fill(0x000000)
         self.scaler.draw_sprite(
-            sprite,
-            int(draw_x),
-            int(draw_y),
-            image,
+            self.sprite,
+            int(self.draw_x),
+            int(self.draw_y),
+            self.image,
             h_scale=h_scale,
             v_scale=v_scale)
 
         self.scale_id += 1
         self.show_prof()
-        self.display.swap_buffers()
-        time.sleep_ms(5)
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.display.swap_buffers())
+        # time.sleep_ms(10)
         self.fps.tick()
 
     def do_refresh(self):
         # return self.do_refresh_clipping_square()
-        return self.do_refresh_beating_heart()
+        # return self.do_refresh_beating_heart()
+        return self.current_loop()
 
         """ Overrides parent method """
         # print(f" = EXEC ON CORE {_thread.get_ident()} (do_refresh)")

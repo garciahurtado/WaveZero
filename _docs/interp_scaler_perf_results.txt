@@ -14,18 +14,25 @@ STARTING PROFILE
 
 func                             runs     avg ms          total ms
 --------------------------------------------------------------------
-scaler.draw_sprite               123      160.1995        19704.54
-scaler.irq_color_lookup          50184    0.2741          13756.22
-scaler.interp_pop                47232    0.0830           3918.22
-scaler.interp_sm_put             44280    0.0779           3449.51
-scaler.init_dma_sprite           2952     0.2765            816.10
-scaler.init_interp_sprite        2952     0.2124            626.88
-scaler.reset                     2952     0.1328            392.12
-scaler.scaled_width_height       2952     0.0975            287.89
-scaler.init_pio                  2952     0.0935            276.15
-scaler.h_pattern                 2952     0.0816            240.90
-scaler.start_channels            2952     0.0747            220.58
-scaler.dma_sprite_config         2952     0.0627            185.05
+scaler.draw_sprite               85       173.5222        14749.39
+scaler.irq_color_lookup          34680    0.2955          10247.53
+scaler.interp_sm_put             30600    0.0581           1777.11
+scaler.interp_pop                32640    0.0529           1727.00
+scaler.check_bounds              32640    0.0445           1452.88
+scaler.init_dma_sprite           2040     0.3310            675.30
+scaler.init_interp_sprite        2040     0.2208            450.51
+scaler.reset                     2040     0.1545            315.23
+scaler.h_pattern                 2040     0.0990            201.93
+scaler.init_pio                  2040     0.0976            199.19
+scaler.dma_sprite_config         2040     0.0838            170.93
+scaler.scaled_width_height       2040     0.0823            167.93
+scaler.start_channels            2040     0.0742            151.35
+scaler.precache_addr             2040     0.0560            114.23
+
+<<< AFTER ADDING STREAMING THREAD FEEDING SM1 >>>
+
+
+
 
 
 

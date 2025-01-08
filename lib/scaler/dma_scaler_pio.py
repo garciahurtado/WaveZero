@@ -20,15 +20,10 @@ def read_palette():
     out(isr, 32)            # First word is the palette base address
                             # Keep it in the ISR for later
 
-    pull()                  # L:21
+    # PIXEL PROCESSING LOOP ----------------------------------------------
     wrap_target()
-    # label("wrap_target")
 
-    # PIXEL PROCESSING ----------------------------------------------------
     out(y, 4)               # L:22 - pull 4 bits from OSR
-
-    """ First off, check for transparent pixels """
-    # jmp(not_y, "px_skip")   .side(0)    # disabled
 
     """ Index lookup logic (reverse addition) """
     mov(x, invert(isr))             # ISR has the base addr

@@ -1,0 +1,23 @@
+ways to skip write addr for trans px
+------------------------------------
+
+
+- SM2 keeps initial write addr
+	- must not lose track of it until sprite end
+	- will increase by +2 everyime it receives trans signal from SM0
+	- Would need a way to track non transpx write address increase
+
+- SM2 tracks row write addrs
+	- could add a third addr to value_addrs (Same as the second one)
+	- Would need a way to track non transpx write address increase
+
+- SM2 doesnt remember anything
+	1.
+		- when SM0 sees transpx, must send current write addr to SM2
+		- THis means SM0 also needs to track write addr (currently doesnt)
+	2. 
+		- when SM0 sees transpx, SM2 looks up current write address in DMA regs
+
+
+- In all cases, SM0 must wait for write addr to be updated before processing next pixel
+- In all cases, horiz scaling pattern needs to be advanced
