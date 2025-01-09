@@ -26,7 +26,7 @@ class ScalingPatterns:
         patterns1 = {}
         patterns1 = self.create_patterns(0, 1, step=0.125)
         patterns2 = self.create_patterns(1, 4, step=0.500)
-        patterns3 = self.create_patterns(4, 8, step=1)
+        patterns3 = self.create_patterns(4, 7, step=1)
 
         patterns1.update(patterns2)
         patterns1.update(patterns3)

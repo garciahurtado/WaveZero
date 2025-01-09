@@ -52,7 +52,7 @@ class TestScreen(Screen):
     draw_x_dir = -1
     draw_y = 0
     draw_x = 0
-    slide_sel = 'horiz'
+    slide_sel = 'vert'
     h_scale = 1
     v_scale = 1
     current_loop = None
@@ -129,8 +129,8 @@ class TestScreen(Screen):
         self.current_loop = None
 
         if test == 'heart':
-            self.sprite_type = SPRITE_TEST_HEART
-            self.load_sprite(SPRITE_TEST_HEART)
+            self.sprite_type = SPRITE_TEST_SQUARE
+            self.load_sprite(SPRITE_TEST_SQUARE)
             self.init_beating_heart()
             self.current_loop = self.do_refresh_beating_heart
         elif test == 'grid':
@@ -219,8 +219,7 @@ class TestScreen(Screen):
                 prof.end_profile('scaler.draw_sprite')
 
         self.show_prof()
-        loop = asyncio.get_event_loop()
-        loop.create_task(self.display.swap_buffers())
+        self.display.swap_buffers()
         self.fps.tick()
 
     def do_refresh_beating_heart(self):
@@ -229,6 +228,8 @@ class TestScreen(Screen):
         """
         h_scales1 = list(self.all_scales.keys())
         h_scales1.sort()
+
+        """ Double up the scale """
         h_scales2 = h_scales1.copy()
         h_scales2.reverse()
 
@@ -253,9 +254,9 @@ class TestScreen(Screen):
 
         self.scale_id += 1
         self.show_prof()
-        loop = asyncio.get_event_loop()
-        loop.create_task(self.display.swap_buffers())
-        # time.sleep_ms(5)
+        self.display.swap_buffers()
+
+        time.sleep_ms(25)
         self.fps.tick()
 
 
@@ -303,8 +304,9 @@ class TestScreen(Screen):
 
         self.scale_id += 1
         self.show_prof()
-        loop = asyncio.get_event_loop()
-        loop.create_task(self.display.swap_buffers())
+        # loop = asyncio.get_event_loop()
+        # loop.create_task(self.display.swap_buffers())
+        self.display.swap_buffers()
         # time.sleep_ms(10)
         self.fps.tick()
 

@@ -45,7 +45,6 @@ class SSD1331PIO():
 
     buffer0 = bytearray(HEIGHT * WIDTH * 2)  # RGB565 is 2 bytes
     buffer1 = bytearray(HEIGHT * WIDTH * 2)  # RGB565 is 2 bytes
-    buffer2 = bytearray(HEIGHT * WIDTH * 2)  # scratch framebuf
 
     """ 
     xA0 x72 -> RGB
@@ -77,41 +76,10 @@ class SSD1331PIO():
         self.framebuf1 = framebuf.FrameBuffer(self.buffer1, self.width, self.height, mode)
         self.framebuf1.fill(0xFF)
 
-        # Buffers used for implementing transparency. All use the same underlying bytes, presented as different
-        # sizes to optimize for different sprite sizes
-
-        # 2x2
-        self.trans_framebuf_2 = framebuf.FrameBuffer(self.buffer2, 2, 2, mode)
-        self.trans_framebuf_2.fill(0x0)
-
-        # 4x4
-        self.trans_framebuf_4 = framebuf.FrameBuffer(self.buffer2, 4, 4, mode)
-        self.trans_framebuf_4.fill(0x0)
-
-        # 8x8
-        self.trans_framebuf_8 = framebuf.FrameBuffer(self.buffer2, 8, 8, mode)
-        self.trans_framebuf_8.fill(0x0)
-
-        # 16x16
-        self.trans_framebuf_16 = framebuf.FrameBuffer(self.buffer2, 16, 16, mode)
-        self.trans_framebuf_16.fill(0x0)
-
-        # 32x32
-        self.trans_framebuf_32 = framebuf.FrameBuffer(self.buffer2, 32, 32, mode)
-        self.trans_framebuf_32.fill(0x0)
-
-        # 96x32
-        self.trans_framebuf_64 = framebuf.FrameBuffer(self.buffer2, 96, 64, mode)
-        self.trans_framebuf_64.fill(0x0)
-
-        # fullscreen
-        self.trans_framebuf_full = framebuf.FrameBuffer(self.buffer2, self.width, self.height, mode)
-        self.trans_framebuf_full.fill(0x0)
 
         # Set starting alias to each buffer, so that we can easily flip them
         self.write_buffer = self.buffer0
         self.read_buffer = self.buffer1
-        self.trans_buffer = self.buffer2
 
         self.write_framebuf = self.framebuf0
         self.read_framebuf = self.framebuf1
@@ -121,8 +89,6 @@ class SSD1331PIO():
 
         self.write_addr = uctypes.addressof(self.write_buffer)
         self.write_addr_buf = self.write_addr.to_bytes(4, "little")
-
-        self.trans_addr = uctypes.addressof(self.trans_buffer)
 
         self.curr_read_buf = self.read_addr_buf
 
@@ -136,7 +102,7 @@ class SSD1331PIO():
         self.swap_buffers()
         return
 
-    async def swap_buffers(self):
+    def swap_buffers(self):
         self.read_addr_buf, self.write_addr_buf = self.write_addr_buf, self.read_addr_buf
         self.read_framebuf, self.write_framebuf = self.write_framebuf, self.read_framebuf
 
