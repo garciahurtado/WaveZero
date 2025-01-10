@@ -128,13 +128,13 @@ class TestScreen(Screen):
 
     def run(self):
         self.running = True
-        test = 'grid'
+        test = 'heart'
         self.check_mem()
         self.current_loop = None
 
         if test == 'heart':
-            self.sprite_type = SPRITE_TEST_HEART
-            self.load_sprite(SPRITE_TEST_HEART)
+            self.sprite_type = SPRITE_TEST_SQUARE
+            self.load_sprite(SPRITE_TEST_SQUARE)
             self.init_beating_heart()
             self.current_loop = self.do_refresh_beating_heart
         elif test == 'grid':
@@ -173,14 +173,14 @@ class TestScreen(Screen):
         print(f" = EXEC ON CORE {_thread.get_ident()} (do_update)")
 
     def init_grid(self):
-        self.grid_beat = False
+        self.grid_beat = True
         self.sprite = self.mgr.get_meta(self.sprite)
         self.image = self.mgr.sprite_images[self.sprite_type][-1]
 
         one_scales1 = list(self.one_scales.keys())
         one_scales2 = one_scales1.copy()
         one_scales2.reverse()
-        ones = [1] * 4
+        ones = [1] * 3
         self.one_scale_keys = ones + one_scales2 + one_scales1 + ones
 
         self.sprite_scaled_width = math.ceil(self.sprite.width * self.h_scale)
@@ -195,6 +195,15 @@ class TestScreen(Screen):
     def init_beating_heart(self):
         self.sprite = self.mgr.get_meta(self.sprite)
         self.image = self.mgr.sprite_images[self.sprite_type][-1]
+
+        h_scales1 = list(self.all_scales.keys())
+        h_scales1.sort()
+
+        """ Double up the scale """
+        h_scales2 = h_scales1.copy()
+        h_scales2.reverse()
+
+        self.h_scales = h_scales1
 
     def init_clipping_square(self):
         self.sprite = self.mgr.get_meta(self.sprite)
@@ -256,21 +265,12 @@ class TestScreen(Screen):
         """
         Do a heart beating demo of several diverse horizontal scale ratios
         """
-        h_scales1 = list(self.all_scales.keys())
-        h_scales1.sort()
-
-        """ Double up the scale """
-        h_scales2 = h_scales1.copy()
-        h_scales2.reverse()
-
-        # self.h_scales = h_scales1 + h_scales2
-        self.h_scales = h_scales1
 
         h_scale = self.h_scales[self.scale_id % len(self.h_scales)]
         v_scale = h_scale
 
-        sprite_scaled_width = math.ceil(self.sprite.width * h_scale)
-        sprite_scaled_height = math.ceil(self.sprite.height * v_scale)
+        sprite_scaled_width = self.sprite.width * h_scale
+        sprite_scaled_height = self.sprite.height * v_scale
         draw_x = 48 - (sprite_scaled_width / 2)
         draw_y = 32 - (sprite_scaled_height / 2)
 
@@ -287,7 +287,7 @@ class TestScreen(Screen):
         self.show_prof()
         self.display.swap_buffers()
 
-        time.sleep_ms(50)
+        time.sleep_ms(100)
         self.fps.tick()
 
 

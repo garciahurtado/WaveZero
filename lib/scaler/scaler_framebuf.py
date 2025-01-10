@@ -10,7 +10,7 @@ class ScalerFramebuf():
     display:SSD1331PIO
     WIDTH = SSD1331PIO.WIDTH
     HEIGHT = SSD1331PIO.HEIGHT
-    EXTRA_WIDTH_BIG = 16
+    EXTRA_WIDTH_BIG = 16 # Addtl width (beyond the full width of the screen) which the framebuf will use to fit large sprites
     frame_width = 0
     frame_height = 0
     trans_bytes = bytearray(HEIGHT * (WIDTH + EXTRA_WIDTH_BIG) * 2)  # scratch framebuf, declared early on when more memory is available
@@ -68,16 +68,18 @@ class ScalerFramebuf():
         """
         max_dim = scaled_width if scaled_width >= scaled_height else scaled_height
 
-        if max_dim <= 16:
+        if max_dim <= 4:
+            self.trans_framebuf = self.trans_framebuf_4
+            self.frame_width = self.frame_width = 4
+        elif max_dim <= 8:
+            self.trans_framebuf = self.trans_framebuf_8
+            self.frame_width = self.frame_width = 8
+        elif max_dim <= 16:
             self.trans_framebuf = self.trans_framebuf_16
             self.frame_width = self.frame_height = 16
         elif max_dim <= 32:
             self.trans_framebuf = self.trans_framebuf_32
             self.frame_width = self.frame_height = 32
-        elif False and max_dim <= 64:           # doesn't work well and is basically same as full screen
-            self.trans_framebuf = self.trans_framebuf_64
-            self.frame_width = 64
-            self.frame_height = 64
         else:
             self.trans_framebuf = self.trans_framebuf_full
             self.frame_width = self.display.width + self.EXTRA_WIDTH_BIG
