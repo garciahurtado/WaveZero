@@ -114,6 +114,10 @@ class TestScreen(Screen):
         self.h_scales = [0.5, 0.75, 1.0, 1.5, 2.0, 3.0]
         self.v_scales = [0.5, 1.0, 1.0, 1.6, 2.0, 3.0]
         self.all_scales = patt.get_horiz_patterns()
+        self.all_keys = self.all_scales.keys()
+        self.one_scales = {scale: patt for scale, patt in self.all_scales.items() if scale <= 1}
+
+        self.grid_beat = False
 
     def create_sprite_manager(self, display, num_sprites=0):
         self.check_mem()
@@ -124,13 +128,13 @@ class TestScreen(Screen):
 
     def run(self):
         self.running = True
-        test = 'heart'
+        test = 'grid'
         self.check_mem()
         self.current_loop = None
 
         if test == 'heart':
-            self.sprite_type = SPRITE_TEST_SQUARE
-            self.load_sprite(SPRITE_TEST_SQUARE)
+            self.sprite_type = SPRITE_TEST_HEART
+            self.load_sprite(SPRITE_TEST_HEART)
             self.init_beating_heart()
             self.current_loop = self.do_refresh_beating_heart
         elif test == 'grid':
@@ -168,11 +172,16 @@ class TestScreen(Screen):
     def do_update(self):
         print(f" = EXEC ON CORE {_thread.get_ident()} (do_update)")
 
-
-
     def init_grid(self):
+        self.grid_beat = False
         self.sprite = self.mgr.get_meta(self.sprite)
         self.image = self.mgr.sprite_images[self.sprite_type][-1]
+
+        one_scales1 = list(self.one_scales.keys())
+        one_scales2 = one_scales1.copy()
+        one_scales2.reverse()
+        ones = [1] * 4
+        self.one_scale_keys = ones + one_scales2 + one_scales1 + ones
 
         self.sprite_scaled_width = math.ceil(self.sprite.width * self.h_scale)
         self.sprite_scaled_height = math.ceil(self.sprite.height * self.v_scale)
@@ -190,9 +199,13 @@ class TestScreen(Screen):
     def init_clipping_square(self):
         self.sprite = self.mgr.get_meta(self.sprite)
         self.image = self.mgr.sprite_images[self.sprite_type][-1]
-
+        self.curr_dir = 'horiz'
+        self.h_scale = self.v_scale = 2
         self.sprite_scaled_width = math.ceil(self.sprite.width * self.h_scale)
         self.sprite_scaled_height = math.ceil(self.sprite.height * self.v_scale)
+
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.flip_dir())
 
 
     def do_refresh_grid(self):
@@ -202,25 +215,42 @@ class TestScreen(Screen):
         self.display.fill(0x000000)
         draw_x = 0
         draw_y = 0
+        x_offset = 0
+        y_offset = 0
 
         prof.end_profile('scaler.screen_prep')
+        sprite_width = sprite_height = 16
 
         # print(f"\tSCALER Drawing {width_step}x{height_step} = {width_step*height_step} sprites")
         for c in range(self.num_cols):
             for r in range(self.num_rows):
+                if self.grid_beat:
+                    idx = int(c*self.num_rows + r)
+                    scale_factor = (self.scale_id+idx) % len(self.one_scale_keys)
+                else:
+                    scale_factor = 1
+
+                scale = self.one_scale_keys[scale_factor]
+
+                x_offset = (16 - (scale * sprite_width)) / 2
+                y_offset = (16 - (scale * sprite_height)) / 2
+
                 prof.start_profile('scaler.draw_sprite')
                 self.scaler.draw_sprite(
                     self.sprite,
-                    draw_x + (c * self.sprite_scaled_width),
-                    draw_y + (r * self.sprite_scaled_height),
+                    int(draw_x + (c * sprite_width) + x_offset),
+                    int(draw_y + (r * sprite_height) + y_offset),
                     self.image,
-                    h_scale=self.h_scale,
-                    v_scale=self.v_scale)
+                    h_scale=scale,
+                    v_scale=scale)
                 prof.end_profile('scaler.draw_sprite')
+
+        self.scale_id += 1
 
         self.show_prof()
         self.display.swap_buffers()
         self.fps.tick()
+        time.sleep_ms(1)
 
     def do_refresh_beating_heart(self):
         """
@@ -233,7 +263,8 @@ class TestScreen(Screen):
         h_scales2 = h_scales1.copy()
         h_scales2.reverse()
 
-        self.h_scales = h_scales1 + h_scales2
+        # self.h_scales = h_scales1 + h_scales2
+        self.h_scales = h_scales1
 
         h_scale = self.h_scales[self.scale_id % len(self.h_scales)]
         v_scale = h_scale
@@ -256,7 +287,7 @@ class TestScreen(Screen):
         self.show_prof()
         self.display.swap_buffers()
 
-        time.sleep_ms(25)
+        time.sleep_ms(50)
         self.fps.tick()
 
 
@@ -276,6 +307,7 @@ class TestScreen(Screen):
 
         y_max = 64
         y_min = 0 - self.sprite_scaled_height
+
 
         if self.slide_sel == 'horiz':
             """ Modify draw_x over time"""
@@ -299,8 +331,8 @@ class TestScreen(Screen):
             int(self.draw_x),
             int(self.draw_y),
             self.image,
-            h_scale=h_scale,
-            v_scale=v_scale)
+            h_scale=self.h_scale,
+            v_scale=self.v_scale)
 
         self.scale_id += 1
         self.show_prof()
@@ -310,84 +342,16 @@ class TestScreen(Screen):
         # time.sleep_ms(10)
         self.fps.tick()
 
+    async def flip_dir(self):
+        while True:
+            if self.slide_sel == 'horiz':
+                self.slide_sel = 'vert'
+            else:
+                self.slide_sel = 'horiz'
+            await asyncio.sleep_ms(2000)
+
     def do_refresh(self):
-        # return self.do_refresh_clipping_square()
-        # return self.do_refresh_beating_heart()
         return self.current_loop()
-
-        """ Overrides parent method """
-        # print(f" = EXEC ON CORE {_thread.get_ident()} (do_refresh)")
-
-        meta = self.mgr.get_meta(self.sprite)
-        image = self.mgr.sprite_images[self.sprite_type][-1]
-
-        # self.create_lines()
-        # self.show_lines()
-
-        """ Working vertical scaling ratios:
-            works: 2/3, 1/2, 1/3, 1/4, 1/5, 1/6, 1/8, 1/10, 1/12, 1/16
-            dubious: 1/7 , 0.75 (use 0.76)
-            upscales = [1, 2, 4, 8] # only power of 2 upscales working, why??
-        """
-
-        # print(f"\n=== Testing X:{scale_x * 100}% // Y:{scale_y * 100}% scaling ===")
-        self.h_scales = [3, 2, 1.5, 1, 0.5, 1, 0.5, 1, 1.5, 2, 3]
-        self.v_scales = [3, 2, 1.5, 1, 1, 1, 1, 1, 1.5, 2, 3]
-
-        h_scale = self.h_scales[self.scale_id]
-        v_scale = self.v_scales[self.scale_id]
-        h_scale = 2
-        v_scale = 2
-
-        draw_y = draw_x = 0
-
-        prof.start_profile('scaler.screen_prep')
-        sprite_width = meta.width
-        sprite_height = meta.height
-        sprite_scaled_width = math.ceil(sprite_width * h_scale)
-        sprite_scaled_height = math.ceil(sprite_height * v_scale)
-
-        max_cols = 12
-        max_rows = 10
-
-        num_cols = min(self.screen_width//sprite_scaled_width, max_cols)
-        num_rows = min(self.screen_height//sprite_scaled_height, max_rows)
-        # num_cols = num_rows = 1
-
-        num_sprites = 0
-        sep_max = 20
-
-        self.sep = 0
-        self.display.fill(0xFFFFFF)
-        prof.end_profile('scaler.screen_prep')
-
-        # print(f"\tSCALER Drawing {width_step}x{height_step} = {width_step*height_step} sprites")
-        for c in range(num_cols):
-            for r in range(num_rows):
-                prof.start_profile('scaler.draw_sprite')
-                self.scaler.draw_sprite(
-                    meta,
-                    draw_x+(c*sprite_scaled_width)+(self.sep*c),
-                    draw_y+(r*sprite_scaled_height),
-                    image,
-                    h_scale=h_scale,
-                    v_scale=v_scale)
-                prof.end_profile('scaler.draw_sprite')
-                num_sprites += 1
-
-        # self.sep += 2 * self.sep_dir
-
-        if (self.sep > sep_max) or (self.sep < 2):
-            self.sep_dir *= -1
-
-
-        # self.scale_id += 1
-        # if self.scale_id >= len(self.h_scales):
-        #     self.scale_id = 0
-
-        self.show_prof()
-        self.display.swap_buffers()
-        self.fps.tick()
 
     def create_lines(self):
         count = 64

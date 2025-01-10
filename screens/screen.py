@@ -16,7 +16,7 @@ class Screen:
     gc_interval: int = 3000 # how often to call the garbage collector (ms)
     app: None # ref to ScreenApp
     profile_labels = {}
-    display_loop_wait = 5 # ms for the display loop to wait between refreshes
+    display_loop_wait = 2 # ms for the display loop to wait between refreshes
     fps = 0
     target_fps = 30
 
@@ -30,7 +30,7 @@ class Screen:
         self.sprites.append(sprite)
 
     async def refresh_display(self):
-        wait_s = 1/10# max FPS
+        wait_s = 1/30# max FPS
         try:
             while True:
                 self.do_refresh()
@@ -47,7 +47,7 @@ class Screen:
     async def start_display_loop(self):
         while True:
             self.do_refresh()
-            await asyncio.sleep_ms(10)
+            await asyncio.sleep_ms(5)
 
     async def start_main_loop(self):
         await asyncio.gather(

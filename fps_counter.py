@@ -1,7 +1,7 @@
 import utime as time
 from micropython import const
 
-LIST_SIZE = const(40)
+LIST_SIZE = const(80)
 
 class FpsCounter():
     ticks: [int] = [0] * LIST_SIZE

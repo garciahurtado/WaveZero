@@ -11,6 +11,9 @@ class ScalingPatterns:
     """
     horiz_patterns = None
 
+    def __init__(self):
+        self.create_horiz_patterns()
+
     def get_pattern(self, scale):
         patterns = self.get_horiz_patterns()
         return patterns[scale]
