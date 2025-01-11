@@ -92,7 +92,6 @@ class ScalerFramebuf():
             print(f"* Will use a ({self.frame_width}x{self.frame_height}) Canvas - w/h")
 
         prof.end_profile('scaler.setup_buffers')
-        pass
 
     def blit_with_alpha(self, x, y, alpha):
         """ Copy the sprite from the "scratch" framebuffer to the final one in the display.
@@ -101,11 +100,6 @@ class ScalerFramebuf():
         disp = self.display
 
         """ Negative x and y have already been taking into account in interp config"""
-        # if y < 0:
-        #     y = 0
-
-        # if x < 0: # WILL HAVE TO BE ENABLED EVENTUALLY
-        #     x = 0
 
         if self.debug:
             width = disp.width

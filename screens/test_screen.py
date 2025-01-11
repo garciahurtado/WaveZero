@@ -133,8 +133,8 @@ class TestScreen(Screen):
         self.current_loop = None
 
         if test == 'heart':
-            self.sprite_type = SPRITE_TEST_SQUARE
-            self.load_sprite(SPRITE_TEST_SQUARE)
+            self.sprite_type = SPRITE_TEST_HEART
+            self.load_sprite(SPRITE_TEST_HEART)
             self.init_beating_heart()
             self.current_loop = self.do_refresh_beating_heart
         elif test == 'grid':
@@ -230,7 +230,6 @@ class TestScreen(Screen):
         prof.end_profile('scaler.screen_prep')
         sprite_width = sprite_height = 16
 
-        # print(f"\tSCALER Drawing {width_step}x{height_step} = {width_step*height_step} sprites")
         for c in range(self.num_cols):
             for r in range(self.num_rows):
                 if self.grid_beat:
@@ -271,8 +270,21 @@ class TestScreen(Screen):
 
         sprite_scaled_width = self.sprite.width * h_scale
         sprite_scaled_height = self.sprite.height * v_scale
-        draw_x = 48 - (sprite_scaled_width / 2)
-        draw_y = 32 - (sprite_scaled_height / 2)
+
+        display_width = self.display.width
+        display_height = self.display.height
+
+        draw_x = (display_width / 2) - (sprite_scaled_width / 2)
+        draw_y = (display_height - sprite_scaled_height) / 2
+
+        if self.scaler.debug:
+            print("IN SCREEN about to draw_sprite:")
+            print(f"  disp_width: {display_width}")
+            print(f"  disp_height: {display_height}")
+            print(f"  draw_x: {draw_x}")
+            print(f"  draw_y: {draw_y}")
+            print(f"  sprite_scaled_width: {sprite_scaled_width}")
+            print(f"  sprite_scaled_height: {sprite_scaled_height}")
 
         self.display.fill(0x000000)
         self.scaler.draw_sprite(

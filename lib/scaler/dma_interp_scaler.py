@@ -32,9 +32,25 @@ prof.enabled = False
 
 class SpriteScaler():
     def __init__(self, display):
+        """ Debugging """
+        self.dbg = ScalerDebugger()
+        self.debug_bytes1 = self.dbg.get_debug_bytes(byte_size=2, count=32)
+        self.debug_bytes2 = self.dbg.get_debug_bytes(byte_size=0, count=32)
+        self.debug = False
+        self.debug_dma = False
+        self.debug_dma_ch = False
+        self.debug_pio = False
+        self.debug_irq = False
+        self.debug_interp = False
+        self.debug_display = False
+        self.debug_interp_list = False
+        self.debug_scale_patterns = False
+        self.debug_with_debug_bytes = False
+
         self.addr_idx = 0
         self.display:SSD1331PIO = display
         self.framebuf = ScalerFramebuf(display)
+        self.framebuf.debug = self.debug
         self.patterns = ScalingPatterns()
 
         """ Create array with maximum possible number of read and write addresses """
@@ -59,21 +75,6 @@ class SpriteScaler():
         self.last_sprite_class = None # for optimization
         self.base_read = 0
         self.frac_bits = 0
-
-        """ Debugging """
-        self.dbg = ScalerDebugger()
-        self.debug_bytes1 = self.dbg.get_debug_bytes(byte_size=2, count=32)
-        self.debug_bytes2 = self.dbg.get_debug_bytes(byte_size=0, count=32)
-        self.debug = False
-        self.debug_dma = False
-        self.debug_dma_ch = False
-        self.debug_pio = False
-        self.debug_irq = False
-        self.debug_interp = False
-        self.debug_display = False
-        self.debug_interp_list = False
-        self.debug_scale_patterns = False
-        self.debug_with_debug_bytes = False
 
         self.draw_x = 0
         self.draw_y = 0
@@ -361,10 +362,6 @@ class SpriteScaler():
         )
         mem32[INTERP1_CTRL_LANE1] = read_ctrl_lane1
 
-        """ Only the devil understands this formula, but it works (not that hard, actually) """
-        read_step = sprite_width_bytes / scale_y_one
-        """ Convert read step to fixed point """
-        read_step_fixed = int((read_step) * (1 << frac_bits))  # Convert step to fixed point
 
         extra_bytes_x = 0
         prof.end_profile('scaler.interp_sprite.line1_cfg')
@@ -381,27 +378,35 @@ class SpriteScaler():
             if (scaled_height > self.framebuf.frame_height):
                 """ We need to offset base_read in order to clip vertically when generating addresses """
                 extra_rows = abs(self.draw_y)
-                extra_bytes_y = (extra_rows * sprite_width) // scale_y_one
-                read_base += extra_bytes_y // 2
+                extra_bytes_y = (extra_rows * (sprite_width/2)) // scale_y_one
+                read_base += extra_bytes_y
+
+                if self.debug_interp:
+                    print(f"NEGATIVE draw_y: {self.draw_y} / extrabytes: {extra_bytes_y}")
 
                 self.draw_y = 0
-
-                if self.debug_interp_list:
-                    print(f"NEGATIVE draw_y: extrabytes: {extra_bytes_y}")
 
         if (self.draw_x < 0): # we could probably defer this to an even lower number
             if (scaled_width > self.framebuf.frame_width):
                 """ We need to offset base_write in order to clip horizontally when generating addresses """
                 extra_cols = abs(self.draw_x)
                 extra_px_x = int(extra_cols)
-                extra_bytes_x = extra_px_x / scale_x_one # from scaled px to px
+                extra_bytes_x = (extra_px_x // scale_x_one) // 2
 
+                read_add = extra_bytes_x
                 # We have shorter rows now, since some of it is cropped on the left side
-                read_base += (extra_bytes_x // scale_x_one)
+                read_base += read_add
+
+                if self.debug_interp:
+                    print(f"NEGATIVE draw_x: {self.draw_x} / read_add: {read_add} / extrabytes: {extra_bytes_x}")
+
                 self.draw_x = 0
 
-            if self.debug_interp:
-                print(f"NEGATIVE draw_x: extrabytes: {extra_bytes_x} (read_step:{read_step}) / drawn at {self.draw_x}")
+        """ Only the devil understands this formula, but it works (not that hard, actually) """
+        read_step = sprite_width_bytes // scale_x_one
+
+        """ Convert read step to fixed point """
+        read_step_fixed = int((read_step) * (1 << frac_bits))  # Convert step to fixed point
 
         display_total_bytes = int(self.framebuf.frame_height * self.framebuf.display_stride) - (extra_bytes_y + extra_bytes_x)
         self.min_write_addr = write_base
@@ -414,16 +419,20 @@ class SpriteScaler():
             int_bits_str = '^' * self.int_bits
             frac_bits_str = '`' * self.frac_bits
             print(f"* INTERP SPRITE INIT:")
+            print(f"\t scale_x:             {scale_x_one:03f}")
+            print(f"\t scale_y:             {scale_y_one:03f}")
+            print(f"\t scaled_width:        {scaled_width}")
+            print(f"\t scaled_height:       {scaled_height}")
+
+            print()
             print(f"\t write_base:          0x{write_base:08X}")
             print(f"\t read_base:           0x{int(read_base):08X}")
             print(f"\t read step:           0x{int(read_step):08X} = {read_step}")
             print(f"\t read step (fixed):       0x{read_step_fixed:08X}")
             print(f"\t read step (fixed) b.:    {read_step_fixed:>032b}")
             print(f"\t int/frac bits:           {int_bits_str}{frac_bits_str}")
-            print(f"\t scale_x:             {scale_x_one:03f}")
-            print(f"\t scale_y:             {scale_y_one:03f}")
-            print(f"\t sprite_row_size:     {read_step}")
-            print(f"\t scaled_height:       {scaled_height}")
+
+            print()
             print(f"\t sprite_width:        {sprite_width}")
             print(f"\t sprite_width_bytes:  {sprite_width_bytes}")
             print(f"\t display_width:       {frame_width}")
