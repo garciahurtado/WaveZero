@@ -1,11 +1,9 @@
-from micropython import const
-from machine import mem32, mem16, mem8
 from rp2 import PIO
 
 from uarray import array
 from uctypes import addressof
 
-from scaler.dma_scaler_const import *
+from scaler.const import *
 from utils import aligned_buffer
 
 DMA_DBG_TCR = const(0x804)
@@ -259,3 +257,18 @@ class ScalerDebugger():
         gpio_out = mem32[pio_base + 0x3C]  # DBG_PADOUT
         print(f"GPIO Output Enable: 0x{gpio_oe:08x}")
         print(f"GPIO Output Values: 0x{gpio_out:08x}")
+
+    def debug_interp(self):
+        print("INTERP0 (Write addresses):")
+        print(f"  BASE0: 0x{mem32[INTERP0_BASE0]:08x}")
+        print(f"  BASE1: 0x{mem32[INTERP0_BASE1]:08x}")
+        print(f"  BASE2: 0x{mem32[INTERP0_BASE2]:08x}")
+        print(f"  ACCU0: 0x{mem32[INTERP0_ACCUM0]:08x}")
+        print(f"  ACCU1: 0x{mem32[INTERP0_ACCUM1]:08x}")
+
+        print("INTERP1 (Read addresses):")
+        print(f"  BASE0: 0x{mem32[INTERP1_BASE0]:08x}")
+        print(f"  BASE1: 0x{mem32[INTERP1_BASE1]:08x}")
+        print(f"  BASE2: 0x{mem32[INTERP1_BASE2]:08x}")
+        print(f"  ACCU0: 0x{mem32[INTERP1_ACCUM0]:08x}")
+        print(f"  ACCU1: 0x{mem32[INTERP1_ACCUM1]:08x}")

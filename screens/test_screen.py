@@ -3,11 +3,9 @@ import sys
 
 import time
 
-from scaler.dma_interp_scaler import SpriteScaler
+from scaler.sprite_scaler import SpriteScaler
 from scaler.scaling_patterns import ScalingPatterns
-from scaler.sprite_scaler_test import init_test_sprite_scaling
 from screens.screen import Screen
-from scaler.dma_scaler import DMAScaler
 
 from sprites2.test_square import TestSquare
 from sprites2.test_heart import TestHeart
@@ -20,8 +18,6 @@ from profiler import Profiler as prof
 from images.image_loader import ImageLoader
 
 import fonts.vtks_blocketo_6px as font_vtks
-from rp2 import DMA
-
 from font_writer_new import ColorWriter
 
 import utime
@@ -128,7 +124,7 @@ class TestScreen(Screen):
 
     def run(self):
         self.running = True
-        test = 'heart'
+        test = 'grid1'
         self.check_mem()
         self.current_loop = None
 
@@ -137,10 +133,16 @@ class TestScreen(Screen):
             self.load_sprite(SPRITE_TEST_HEART)
             self.init_beating_heart()
             self.current_loop = self.do_refresh_beating_heart
-        elif test == 'grid':
+        elif test == 'grid1':
             self.sprite_type = SPRITE_TEST_HEART
             self.load_sprite(SPRITE_TEST_HEART)
             self.init_grid()
+            self.current_loop = self.do_refresh_grid
+        elif test == 'grid2':
+            self.sprite_type = SPRITE_TEST_SQUARE
+            self.load_sprite(SPRITE_TEST_SQUARE)
+            self.init_grid()
+            self.grid_beat = True
             self.current_loop = self.do_refresh_grid
         elif test == 'square':
             self.sprite_type = SPRITE_TEST_SQUARE
@@ -173,15 +175,15 @@ class TestScreen(Screen):
         print(f" = EXEC ON CORE {_thread.get_ident()} (do_update)")
 
     def init_grid(self):
-        self.grid_beat = True
+        self.grid_beat = False
         self.sprite = self.mgr.get_meta(self.sprite)
         self.image = self.mgr.sprite_images[self.sprite_type][-1]
 
         one_scales1 = list(self.one_scales.keys())
         one_scales2 = one_scales1.copy()
         one_scales2.reverse()
-        ones = [1] * 3
-        self.one_scale_keys = ones + one_scales2 + one_scales1 + ones
+        self.one_scale_keys = one_scales2 + one_scales1
+        self.plus_one_scale_keys = one_scales2 + one_scales1
 
         self.sprite_scaled_width = math.ceil(self.sprite.width * self.h_scale)
         self.sprite_scaled_height = math.ceil(self.sprite.height * self.v_scale)
@@ -189,8 +191,8 @@ class TestScreen(Screen):
         max_cols = 12
         max_rows = 10
 
-        self.num_cols = min(self.screen_width // self.sprite_scaled_width, max_cols)
-        self.num_rows = min(self.screen_height // self.sprite_scaled_height, max_rows)
+        self.num_cols = min(self.screen_width // 16, max_cols)
+        self.num_rows = min(self.screen_height // 16, max_rows)
 
     def init_beating_heart(self):
         self.sprite = self.mgr.get_meta(self.sprite)
@@ -209,6 +211,8 @@ class TestScreen(Screen):
         self.sprite = self.mgr.get_meta(self.sprite)
         self.image = self.mgr.sprite_images[self.sprite_type][-1]
         self.curr_dir = 'horiz'
+        self.bounce_count = 0
+
         self.h_scale = self.v_scale = 2
         self.sprite_scaled_width = math.ceil(self.sprite.width * self.h_scale)
         self.sprite_scaled_height = math.ceil(self.sprite.height * self.v_scale)
@@ -224,33 +228,33 @@ class TestScreen(Screen):
         self.display.fill(0x000000)
         draw_x = 0
         draw_y = 0
-        x_offset = 0
-        y_offset = 0
 
         prof.end_profile('scaler.screen_prep')
-        sprite_width = sprite_height = 16
+        sprite_width = self.sprite.width
+        sprite_height = self.sprite.height
 
         for c in range(self.num_cols):
             for r in range(self.num_rows):
                 if self.grid_beat:
                     idx = int(c*self.num_rows + r)
-                    scale_factor = (self.scale_id+idx) % len(self.one_scale_keys)
+                    scale_factor = (self.scale_id+idx) % len(self.plus_one_scale_keys)
                 else:
                     scale_factor = 1
 
-                scale = self.one_scale_keys[scale_factor]
+                h_scale = self.plus_one_scale_keys[scale_factor]
+                v_scale = self.plus_one_scale_keys[scale_factor]
 
-                x_offset = (16 - (scale * sprite_width)) / 2
-                y_offset = (16 - (scale * sprite_height)) / 2
+                x_offset = (sprite_width - (h_scale * sprite_width)) / 2
+                y_offset = (sprite_height - (v_scale * sprite_height)) / 2
 
                 prof.start_profile('scaler.draw_sprite')
                 self.scaler.draw_sprite(
                     self.sprite,
-                    int(draw_x + (c * sprite_width) + x_offset),
-                    int(draw_y + (r * sprite_height) + y_offset),
+                    int(draw_x + (c * 16) + x_offset),
+                    int(draw_y + (r * 16) + y_offset),
                     self.image,
-                    h_scale=scale,
-                    v_scale=scale)
+                    h_scale=h_scale,
+                    v_scale=v_scale)
                 prof.end_profile('scaler.draw_sprite')
 
         self.scale_id += 1

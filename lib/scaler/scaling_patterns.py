@@ -1,9 +1,4 @@
-import io
-
-import math
 from uarray import array
-
-from utils import aligned_buffer, pprint
 
 class ScalingPatterns:
     """

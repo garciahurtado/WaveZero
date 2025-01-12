@@ -1,6 +1,10 @@
 from machine import mem32
 from micropython import const
 
+"""
+Part of the scaler.sprite_scaler package.
+Constants for memory access of DMA, PIO and INTERP registers
+"""
 """ DMA """
 
 CH0_DBG_TCR = const(0x804)
