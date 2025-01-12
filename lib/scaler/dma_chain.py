@@ -168,7 +168,7 @@ class DMAChain:
             ctrl=h_scale_ctrl
         )
 
-    def init_sprite(self, height, width, scaled_width, scaled_height, h_scale):
+    def init_sprite(self, width, h_scale):
         """Configure DMA for specific sprite parameters."""
         self.color_lookup.count = width
 
@@ -211,7 +211,7 @@ class DMAChain:
         if not self.read_finished:
             self.scaler.finish_sprite()
 
-    def debug_dma_and_pio(self):
+    def debug_dma_channels(self):
         self.dbg.debug_dma(self.read_addr, "read address", "read_addr", 2)
         self.dbg.debug_dma(self.write_addr, "write address", "write_addr", 3)
         self.dbg.debug_dma(self.color_lookup, "color_lookup", "color_lookup", 4)
@@ -219,5 +219,13 @@ class DMAChain:
         self.dbg.debug_dma(self.px_write, "pixel write", "pixel_write", 6)
         self.dbg.debug_dma(self.h_scale, "horiz_scale", "horiz_scale", 7)
 
-        if self.debug_pio:
-            self.dbg.debug_pio_status(sm0=True)
+    def debug_dma_addr(self):
+
+        """ Show key addresses """
+        print()
+        print("~~ KEY MEMORY ADDRESSES ~~")
+        print(f"    R/ ADDRS ADDR:          0x{addressof(self.read_addrs):08X}")
+        print(f"    R/ ADDRS 1st:             0x{mem32[addressof(self.read_addrs)]:08X}")
+        print(f"    W/ ADDRS ADDR:          0x{addressof(self.write_addrs):08X}")
+        print(f"    W/ ADDRS 1st:             0x{mem32[addressof(self.write_addrs)]:08X}")
+        print()

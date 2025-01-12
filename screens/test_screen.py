@@ -128,9 +128,14 @@ class TestScreen(Screen):
         self.check_mem()
         self.current_loop = None
 
-        if test == 'heart':
+        if test == 'zoom_heart':
             self.sprite_type = SPRITE_TEST_HEART
             self.load_sprite(SPRITE_TEST_HEART)
+            self.init_beating_heart()
+            self.current_loop = self.do_refresh_beating_heart
+        elif test == 'zoom_sq':
+            self.sprite_type = SPRITE_TEST_SQUARE
+            self.load_sprite(SPRITE_TEST_SQUARE)
             self.init_beating_heart()
             self.current_loop = self.do_refresh_beating_heart
         elif test == 'grid1':
@@ -175,7 +180,7 @@ class TestScreen(Screen):
         print(f" = EXEC ON CORE {_thread.get_ident()} (do_update)")
 
     def init_grid(self):
-        self.grid_beat = False
+        self.grid_beat = True
         self.sprite = self.mgr.get_meta(self.sprite)
         self.image = self.mgr.sprite_images[self.sprite_type][-1]
 
@@ -233,6 +238,8 @@ class TestScreen(Screen):
         sprite_width = self.sprite.width
         sprite_height = self.sprite.height
 
+        # self.num_cols = self.num_rows = 1
+
         for c in range(self.num_cols):
             for r in range(self.num_rows):
                 if self.grid_beat:
@@ -246,6 +253,7 @@ class TestScreen(Screen):
 
                 x_offset = (sprite_width - (h_scale * sprite_width)) / 2
                 y_offset = (sprite_height - (v_scale * sprite_height)) / 2
+
 
                 prof.start_profile('scaler.draw_sprite')
                 self.scaler.draw_sprite(

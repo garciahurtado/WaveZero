@@ -107,28 +107,16 @@ class ScalerFramebuf():
         self.display_stride = self.display_stride_cache[self.frame_width]
         self.frame_bytes = self.frame_bytes_cache[self.frame_width]
 
-        if self.debug:
-            print(f"* Will use a ({self.frame_width}x{self.frame_height}) Canvas - w/h")
-
         prof.end_profile('scaler.setup_buffers')
 
     def blit_with_alpha(self, x, y, alpha):
         """ Copy the sprite from the "scratch" framebuffer to the final one in the display.
          This is needed to implement transparency """
-        prof.start_profile('scaler.blit_with_alpha')
 
         """ Negative x and y have already been taking into account in interp config"""
-
-        if self.debug:
-            width = self.display.width
-            height = self.display.height
-            print(f" ~ BLITTING [{width}x{height}] FRAMEBUF TO x/y: {x}/{y} ")
-            print(f" ~ ALPHA IS {alpha} of Type {type(alpha)}")
-
         if alpha is None:
             self.display.write_framebuf.blit(self.scratch_buffer, x, y)
         else:
             self.display.write_framebuf.blit(self.scratch_buffer, x, y, alpha)
 
-        prof.end_profile('scaler.blit_with_alpha')
 
