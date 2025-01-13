@@ -161,6 +161,161 @@ FPS:   5.56
 FPS:   5.56
 FPS:   5.56
 
+Optimized fill_addr loop
+
+FPS:   5.61
+FPS:   5.61
+FPS:   5.66
+FPS:   5.66
+
+
+func                             runs     avg ms          total ms
+--------------------------------------------------------------------
+scaler.draw_sprite               5352     6.0695          32484.09
+scaler.init_interp_sprite        5352     2.5780          13797.44
+scaler.fill_addrs                5352     0.9012           4823.17
+scaler.init_dma_sprite           5352     0.8119           4345.06
+scaler.start_channels            5352     0.4654           2490.73
+
+
+changed await asyncio.sleep_ms(10) to 1
+
+FPS:   5.72
+FPS:   5.72
+FPS:   5.71
+
+FPS:   5.65
+FPS:   5.65
+FPS:   5.69
+FPS:   5.70
+
+unsure where this came from:
+
+FPS:   5.73
+FPS:   5.73
+FPS:   5.76
+FPS:   5.78
+FPS:   5.78
+
+---
+
+FPS:   5.82
+FPS:   5.81
+FPS:   5.80
+
+--
+Elminated some int() conversions
+
+FPS:   5.83
+FPS:   5.80
+FPS:   5.80
+FPS:   5.86
+
+
+// Removed profiler from critical path
+FPS:   6.40
+FPS:   6.40
+FPS:   6.48
+FPS:   6.51
+FPS:   6.49
+
+--
+
+
+FPS:   6.28
+FPS:   6.31
+FPS:   6.32
+FPS:   6.32
+
+--
+viperizing init_interp_lane1
+
+FPS:   6.46
+FPS:   6.49
+FPS:   6.49
+FPS:   6.51
+
+
+---
+
+FPS:   6.24
+FPS:   6.25
+FPS:   6.29
+FPS:   6.29
+FPS:   6.30
+
+passing more params to the viperized function:
+
+FPS:   6.28
+FPS:   6.26
+FPS:   6.33
+FPS:   6.35
+
+Before DMA refactr:
+
+FPS:   6.33
+FPS:   6.31
+FPS:   6.36
+FPS:   6.38
+FPS:   6.36
+
+Removed extra reset()
+
+FPS:   6.81
+FPS:   6.87
+FPS:   6.87
+FPS:   6.87
+FPS:   6.85
+
+Viperizing fill_addrs_loop
+
+FPS:   7.09
+FPS:   7.09
+FPS:   7.09
+FPS:   7.09
+
+
+FPS:   7.21
+FPS:   7.27
+FPS:   7.27
+FPS:   7.26
+FPS:   7.26
+
+---
+
+
+FPS:   7.83
+FPS:   7.83
+FPS:   7.83
+FPS:   7.83
+FPS:   7.83
+
+===
+Before caching write addrs
+
+FPS:   8.70
+FPS:   8.70
+FPS:   8.69
+FPS:   8.67
+FPS:   8.77
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

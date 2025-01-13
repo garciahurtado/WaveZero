@@ -124,7 +124,7 @@ class TestScreen(Screen):
 
     def run(self):
         self.running = True
-        test = 'grid1'
+        test = 'zoom_heart'
         self.check_mem()
         self.current_loop = None
 
@@ -147,7 +147,7 @@ class TestScreen(Screen):
             self.sprite_type = SPRITE_TEST_SQUARE
             self.load_sprite(SPRITE_TEST_SQUARE)
             self.init_grid()
-            self.grid_beat = True
+            # self.grid_beat = True
             self.current_loop = self.do_refresh_grid
         elif test == 'square':
             self.sprite_type = SPRITE_TEST_SQUARE
@@ -180,7 +180,7 @@ class TestScreen(Screen):
         print(f" = EXEC ON CORE {_thread.get_ident()} (do_update)")
 
     def init_grid(self):
-        self.grid_beat = True
+        self.grid_beat = False
         self.sprite = self.mgr.get_meta(self.sprite)
         self.image = self.mgr.sprite_images[self.sprite_type][-1]
 
@@ -189,9 +189,6 @@ class TestScreen(Screen):
         one_scales2.reverse()
         self.one_scale_keys = one_scales2 + one_scales1
         self.plus_one_scale_keys = one_scales2 + one_scales1
-
-        self.sprite_scaled_width = math.ceil(self.sprite.width * self.h_scale)
-        self.sprite_scaled_height = math.ceil(self.sprite.height * self.v_scale)
 
         max_cols = 12
         max_rows = 10
@@ -243,23 +240,26 @@ class TestScreen(Screen):
         for c in range(self.num_cols):
             for r in range(self.num_rows):
                 if self.grid_beat:
-                    idx = int(c*self.num_rows + r)
+                    idx = int(c*self.num_rows+ r)
                     scale_factor = (self.scale_id+idx) % len(self.plus_one_scale_keys)
                 else:
                     scale_factor = 1
 
                 h_scale = self.plus_one_scale_keys[scale_factor]
-                v_scale = self.plus_one_scale_keys[scale_factor]
+                v_scale = h_scale = 1
+
+                self.sprite_scaled_width = int(self.sprite.width * h_scale)
+                self.sprite_scaled_height = int(self.sprite.height * v_scale)
 
                 x_offset = (sprite_width - (h_scale * sprite_width)) / 2
                 y_offset = (sprite_height - (v_scale * sprite_height)) / 2
 
-
+                row_sep = sprite_width
                 prof.start_profile('scaler.draw_sprite')
                 self.scaler.draw_sprite(
                     self.sprite,
-                    int(draw_x + (c * 16) + x_offset),
-                    int(draw_y + (r * 16) + y_offset),
+                    int(draw_x + (c * row_sep) + x_offset),
+                    int(draw_y + (r * row_sep) + y_offset),
                     self.image,
                     h_scale=h_scale,
                     v_scale=v_scale)
@@ -291,8 +291,8 @@ class TestScreen(Screen):
 
         if self.scaler.debug:
             print("IN SCREEN about to draw_sprite:")
-            print(f"  disp_width: {display_width}")
-            print(f"  disp_height: {display_height}")
+            print(f"  fbuff_width: {self.scaler.framebuf.frame_width}")
+            print(f"  fbuff_height: {self.scaler.framebuf.frame_height}")
             print(f"  draw_x: {draw_x}")
             print(f"  draw_y: {draw_y}")
             print(f"  sprite_scaled_width: {sprite_scaled_width}")
@@ -311,9 +311,8 @@ class TestScreen(Screen):
         self.show_prof()
         self.display.swap_buffers()
 
-        time.sleep_ms(100)
+        time.sleep_ms(50)
         self.fps.tick()
-
 
     def do_refresh_clipping_square(self):
         """

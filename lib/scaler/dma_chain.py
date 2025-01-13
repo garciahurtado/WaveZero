@@ -203,8 +203,8 @@ class DMAChain:
         self.addr_idx = 0
 
         # Reset addresses
-        self.read_addr.read = self.read_addrs
-        self.write_addr.read = self.write_addrs
+        self.read_addr.read = addressof(self.read_addrs)
+        self.write_addr.read = addressof(self.write_addrs)
 
     def irq_px_read_end(self, ch):
         """Handle end of pixel read IRQ."""

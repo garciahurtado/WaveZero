@@ -6,7 +6,7 @@ import math
 import sys
 
 import micropython
-from _rp2 import DMA, StateMachine
+from _rp2 import StateMachine
 from uarray import array
 from uctypes import addressof
 
@@ -20,7 +20,7 @@ from profiler import Profiler as prof, timed
 from sprites2.sprite_types import SpriteType
 from ssd1331_pio import SSD1331PIO
 
-prof.enabled = True
+prof.enabled = False
 
 class SpriteScaler():
     def __init__(self, display):
@@ -34,10 +34,11 @@ class SpriteScaler():
         self.debug_pio = False
         self.debug_irq = False
         self.debug_interp = False
-        self.debug_display = False
         self.debug_interp_list = False
         self.debug_scale_patterns = False
         self.debug_with_debug_bytes = False
+
+        self.write_addr2 = []
 
         self.display:SSD1331PIO = display
         self.framebuf:ScalerFramebuf = ScalerFramebuf(display)
@@ -83,10 +84,14 @@ class SpriteScaler():
         """ Uses INTERP to fill a sequence of Read/Write addresses indicating the start of each sprite row, and the
         start of the display row to draw it in """
 
-        max_row = int(scaled_height)
+        prof.start_profile("scaler.fill_addrs")
+
+        max_row = scaled_height
+        if max_row > self.display.height:
+            max_row = self.display.height
 
         """ Addr generation loop"""
-        self.fill_addrs_loop(max_row)
+        self.fill_addrs_loop(max_row, scaled_height)
 
         if self.debug_interp_list:
             print(f"max_write_addr: 0x{self.max_write_addr:08X} ")
@@ -99,16 +104,23 @@ class SpriteScaler():
                 print(f"W [{i:02}]: 0x{write:08X}")
                 print(f"R     : ....0x{read:08X}")
 
-    @micropython.viper
-    def fill_addrs_loop(self, max_rows: int):
-        row_id = 0
-        while row_id < max_rows:
-            write_addr = mem32[INTERP0_POP_FULL]
-            read_addr = mem32[INTERP1_POP_FULL]
+                if not read or not write:
+                    break
 
-            if write_addr > self.max_write_addr:
+        prof.end_profile("scaler.fill_addrs")
+
+    # @micropython.viper
+    def fill_addrs_loop(self, max_rows: int, scaled_height):
+        row_id = 0
+
+        while row_id < max_rows:
+            read_addr = mem32[INTERP1_POP_FULL]
+            write_addr = self.framebuf.write_addrs_now[row_id]
+
+            if not write_addr:
                 """ End of address generation """
                 break
+
             if write_addr < self.min_write_addr:
                 """ by not updating the row_id, we are discarding "negative" write addr and its read addr """
                 continue
@@ -133,6 +145,15 @@ class SpriteScaler():
         self.alpha = meta.alpha_color
         self.dma.read_finished = False
 
+        if meta.width == 32:
+            self.framebuf.frac_bits = self.frac_bits = 4  # Use x.y fixed point (32x32)
+        elif meta.width == 16:
+            self.framebuf.frac_bits = self.frac_bits = 3  # Use x.y fixed point   (16x16)
+        else:
+            print("ERROR: only 16x16 or 32x32 sprites allowed")
+            sys.exit(1)
+        self.int_bits = 32 - self.frac_bits
+
         prof.start_profile('scaler.scaled_width_height')
         scaled_height = meta.height * v_scale
         scaled_width = meta.width * h_scale
@@ -152,35 +173,26 @@ class SpriteScaler():
         Sprite type (TBD)  """
         prof.start_profile('scaler.cache_sprite_config')
 
-        if meta.width == 32:
-            self.frac_bits = 4  # Use x.y fixed point (32x32)
-        elif meta.width == 16:
-            self.frac_bits = 3  # Use x.y fixed point   (16x16)
-        else:
-            print("ERROR: only 16x16 or 32x32 sprites allowed")
-            sys.exit(1)
-        self.int_bits = 32 - self.frac_bits
-
         self.last_sprite_class = meta
         prof.end_profile('scaler.cache_sprite_config')
-
-        """ Config interpolator """
-        prof.start_profile('scaler.interp_cfg')
-        self.base_read = addressof(image.pixel_bytes)
-
-        img_bytes = (meta.width * meta.height) // 2
-        self.min_read_addr = self.base_read
-        self.max_read_addr = self.min_read_addr + img_bytes
-        prof.end_profile('scaler.interp_cfg')
 
         prof.start_profile('scaler.init_interp_sprite')
         self.init_interp_sprite(self.base_read, int(meta.width), scaled_width, scaled_height, h_scale, v_scale)
         prof.end_profile('scaler.init_interp_sprite')
 
+        """ Config interpolator """
+        prof.start_profile('scaler.interp_cfg')
+        self.base_read = addressof(image.pixel_bytes)
+
+        img_bytes = (meta.width * meta.height)
+        self.min_read_addr = self.base_read
+        self.max_read_addr = self.min_read_addr + img_bytes
+        prof.end_profile('scaler.interp_cfg')
+
         if self.debug_dma:
             print(f"Drawing a sprite of {meta.width}x{meta.height} @ base addr 0x{self.framebuf.min_write_addr:08X}")
             print(f"Hscale: x{h_scale} / Vscale: x{v_scale}")
-            print(f"Sprite Stride: {meta.width}")
+            print(f"Sprite Stride: {meta.width//2}")
             print(f"Display Stride: { self.framebuf.display_stride}")
 
         prof.start_profile('scaler.init_pio')
@@ -192,6 +204,7 @@ class SpriteScaler():
         prof.start_profile('scaler.init_dma_sprite')
         self.dma.init_sprite( meta.width, h_scale)
         prof.end_profile('scaler.init_dma_sprite')
+        self.fill_addrs(scaled_height)
 
         if self.debug_dma:
             self.dma.debug_dma_addr()
@@ -316,8 +329,6 @@ class SpriteScaler():
         mem32[INTERP1_BASE1] = int((1 << frac_bits) * read_step)  # Convert step to fixed point
         mem32[INTERP1_BASE2] = int(read_base) # Base sprite read address
 
-        self.fill_addrs(scaled_height)
-
     @micropython.viper
     def init_interp_lane1(self, frac_bits:int, int_bits:int, display_stride:int, write_base:int):
         read_ctrl_lane1 = (
@@ -353,6 +364,13 @@ class SpriteScaler():
 
         mem32[INTERP1_ACCUM0] = 0
         mem32[INTERP1_ACCUM1] = 0
+
+        self.min_read_addr = 0
+        self.max_read_addr = 0
+        self.max_write_addr = 0
+        self.row_id = 0
+        self.scaled_width = 0
+        self.scaled_height = 0
 
     def init_pio(self, palette_addr):
         self.sm_read_palette.restart()
