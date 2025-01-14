@@ -71,7 +71,7 @@ class SpriteScaler():
 
         self.palette_addr = None
 
-        sm_freq = 40_000_000 # must be 75% of the system freq or less, to avoid visual glitches
+        sm_freq = 80_000_000 # must be 75% of the system freq or less, to avoid visual glitches
         # PIO1 - SM0
         self.sm_read_palette = StateMachine(
             4, read_palette,
@@ -176,18 +176,18 @@ class SpriteScaler():
         self.last_sprite_class = meta
         prof.end_profile('scaler.cache_sprite_config')
 
-        prof.start_profile('scaler.init_interp_sprite')
-        self.init_interp_sprite(self.base_read, int(meta.width), scaled_width, scaled_height, h_scale, v_scale)
-        prof.end_profile('scaler.init_interp_sprite')
-
         """ Config interpolator """
         prof.start_profile('scaler.interp_cfg')
         self.base_read = addressof(image.pixel_bytes)
 
-        img_bytes = (meta.width * meta.height)
+        img_bytes = (meta.width * meta.height) // 2
         self.min_read_addr = self.base_read
         self.max_read_addr = self.min_read_addr + img_bytes
         prof.end_profile('scaler.interp_cfg')
+
+        prof.start_profile('scaler.init_interp_sprite')
+        self.init_interp_sprite(self.base_read, int(meta.width), scaled_width, scaled_height, h_scale, v_scale)
+        prof.end_profile('scaler.init_interp_sprite')
 
         if self.debug_dma:
             print(f"Drawing a sprite of {meta.width}x{meta.height} @ base addr 0x{self.framebuf.min_write_addr:08X}")
@@ -293,7 +293,7 @@ class SpriteScaler():
         if (self.draw_x >= 0) and (self.draw_y >= 0):
             """ Optimize branching for the common case """
             display_total_bytes = framebuf.frame_bytes
-            self.max_write_addr = write_base + display_total_bytes
+            self.max_write_addr = int(write_base + display_total_bytes)
         else:
             extra_bytes_x = 0
             extra_bytes_y = 0
@@ -312,10 +312,11 @@ class SpriteScaler():
                     """ We need to offset base_write in order to clip horizontally when generating addresses """
                     extra_cols = abs(self.draw_x)
                     extra_px_x = int(extra_cols)
-                    extra_bytes_x = (extra_px_x / scale_x_one) / 2
+                    extra_bytes_x = (extra_px_x // scale_x_one) // 2
 
+                    read_add = extra_bytes_x
                     # We have shorter rows now, since some of it is cropped on the left side
-                    read_base += extra_bytes_x
+                    read_base += read_add
 
                     self.draw_x = 0
 
@@ -325,7 +326,7 @@ class SpriteScaler():
         # read_step_fixed = self.get_read_step_fixed(sprite_width_bytes, int(scale_x_one), frac_bits)
 
         # Configure remaining variables
-        read_step = (sprite_width // 2) // scale_x_one
+        read_step = (sprite_width // 2) / scale_x_one
         mem32[INTERP1_BASE1] = int((1 << frac_bits) * read_step)  # Convert step to fixed point
         mem32[INTERP1_BASE2] = int(read_base) # Base sprite read address
 

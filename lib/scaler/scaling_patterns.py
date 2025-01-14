@@ -21,6 +21,9 @@ class ScalingPatterns:
         return self.horiz_patterns
 
     def create_horiz_patterns(self):
+        """
+        steps tested = 0.032, 0.064, 0.125, 0.250, 0.500
+        """
         patterns1 = {}
         patterns1 = self.create_patterns(0, 1, step=0.125)
         patterns2 = self.create_patterns(1, 4, step=0.250)

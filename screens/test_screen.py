@@ -107,11 +107,9 @@ class TestScreen(Screen):
         self.scaler = SpriteScaler(self.display)
         self.scaler.prof = prof
 
-        self.h_scales = [0.5, 0.75, 1.0, 1.5, 2.0, 3.0]
-        self.v_scales = [0.5, 1.0, 1.0, 1.6, 2.0, 3.0]
         self.all_scales = patt.get_horiz_patterns()
         self.all_keys = self.all_scales.keys()
-        self.one_scales = {scale: patt for scale, patt in self.all_scales.items() if scale <= 1}
+        self.one_scales = {scale: patt for scale, patt in self.all_scales.items() if scale <= 3}
 
         self.grid_beat = False
 
@@ -124,7 +122,7 @@ class TestScreen(Screen):
 
     def run(self):
         self.running = True
-        test = 'zoom_heart'
+        test = 'grid1'
         self.check_mem()
         self.current_loop = None
 
@@ -142,6 +140,7 @@ class TestScreen(Screen):
             self.sprite_type = SPRITE_TEST_HEART
             self.load_sprite(SPRITE_TEST_HEART)
             self.init_grid()
+            self.grid_beat = True
             self.current_loop = self.do_refresh_grid
         elif test == 'grid2':
             self.sprite_type = SPRITE_TEST_SQUARE
@@ -187,7 +186,7 @@ class TestScreen(Screen):
         one_scales1 = list(self.one_scales.keys())
         one_scales2 = one_scales1.copy()
         one_scales2.reverse()
-        self.one_scale_keys = one_scales2 + one_scales1
+        self.one_scale_keys = one_scales1
         self.plus_one_scale_keys = one_scales2 + one_scales1
 
         max_cols = 12
@@ -235,18 +234,19 @@ class TestScreen(Screen):
         sprite_width = self.sprite.width
         sprite_height = self.sprite.height
 
-        # self.num_cols = self.num_rows = 1
-
+        # self.num_cols = self.num_rows = 4
+        scale_source = list(self.plus_one_scale_keys)
+        scale_source_len = len(scale_source)
         for c in range(self.num_cols):
             for r in range(self.num_rows):
                 if self.grid_beat:
                     idx = int(c*self.num_rows+ r)
-                    scale_factor = (self.scale_id+idx) % len(self.plus_one_scale_keys)
+                    scale_factor = (self.scale_id+idx) % scale_source_len
                 else:
                     scale_factor = 1
 
-                h_scale = self.plus_one_scale_keys[scale_factor]
-                v_scale = h_scale = 1
+                h_scale = scale_source[scale_factor]
+                v_scale = h_scale
 
                 self.sprite_scaled_width = int(self.sprite.width * h_scale)
                 self.sprite_scaled_height = int(self.sprite.height * v_scale)
@@ -279,6 +279,7 @@ class TestScreen(Screen):
 
         h_scale = self.h_scales[self.scale_id % len(self.h_scales)]
         v_scale = h_scale
+        # v_scale = h_scale = 5
 
         sprite_scaled_width = self.sprite.width * h_scale
         sprite_scaled_height = self.sprite.height * v_scale
@@ -291,6 +292,8 @@ class TestScreen(Screen):
 
         if self.scaler.debug:
             print("IN SCREEN about to draw_sprite:")
+            print(f"  v_scale: {v_scale}")
+            print(f"  h_scale: {h_scale}")
             print(f"  fbuff_width: {self.scaler.framebuf.frame_width}")
             print(f"  fbuff_height: {self.scaler.framebuf.frame_height}")
             print(f"  draw_x: {draw_x}")
