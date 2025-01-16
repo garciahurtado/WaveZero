@@ -83,15 +83,15 @@ class SpriteScaler():
 
         prof.start_profile("scaler.fill_addrs")
 
-        max_row = scaled_height
-        if max_row > self.framebuf.frame_height:
-            max_row = self.framebuf.frame_height
-
-        max_row = int(max_row)
-        self.dma.write_addrs[0:max_row] = self.framebuf.write_addrs_curr[0:max_row]
+        # max_row = scaled_height
+        # if max_row > self.framebuf.frame_height:
+        #     max_row = self.framebuf.frame_height
+        #
+        # max_row = int(max_row)
+        # self.dma.write_addrs[0:max_row] = self.framebuf.write_addrs_curr[0:max_row]
 
         """ Addr generation loop"""
-        self.fill_addrs_loop(max_row)
+        self.fill_addrs_loop(scaled_height, self.framebuf.frame_height)
 
         if self.debug_interp_list:
             print(f"min_write_addr: 0x{self.min_write_addr:08X} ")
@@ -109,21 +109,26 @@ class SpriteScaler():
         prof.end_profile("scaler.fill_addrs")
 
     @micropython.viper
-    def fill_addrs_loop(self, max_rows: int):
+    def fill_addrs_loop(self, scaled_height: int, frame_height: int):
+        # Determine max_row with bounds checking
+        max_rows = int(scaled_height)
+        if max_rows > frame_height:
+            max_rows = frame_height
+
+        # Get array pointers
+        write_addrs = self.dma.write_addrs  # destination
+        curr_addrs = self.framebuf.write_addrs_curr  # source
+
+        # Manual copy loop (faster than slicing in viper)
+        i = 0
+        while i < max_rows:
+            write_addrs[i] = curr_addrs[i]
+            i += 1
+
         row_id = 0
 
         while row_id < max_rows:
             read_addr = mem32[INTERP1_POP_FULL]
-            # if not write_addr:
-            #     """ End of address generation """
-            #     print("END due to not write_addr")
-            #     break
-            #
-            # if write_addr < self.min_write_addr:
-            #     """ by not updating the row_id, we are discarding "negative" write addr and its read addr """
-            #     print("CONT due to write_addr < self.min_write_addr")
-            #     continue
-
             self.dma.read_addrs[row_id] = read_addr
             row_id += 1
 
