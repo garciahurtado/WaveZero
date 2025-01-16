@@ -6,7 +6,6 @@ from uctypes import addressof
 from scaler.const import *
 from scaler.scaler_debugger import ScalerDebugger
 from scaler.scaling_patterns import ScalingPatterns
-from utils import aligned_buffer
 
 ROW_ADDR_DMA_BASE = DMA_BASE_2
 ROW_ADDR_TARGET_DMA_BASE = DMA_BASE_3
@@ -38,10 +37,11 @@ class DMAChain:
         self.addr_idx = 0
 
         self.patterns = ScalingPatterns()
+        self.patterns.print_patterns()
 
         """ Create array with maximum possible number of read and write addresses """
-        read_buf = bytearray((display.height*2) * 4)
-        write_buf = bytearray((display.height*2) * 4)
+        read_buf = bytearray((display.height+1)*2 * 4) # why does this need to be x2?
+        write_buf = bytearray((display.height+1) * 4)
 
         self.read_addrs = array('L', read_buf)
         self.write_addrs = array('L', write_buf)

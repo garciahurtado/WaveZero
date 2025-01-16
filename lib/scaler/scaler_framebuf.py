@@ -21,7 +21,7 @@ class ScalerFramebuf():
     scratch_addr = addressof(scratch_bytes)
     scratch_buffer = None
     write_addrs_all = {}
-    write_addrs_now = None
+    write_addrs_curr = None # pointer to the current write addrs array
 
     alpha: None
 
@@ -102,24 +102,24 @@ class ScalerFramebuf():
         if max_dim <= 4:
             self.scratch_buffer = self.scratch_buffer_4
             self.frame_width = self.frame_height = 4
-            self.write_addrs_now = self.write_addrs_all[4]
+            self.write_addrs_curr = self.write_addrs_all[4]
         elif max_dim <= 8:
             self.scratch_buffer = self.scratch_buffer_8
             self.frame_width = self.frame_height = 8
-            self.write_addrs_now = self.write_addrs_all[8]
+            self.write_addrs_curr = self.write_addrs_all[8]
         elif max_dim <= 16:
             self.scratch_buffer = self.scratch_buffer_16
             self.frame_width = self.frame_height = 16
-            self.write_addrs_now = self.write_addrs_all[16]
+            self.write_addrs_curr = self.write_addrs_all[16]
         elif max_dim <= 32:
             self.scratch_buffer = self.scratch_buffer_32
             self.frame_width = self.frame_height = 32
-            self.write_addrs_now = self.write_addrs_all[32]
+            self.write_addrs_curr = self.write_addrs_all[32]
         else:
             self.scratch_buffer = self.scratch_buffer_full
             self.frame_width = self.display.width + self.extra_width
             self.frame_height = self.display.height
-            self.write_addrs_now = self.write_addrs_all[64]
+            self.write_addrs_curr = self.write_addrs_all[64]
 
         self.scratch_buffer.fill(self.fill_color)
         self.display_stride = self.display_stride_cache[self.frame_width]
@@ -130,7 +130,7 @@ class ScalerFramebuf():
         prof.end_profile('scaler.setup_buffers')
 
         if self.debug:
-            print(f"   INSIDE 'SELECT_BUFFER', WITH A self.write_addrs_now len of {len(self.write_addrs_now)} ")
+            print(f"   INSIDE 'SELECT_BUFFER', WITH A self.write_addrs_now len of {len(self.write_addrs_curr)} ")
             print(f"   FOR w/h: {scaled_width}, {scaled_height} a frame height of {self.frame_height}")
             print(f"   SELECTED STRIDE: {self.display_stride}")
             print(f"   FRAME BYTES: {self.frame_bytes}")
@@ -152,7 +152,6 @@ class ScalerFramebuf():
             write_base = self.min_write_addr
 
             display_stride = self.display_stride_cache[width]
-            stride = display_stride * 2
             row_list = array("L", [0] * (height+1))
 
             curr_addr = write_base

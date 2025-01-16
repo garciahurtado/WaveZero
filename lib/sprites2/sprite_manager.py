@@ -16,8 +16,9 @@ import math
 from images.indexed_image import Image, create_image
 from sprites2.sprite_pool_lite import SpritePool
 from typing import Dict, List
-from profiler import Profiler as prof
+from profiler import Profiler
 import ssd1331_pio
+prof = Profiler()
 
 class SpriteManager:
     POS_TYPE_FAR = const(0)

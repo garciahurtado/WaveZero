@@ -99,13 +99,15 @@ class Profiler():
 
         print("\n")
 
-def timed():
-    def decorator(func):
-        async def wrapper(*args, **kwargs):
-            await Profiler.start_profile(func.__name__)
-            try:
-                return await func(*args, **kwargs)
-            finally:
-                await Profiler.end_profile(func.__name__)
-        return wrapper
-    return decorator
+def timed(func):
+    """ Doesnt currently work. """
+    func_name = func.__name__
+    def wrapper(*args, **kwargs):
+        loop = asyncio.get_event_loop()
+        loop.create_task(Profiler.start_profile(func_name))
+        try:
+            result = func(*args, **kwargs)
+            return result
+        finally:
+            loop.create_task(Profiler.end_profile(func_name))
+    return wrapper

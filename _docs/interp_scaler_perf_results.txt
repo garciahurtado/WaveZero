@@ -30,6 +30,8 @@ scaler.start_channels            2040     0.0742            151.35
 scaler.precache_addr             2040     0.0560            114.23
 
 <<< AFTER CONVERTING TO SIMPLIFIED PIPELINE (before optimization) >>>
+<<< ALL THE BELOW DATA WAS TAKEN USING 120HZ MAIN / 80HZ DMA, 
+<<< 24 SPRITES OF 16X16 WITH ALL DEBUG OPTIONS OFF AND PROFILER ON
 
 FPS:   1.91
 FPS:   1.91
@@ -298,6 +300,40 @@ FPS:   8.70
 FPS:   8.69
 FPS:   8.67
 FPS:   8.77
+
+
+--
+
+climbinb back up
+
+FPS:   7.23
+FPS:   7.20
+FPS:   7.21
+FPS:   7.18
+
+>>
+
+FPS:   7.30
+FPS:   7.39
+FPS:   7.38
+FPS:   7.35
+
+>> 
+
+FPS:   7.69
+FPS:   7.67
+FPS:   7.69
+FPS:   7.69
+
+>>
+
+FPS:   7.85
+FPS:   7.85
+FPS:   7.89
+FPS:   7.91
+
+
+
 
 
 

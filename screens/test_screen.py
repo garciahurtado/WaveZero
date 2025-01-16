@@ -6,12 +6,13 @@ import time
 from scaler.sprite_scaler import SpriteScaler
 from scaler.scaling_patterns import ScalingPatterns
 from screens.screen import Screen
+from sprites2.test_grid import TestGrid
 
 from sprites2.test_square import TestSquare
 from sprites2.test_heart import TestHeart
 from sprites2.sprite_manager_2d import SpriteManager2D
 
-from sprites2.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART
+from sprites2.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART, SPRITE_TEST_GRID
 import math
 from profiler import Profiler as prof
 
@@ -79,6 +80,9 @@ class TestScreen(Screen):
     sep = 2
     sep_dir = 1
     bg_color = colors.hex_to_565(CYAN)
+    x_offset = 0
+    y_offset = 0
+    all_coords = [] # list of x/y tuples
 
     def __init__(self, display, *args, **kwargs):
         super().__init__(display)
@@ -109,9 +113,11 @@ class TestScreen(Screen):
 
         self.all_scales = patt.get_horiz_patterns()
         self.all_keys = self.all_scales.keys()
-        self.one_scales = {scale: patt for scale, patt in self.all_scales.items() if scale <= 3}
+        self.one_scales = {scale: patt for scale, patt in self.all_scales.items() if scale <= 1}
+        self.two_scales = {scale: patt for scale, patt in self.all_scales.items() if scale <= 3 and scale >= 0.1}
 
         self.grid_beat = False
+        self.fallout = False
 
     def create_sprite_manager(self, display, num_sprites=0):
         self.check_mem()
@@ -140,14 +146,22 @@ class TestScreen(Screen):
             self.sprite_type = SPRITE_TEST_HEART
             self.load_sprite(SPRITE_TEST_HEART)
             self.init_grid()
-            self.grid_beat = True
+            self.grid_beat = False
+            self.fallout = False
             self.current_loop = self.do_refresh_grid
         elif test == 'grid2':
             self.sprite_type = SPRITE_TEST_SQUARE
             self.load_sprite(SPRITE_TEST_SQUARE)
             self.init_grid()
-            # self.grid_beat = True
+            self.grid_beat = False
+            self.fallout = True
             self.current_loop = self.do_refresh_grid
+        elif test == 'grid3':
+            self.sprite_type = SPRITE_TEST_GRID
+            self.load_sprite(SPRITE_TEST_GRID)
+            self.init_grid()
+            self.current_loop = self.do_refresh_grid
+
         elif test == 'square':
             self.sprite_type = SPRITE_TEST_SQUARE
             self.load_sprite(SPRITE_TEST_SQUARE)
@@ -179,21 +193,47 @@ class TestScreen(Screen):
         print(f" = EXEC ON CORE {_thread.get_ident()} (do_update)")
 
     def init_grid(self):
-        self.grid_beat = False
         self.sprite = self.mgr.get_meta(self.sprite)
+        sprite_width = self.sprite.width
+        sprite_height = self.sprite.height
         self.image = self.mgr.sprite_images[self.sprite_type][-1]
 
         one_scales1 = list(self.one_scales.keys())
+        one_scales1_rev = one_scales1.copy()
+        one_scales1_rev.reverse()
+
         one_scales2 = one_scales1.copy()
         one_scales2.reverse()
-        self.one_scale_keys = one_scales1
         self.plus_one_scale_keys = one_scales2 + one_scales1
+
+        times = 2
+        self.one_two_scale_keys = [1] * times + list(self.two_scales.keys()) + [1] * times
+        self.one_scale_keys = [1] * times + one_scales1_rev + [1] * times
 
         max_cols = 12
         max_rows = 10
+        # max_cols = max_rows = 1
 
         self.num_cols = min(self.screen_width // 16, max_cols)
         self.num_rows = min(self.screen_height // 16, max_rows)
+
+        h_scale = v_scale = 1
+        self.sprite_scaled_width = int(sprite_width * h_scale)
+        self.sprite_scaled_height = int(sprite_height * v_scale)
+
+        """ Precache x/y (scale 1 only) """
+        row_sep = sprite_width - 1
+        col_sep = sprite_width
+
+        all_coords = []
+
+        for c in range(self.num_cols):
+            for r in range(self.num_rows):
+                draw_x = int(c * col_sep)
+                draw_y = int(r * row_sep)
+                all_coords.append([draw_x, draw_y])
+
+        self.all_coords = all_coords
 
     def init_beating_heart(self):
         self.sprite = self.mgr.get_meta(self.sprite)
@@ -221,56 +261,67 @@ class TestScreen(Screen):
         loop = asyncio.get_event_loop()
         loop.create_task(self.flip_dir())
 
-
     def do_refresh_grid(self):
         """
         Show a grid of heart Sprites
         """
+        prof.start_profile('scaler.draw_loop_init')
+
         self.display.fill(0x000000)
-        draw_x = 0
-        draw_y = 0
 
-        prof.end_profile('scaler.screen_prep')
-        sprite_width = self.sprite.width
-        sprite_height = self.sprite.height
+        # self.num_cols = self.num_rows = 1
+        if self.fallout:
+            scale_source = self.one_scale_keys
+        else:
+            scale_source = self.one_two_scale_keys
 
-        # self.num_cols = self.num_rows = 4
-        scale_source = list(self.plus_one_scale_keys)
-        scale_source_len = len(scale_source)
+        if self.grid_beat or self.fallout:
+            scale_source = list(scale_source)
+            scale_source_len = len(scale_source)
+
+        prof.end_profile('scaler.draw_loop_init')
+        idx = 0
+
         for c in range(self.num_cols):
             for r in range(self.num_rows):
-                if self.grid_beat:
-                    idx = int(c*self.num_rows+ r)
+                prof.start_profile('scaler.pre_draw')
+                draw_x = self.all_coords[idx][0]
+                draw_y = self.all_coords[idx][1]
+
+                if self.grid_beat or self.fallout:
                     scale_factor = (self.scale_id+idx) % scale_source_len
-                else:
-                    scale_factor = 1
 
-                h_scale = scale_source[scale_factor]
-                v_scale = h_scale
+                    self.h_scale = scale_source[scale_factor]
+                    self.v_scale = self.h_scale
 
-                self.sprite_scaled_width = int(self.sprite.width * h_scale)
-                self.sprite_scaled_height = int(self.sprite.height * v_scale)
+                    self.sprite_scaled_width = int(self.sprite.height * self.h_scale)
+                    self.sprite_scaled_height = int(self.sprite.height * self.v_scale)
 
-                x_offset = (sprite_width - (h_scale * sprite_width)) / 2
-                y_offset = (sprite_height - (v_scale * sprite_height)) / 2
+                    if self.h_scale != 1:
+                        draw_x += (self.sprite.width - self.sprite_scaled_width) / 2
+                        draw_y += (self.sprite.height - self.sprite_scaled_height) / 2
 
-                row_sep = sprite_width
+                prof.end_profile('scaler.pre_draw')
+
                 prof.start_profile('scaler.draw_sprite')
+
                 self.scaler.draw_sprite(
                     self.sprite,
-                    int(draw_x + (c * row_sep) + x_offset),
-                    int(draw_y + (r * row_sep) + y_offset),
+                    int(draw_x),
+                    int(draw_y),
                     self.image,
-                    h_scale=h_scale,
-                    v_scale=v_scale)
+                    h_scale=self.h_scale,
+                    v_scale=self.v_scale)
                 prof.end_profile('scaler.draw_sprite')
+                idx += 1
 
         self.scale_id += 1
 
         self.show_prof()
         self.display.swap_buffers()
-        self.fps.tick()
         time.sleep_ms(1)
+
+        self.fps.tick()
 
     def do_refresh_beating_heart(self):
         """
@@ -279,7 +330,6 @@ class TestScreen(Screen):
 
         h_scale = self.h_scales[self.scale_id % len(self.h_scales)]
         v_scale = h_scale
-        # v_scale = h_scale = 5
 
         sprite_scaled_width = self.sprite.width * h_scale
         sprite_scaled_height = self.sprite.height * v_scale
@@ -470,12 +520,6 @@ class TestScreen(Screen):
         """ Create single sprite for simple tests """
 
     def load_types(self):
-        # self.mgr.add_type(
-        #     sprite_type=SPRITE_LASER_ORB,
-        #     sprite_class=LaserOrb,
-        #     width=16,
-        #     height=16,
-        #     speed=0)
 
         self.mgr.add_type(
             sprite_type=SPRITE_TEST_SQUARE,
@@ -487,13 +531,11 @@ class TestScreen(Screen):
             sprite_class=TestHeart,
             speed=0)
 
-        # self.mgr.add_type(
-        #     sprite_type=SPRITE_LASER_WALL,
-        #     sprite_class=SpriteType,
-        #     image_path="/img/laser_wall.bmp",
-        #     width=24,
-        #     height=10,
-        #     speed=0)
+        self.mgr.add_type(
+            sprite_type=SPRITE_TEST_GRID,
+            sprite_class=TestGrid,
+            speed=0)
+
 
     def init_camera(self):
         # Camera

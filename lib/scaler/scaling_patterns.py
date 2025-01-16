@@ -22,13 +22,13 @@ class ScalingPatterns:
 
     def create_horiz_patterns(self):
         """
-        steps tested = 0.032, 0.064, 0.125, 0.250, 0.500
+        steps tested = 0.016, 0.032, 0.064, 0.125, 0.250, 0.500
         """
         patterns1 = {}
-        patterns1 = self.create_patterns(0, 1, step=0.125)
+        patterns1 = self.create_patterns(0, 1, step=0.064)
         patterns2 = self.create_patterns(1, 4, step=0.250)
         patterns3 = self.create_patterns(4, 6, step=0.500)
-        patterns4 = self.create_patterns(6, 8, step=1)
+        patterns4 = self.create_patterns(6, 10, step=1)
 
         patterns1.update(patterns2)
         patterns1.update(patterns3)
@@ -76,20 +76,20 @@ class ScalingPatterns:
         pattern = self.pattern_to_array(pattern)  # Convert to array
         return pattern
 
-    def print_patterns(self, patterns):
+    def print_patterns(self, first=0, last=1):
         print()
-        print("### PRINTING PATTERNS ###")
+        print(f"### PRINTING SCALING PATTERNS ({first} to {last}) ###")
+        patterns = self.get_horiz_patterns()
+
         str_out = ''
-        for key, patt_list in patterns.items():
-            print(patt_list)
-            str_out += "\n"
-            str_out += f"{key}:\n"
-            list_str = ", ".join([str(num) for num in patt_list])
+        for key, pattern in patterns.items():
+            if key >= first and key < last:
+                str_out += "\n"
+                str_out += f"{key}:\n"
+                list_str = ", ".join([str(num) for num in pattern])
+                str_out += f"   [{list_str}]\n"
 
-            # list_str = ' ,'.join(list(patt_list))
-            str_out += f"   [{list_str}]\n"
-
-        return str_out
+        print(str_out)
 
     def pattern_to_array(self, list):
         """
