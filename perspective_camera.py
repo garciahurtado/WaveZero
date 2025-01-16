@@ -4,9 +4,7 @@ import math
 import micropython
 import sys
 
-from profiler import Profiler as prof, timed
-from ulab import numpy as np
-from uarray import array
+from profiler import Profiler as prof
 
 class PerspectiveCamera():
     def __init__(self, display: framebuf.FrameBuffer, pos_x: int = 0, pos_y: int = 0, pos_z: int = 0, vp_x: int = 0,

@@ -37,7 +37,6 @@ class DMAChain:
         self.addr_idx = 0
 
         self.patterns = ScalingPatterns()
-        self.patterns.print_patterns()
 
         """ Create array with maximum possible number of read and write addresses """
         read_buf = bytearray((display.height+1)*2 * 4) # why does this need to be x2?
