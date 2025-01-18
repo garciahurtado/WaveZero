@@ -27,8 +27,8 @@ class SpriteScaler():
         self.dbg = ScalerDebugger()
         self.debug_bytes1 = self.dbg.get_debug_bytes(byte_size=2, count=32)
         self.debug_bytes2 = self.dbg.get_debug_bytes(byte_size=0, count=32)
-        self.debug = True
-        self.debug_dma = True
+        self.debug = False
+        self.debug_dma = False
         self.debug_dma_ch = False
         self.debug_pio = False
         self.debug_irq = False

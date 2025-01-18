@@ -128,7 +128,7 @@ class TestScreen(Screen):
 
     def run(self):
         self.running = True
-        test = 'zoom_heart'
+        test = 'zoom_sq'
         self.check_mem()
         self.current_loop = None
 
@@ -362,7 +362,7 @@ class TestScreen(Screen):
         self.show_prof()
         self.display.swap_buffers()
 
-        time.sleep_ms(30)
+        time.sleep_ms(50)
         self.fps.tick()
 
     def do_refresh_clipping_square(self):

@@ -14,7 +14,10 @@ class ScalerFramebuf():
     display:SSD1331PIO
     max_width = SSD1331PIO.WIDTH
     height = SSD1331PIO.HEIGHT
-    extra_width = 16 # Addtl width (beyond the full width of the screen) which the framebuf will use to fit large sprites
+
+    """ Addtl width (beyond the full width of the screen) which the framebuf will use to fit large sprites.
+    In order to support very high scales, increase this number """
+    extra_width = 32
     frame_width = 0
     frame_height = 0
     scratch_bytes = bytearray(height * (max_width + extra_width) * 2)  # scratch framebuf, declared early on when more memory is available
