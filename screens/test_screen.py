@@ -128,7 +128,7 @@ class TestScreen(Screen):
 
     def run(self):
         self.running = True
-        test = 'grid1'
+        test = 'zoom_heart'
         self.check_mem()
         self.current_loop = None
 
@@ -136,12 +136,12 @@ class TestScreen(Screen):
             self.sprite_type = SPRITE_TEST_HEART
             self.load_sprite(SPRITE_TEST_HEART)
             self.init_beating_heart()
-            self.current_loop = self.do_refresh_beating_heart
+            self.current_loop = self.do_refresh_zoom_in
         elif test == 'zoom_sq':
             self.sprite_type = SPRITE_TEST_SQUARE
             self.load_sprite(SPRITE_TEST_SQUARE)
             self.init_beating_heart()
-            self.current_loop = self.do_refresh_beating_heart
+            self.current_loop = self.do_refresh_zoom_in
         elif test == 'grid1':
             self.sprite_type = SPRITE_TEST_HEART
             self.load_sprite(SPRITE_TEST_HEART)
@@ -319,13 +319,11 @@ class TestScreen(Screen):
 
         self.show_prof()
         self.display.swap_buffers()
-        time.sleep_ms(1)
-
         self.fps.tick()
 
-    def do_refresh_beating_heart(self):
+    def do_refresh_zoom_in(self):
         """
-        Do a heart beating demo of several diverse horizontal scale ratios
+        Do a zoom in demo of increasingly higher scale ratios
         """
 
         h_scale = self.h_scales[self.scale_id % len(self.h_scales)]
@@ -364,7 +362,7 @@ class TestScreen(Screen):
         self.show_prof()
         self.display.swap_buffers()
 
-        time.sleep_ms(50)
+        time.sleep_ms(30)
         self.fps.tick()
 
     def do_refresh_clipping_square(self):

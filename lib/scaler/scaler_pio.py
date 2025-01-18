@@ -6,7 +6,7 @@ from scaler.const import DMA_PX_WRITE_BASE
     in_shiftdir=PIO.SHIFT_RIGHT,
     out_shiftdir=PIO.SHIFT_LEFT,
     autopull=True,
-    pull_thresh=32,
+    pull_thresh=8,
 )
 def read_palette():
     """
@@ -17,12 +17,12 @@ def read_palette():
     2. Palette Lookup.
     Uses the 4 bit pixel indices to generate the address which points to the specified color in the palette
     """
+    pull()
     out(isr, 32)            # First word is the palette base address
                             # Keep it in the ISR for later
 
     # PIXEL PROCESSING LOOP ----------------------------------------------
     wrap_target()
-
     out(y, 4)               # L:22 - pull 4 bits from OSR
 
     """ Index lookup logic (reverse addition) """

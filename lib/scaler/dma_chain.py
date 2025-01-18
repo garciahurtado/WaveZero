@@ -117,7 +117,7 @@ class DMAChain:
     def init_px_read(self):
         """ CH:5. Pixel reading DMA --------------------------- """
         px_read_ctrl = self.px_read.pack_ctrl(
-            size=2,
+            size=0,
             inc_read=True,      # Through sprite data
             inc_write=False,    # debug_bytes: True / PIO: False
             treq_sel=DREQ_PIO1_TX0,
@@ -171,17 +171,12 @@ class DMAChain:
         """Configure DMA for specific sprite parameters."""
         self.color_lookup.count = width
 
-        tx_per_row = math.ceil(width / self.px_per_tx)
-        self.px_read.count = tx_per_row
+        count = (width // 2)
+        self.px_read.count = count
 
         self.h_scale.read = self.patterns.get_pattern(h_scale)
         self.h_scale.count = width
 
-        self.color_lookup.count = width
-        self.px_read.count = width // self.px_per_tx
-
-        self.h_scale.read = self.patterns.get_pattern(h_scale)
-        self.h_scale.count = width
 
     def start(self):
         """Activate DMA channels in correct sequence."""
