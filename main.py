@@ -5,9 +5,9 @@ from utime import sleep
 
 # import frozen_img # Created with freezefs: https://github.com/bixb922/freezeFS
 from screens.screen_app import ScreenApp
-from screens.game_screen import GameScreen
+# from screens.game_screen import GameScreen
 # from screens.title_screen import TitleScreen
-# from screens.test_screen import TestScreen
+from screens.test_screen import TestScreen
 
 import micropython
 import time
@@ -44,9 +44,9 @@ def main():
     time.sleep(2)
 
     app = ScreenApp(96, 64)
-    app.load_screen(GameScreen(app.display))
+    # app.load_screen(GameScreen(app.display))
     # app.load_screen(TitleScreen(app.display))
-    # app.load_screen(TestScreen(app.display))
+    app.load_screen(TestScreen(app.display))
 
     print("After loading screen class")
     app.run()

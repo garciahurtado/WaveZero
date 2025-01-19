@@ -1,5 +1,4 @@
 from rp2 import PIO, asm_pio
-from scaler.const import DMA_PX_WRITE_BASE
 
 """ These are the PIO programs that support the DMA hardware scaler. """
 @asm_pio(

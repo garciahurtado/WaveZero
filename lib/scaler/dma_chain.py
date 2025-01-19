@@ -1,10 +1,8 @@
-import math
 from _rp2 import DMA
 from uarray import array
 from uctypes import addressof
 
 from scaler.const import *
-from scaler.scaler_debugger import ScalerDebugger
 from scaler.scaling_patterns import ScalingPatterns
 
 ROW_ADDR_DMA_BASE = DMA_BASE_2
@@ -13,8 +11,6 @@ COLOR_LOOKUP_DMA_BASE = DMA_BASE_4
 READ_DMA_BASE = DMA_BASE_5
 WRITE_DMA_BASE = DMA_BASE_6
 HSCALE_DMA_BASE = DMA_BASE_7
-
-from profiler import Profiler as prof
 PX_READ_BYTE_SIZE = 4 # Bytes per word in the pixel reader
 class DMAChain:
     ch_names = {
@@ -29,7 +25,7 @@ class DMAChain:
     }
 
     def __init__(self, scaler, display):
-        self.dbg = ScalerDebugger()
+        self.dbg = None
         self.scaler = scaler
         self.px_per_tx = PX_READ_BYTE_SIZE * 2
         self.read_finished = False

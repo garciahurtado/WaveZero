@@ -20,7 +20,8 @@ class ScalerFramebuf():
     extra_width = 32
     frame_width = 0
     frame_height = 0
-    scratch_bytes = bytearray(height * (max_width + extra_width) * 2)  # scratch framebuf, declared early on when more memory is available
+    scratch_size = height * (max_width + extra_width) * 2
+    scratch_bytes = bytearray(scratch_size)  # scratch framebuf, declared early on when more memory is available
     scratch_addr = addressof(scratch_bytes)
     scratch_buffer = None
     write_addrs_all = {}

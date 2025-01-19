@@ -1,8 +1,4 @@
-import asyncio
-import time
-
 import math
-
 import sys
 
 import micropython
@@ -19,14 +15,11 @@ from profiler import Profiler as prof
 from sprites2.sprite_types import SpriteType
 from ssd1331_pio import SSD1331PIO
 
-prof.enabled = True
+prof.enabled = False
 
 class SpriteScaler():
     def __init__(self, display):
         """ Debugging """
-        self.dbg = ScalerDebugger()
-        self.debug_bytes1 = self.dbg.get_debug_bytes(byte_size=2, count=32)
-        self.debug_bytes2 = self.dbg.get_debug_bytes(byte_size=0, count=32)
         self.debug = False
         self.debug_dma = False
         self.debug_dma_ch = False
@@ -37,24 +30,25 @@ class SpriteScaler():
         self.debug_scale_patterns = False
         self.debug_with_debug_bytes = False
 
+        if self.debug:
+            self.dbg = ScalerDebugger()
+        else:
+            self.dbg = None
+
         self.write_addr2 = []
 
         self.display:SSD1331PIO = display
         self.framebuf:ScalerFramebuf = ScalerFramebuf(display)
         self.framebuf.debug = self.debug
         self.min_write_addr = self.framebuf.min_write_addr
-
         self.min_read_addr = 0
-        self.row_id = 0
 
         self.dma = DMAChain(self, display)
+        self.dma.dbg = self.dbg
 
         self.scaled_height = 0
         self.scaled_width = 0
 
-        self.await_addr_task = None
-
-        self.last_sprite_class = None # for optimization
         self.base_read = 0
         self.frac_bits = 0
 
@@ -234,7 +228,7 @@ class SpriteScaler():
 
             if self.debug_dma_ch:
                 print(f"\n~~ DMA CHANNELS in MAIN LOOP (Start()) (finished:{self.dma.read_finished}) ~~~~~~~~~~~\n")
-                self.debug_dma_and_pio()
+                # self.debug_dma_and_pio()
                 print()
 
 
@@ -277,6 +271,7 @@ class SpriteScaler():
         frac_bits = self.frac_bits
         framebuf = self.framebuf
 
+        """ Avoid division by zero """
         if not scale_y_one:
             scale_y_one = 0.0001
 
@@ -332,9 +327,12 @@ class SpriteScaler():
 
         # self.base_read += extra_bytes
         # Configure remaining variables
-        read_step = (sprite_width // scale_x_one) / 2
+        read_step = (sprite_width / scale_x_one) / 2
+        fixed_step = int((1 << frac_bits) * read_step) # Convert step to fixed point
+        if fixed_step % 2:
+            fixed_step += 1
 
-        mem32[INTERP1_BASE1] = int((1 << frac_bits) * read_step)  # Convert step to fixed point
+        mem32[INTERP1_BASE1] = fixed_step
         mem32[INTERP1_BASE2] = int(self.base_read) # Base sprite read address
 
     @micropython.viper
@@ -381,3 +379,13 @@ class SpriteScaler():
     def init_pio(self, palette_addr):
         self.sm_read_palette.restart()
         self.sm_read_palette.put(palette_addr)
+
+    def center_sprite(self, sprite_width, sprite_height):
+        """ Helper function that returns the coordinates of the viewport that the given Sprite bounds is to be drawn at,
+        in order to appear centered """
+        view_width = self.display.width
+        view_height = self.display.height
+        x = (view_width/2) - (sprite_width/2)
+        y = (view_height/2) - (sprite_height/2)
+        return int(x), int(y)
+

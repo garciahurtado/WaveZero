@@ -1,8 +1,9 @@
 import _thread
-import sys
 
 import time
+import math
 
+import input_rotary
 from scaler.sprite_scaler import SpriteScaler
 from scaler.scaling_patterns import ScalingPatterns
 from screens.screen import Screen
@@ -13,11 +14,10 @@ from sprites2.test_heart import TestHeart
 from sprites2.sprite_manager_2d import SpriteManager2D
 
 from sprites2.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART, SPRITE_TEST_GRID
-import math
+# import input_rotary
+
 from profiler import Profiler as prof
-
 from images.image_loader import ImageLoader
-
 import fonts.vtks_blocketo_6px as font_vtks
 from font_writer_new import ColorWriter
 
@@ -38,6 +38,10 @@ BLACK = 0x000000
 GREY =  0x444444
 
 class TestScreen(Screen):
+    debug = True
+    fps_enabled = True
+    fps_counter_task = None
+
     screen_width = 96
     screen_height = 64
     scale_id = 0
@@ -58,6 +62,7 @@ class TestScreen(Screen):
     scaler_num_sprites = 1
     sprite_max_z = 1000
     display_task = None
+    grid_color = colors.hex_to_565(0x00FF00)
 
     last_perf_dump_ms = None
     fps_text: ColorWriter
@@ -70,10 +75,9 @@ class TestScreen(Screen):
     score_palette = FramebufferPalette(16, color_mode=fb.GS4_HMSB)
     mgr = None
     scaler = None
-    sprite_scaled_width = 0
-    sprite_scaled_height = 0
+    scaled_width = 0
+    scaled_height = 0
 
-    fps_counter_task = None
     sprite = None
     image = None
     num_cols = None
@@ -94,7 +98,9 @@ class TestScreen(Screen):
 
         self.sprite_type = None
         self.preload_images()
-        self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
+
+        if self.fps_enabled:
+            self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
 
         print(f"Free memory __init__: {gc.mem_free():,} bytes")
 
@@ -120,7 +126,6 @@ class TestScreen(Screen):
         self.grid_beat = False
         self.fallout = False
 
-        self.scaler.dma.patterns.print_patterns(0 , 1)
     def create_sprite_manager(self, display, num_sprites=0):
         self.check_mem()
         print("-- Creating Sprite Manager...")
@@ -130,7 +135,7 @@ class TestScreen(Screen):
 
     def run(self):
         self.running = True
-        test = 'grid1'
+        test = 'scale_control'
         self.check_mem()
         self.current_loop = None
 
@@ -144,6 +149,11 @@ class TestScreen(Screen):
             self.load_sprite(SPRITE_TEST_SQUARE)
             self.init_beating_heart()
             self.current_loop = self.do_refresh_zoom_in
+        if test == 'scale_control':
+            self.sprite_type = SPRITE_TEST_HEART
+            self.load_sprite(SPRITE_TEST_HEART)
+            self.init_scale_control()
+            self.current_loop = self.do_refresh_scale_control
         elif test == 'grid1':
             self.sprite_type = SPRITE_TEST_HEART
             self.load_sprite(SPRITE_TEST_HEART)
@@ -220,8 +230,8 @@ class TestScreen(Screen):
         self.num_rows = min(self.screen_height // 16, max_rows)
 
         h_scale = v_scale = 1
-        self.sprite_scaled_width = int(sprite_width * h_scale)
-        self.sprite_scaled_height = int(sprite_height * v_scale)
+        self.scaled_width = int(sprite_width * h_scale)
+        self.scaled_height = int(sprite_height * v_scale)
 
         """ Precache x/y (scale 1 only) """
         row_sep = sprite_width - 1
@@ -250,6 +260,31 @@ class TestScreen(Screen):
 
         self.h_scales = h_scales1
 
+    def init_scale_control(self):
+        self.sprite = self.mgr.get_meta(self.sprite)
+        self.image = self.mgr.sprite_images[self.sprite_type][-1]
+
+        self.h_scales = list(self.all_scales.keys())
+        self.h_scales.sort()
+        self.scale_id = self.h_scales.index(2)
+
+        self.input_handler = input_rotary.InputRotary()
+        self.input_handler.handler_right = self.scale_control_right
+        self.input_handler.handler_left = self.scale_control_left
+
+    def scale_control_right(self):
+        if self.scale_id < len(self.h_scales):
+            self.scale_id += 1
+            if self.debug:
+                scale = self.h_scales[self.scale_id]
+                print(f"CURR SCALE: {scale:.03f}")
+    def scale_control_left(self):
+        if self.scale_id > 0:
+            self.scale_id -= 1
+            if self.debug:
+                scale = self.h_scales[self.scale_id]
+                print(f"CURR SCALE: {scale:.03f}")
+
     def init_clipping_square(self):
         self.sprite = self.mgr.get_meta(self.sprite)
         self.image = self.mgr.sprite_images[self.sprite_type][-1]
@@ -257,8 +292,8 @@ class TestScreen(Screen):
         self.bounce_count = 0
 
         self.h_scale = self.v_scale = 2
-        self.sprite_scaled_width = math.ceil(self.sprite.width * self.h_scale)
-        self.sprite_scaled_height = math.ceil(self.sprite.height * self.v_scale)
+        self.scaled_width = math.ceil(self.sprite.width * self.h_scale)
+        self.scaled_height = math.ceil(self.sprite.height * self.v_scale)
 
         loop = asyncio.get_event_loop()
         loop.create_task(self.flip_dir())
@@ -271,6 +306,7 @@ class TestScreen(Screen):
 
         self.display.fill(0x000000)
 
+        scale_source_len = 0
         # self.num_cols = self.num_rows = 1
         if self.fallout:
             scale_source = self.one_scale_keys
@@ -283,12 +319,12 @@ class TestScreen(Screen):
 
         prof.end_profile('scaler.draw_loop_init')
         idx = 0
+        draw_x = 0
+        draw_y = 0
 
         for c in range(self.num_cols):
             for r in range(self.num_rows):
                 prof.start_profile('scaler.pre_draw')
-                draw_x = self.all_coords[idx][0]
-                draw_y = self.all_coords[idx][1]
 
                 if self.grid_beat or self.fallout:
                     scale_factor = (self.scale_id+idx) % scale_source_len
@@ -296,12 +332,12 @@ class TestScreen(Screen):
                     self.h_scale = scale_source[scale_factor]
                     self.v_scale = self.h_scale
 
-                    self.sprite_scaled_width = int(self.sprite.height * self.h_scale)
-                    self.sprite_scaled_height = int(self.sprite.height * self.v_scale)
+                    self.scaled_width = self.sprite.height * self.h_scale
+                    self.scaled_height = self.sprite.height * self.v_scale
 
-                    if self.h_scale != 1:
-                        draw_x += (self.sprite.width - self.sprite_scaled_width) / 2
-                        draw_y += (self.sprite.height - self.sprite_scaled_height) / 2
+                    draw_x, draw_y = self.scaler.center_sprite(self.scaled_width, self.scaled_height)
+                    # draw_x = (self.sprite.width - self.sprite_scaled_width) / 2
+                    # draw_y = (self.sprite.height - self.sprite_scaled_height) / 2
 
                 prof.end_profile('scaler.pre_draw')
 
@@ -319,8 +355,8 @@ class TestScreen(Screen):
 
         self.scale_id += 1
 
-        self.show_prof()
         self.display.swap_buffers()
+        self.show_prof()
         time.sleep_ms(100)
         self.fps.tick()
 
@@ -368,6 +404,38 @@ class TestScreen(Screen):
         time.sleep_ms(50)
         self.fps.tick()
 
+    def do_refresh_scale_control(self):
+        """
+        Do a zoom in demo of increasingly higher scale ratios
+        """
+
+        h_scale = self.h_scales[self.scale_id]
+        v_scale = h_scale
+
+        sprite_scaled_width = self.sprite.width * h_scale
+        sprite_scaled_height = self.sprite.height * v_scale
+
+        display_width = self.display.width
+        display_height = self.display.height
+
+        draw_x = (display_width / 2) - (sprite_scaled_width / 2)
+        draw_y = (display_height - sprite_scaled_height) / 2
+
+        self.common_bg()
+        self.scaler.draw_sprite(
+            self.sprite,
+            int(draw_x),
+            int(draw_y),
+            self.image,
+            h_scale=h_scale,
+            v_scale=v_scale)
+
+        self.show_prof()
+        self.display.swap_buffers()
+
+        time.sleep_ms(50)
+        self.fps.tick()
+
     def do_refresh_clipping_square(self):
         """
         Do a demo of several diverse horizontal scale ratios
@@ -377,13 +445,13 @@ class TestScreen(Screen):
         h_scale = self.h_scales[self.scale_id % len(self.h_scales)]
         v_scale = h_scale
 
-        draw_x = 48 - (self.sprite_scaled_width / 2)
+        draw_x = 48 - (self.scaled_width / 2)
 
         x_max = 96
-        x_min = 0 - self.sprite_scaled_width
+        x_min = 0 - self.scaled_width
 
         y_max = 64
-        y_min = 0 - self.sprite_scaled_height
+        y_min = 0 - self.scaled_height
 
 
         if self.slide_sel == 'horiz':
@@ -418,6 +486,13 @@ class TestScreen(Screen):
         self.display.swap_buffers()
         # time.sleep_ms(10)
         self.fps.tick()
+
+    def common_bg(self):
+        width = self.screen_width
+        height = self.screen_height
+        self.display.fill(0x000000)
+        self.display.hline(0, height//2, width, self.grid_color)
+        self.display.line(width//2, 0, width//2, height, self.grid_color)
 
     async def flip_dir(self):
         while True:

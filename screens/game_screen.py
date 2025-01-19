@@ -1,5 +1,7 @@
 import random
 
+from scaler.scaler_framebuf import ScalerFramebuf
+from scaler.sprite_scaler import SpriteScaler
 from perspective_camera import PerspectiveCamera
 from death_anim import DeathAnim
 from sprites.sprite import Sprite
@@ -30,7 +32,7 @@ class GameScreen(Screen):
     sun_start_x = None
     camera: PerspectiveCamera
     enemies: SpriteManager = None
-    max_sprites: int = 200
+    max_sprites: int = 100
     saved_ground_speed = 0
     lane_width: int = const(24)
     num_lives: int = const(4)
@@ -58,6 +60,8 @@ class GameScreen(Screen):
 
         self.init_camera()
         self.check_mem()
+
+        self.scaler = SpriteScaler(display)
 
         print("-- Preloading images...")
         self.preload_images()
@@ -110,8 +114,8 @@ class GameScreen(Screen):
             {"name": "bike_sprite.bmp", "width": 32, "height": 22, "color_depth": 4},
             # {"name": "laser_wall.bmp", "width": 24, "height": 10, "color_depth": 4},
             # {"name": "alien_fighter.bmp", "width": 24, "height": 16, "color_depth": 4},
-            {"name": "road_barrier_yellow.bmp", "width": 24, "height": 15, "color_depth": 4},
-            {"name": "road_barrier_yellow_inv.bmp", "width": 24, "height": 15, "color_depth": 4},
+            # {"name": "road_barrier_yellow.bmp", "width": 24, "height": 15, "color_depth": 4},
+            # {"name": "road_barrier_yellow_inv.bmp", "width": 24, "height": 15, "color_depth": 4},
             {"name": "sunset.bmp", "width": 20, "height": 10, "color_depth": 8},
             {"name": "life.bmp", "width": 12, "height": 8},
             {"name": "debris_bits.bmp", "width": 4, "height": 4, "color_depth": 1},
@@ -171,7 +175,7 @@ class GameScreen(Screen):
                 self.total_frames += 1
 
                 if not self.total_frames % self.fps_every_n_frames:
-                    print(f"FPS: {self.fps.fps():02f}")
+                    print(f"FPS: {self.fps.fps():.02f}")
 
                 now = utime.ticks_ms()
                 elapsed = utime.ticks_diff(now, self.last_update_ms)
