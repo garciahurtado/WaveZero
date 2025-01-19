@@ -41,6 +41,8 @@ class TestScreen(Screen):
     debug = True
     fps_enabled = True
     fps_counter_task = None
+    grid_center = True
+    grid_lines = True
 
     screen_width = 96
     screen_height = 64
@@ -63,6 +65,7 @@ class TestScreen(Screen):
     sprite_max_z = 1000
     display_task = None
     grid_color = colors.hex_to_565(0x00FF00)
+    grid_lines_color = colors.hex_to_565(0x0b2902)
 
     last_perf_dump_ms = None
     fps_text: ColorWriter
@@ -159,7 +162,7 @@ class TestScreen(Screen):
             self.load_sprite(SPRITE_TEST_HEART)
             self.init_grid()
             self.grid_beat = False
-            self.fallout = True
+            self.fallout = False
             self.current_loop = self.do_refresh_grid
         elif test == 'grid2':
             self.sprite_type = SPRITE_TEST_SQUARE
@@ -266,24 +269,27 @@ class TestScreen(Screen):
 
         self.h_scales = list(self.all_scales.keys())
         self.h_scales.sort()
-        self.scale_id = self.h_scales.index(2)
+
+        default = 3.750
+        self.scale_id = self.h_scales.index(default)
 
         self.input_handler = input_rotary.InputRotary()
         self.input_handler.handler_right = self.scale_control_right
         self.input_handler.handler_left = self.scale_control_left
 
     def scale_control_right(self):
-        if self.scale_id < len(self.h_scales):
+        if self.scale_id < len(self.h_scales)-1:
             self.scale_id += 1
             if self.debug:
                 scale = self.h_scales[self.scale_id]
-                print(f"CURR SCALE: {scale:.03f}")
+                print(f"S: {scale:.03f}")
+
     def scale_control_left(self):
         if self.scale_id > 0:
             self.scale_id -= 1
             if self.debug:
                 scale = self.h_scales[self.scale_id]
-                print(f"CURR SCALE: {scale:.03f}")
+                print(f"S: {scale:.03f}")
 
     def init_clipping_square(self):
         self.sprite = self.mgr.get_meta(self.sprite)
@@ -319,12 +325,15 @@ class TestScreen(Screen):
 
         prof.end_profile('scaler.draw_loop_init')
         idx = 0
-        draw_x = 0
-        draw_y = 0
+        row_sep = self.sprite.width
+        col_sep = self.sprite.width
 
         for c in range(self.num_cols):
             for r in range(self.num_rows):
                 prof.start_profile('scaler.pre_draw')
+
+                draw_x = int(c * col_sep)
+                draw_y = int(r * row_sep)
 
                 if self.grid_beat or self.fallout:
                     scale_factor = (self.scale_id+idx) % scale_source_len
@@ -357,7 +366,6 @@ class TestScreen(Screen):
 
         self.display.swap_buffers()
         self.show_prof()
-        time.sleep_ms(100)
         self.fps.tick()
 
     def do_refresh_zoom_in(self):
@@ -488,11 +496,25 @@ class TestScreen(Screen):
         self.fps.tick()
 
     def common_bg(self):
+        self.display.fill(0x000000)
         width = self.screen_width
         height = self.screen_height
-        self.display.fill(0x000000)
-        self.display.hline(0, height//2, width, self.grid_color)
-        self.display.line(width//2, 0, width//2, height, self.grid_color)
+
+        if self.grid_lines:
+            # Vertical lines
+            for x in range(0, width, 8):
+                self.display.line(x, 0, x, height, self.grid_lines_color)
+            self.display.line(width-1, 0, width-1, height, self.grid_lines_color)
+
+            # Horiz lines
+            for y in range(0, height, 8):
+                self.display.line(0, y, width, y, self.grid_lines_color)
+            self.display.line(0, height-1, width, height-1, self.grid_lines_color)
+
+        if self.grid_center:
+            self.display.hline(0, height//2, width, self.grid_color)
+            self.display.line(width//2, 0, width//2, height, self.grid_color)
+
 
     async def flip_dir(self):
         while True:

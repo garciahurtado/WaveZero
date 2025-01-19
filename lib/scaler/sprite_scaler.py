@@ -20,13 +20,13 @@ prof.enabled = False
 class SpriteScaler():
     def __init__(self, display):
         """ Debugging """
-        self.debug = False
+        self.debug = True
         self.debug_dma = False
         self.debug_dma_ch = False
         self.debug_pio = False
         self.debug_irq = False
         self.debug_interp = False
-        self.debug_interp_list = False
+        self.debug_interp_list = True
         self.debug_scale_patterns = False
         self.debug_with_debug_bytes = False
 
@@ -73,6 +73,9 @@ class SpriteScaler():
 
         self.init_interp()
 
+        if self.debug_scale_patterns:
+            self.dma.patterns.print_patterns()
+
     def fill_addrs(self, scaled_height):
         """ Uses INTERP to fill a sequence of Read/Write addresses indicating the start of each sprite row, and the
         start of the display row to draw it in """
@@ -114,6 +117,8 @@ class SpriteScaler():
         # Get array pointers
         write_addrs = self.dma.write_addrs  # destination
         curr_addrs = self.framebuf.write_addrs_curr  # source
+        # if not max_rows % 2:
+        #     max_rows += 1
 
         # Manual copy loop (faster than slicing in viper)
         i = 0
@@ -161,7 +166,7 @@ class SpriteScaler():
 
         self.framebuf.select_buffer(scaled_width, scaled_height)
 
-        self.scaled_height = scaled_height
+        self.scaled_height = scaled_height + 1
         self.scaled_width = scaled_width
         if self.debug:
             print("~~~ SPRITE SCALED DIMENSIONS ~~~")
@@ -327,11 +332,12 @@ class SpriteScaler():
 
         # self.base_read += extra_bytes
         # Configure remaining variables
-        read_step = (sprite_width / scale_x_one) / 2
+        read_step = sprite_width / scale_x_one
+        read_step = read_step / 2
+
         fixed_step = int((1 << frac_bits) * read_step) # Convert step to fixed point
         if fixed_step % 2:
-            fixed_step += 1
-
+            fixed_step -= 1
         mem32[INTERP1_BASE1] = fixed_step
         mem32[INTERP1_BASE2] = int(self.base_read) # Base sprite read address
 
@@ -387,5 +393,5 @@ class SpriteScaler():
         view_height = self.display.height
         x = (view_width/2) - (sprite_width/2)
         y = (view_height/2) - (sprite_height/2)
-        return int(x), int(y)
+        return round(x), round(y)
 
