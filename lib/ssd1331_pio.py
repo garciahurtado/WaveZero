@@ -1,14 +1,12 @@
-import uasyncio as asyncio
-
 import framebuf
 import utime
 from micropython import const
-from machine import mem32
 
 from rp2 import PIO, DMA, StateMachine
 import rp2
 import uctypes
 import gc
+import color.color_util as colors
 
 class SSD1331PIO():
     """ Display driver that uses DMA to transfer bytes from the memory location of a framebuf to the queue of a PIO
@@ -69,13 +67,12 @@ class SSD1331PIO():
 
         # Buffer #1: the one we write to
         self.framebuf0 = framebuf.FrameBuffer(self.buffer0, self.width, self.height, mode)
-        self.framebuf0.fill(0xFF)
+        self.framebuf0.fill(0x0)
 
         # Buffer #1: the one we read from, is the one that gets sent to the display
         # DMA copies the write buffer to this one when the writing finishes
         self.framebuf1 = framebuf.FrameBuffer(self.buffer1, self.width, self.height, mode)
-        self.framebuf1.fill(0xFF)
-
+        self.framebuf1.fill(colors.hex_to_565(0x111111))
 
         # Set starting alias to each buffer, so that we can easily flip them
         self.write_buffer = self.buffer0

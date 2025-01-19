@@ -1,4 +1,3 @@
-import uasyncio as asyncio
 from rotary_irq import RotaryIRQ
 from micropython import const
 

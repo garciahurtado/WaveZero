@@ -35,6 +35,7 @@ import random
 CYAN =  0x00FFFF
 GREEN = 0x00FF00
 BLACK = 0x000000
+GREY =  0x444444
 
 class TestScreen(Screen):
     screen_width = 96
@@ -79,7 +80,7 @@ class TestScreen(Screen):
     num_rows = None
     sep = 2
     sep_dir = 1
-    bg_color = colors.hex_to_565(CYAN)
+    bg_color = colors.hex_to_565(GREY)
     x_offset = 0
     y_offset = 0
     all_coords = [] # list of x/y tuples
@@ -119,6 +120,7 @@ class TestScreen(Screen):
         self.grid_beat = False
         self.fallout = False
 
+        self.scaler.dma.patterns.print_patterns(0 , 1)
     def create_sprite_manager(self, display, num_sprites=0):
         self.check_mem()
         print("-- Creating Sprite Manager...")
@@ -128,7 +130,7 @@ class TestScreen(Screen):
 
     def run(self):
         self.running = True
-        test = 'zoom_sq'
+        test = 'grid1'
         self.check_mem()
         self.current_loop = None
 
@@ -147,7 +149,7 @@ class TestScreen(Screen):
             self.load_sprite(SPRITE_TEST_HEART)
             self.init_grid()
             self.grid_beat = False
-            self.fallout = False
+            self.fallout = True
             self.current_loop = self.do_refresh_grid
         elif test == 'grid2':
             self.sprite_type = SPRITE_TEST_SQUARE
@@ -319,6 +321,7 @@ class TestScreen(Screen):
 
         self.show_prof()
         self.display.swap_buffers()
+        time.sleep_ms(100)
         self.fps.tick()
 
     def do_refresh_zoom_in(self):

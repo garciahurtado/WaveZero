@@ -40,6 +40,7 @@ class GameScreen(Screen):
     player = None
     last_perf_dump_ms = 0
     input_task = None
+    input = None
     crash_y_start = const(52)  # Screen start Y of Sprites which will collide with the player
     crash_y_end = const(100)  # Screen end Y
     death_task = None
@@ -115,8 +116,8 @@ class GameScreen(Screen):
             {"name": "life.bmp", "width": 12, "height": 8},
             {"name": "debris_bits.bmp", "width": 4, "height": 4, "color_depth": 1},
             {"name": "debris_large.bmp", "width": 8, "height": 6, "color_depth": 1},
-            {"name": "test_white_line.bmp", "width": 24, "height": 2},
-            {"name": "test_white_line_vert.bmp", "width": 2, "height": 24},
+            # {"name": "test_white_line.bmp", "width": 24, "height": 2},
+            # {"name": "test_white_line_vert.bmp", "width": 2, "height": 24},
         ]
 
         ImageLoader.load_images(images, self.display)
@@ -130,23 +131,21 @@ class GameScreen(Screen):
         print(f"Sprite speed: {barrier_speed}")
 
         self.check_mem()
-
-        self.check_mem()
         loop = asyncio.get_event_loop()
         loop.create_task(self.start_display_loop())
 
-        self.input_task = make_input_handler(self.player)
+        self.input = make_input_handler(self.player)
         self.update_score_task = loop.create_task(self.mock_update_score())
 
         # Start the road speed-up task
         self.speed_anim = AnimAttr(self, 'ground_speed', self.max_ground_speed, 2000, easing=AnimAttr.ease_in_out_sine)
         loop.create_task(self.speed_anim.run(fps=60))
 
-        self.player.has_physics = False
+        self.player.has_physics = True
         self.player.visible = True
 
         print("-- Starting stage")
-        self.stage.start(loop)
+        self.stage.start()
 
         print("-- Starting update_loop")
         asyncio.run(self.start_main_loop())
@@ -172,7 +171,7 @@ class GameScreen(Screen):
                 self.total_frames += 1
 
                 if not self.total_frames % self.fps_every_n_frames:
-                    print(f"FPS: {self.fps.fps()}")
+                    print(f"FPS: {self.fps.fps():02f}")
 
                 now = utime.ticks_ms()
                 elapsed = utime.ticks_diff(now, self.last_update_ms)

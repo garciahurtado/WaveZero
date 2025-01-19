@@ -5,6 +5,7 @@ class ScalingPatterns:
     Stores, creates and manages the scaling patters to use in upscale / downscaling (only horizontal)
     """
     horiz_patterns = None
+    scale_precision = 16
 
     def __init__(self):
         self.create_horiz_patterns()
@@ -25,10 +26,10 @@ class ScalingPatterns:
         steps tested = 0.016, 0.032, 0.064, 0.125, 0.250, 0.500
         """
         patterns1 = {}
-        patterns1 = self.create_patterns(0, 1, step=0.064)
+        patterns1 = self.create_patterns(0, 1, step=0.032)
         patterns2 = self.create_patterns(1, 4, step=0.250)
-        patterns3 = self.create_patterns(4, 6, step=0.500)
-        patterns4 = self.create_patterns(6, 16, step=1)
+        patterns3 = self.create_patterns(4, 7, step=0.500)
+        patterns4 = self.create_patterns(7, 16, step=1)
 
         patterns1.update(patterns2)
         patterns1.update(patterns3)
@@ -49,28 +50,30 @@ class ScalingPatterns:
 
         return pattern_list
 
-    def create_one_pattern(self, scale, num=8):
+    def create_one_pattern(self, scale):
         """
         Fractional patterns are converted into lists of integers like this:
         SCALE 0.125: [0, 0, 0, 0, 1, 0, 0, 0],  # 12.5% scaling
         SCALE 2.500: [3, 2, 3, 2, 3, 2, 3, 2],  # 2.5x scaling
         """
+        size = self.scale_precision
+        print(f"Making scale pattern of {size} elements")
 
         if scale == int(scale):
             """ whole scales are the easiest """
-            pattern = [scale] * num
+            pattern = [scale] * size
         else:
             """ We have a fractional scale """
             whole_scale = int(scale)
             frac_scale = scale - whole_scale
 
-            pattern = [whole_scale] * num # Start with basic 'whole' pattern
+            pattern = [whole_scale] * size # Start with basic 'whole' pattern
             portion = 1/frac_scale
             step_8 = round(portion * 8) # we scale by 8 so that we can step by it
 
-            for i in range(0, num*8, step_8):
+            for i in range(0, size * 8, step_8):
                 """ increase some numbers in the pattern so that the total average = scale"""
-                idx = int(i/8)
+                idx = int(i/size)
                 pattern[idx] = whole_scale+1
 
         pattern = self.pattern_to_array(pattern)  # Convert to array

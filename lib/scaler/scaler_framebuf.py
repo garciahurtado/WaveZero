@@ -38,7 +38,7 @@ class ScalerFramebuf():
             [32, 32],
             [64, self.max_width + self.extra_width]
         ]
-        self.fill_color = 0x0
+        self.fill_color = 0x000000
         self.min_write_addr = addressof(self.scratch_bytes)
 
         self.display = display
