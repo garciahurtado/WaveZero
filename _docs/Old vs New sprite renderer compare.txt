@@ -34,3 +34,25 @@ CONFIG
 	spawn_z_step = 40
 	all static, no movement
 
+---
+
+GC: total: 229952, used: 217840, free: 12112
+ No. of 1-blocks: 2093, 2-blocks: 569, max blk sz: 1024, max free sz: 206       
+None
+FPS: 12.23
+FPS: 13.07
+FPS: 13.90
+FPS: 14.65
+FPS: 15.22
+FPS: 15.80
+
+-
+
+stack: 2108
+GC: total: 229952, used: 217904, free: 12048
+ No. of 1-blocks: 2093, 2-blocks: 569, max blk sz: 1024, max free sz: 141       
+None
+FPS: 12.22
+FPS: 13.07
+FPS: 13.92
+FPS: 14.58

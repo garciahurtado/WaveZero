@@ -1,11 +1,12 @@
 import _thread
+import gc
 
 import time
 import math
 
 import input_rotary
+
 from scaler.sprite_scaler import SpriteScaler
-from scaler.scaling_patterns import ScalingPatterns
 from screens.screen import Screen
 from sprites2.test_grid import TestGrid
 
@@ -23,7 +24,6 @@ from font_writer_new import ColorWriter
 
 import utime
 import uasyncio as asyncio
-import gc
 
 from perspective_camera import PerspectiveCamera
 from color import color_util as colors
@@ -31,22 +31,23 @@ from color.framebuffer_palette import FramebufferPalette
 import framebuf as fb
 import random
 
-
 CYAN =  0x00FFFF
 GREEN = 0x00FF00
 BLACK = 0x000000
 GREY =  0x444444
 
 class TestScreen(Screen):
-    debug = True
+    debug = False
     fps_enabled = True
     fps_counter_task = None
-    grid_center = True
-    grid_lines = True
+    grid_center = False
+    grid_lines = False
 
     screen_width = 96
     screen_height = 64
     scale_id = 0
+    scale_source = None
+    scale_source_len = 0
 
     base_x = 0
     base_y = 0
@@ -97,7 +98,6 @@ class TestScreen(Screen):
         print()
         print(f"=== Testing performance of {self.num_sprites} sprites ===")
         print()
-        patt = ScalingPatterns()
 
         self.sprite_type = None
         self.preload_images()
@@ -120,6 +120,7 @@ class TestScreen(Screen):
         self.create_sprite_manager(display, num_sprites=10)
         self.scaler = SpriteScaler(self.display)
         self.scaler.prof = prof
+        patt = self.scaler.dma.patterns
 
         self.all_scales = patt.get_horiz_patterns()
         self.all_keys = self.all_scales.keys()
@@ -138,7 +139,7 @@ class TestScreen(Screen):
 
     def run(self):
         self.running = True
-        test = 'scale_control'
+        test = 'grid1'
         self.check_mem()
         self.current_loop = None
 
@@ -236,6 +237,15 @@ class TestScreen(Screen):
         self.scaled_width = int(sprite_width * h_scale)
         self.scaled_height = int(sprite_height * v_scale)
 
+        if self.fallout:
+            self.scale_source = self.one_scale_keys
+        else:
+            self.scale_source = self.one_two_scale_keys
+
+        if self.grid_beat or self.fallout:
+            self.scale_source = list(self.scale_source)
+            self.scale_source_len = len(self.scale_source)
+
         """ Precache x/y (scale 1 only) """
         row_sep = sprite_width - 1
         col_sep = sprite_width
@@ -310,24 +320,12 @@ class TestScreen(Screen):
         """
         prof.start_profile('scaler.draw_loop_init')
 
-        self.display.fill(0x000000)
-
-        scale_source_len = 0
-        # self.num_cols = self.num_rows = 1
-        if self.fallout:
-            scale_source = self.one_scale_keys
-        else:
-            scale_source = self.one_two_scale_keys
-
-        if self.grid_beat or self.fallout:
-            scale_source = list(scale_source)
-            scale_source_len = len(scale_source)
-
         prof.end_profile('scaler.draw_loop_init')
         idx = 0
         row_sep = self.sprite.width
         col_sep = self.sprite.width
 
+        self.common_bg()
         for c in range(self.num_cols):
             for r in range(self.num_rows):
                 prof.start_profile('scaler.pre_draw')
@@ -336,22 +334,18 @@ class TestScreen(Screen):
                 draw_y = int(r * row_sep)
 
                 if self.grid_beat or self.fallout:
-                    scale_factor = (self.scale_id+idx) % scale_source_len
-
-                    self.h_scale = scale_source[scale_factor]
+                    scale_factor = (self.scale_id+idx) % self.scale_source_len
+                    self.scale_id += 1
+                    self.h_scale = self.scale_source[scale_factor]
                     self.v_scale = self.h_scale
 
                     self.scaled_width = self.sprite.height * self.h_scale
                     self.scaled_height = self.sprite.height * self.v_scale
 
                     draw_x, draw_y = self.scaler.center_sprite(self.scaled_width, self.scaled_height)
-                    # draw_x = (self.sprite.width - self.sprite_scaled_width) / 2
-                    # draw_y = (self.sprite.height - self.sprite_scaled_height) / 2
-
                 prof.end_profile('scaler.pre_draw')
 
                 prof.start_profile('scaler.draw_sprite')
-
                 self.scaler.draw_sprite(
                     self.sprite,
                     int(draw_x),
@@ -361,8 +355,6 @@ class TestScreen(Screen):
                     v_scale=self.v_scale)
                 prof.end_profile('scaler.draw_sprite')
                 idx += 1
-
-        self.scale_id += 1
 
         self.display.swap_buffers()
         self.show_prof()

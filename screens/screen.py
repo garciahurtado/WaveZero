@@ -79,12 +79,14 @@ class Screen:
             my_sprite.show(self.display)
 
 
-    def check_mem(self):
+    @staticmethod
+    def check_mem():
         gc.collect()
         print(f"Free memory: {gc.mem_free():,} bytes")
         print(micropython.mem_info())
 
-    def mem_marker(self, msg=None):
+    @staticmethod
+    def mem_marker(msg=None):
         gc.collect()
         print(msg)
         print(micropython.mem_info())

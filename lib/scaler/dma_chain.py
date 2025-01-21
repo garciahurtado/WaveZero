@@ -1,8 +1,8 @@
 from _rp2 import DMA
 from uarray import array
 from uctypes import addressof
-
 from scaler.const import *
+
 from scaler.scaling_patterns import ScalingPatterns
 
 ROW_ADDR_DMA_BASE = DMA_BASE_2
@@ -13,16 +13,6 @@ WRITE_DMA_BASE = DMA_BASE_6
 HSCALE_DMA_BASE = DMA_BASE_7
 PX_READ_BYTE_SIZE = 4 # Bytes per word in the pixel reader
 class DMAChain:
-    ch_names = {
-        0: None,
-        1: None,
-        2: "read_addr",
-        3: "write_addr",
-        4: "color_lookup",
-        5: "px_read",
-        6: "px_write",
-        7: "h_scale",
-    }
 
     def __init__(self, scaler, display):
         self.dbg = None
@@ -172,7 +162,6 @@ class DMAChain:
 
         self.h_scale.read = self.patterns.get_pattern(h_scale)
         self.h_scale.count = width
-
 
     def start(self):
         """Activate DMA channels in correct sequence."""

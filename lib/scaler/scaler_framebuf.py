@@ -1,9 +1,9 @@
 import framebuf
+from uarray import array
 
 from profiler import Profiler as prof
 from ssd1331_pio import SSD1331PIO
 from uctypes import addressof
-from uarray import array
 
 prof.enabled = False
 
@@ -27,9 +27,9 @@ class ScalerFramebuf():
     write_addrs_all = {}
     write_addrs_curr = None # pointer to the current write addrs array
 
-    alpha: None
-
     def __init__(self, display: SSD1331PIO, mode=framebuf.RGB565):
+        self.display = display
+
         self.frame_bytes = 0
         self.frame_bytes_cache = {}
         self.frame_sizes = [
@@ -42,13 +42,29 @@ class ScalerFramebuf():
         self.fill_color = 0x000000
         self.min_write_addr = addressof(self.scratch_bytes)
 
-        self.display = display
-        self.debug = True
+        self.debug = False
         self.display_stride = 0
         self.display_stride_cache = {}
         self.init_buffers(mode)
-
         self.cache_addrs()
+
+    def add_scaled_dims(self, width, scale):
+        key = (width, scale)
+        scaled_width = width * scale
+        self.scaled_width_cache[key] = (scaled_width, scaled_width) # Assumes symmetric scales
+
+    def has_scaled_dims(self, width, scale):
+        key = (width, scale)
+        found = key in self.scaled_width_cache.keys()
+
+        return found
+
+    def get_scaled_dims(self, width, scale):
+        get_key = (width, scale)
+        if not self.has_scaled_dims(width, scale):
+            self.add_scaled_dims(width, scale)
+
+        return self.scaled_width_cache[get_key]
 
     def init_buffers(self, mode):
         """ These temporary buffers are used for implementing transparency. All use the same underlying bytes, arranged
@@ -123,7 +139,6 @@ class ScalerFramebuf():
             self.scratch_buffer = self.scratch_buffer_full
             self.frame_width = self.display.width + self.extra_width
             self.frame_height = self.display.height
-            self.write_addrs_curr = self.write_addrs_all[64]
 
         self.scratch_buffer.fill(self.fill_color)
         self.display_stride = self.display_stride_cache[self.frame_width]

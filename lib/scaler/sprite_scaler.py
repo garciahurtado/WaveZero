@@ -1,9 +1,11 @@
 import math
 import sys
-
 import micropython
+import gc
 from _rp2 import StateMachine
 from uctypes import addressof
+
+gc.collect()
 
 from images.indexed_image import Image
 from scaler.const import *
@@ -11,22 +13,25 @@ from scaler.dma_chain import DMAChain
 from scaler.scaler_pio import read_palette
 from scaler.scaler_debugger import ScalerDebugger
 from scaler.scaler_framebuf import ScalerFramebuf
-from profiler import Profiler as prof
+
 from sprites2.sprite_types import SpriteType
 from ssd1331_pio import SSD1331PIO
 
-prof.enabled = False
+from profiler import Profiler as prof
+prof.enabled = True
+
+gc.collect()
 
 class SpriteScaler():
     def __init__(self, display):
         """ Debugging """
-        self.debug = True
+        self.debug = False
         self.debug_dma = False
         self.debug_dma_ch = False
         self.debug_pio = False
         self.debug_irq = False
         self.debug_interp = False
-        self.debug_interp_list = True
+        self.debug_interp_list = False
         self.debug_scale_patterns = False
         self.debug_with_debug_bytes = False
 
@@ -40,8 +45,6 @@ class SpriteScaler():
         self.display:SSD1331PIO = display
         self.framebuf:ScalerFramebuf = ScalerFramebuf(display)
         self.framebuf.debug = self.debug
-        self.min_write_addr = self.framebuf.min_write_addr
-        self.min_read_addr = 0
 
         self.dma = DMAChain(self, display)
         self.dma.dbg = self.dbg
@@ -55,12 +58,6 @@ class SpriteScaler():
         self.draw_x = 0
         self.draw_y = 0
         self.alpha = None
-
-
-        if self.debug_with_debug_bytes:
-            print( " * DEBUG BYTES ADDR *")
-            print(f" * 0x{addressof(self.debug_bytes1):08X}")
-            print(f" * 0x{addressof(self.debug_bytes2):08X}")
 
         self.palette_addr = None
 
@@ -76,24 +73,17 @@ class SpriteScaler():
         if self.debug_scale_patterns:
             self.dma.patterns.print_patterns()
 
-    def fill_addrs(self, scaled_height):
+    def fill_addrs(self, scaled_height, framebuf:ScalerFramebuf):
         """ Uses INTERP to fill a sequence of Read/Write addresses indicating the start of each sprite row, and the
         start of the display row to draw it in """
 
         prof.start_profile("scaler.fill_addrs")
 
-        # max_row = scaled_height
-        # if max_row > self.framebuf.frame_height:
-        #     max_row = self.framebuf.frame_height
-        #
-        # max_row = int(max_row)
-        # self.dma.write_addrs[0:max_row] = self.framebuf.write_addrs_curr[0:max_row]
-
         """ Addr generation loop"""
-        self.fill_addrs_loop(scaled_height, self.framebuf.frame_height)
+        self.fill_addrs_loop(scaled_height, framebuf.frame_height)
 
         if self.debug_interp_list:
-            print(f"min_write_addr: 0x{self.min_write_addr:08X} ")
+            print(f"min_write_addr: 0x{self.framebuf.min_write_addr:08X} ")
 
             print("~~ Value Addresses ~~")
             for i in range(0, len(self.dma.write_addrs)):
@@ -129,6 +119,8 @@ class SpriteScaler():
         row_id = 0
 
         """ Populate DMA with read addresses """
+        row_id: int = 0
+
         while row_id < max_rows:
             read_addr = mem32[INTERP1_POP_FULL]
             self.dma.read_addrs[row_id] = read_addr
@@ -208,16 +200,15 @@ class SpriteScaler():
         prof.start_profile('scaler.init_dma_sprite')
         self.dma.init_sprite(sprite.width, h_scale)
         prof.end_profile('scaler.init_dma_sprite')
-        self.fill_addrs(scaled_height)
+        self.fill_addrs(scaled_height, self.framebuf)
 
         if self.debug_dma:
             self.dma.debug_dma_addr()
         """ Start DMA chains and State Machines """
         self.start(scaled_height)
 
-
     def start(self, scaled_height):
-        # This is only to avoid a mem error within the IRQ handler
+        # This is only to avoid a mem error with profiling the IRQ handler
         prof.start_profile('scaler.start_channels')
 
         """ Color lookup must be activated too, since it is right after a SM, so there's no direct way to trigger it"""
@@ -228,9 +219,6 @@ class SpriteScaler():
         prof.end_profile('scaler.start_channels')
 
         while not self.dma.read_finished:
-            if self.debug_with_debug_bytes:
-                self.dbg.print_debug_bytes(self.debug_bytes1)
-
             if self.debug_dma_ch:
                 print(f"\n~~ DMA CHANNELS in MAIN LOOP (Start()) (finished:{self.dma.read_finished}) ~~~~~~~~~~~\n")
                 # self.debug_dma_and_pio()
@@ -283,7 +271,7 @@ class SpriteScaler():
         if not scale_x_one:
             scale_x_one = 0.0001
 
-        write_base = self.min_write_addr
+        write_base = self.framebuf.min_write_addr
         frame_width = framebuf.frame_width
         frame_height = framebuf.frame_height
 

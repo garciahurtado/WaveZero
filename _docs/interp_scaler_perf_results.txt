@@ -327,10 +327,60 @@ FPS:   7.69
 
 >>
 
+FPS:   7.84
 FPS:   7.85
 FPS:   7.85
-FPS:   7.89
-FPS:   7.91
+FPS:   7.86
+
+func                             runs     avg ms          total ms
+--------------------------------------------------------------------
+scaler.draw_sprite               48432    4.6413         224787.20
+scaler.start_channels            48432    0.8938          43288.32
+scaler.init_interp_sprite        48432    0.6000          29061.19
+scaler.fill_addrs                48432    0.5911          28626.04
+scaler.finish_sprite             48432    0.5771          27950.61
+
+to
+
+func                             runs     avg ms          total ms
+--------------------------------------------------------------------
+scaler.draw_sprite               17352    3.8139          66179.41
+scaler.init_interp_sprite        17352    0.5446           9450.35
+scaler.finish_sprite             17352    0.5149           8934.19
+scaler.fill_addrs                17352    0.4372           7585.96
+scaler.init_dma_sprite           17352    0.3403           5905.61
+
+Thanks to new profiler written by Claude.
+
+FPS:   9.40
+FPS:   9.42
+FPS:   9.42
+FPS:   9.46
+
+More viper >>>
+
+FPS:   9.70
+FPS:   9.73
+FPS:   9.75
+FPS:   9.78
+
+Removed 1ms wait >>
+
+FPS:   9.91
+FPS:   9.94
+FPS:   9.97
+FPS:   9.95
+FPS:   9.94
+
+---
+Refactors:
+
+FPS:   9.71
+FPS:   9.74
+
+
+
+
 
 
 

@@ -1,12 +1,9 @@
 from rp2 import PIO
-
 from uarray import array
 from uctypes import addressof
 
 from scaler.const import *
 from utils import aligned_buffer
-
-DMA_DBG_TCR = const(0x804)
 
 class ScalerDebugger():
     sm_indices = None
@@ -15,7 +12,6 @@ class ScalerDebugger():
 
     channel_names = {}
     channels = {}
-    debug_bytes = []
 
     def __init__(self, sm_indices=None, sm_row_start=None, sm_row_scale=None, sm_indexed_scaler=None, dma_ch=None):
         self.sm_indices = sm_indices
