@@ -18,7 +18,7 @@ from sprites2.sprite_types import SpriteType
 from ssd1331_pio import SSD1331PIO
 
 from profiler import Profiler as prof
-prof.enabled = True
+prof.enabled = False
 
 gc.collect()
 
@@ -73,60 +73,27 @@ class SpriteScaler():
         if self.debug_scale_patterns:
             self.dma.patterns.print_patterns()
 
-    def fill_addrs(self, scaled_height, framebuf:ScalerFramebuf):
-        """ Uses INTERP to fill a sequence of Read/Write addresses indicating the start of each sprite row, and the
-        start of the display row to draw it in """
-
-        prof.start_profile("scaler.fill_addrs")
-
-        """ Addr generation loop"""
-        self.fill_addrs_loop(scaled_height, framebuf.frame_height)
-
-        if self.debug_interp_list:
-            print(f"min_write_addr: 0x{self.framebuf.min_write_addr:08X} ")
-
-            print("~~ Value Addresses ~~")
-            for i in range(0, len(self.dma.write_addrs)):
-                write = self.dma.write_addrs[i]
-                read = self.dma.read_addrs[i]
-                print(f"W [{i:02}]: 0x{write:08X}")
-                print(f"R     : ....0x{read:08X}")
-
-                if not read or not write:
-                    break
-
-        prof.end_profile("scaler.fill_addrs")
-
     @micropython.viper
-    def fill_addrs_loop(self, scaled_height: int, frame_height: int):
+    def fill_addrs(self, scaled_height: int, frame_height: int):
         # Determine max_row with bounds checking
         max_rows = int(scaled_height)
         if max_rows > frame_height:
             max_rows = frame_height
 
         # Get array pointers
-        write_addrs = self.dma.write_addrs  # destination
-        curr_addrs = self.framebuf.write_addrs_curr  # source
-        # if not max_rows % 2:
-        #     max_rows += 1
-
-        # Manual copy loop (faster than slicing in viper)
-        i = 0
-        while i < max_rows:
-            write_addrs[i] = curr_addrs[i]
-            i += 1
-
-        row_id = 0
+        read_addrs:int = self.dma.read_addrs  # destination
+        write_addrs:int = self.dma.write_addrs  # destination
 
         """ Populate DMA with read addresses """
         row_id: int = 0
 
         while row_id < max_rows:
-            read_addr = mem32[INTERP1_POP_FULL]
-            self.dma.read_addrs[row_id] = read_addr
+            read_addrs[row_id] = mem32[INTERP1_POP_FULL]
+            write_addrs[row_id] = mem32[INTERP0_POP_FULL]
             row_id += 1
 
-        self.dma.read_addrs[row_id] = 0x00000000 # finish it with a NULL trigger
+        read_addrs[row_id] = 0x00000000 # finish it with a NULL trigger
+        self.dma.read_addrs = read_addrs
 
     def draw_sprite(self, sprite:SpriteType, x, y, image:Image, h_scale=1.0, v_scale=1.0):
         """
@@ -200,14 +167,24 @@ class SpriteScaler():
         prof.start_profile('scaler.init_dma_sprite')
         self.dma.init_sprite(sprite.width, h_scale)
         prof.end_profile('scaler.init_dma_sprite')
-        self.fill_addrs(scaled_height, self.framebuf)
+        self.fill_addrs(int(scaled_height), int(self.framebuf.frame_height))
 
+        if self.debug_interp_list:
+            print(f"min_write_addr: 0x{self.framebuf.min_write_addr:08X} ")
+
+            print("~~ Value Addresses ~~")
+            for i in range(0, len(self.dma.write_addrs)):
+                write = self.dma.write_addrs[i]
+                read = self.dma.read_addrs[i]
+                print(f"W [{i:02}]: 0x{write:08X}")
+                print(f"R     : ....0x{read:08X}")
         if self.debug_dma:
             self.dma.debug_dma_addr()
-        """ Start DMA chains and State Machines """
-        self.start(scaled_height)
 
-    def start(self, scaled_height):
+        """ Start DMA chains and State Machines """
+        self.start()
+
+    def start(self):
         # This is only to avoid a mem error with profiling the IRQ handler
         prof.start_profile('scaler.start_channels')
 
@@ -281,7 +258,7 @@ class SpriteScaler():
         """ HANDLE BOUNDS CHECK / CROPPING ------------------------  """
         """ Lane 1 config - handles integer extraction - must be reconfigured because it depends on self.frac_bits """
 
-        self.init_interp_lane1(frac_bits, self.int_bits, framebuf.display_stride, write_base)
+        self.init_interp_lanes(frac_bits, self.int_bits, framebuf.display_stride, write_base)
         # old_draw_x = self.draw_x
         # old_base_read = self.base_read
 
@@ -330,7 +307,7 @@ class SpriteScaler():
         mem32[INTERP1_BASE2] = int(self.base_read) # Base sprite read address
 
     @micropython.viper
-    def init_interp_lane1(self, frac_bits:int, int_bits:int, display_stride:int, write_base:int):
+    def init_interp_lanes(self, frac_bits:int, int_bits:int, display_stride:int, write_base:int):
         read_ctrl_lane1 = (
                 (frac_bits << 0) |  # Shift right to get integer portion
                 (frac_bits << 5) |  # Start mask at bit 0

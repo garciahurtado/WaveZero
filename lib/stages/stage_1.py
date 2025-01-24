@@ -75,11 +75,11 @@ class Stage1(Stage):
     def init_palettes(self):
         """ This is just so that the image and palette will be loaded ahead of the spawns"""
 
-        sprite, _ = self.sprite_manager.create(SPRITE_WHITE_LINE)
+        sprite, _ = self.sprite_manager.spawn(SPRITE_WHITE_LINE)
         shared_pal = self.sprite_manager.sprite_palettes[SPRITE_WHITE_LINE]
         self.fire_palette = convert_hex_palette(PALETTE_FIRE, color_mode=BGR565)
 
-        sprite, _ = self.sprite_manager.create(SPRITE_WHITE_LINE_VERT)
+        sprite, _ = self.sprite_manager.spawn(SPRITE_WHITE_LINE_VERT)
         self.sprite_manager.sprite_palettes[SPRITE_WHITE_LINE_VERT] = shared_pal
         self.shared_palette = shared_pal
 

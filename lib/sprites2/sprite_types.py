@@ -111,6 +111,9 @@ def create_sprite(
 
     return sprite
 
+coord = namedtuple(
+    'coord', ('x', 'y')
+)
 
 # Define metadata structure, these values should not change across sprites of this class
 class SpriteType:

@@ -11,9 +11,14 @@ import uctypes
 from collections import namedtuple
 from profiler import Profiler as prof
 
-POOL_CHUNK_SIZE = 20
+POOL_CHUNK_SIZE = 50
 
 class SpritePool:
+    all_indices = 0
+    free_count = 0
+    active_count = 0
+    head = None
+    tail = None
     pool: List[uctypes.struct] = []
     sprite_memory: List[bytearray] = []
 
@@ -37,14 +42,11 @@ class SpritePool:
 
         # Use a single array for tracking free and active sprites
         # self.sprite_status = array('B', [0] * pool_size)  # 0 = free, 1 = active
-
-        self.free_indices = array('H', range(pool_size))  # Unsigned short array for indices
+        self.all_indices = array('H', range(pool_size))  # Unsigned short array for ALL sprite indices
         self.free_count = int(pool_size)
-        self.active_count = 0
-        self.head = None
-        self.tail = None
 
     def create(self):
+        """ ATTENTION: there is another create() in SpriteManager"""
         new_sprite = create_sprite()
         self.pool.append(new_sprite)
         return new_sprite
@@ -55,16 +57,22 @@ class SpritePool:
         - belongs to self.active_indices
         """
         """Get the first sprite available from the pool and return it"""
+        """ sprite_type: int
+            meta: SpriteType
+        
+        """
 
         if self.free_count < 1:
             raise RuntimeError("Sprite pool is empty. Consider increasing pool size.")
 
         self.free_count = self.free_count - 1
 
-        index = self.free_indices[self.free_count]
+        print(f"There are {len(self.all_indices)} total indices / free_count={self.free_count} ")
+
+        index = self.all_indices[self.free_count]
         sprite = self.sprites[index]
 
-        sprite.sprite_type = sprite_type
+        sprite.sprite_type = sprite_type # int
         sprite.current_frame = 0
 
         sprite.born_ms = int(utime.ticks_ms()) # reset creation timestamp
@@ -92,7 +100,8 @@ class SpritePool:
         return sprite, index
 
     def release(self, sprite, meta):
-        if meta.get_flag(sprite, FLAG_ACTIVE):
+        """ Take a sprite out of commission, so that it stops being updated, and it becomes available for recycling"""
+        if True or meta.get_flag(sprite, FLAG_ACTIVE):
             meta.unset_flag(sprite, FLAG_ACTIVE)
             meta.unset_flag(sprite, FLAG_VISIBLE)
 
@@ -116,8 +125,11 @@ class SpritePool:
             self.active_count -= 1
 
             # Add the index back to free_indices
-            self.free_indices[self.free_count] = self.sprites.index(sprite)
+            idx = self.sprites.index(sprite)
+            self.all_indices[self.free_count] = idx
             self.free_count += 1
+
+            return idx
 
     def insert(self, sprite, position):
         """ DEPRECATED """
@@ -169,7 +181,7 @@ class SpritePool:
 
     def __len__(self):
         """Return the number of active sprites"""
-        return self.active_count
+        return int(self.active_count)
 
 class PoolNode:
     __slots__ = ['sprite', 'index', 'prev', 'next']

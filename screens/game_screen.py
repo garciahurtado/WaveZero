@@ -188,7 +188,7 @@ class GameScreen(Screen):
                     self.player.update(elapsed)
                     self.sun.x = self.sun_start_x - round(self.player.turn_angle * 4)
 
-                    for sprite in self.sprites:
+                    for sprite in self.instances:
                         sprite.update(elapsed)
 
                     self.collider.check_collisions(self.enemies.pool.active_sprites)
@@ -214,7 +214,7 @@ class GameScreen(Screen):
         self.fps.tick()
 
     def show_all(self):
-        for sprite in self.sprites:
+        for sprite in self.instances:
             sprite.show(self.display)
 
     def show_fx(self):

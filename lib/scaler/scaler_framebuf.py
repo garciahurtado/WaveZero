@@ -25,7 +25,6 @@ class ScalerFramebuf():
     scratch_addr = addressof(scratch_bytes)
     scratch_buffer = None
     write_addrs_all = {}
-    write_addrs_curr = None # pointer to the current write addrs array
 
     def __init__(self, display: SSD1331PIO, mode=framebuf.RGB565):
         self.display = display
@@ -122,27 +121,23 @@ class ScalerFramebuf():
         if max_dim <= 4:
             self.scratch_buffer = self.scratch_buffer_4
             self.frame_width = self.frame_height = 4
-            self.write_addrs_curr = self.write_addrs_all[4]
         elif max_dim <= 8:
             self.scratch_buffer = self.scratch_buffer_8
             self.frame_width = self.frame_height = 8
-            self.write_addrs_curr = self.write_addrs_all[8]
         elif max_dim <= 16:
             self.scratch_buffer = self.scratch_buffer_16
             self.frame_width = self.frame_height = 16
-            self.write_addrs_curr = self.write_addrs_all[16]
         elif max_dim <= 32:
             self.scratch_buffer = self.scratch_buffer_32
             self.frame_width = self.frame_height = 32
-            self.write_addrs_curr = self.write_addrs_all[32]
         else:
             self.scratch_buffer = self.scratch_buffer_full
             self.frame_width = self.display.width + self.extra_width
             self.frame_height = self.display.height
 
         self.scratch_buffer.fill(self.fill_color)
-        self.display_stride = self.display_stride_cache[self.frame_width]
-        # self.display_stride = self.frame_width * 2
+        # self.display_stride = self.display_stride_cache[self.frame_width]
+        self.display_stride = self.frame_width * 2
         # self.frame_bytes = self.frame_bytes_cache[self.frame_height]
         self.frame_bytes = self.display_stride * self.frame_height
 

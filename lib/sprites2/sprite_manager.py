@@ -7,7 +7,7 @@ import micropython
 from dump_object import dump_object
 from images.image_loader import ImageLoader
 from perspective_camera import PerspectiveCamera
-from sprites2.sprite_types import SpriteType, SPRITE_DATA_LAYOUT
+from sprites2.sprite_types import SpriteType, SPRITE_DATA_LAYOUT, coord
 from sprites2.sprite_types import SpriteType as types
 from sprites2.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE, FLAG_BLINK, FLAG_BLINK_FLIP, FLAG_PALETTE_ROTATE
 import framebuf
@@ -24,13 +24,14 @@ class SpriteManager:
     POS_TYPE_FAR = const(0)
     POS_TYPE_NEAR = const(1)
     display = None
+    pos_scale = 1
 
     sprite_images: Dict[str, List[Image]] = {}
     sprite_palettes: Dict[str, FramebufferPalette] = {}
     sprite_metadata: Dict[str, SpriteType] = {}
     sprite_classes: Dict[int, callable] = {}
     sprite_actions = {}
-    sprites_by_type: Dict[str, list] = {}
+    sprite_inst: Dict[str, list] = {}
     half_scale_one_dist = int(0)  # This should be set based on your camera setup
     add_frames = 0  # Number of upscaled frames to add (scale > 1)
     pool = None
@@ -51,6 +52,7 @@ class SpriteManager:
 
         self.half_height = display.height // 2
         self.half_width = display.width // 2
+        # self.sprite_actions = Actions(display=display, camera=camera, mgr=self)
 
     def add_type(self, **kwargs):
         """ These arguments are mandatory """
@@ -99,10 +101,7 @@ class SpriteManager:
                 setattr(type_obj, key, value)
 
         self.sprite_metadata[sprite_type] = type_obj
-        self.sprites_by_type[sprite_type] = []
-
-    def add_action(self, sprite_type, func):
-        self.sprite_actions[sprite_type] = func
+        self.sprite_inst[sprite_type] = []
 
     def get_class_properties(self, cls):
         props = {}
@@ -115,20 +114,22 @@ class SpriteManager:
 
         return props
 
-    def create(self, sprite_type, *args, **kwargs):
+    def spawn(self, sprite_type, *args, **kwargs):
+        """
+        "Spawn" a new sprite. In reality, we are just grabbing one from the pool of available sprites via get() and
+        activating it.
+        """
         if sprite_type not in self.sprite_classes.keys():
-            raise IndexError(f"Sprite type {sprite_type} is not defined")
+            raise IndexError(f"Unknown Sprite Type {sprite_type}")
 
-        prof.start_profile('mgr.set_initial_vars')
         meta = self.sprite_metadata[sprite_type]
-        prof.end_profile('mgr.set_initial_vars')
 
         prof.start_profile('mgr.pool_get')
         # new_sprite.x = new_sprite.y = new_sprite.z = 0
         new_sprite, idx = self.pool.get(sprite_type, meta)
         prof.end_profile('mgr.pool_get')
 
-        self.sprites_by_type[sprite_type].append(idx)
+        self.sprite_inst[sprite_type].append(idx)
 
         # Set user values passed to the create method
         prof.start_profile('mgr.set_kwargs')
@@ -148,7 +149,7 @@ class SpriteManager:
 
         """ Load image and create scaling frames """
         if sprite_type not in self.sprite_images:
-            print(f"sprite type: {sprite_type} - creating scaled images")
+            print(f"First Sprite of Type: {sprite_type} - creating scaled images")
             prof.start_profile('mgr.create_images')
             new_img = self.load_img_and_scale(meta, sprite_type)
             self.sprite_images[sprite_type] = new_img
@@ -362,15 +363,20 @@ class SpriteManager:
             prof.end_profile('mgr.update()')
 
         """ Check for and update actions for all sprite types"""
+        prof.start_profile('mgr.sprite_actions()')
         if self.sprite_actions:
 
             for sprite_type in self.sprite_actions.keys():
-                sprites = self.sprites_by_type[sprite_type]
-                actions = self.sprite_actions[sprite_type]
+                inst = self.sprite_inst[sprite_type]
+                actions = self.sprite_actions.for_sprite(sprite_type)
                 for action in actions:
-                    action.update(sprites, elapsed)
+                    func = getattr(self.sprite_actions, __name__)
+                    # func.__self__ =
+                    func(inst, elapsed)
 
-                action(self.camera, sprite.draw_x, sprite.draw_y, sprite.x, sprite.y, sprite.z, sprite.frame_width)
+                    # action(self.camera, sprite.draw_x, sprite.draw_y, sprite.x, sprite.y, sprite.z, sprite.frame_width)
+
+        prof.end_profile('mgr.sprite_actions()')
 
     def rotate_sprite_palette(self, sprite, meta):
         sprite.color_rot_idx = (sprite.color_rot_idx + 1) % len(meta.rotate_palette)
@@ -443,9 +449,39 @@ class SpriteManager:
 
         return self.grid.set_lane(sprite, lane_num, meta.repeats, meta.repeat_spacing)
 
-    def get_meta(self, sprite):
-        meta = self.sprite_metadata[sprite.sprite_type]
+    def get_meta(self, inst):
+        meta = self.sprite_metadata[inst.sprite_type]
         return meta
+
+    def get_sprite(self, sprite_type):
+        sprite = self.sprite_metadata[sprite_type]
+
+        if sprite_type not in self.sprite_images:
+            print(f"Sprite type: {sprite_type} - creating scaled images for 1st time")
+            new_img = self.load_img_and_scale(sprite, sprite_type)
+            self.sprite_images[sprite_type] = new_img
+
+        return sprite
+
+    def get_pos(self, inst):
+        """ To be used to get an instances coordinates when POS scale != 1"""
+        x = inst.x
+        y = inst.y
+        if self.pos_scale != 1:
+            x /= self.pos_scale
+            y /= self.pos_scale
+
+        return coord(x=int(x), y=int(y))
+
+    def set_pos(self, inst, x, y):
+        """ To be used to set an instances coordinates when POS scale != 1"""
+        if self.pos_scale != 1:
+            x = x * self.pos_scale
+            y = y * self.pos_scale
+
+        inst.x = int(x)
+        inst.y = int(y)
+        return True
 
     def set_alpha_color(self, sprite_type: SpriteType):
         """Get the value of the color to be used as an alpha channel when drawing the sprite
@@ -492,6 +528,10 @@ class SpriteManager:
         for _, type in self.sprite_classes.items():
             if type.animations:
                 type.start_anim()
+
+    def release(self, inst, sprite):
+        idx = self.pool.release(inst, sprite)
+        # self.sprite_inst[sprite].remove(idx)
 
     def check_mem(self):
         gc.collect()

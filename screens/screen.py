@@ -3,6 +3,7 @@ import time
 
 import utime
 import uasyncio as asyncio
+from ucollections import namedtuple
 
 from fps_counter import FpsCounter
 from sprites.sprite import Sprite
@@ -10,7 +11,9 @@ import micropython
 
 class Screen:
     display = None
-    sprites: [Sprite]
+    bounds = None
+    margin_px = 8
+    instances: [Sprite]
     last_tick: int = 0
     last_gc: int = 0
     gc_interval: int = 3000 # how often to call the garbage collector (ms)
@@ -21,13 +24,19 @@ class Screen:
     target_fps = 30
 
     def __init__(self, display=None):
-        self.sprites = []
+        self.instances = []
         if display:
             self.display = display
+            self.bounds = ScreenBounds(
+                left = -self.margin_px,
+                right= display.width + self.margin_px,
+                top = -self.margin_px,
+                bottom= display.height + self.margin_px
+            )
         self.fps = FpsCounter()
 
     def add(self, sprite):
-        self.sprites.append(sprite)
+        self.instances.append(sprite)
 
     async def refresh_display(self):
         wait_s = 1/30# max FPS
@@ -75,8 +84,22 @@ class Screen:
         self.display.show()
 
     def draw_sprites(self):
-        for my_sprite in self.sprites:
+        for my_sprite in self.instances:
             my_sprite.show(self.display)
+
+    def is_within_bounds(self, coords, sprite):
+        x, y = coords.x, coords.y
+        center_x = int(x + (sprite.width/2))
+        center_y = int(y + (sprite.height/2))
+        bounds = self.bounds
+
+        if ((center_x > bounds.left) and \
+             (center_x < bounds.right) and \
+              (center_y > bounds.top) and \
+               (center_y < bounds.bottom)):
+            return True
+
+        return False
 
 
     @staticmethod
@@ -90,3 +113,13 @@ class Screen:
         gc.collect()
         print(msg)
         print(micropython.mem_info())
+
+ScreenBounds = namedtuple(
+    "ScreenBounds",
+    (
+        "left",
+        "right",
+        "top",
+        "bottom",
+    )
+)

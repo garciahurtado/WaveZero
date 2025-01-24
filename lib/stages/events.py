@@ -283,7 +283,7 @@ class SpawnEnemyEvent(OneShotEvent):
         type = self.sprite_type
 
         prof.start_profile('spawn.create')
-        sprite, _ = self.sprite_mgr.create(type, x=self.x, y=self.y, z=self.z)
+        sprite, _ = self.sprite_mgr.spawn(type, x=self.x, y=self.y, z=self.z)
         prof.end_profile('spawn.create')
 
         prof.start_profile('spawn.set_lane')

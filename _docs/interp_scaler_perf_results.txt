@@ -31,7 +31,7 @@ scaler.precache_addr             2040     0.0560            114.23
 
 <<< AFTER CONVERTING TO SIMPLIFIED PIPELINE (before optimization) >>>
 <<< ALL THE BELOW DATA WAS TAKEN USING 120HZ MAIN / 80HZ DMA, 
-<<< 24 SPRITES OF 16X16 WITH ALL DEBUG OPTIONS OFF AND PROFILER ON
+<<< 24 SPRITES OF 16X16 WITH ALL DEBUG OPTIONS OFF AND PROFILER ***ON***
 
 FPS:   1.91
 FPS:   1.91
@@ -378,6 +378,68 @@ Refactors:
 FPS:   9.71
 FPS:   9.74
 
+FPS:   9.77
+FPS:   9.79
+FPS:   9.76
+FPS:   9.78
+
+----
+W/ read and write address cache
+FPS:   8.77
+FPS:   8.78
+
+w/o write cache:
+ 8.51
+
+--  Removed all ADDR caches: --- 
+
+Profile Results:
+func                             runs     avg ms          total ms
+--------------------------------------------------------------------
+scaler.draw_sprite               5904     3.7482          22129.66
+scaler.finish_sprite             5904     0.5311           3135.67
+scaler.init_interp_sprite        5904     0.4830           2851.69
+scaler.fill_addrs                5904     0.4090           2414.48
+scaler.init_dma_sprite           5904     0.2232           1317.84
+scaler.setup_buffers             5904     0.2048           1209.35
+scaler.scaled_width_height       5904     0.1807           1067.00
+scaler.init_pio                  5904     0.1736           1025.18
+scaler.start_channels            5904     0.1106            653.04
+scaler.pre_draw                  5904     0.0895            528.41
+scaler.interp_cfg                5904     0.0727            428.98
+scaler.cache_sprite_config       5904     0.0511            301.67
+scaler.draw_loop_init            246      0.0817             20.09
+
+
+FPS:   9.62
+FPS:   9.64
+
+---
+optimized fill_addrs_loop
+
+FPS:   9.76
+FPS:   9.79
+FPS:   9.75
+
+---
+removed unneeded method
+
+FPS:  10.05
+FPS:  10.08
+FPS:  10.11
+FPS:  10.07
+
+FPS:  10.15
+FPS:  10.15
+FPS:  10.16
+
+FPS:  10.19
+FPS:  10.22
+FPS:  10.19
+
+FPS:  10.27
+FPS:  10.27
+FPS:  10.27
 
 
 
