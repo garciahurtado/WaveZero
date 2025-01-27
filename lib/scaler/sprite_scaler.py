@@ -42,9 +42,9 @@ class SpriteScaler():
 
         self.write_addr2 = []
 
+        self.sprite = None
         self.display:SSD1331PIO = display
         self.framebuf:ScalerFramebuf = ScalerFramebuf(display)
-        self.framebuf.debug = self.debug
 
         self.dma = DMAChain(self, display)
         self.dma.dbg = self.dbg
@@ -73,12 +73,15 @@ class SpriteScaler():
         if self.debug_scale_patterns:
             self.dma.patterns.print_patterns()
 
-    @micropython.viper
-    def fill_addrs(self, scaled_height: int, frame_height: int):
+    # @micropython.viper
+    def fill_addrs(self, scaled_height: int):
         # Determine max_row with bounds checking
-        max_rows = int(scaled_height)
-        if max_rows > frame_height:
-            max_rows = frame_height
+        # max_write_addrs =
+        # if max_write_addrs > frame_height:
+        #     max_write_addrs = frame_height
+
+        max_write_addrs = min(self.framebuf.max_height, scaled_height)
+        max_read_addrs = max(scaled_height, max_write_addrs)
 
         # Get array pointers
         read_addrs:int = self.dma.read_addrs  # destination
@@ -87,12 +90,13 @@ class SpriteScaler():
         """ Populate DMA with read addresses """
         row_id: int = 0
 
-        while row_id < max_rows:
+        while row_id < max_read_addrs:
             read_addrs[row_id] = mem32[INTERP1_POP_FULL]
             write_addrs[row_id] = mem32[INTERP0_POP_FULL]
             row_id += 1
 
-        read_addrs[row_id] = 0x00000000 # finish it with a NULL trigger
+        read_addrs[row_id-1] = 0x00000000 # finish it with a NULL trigger
+        write_addrs[row_id-1] = 0x00000000 # finish it with a NULL trigger
         self.dma.read_addrs = read_addrs
 
     def draw_sprite(self, sprite:SpriteType, x, y, image:Image, h_scale=1.0, v_scale=1.0):
@@ -108,6 +112,7 @@ class SpriteScaler():
         self.draw_y = y
         self.alpha = sprite.alpha_color
         self.dma.read_finished = False
+        self.sprite = sprite
 
         if sprite.width == 16:
             self.framebuf.frac_bits = self.frac_bits = 3  # Use x.y fixed point   (16x16)
@@ -125,7 +130,7 @@ class SpriteScaler():
 
         self.framebuf.select_buffer(scaled_width, scaled_height)
 
-        self.scaled_height = scaled_height + 1
+        self.scaled_height = scaled_height
         self.scaled_width = scaled_width
         if self.debug:
             print("~~~ SPRITE SCALED DIMENSIONS ~~~")
@@ -167,7 +172,7 @@ class SpriteScaler():
         prof.start_profile('scaler.init_dma_sprite')
         self.dma.init_sprite(sprite.width, h_scale)
         prof.end_profile('scaler.init_dma_sprite')
-        self.fill_addrs(int(scaled_height), int(self.framebuf.frame_height))
+        self.fill_addrs(int(self.scaled_height))
 
         if self.debug_interp_list:
             print(f"min_write_addr: 0x{self.framebuf.min_write_addr:08X} ")
@@ -265,10 +270,11 @@ class SpriteScaler():
         if self.draw_y < 0:
             if (scaled_height > frame_height):
                 """ We need to offset base_read in order to clip vertically when generating addresses """
-                extra_rows = abs(self.draw_y)
-                extra_rows_px = math.ceil(extra_rows / scale_y_one)
-                extra_bytes_y = (extra_rows_px * sprite_width) / 2
-                self.base_read += int(extra_bytes_y)
+                self.scaled_height += self.draw_y
+                skip_rows = abs(self.draw_y)
+                skip_rows = int(skip_rows / scale_y_one)
+                skip_bytes_y = ((skip_rows * sprite_width)/ 2)
+                self.base_read += math.ceil(skip_bytes_y)
 
                 self.draw_y = 0
 

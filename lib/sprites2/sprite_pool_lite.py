@@ -1,4 +1,3 @@
-import sys
 from typing import List
 
 import utime
@@ -8,12 +7,12 @@ from dump_object import dump_object
 from sprites2.sprite_types import create_sprite, SPRITE_DATA_LAYOUT, SPRITE_DATA_SIZE, SpriteType
 from sprites2.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE
 import uctypes
-from collections import namedtuple
 from profiler import Profiler as prof
 
 POOL_CHUNK_SIZE = 50
 
 class SpritePool:
+    debug = False
     all_indices = 0
     free_count = 0
     active_count = 0
@@ -38,11 +37,10 @@ class SpritePool:
                 addr = uctypes.addressof(chunk) + j * SPRITE_DATA_SIZE
                 self.sprites.append(uctypes.struct(addr, SPRITE_DATA_LAYOUT))
 
-        print("After creating sprite pool")
-
         # Use a single array for tracking free and active sprites
         # self.sprite_status = array('B', [0] * pool_size)  # 0 = free, 1 = active
         self.all_indices = array('H', range(pool_size))  # Unsigned short array for ALL sprite indices
+        self.ready_indices = array('H', range(pool_size))  # Unsigned short array for INACTIVE / READY sprite indices
         self.free_count = int(pool_size)
 
     def create(self):
@@ -67,9 +65,10 @@ class SpritePool:
 
         self.free_count = self.free_count - 1
 
-        print(f"There are {len(self.all_indices)} total indices / free_count={self.free_count} ")
+        if self.debug:
+            print(f"get() - {len(self.all_indices)} total indices / free_count={self.free_count} ")
 
-        index = self.all_indices[self.free_count]
+        index = self.ready_indices[self.free_count]
         sprite = self.sprites[index]
 
         sprite.sprite_type = sprite_type # int
@@ -126,7 +125,7 @@ class SpritePool:
 
             # Add the index back to free_indices
             idx = self.sprites.index(sprite)
-            self.all_indices[self.free_count] = idx
+            self.ready_indices[self.free_count] = idx
             self.free_count += 1
 
             return idx

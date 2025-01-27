@@ -72,10 +72,16 @@ SPRITE_DATA_LAYOUT = {
     "floor_y": uctypes.INT8 | 29,        # 1 byte at offset 29
     "color_rot_idx": uctypes.UINT8 | 30, # 1 byte at offset 30
     "flags": uctypes.UINT8 | 31,         # 1 byte at offset 31
+    # "dir_x": uctypes.INT8 | 32,         # 1 byte at offset 32
+    # "dir_y": uctypes.INT8 | 33,         # 1 byte at offset 33
 }
 
 SPRITE_DATA_SIZE = 32
-
+"""
+self. = 0   # Normalized (-1 to 1) - INT
+self. = 0
+self. = 0   # Single scalar for magnitude - INT
+"""
 # Get all field names for outside use
 sprite_fields = SPRITE_DATA_LAYOUT.keys()
 
@@ -110,10 +116,6 @@ def create_sprite(
     sprite.flags = 0
 
     return sprite
-
-coord = namedtuple(
-    'coord', ('x', 'y')
-)
 
 # Define metadata structure, these values should not change across sprites of this class
 class SpriteType:

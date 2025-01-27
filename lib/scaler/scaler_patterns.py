@@ -29,12 +29,12 @@ class ScalingPatterns:
         patterns1 = {}
         patterns1 = self.create_patterns(0, 1, step=0.125)
         patterns2 = self.create_patterns(1, 4, step=0.250)
-        patterns3 = self.create_patterns(4, 7, step=0.500)
-        patterns4 = self.create_patterns(7, 16, step=1)
+        patterns3 = self.create_patterns(4, 8, step=0.250)
+        # patterns4 = self.create_patterns(8, 12, step=1)
 
         patterns1.update(patterns2)
         patterns1.update(patterns3)
-        patterns1.update(patterns4)
+        # patterns1.update(patterns4)
 
         self.horiz_patterns = patterns1
         return self.horiz_patterns

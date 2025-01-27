@@ -11,13 +11,15 @@ class ScalerFramebuf():
     """
     Manages the various framebuffers used for rendering of scaled sprites.
     """
+    """ Addtl width (beyond the full width of the screen) which the framebuf will use to fit large sprites.
+        In order to support very high scales, increase this number """
+    extra_width = extra_height = 32
+
     display:SSD1331PIO
     max_width = SSD1331PIO.WIDTH
-    height = SSD1331PIO.HEIGHT
+    height = max_height = SSD1331PIO.HEIGHT
 
-    """ Addtl width (beyond the full width of the screen) which the framebuf will use to fit large sprites.
-    In order to support very high scales, increase this number """
-    extra_width = 32
+    debug = False
     frame_width = 0
     frame_height = 0
     scratch_size = height * (max_width + extra_width) * 2
@@ -25,6 +27,8 @@ class ScalerFramebuf():
     scratch_addr = addressof(scratch_bytes)
     scratch_buffer = None
     write_addrs_all = {}
+    display_stride = 0
+    display_stride_cache = {}
 
     def __init__(self, display: SSD1331PIO, mode=framebuf.RGB565):
         self.display = display
@@ -41,9 +45,7 @@ class ScalerFramebuf():
         self.fill_color = 0x000000
         self.min_write_addr = addressof(self.scratch_bytes)
 
-        self.debug = False
-        self.display_stride = 0
-        self.display_stride_cache = {}
+
         self.init_buffers(mode)
         self.cache_addrs()
 
@@ -144,7 +146,7 @@ class ScalerFramebuf():
         prof.end_profile('scaler.setup_buffers')
 
         if self.debug:
-            print(f"   INSIDE 'SELECT_BUFFER', WITH A self.write_addrs_now len of {len(self.write_addrs_curr)} ")
+            print(f"   INSIDE 'SELECT_BUFFER', WITH len(write_addrs_all): {len(self.write_addrs_all)} ")
             print(f"   FOR w/h: {scaled_width}, {scaled_height} a frame height of {self.frame_height}")
             print(f"   SELECTED STRIDE: {self.display_stride}")
             print(f"   FRAME BYTES: {self.frame_bytes}")

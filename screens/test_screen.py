@@ -16,9 +16,7 @@ from sprites2.test_square import TestSquare
 from sprites2.test_heart import TestHeart
 from sprites2.sprite_manager_2d import SpriteManager2D
 
-from sprites2.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART, SPRITE_TEST_GRID, FLAG_ACTIVE
-from sprites2.sprite_types import SpriteType, coord
-# import input_rotary
+from sprites2.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART, SPRITE_TEST_GRID
 
 from profiler import Profiler as prof
 from images.image_loader import ImageLoader
@@ -40,6 +38,7 @@ GREY =  0x444444
 
 class TestScreen(Screen):
     debug = False
+    debug_inst = False
     fps_enabled = True
     fps_counter_task = None
     grid_center = False
@@ -51,8 +50,11 @@ class TestScreen(Screen):
     scale_source = None
     scale_source_len = 0
     scales = []
+    scale_dist_factor = 50 # The higher this is, the slower the scale grows w/ distance
+
     pos_scale = 1
 
+    base_speed = 1 / 800
     base_x = 0
     base_y = 0
     delta_y = 2
@@ -65,7 +67,7 @@ class TestScreen(Screen):
     h_scale = 1
     v_scale = 1
     current_loop = None
-    num_sprites = 1
+    num_sprites = 40
     scaler_num_sprites = 1
     sprite_max_z = 1000
     display_task = None
@@ -96,7 +98,6 @@ class TestScreen(Screen):
     x_offset = 0
     y_offset = 0
     all_coords = [] # list of x/y tuples
-    coord_scale = 100
 
     def __init__(self, display, *args, **kwargs):
         super().__init__(display)
@@ -138,67 +139,71 @@ class TestScreen(Screen):
         self.fallout = False
         self.speed_vectors = []
 
-    def create_sprite_manager(self, display, num_sprites=0):
+    def create_sprite_manager(self, display, num_sprites=0, pos_scale=1):
         self.check_mem()
         print("-- Creating Sprite Manager...")
         self.max_sprites = num_sprites
         self.mgr = SpriteManager2D(display, self.max_sprites, self.camera)
-        self.mgr.pos_scale = 100
+        self.mgr.pos_scale = pos_scale
         return self.mgr
 
     def run(self):
         self.running = True
         test = 'flying_sprites'
         self.check_mem()
-        self.current_loop = None
+        method = None
 
         if test == 'zoom_heart':
             self.sprite_type = SPRITE_TEST_HEART
             self.load_sprite(SPRITE_TEST_HEART)
             self.init_beating_heart()
-            self.current_loop = self.do_refresh_zoom_in
+            method = self.do_refresh_zoom_in
         elif test == 'zoom_sq':
             self.sprite_type = SPRITE_TEST_SQUARE
             self.load_sprite(SPRITE_TEST_SQUARE)
             self.init_beating_heart()
-            self.current_loop = self.do_refresh_zoom_in
+            method = self.do_refresh_zoom_in
         if test == 'scale_control':
             self.sprite_type = SPRITE_TEST_HEART
             self.load_sprite(SPRITE_TEST_HEART)
             self.init_scale_control()
-            self.current_loop = self.do_refresh_scale_control
+            method = self.do_refresh_scale_control
         elif test == 'grid1':
             self.sprite_type = SPRITE_TEST_HEART
             self.load_sprite(SPRITE_TEST_HEART)
             self.init_grid()
             self.grid_beat = False
             self.fallout = False
-            self.current_loop = self.do_refresh_grid
+            method = self.do_refresh_grid
         elif test == 'grid2':
             self.sprite_type = SPRITE_TEST_SQUARE
             self.load_sprite(SPRITE_TEST_SQUARE)
             self.init_grid()
             self.grid_beat = False
             self.fallout = True
-            self.current_loop = self.do_refresh_grid
+            method = self.do_refresh_grid
         elif test == 'grid3':
             self.sprite_type = SPRITE_TEST_GRID
             self.load_sprite(SPRITE_TEST_GRID)
             self.init_grid()
-            self.current_loop = self.do_refresh_grid
+            method = self.do_refresh_grid
         elif test == 'square':
             self.sprite_type = SPRITE_TEST_SQUARE
+            self.init_common(1)
             self.load_sprite(SPRITE_TEST_SQUARE)
             self.init_clipping_square()
-            self.current_loop = self.do_refresh_clipping_square
+            method = self.do_refresh_clipping_square
         elif test == 'flying_sprites':
-            self.pos_scale = 100
-            self.max_sprites = 50
+            self.max_sprites = 30
             self.sprite_type = SPRITE_TEST_HEART
-            self.init_common(self.max_sprites, pos_scale=self.pos_scale)
+            self.init_common(self.max_sprites)
+            self.mgr.pos_scale = 10
             self.load_sprite(SPRITE_TEST_HEART)
             self.init_flying_sprites()
-            self.current_loop = self.do_refresh_flying_sprites
+            method = self.do_refresh_flying_sprites
+
+        print(f"ABOUT TO ASSIGN CURRENT LOOP: pos scale; {self.mgr.pos_scale}")
+        self.current_loop = getattr(self, method.__name__, None)
 
         asyncio.run(self.start_display_loop())
         self.check_mem()
@@ -216,6 +221,7 @@ class TestScreen(Screen):
         print("-- Starting main Loop ...")
         self.check_mem()
 
+        """ All top level tasks / threads go here. Once all of these finish, the program ends"""
         await asyncio.gather(
             self.start_fps_counter(),
             self.update_loop(),
@@ -235,18 +241,9 @@ class TestScreen(Screen):
                 elapsed = utime.ticks_diff(now, self.last_update_ms)
                 elapsed = elapsed / 1000 # @TODO change to MS?
 
-                for inst in self.mgr.pool.active_sprites:
-                    pos = self.mgr.get_pos(inst)
-                    sprite = self.mgr.get_meta(inst)
+                # self.mgr.update(elapsed)
 
-                    if not self.is_within_bounds(pos, sprite):
-                        self.mgr.release(inst, sprite)
-
-                self.mgr.update(elapsed)
-
-                if self.debug:
-                    print(f"Num active sprites: {len(self.mgr.pool)}")
-                await asyncio.sleep(1/30) # Tweaking this number can give FPS gains
+                await asyncio.sleep(1/60) # Tweaking this number can give FPS gains
 
         except asyncio.CancelledError:
             return False
@@ -261,13 +258,11 @@ class TestScreen(Screen):
         if not dx and not dy:
             return 0
 
-        d = abs(math.sqrt(dx**2 + dy**2))
-        return d
+        return math.sqrt(dx**2 + dy**2)
 
     def init_common(self, num_sprites, pos_scale=1):
         self.max_sprites = num_sprites
-        self.mgr = self.create_sprite_manager(self.display, num_sprites=num_sprites)
-        self.mgr.pos_scale = pos_scale
+        self.mgr = self.create_sprite_manager(self.display, num_sprites=num_sprites, pos_scale=pos_scale)
         self.load_types()
 
     def init_grid(self):
@@ -369,7 +364,7 @@ class TestScreen(Screen):
         self.curr_dir = 'horiz'
         self.bounce_count = 0
 
-        self.h_scale = self.v_scale = 2
+        self.h_scale = self.v_scale = 4
         self.scaled_width = math.ceil(self.sprite.width * self.h_scale)
         self.scaled_height = math.ceil(self.sprite.height * self.v_scale)
 
@@ -379,15 +374,14 @@ class TestScreen(Screen):
     def init_flying_sprites(self):
         self.scales = list(self.all_scales.keys())
         self.scales.sort()
-        self.scales = self.scales[0:-6]
-        self.scales = self.make_exp_list(self.scales)
+        self.scales = self.scales[1:]
+        # self.scales = self.make_exp_list(self.scales)
 
         spawn_x = int(self.screen_width / 2)
         spawn_y = int(self.screen_height / 2)
         self.screen_center = [spawn_x, spawn_y]
 
         self.max_dist = self.dist_between(spawn_x, spawn_y, self.display.width, self.display.height)
-        self.mgr.coord_scale = 100
 
         self.speed_vectors = self.random_vectors(self.max_sprites)
 
@@ -396,13 +390,6 @@ class TestScreen(Screen):
 
         self.h_scale = self.v_scale = 1
 
-        # Set the start position for all instances
-        # for inst in self.instances:
-        #     inst.x = spawn_x * self.coord_scale
-        #     inst.y = spawn_y * self.coord_scale
-
-        # sprite, _ = self.sprite_mgr.create(type, x=self.x, y=self.y, z=self.z)
-
         """ Starts main loop in the background """
         loop = asyncio.get_event_loop()
         loop.create_task(self.start_main_loop())
@@ -410,7 +397,8 @@ class TestScreen(Screen):
     def random_vectors(self, num):
         """ Generate an array of num x,y pairs """
         vectors = []
-        scale = self.coord_scale
+        scale = 100
+        # scale = self.pos_scale
         for _ in range(num):
             # Random angle in radians (0-360°)
             angle = random.uniform(0, 2 * math.pi)
@@ -419,8 +407,10 @@ class TestScreen(Screen):
             speed = random.uniform(0.8, 1.2)
 
             # Convert to x,y vector
-            x = math.cos(angle) * speed * scale
-            y = math.sin(angle) * speed * scale
+            # x = math.cos(angle) * speed * scale
+            # y = math.sin(angle) * speed * scale
+            x = math.cos(angle) * scale
+            y = math.sin(angle) * scale
 
             vectors.append((round(x), round(y)))
 
@@ -600,55 +590,96 @@ class TestScreen(Screen):
         self.fps.tick()
 
     def do_refresh_flying_sprites(self):
-        self.common_bg()
-        self.max_scale = len(self.scales) - 1
-        mgr = self.mgr
-        pool = mgr.pool
+        min_speed = 0.01
+        max_speed = 0.1
+        dist_factor = 0.001
 
-        """ zip() will only continue until the shortest list ends"""
+        self.common_bg()
+        self.max_scale_id = len(self.scales) - 2
+        center = self.screen_center
+
+        # self.speed_vectors = [[80,-60]]
+        self.speed_vectors = [[-60,-25]]
+
         i = 0
-        for inst in pool.active_sprites:
-            speed=self.speed_vectors[i%len(self.speed_vectors)]
+        for inst in self.mgr.pool.active_sprites:
+            speed_vec = self.speed_vectors[i % len(self.speed_vectors)]
+            if self.debug_inst:
+                print(f"INST SPEED_VEC: {speed_vec[0]}/{speed_vec[1]}")
             i += 1
 
-            inst.x += (speed[0])
-            inst.y += (speed[1])
-
-            draw_coords = mgr.get_pos(inst)
+            coords = self.mgr.get_pos(inst)
+            if self.debug_inst:
+                print(f"INST X/Y: {inst.x}/{inst.y} - BEFORE speed")
+                print(f"INST coords: {coords[0]}/{coords[1]} - BEFORE speed")
+                print()
 
             """ Calculate distance to the center """
-            from_x = self.screen_center[0]
-            from_y = self.screen_center[1]
+            dist = self.dist_between(center[0], center[1], coords[0], coords[1])
+            speed = (dist * dist * dist_factor) + min_speed
+            speed = max(speed, max_speed)
 
-            dist = abs(self.dist_between(from_x, from_y, draw_coords.x, draw_coords.y))
-            dist_scaled = (dist / (self.max_dist) ) * 1.2
-            dist_list_scaled = int(dist_scaled * self.max_scale)
-            if dist_list_scaled > self.max_scale:
-                dist_list_scaled = self.max_scale
+            inst.x += int(speed_vec[0] * speed)
+            inst.y += int(speed_vec[1] * speed)
 
-            scale = self.scales[dist_list_scaled]
-            if scale > 10:
-                scale = 10
+            coords = self.mgr.get_pos(inst)
+            if self.debug_inst:
+                print(f"INST X/Y: {inst.x}/{inst.y} - AFTER speed")
+                print(f"INST coords: {coords[0]}/{coords[1]} - AFTER speed")
+                print()
+
+            # Calculate exponential falloff based on distance
+            exp_scale = self.max_scale_id * math.exp(-dist / self.scale_dist_factor)
+
+            # Convert to scale index, clamped to max_scale
+            scale_id = self.max_scale_id - min(int(exp_scale), self.max_scale_id)
+
+            if scale_id < 0:
+                scale_id = 0
+            elif scale_id >= len(self.scales):
+                scale_id = len(self.scales) - 1
+
+            # scale_id = dist_one_scaled
+            # print(f"{scale_id} = {self.max_scale} - {dist_one_scaled}")
+            scale = self.scales[scale_id]
+
+            # Check bounds first
+            actual_width = self.sprite.width * scale
+            actual_height = self.sprite.width * scale
+
+            coords_start = (start_x, start_y) = self.mgr.get_pos(inst)
+            coords_end = (start_x + actual_width, start_y + actual_height)
+
+            if not self.is_within_bounds(coords_start, coords_end):
+                if self.debug:
+                    print(f"<< COORDS ({coords_start[0]}, {coords_start[1]}) to ({coords_end[0]}, {coords_end[1]}) //  s:{scale} // OUT OF BOUNDS>>")
+                    print(f"{actual_width} / {actual_height} w/h")
+                    print(f"<< SPRITE RELEASED - ACTIVE: {self.mgr.pool.active_count}>>")
+                self.mgr.release(inst, self.sprite)
+                continue
 
             offset_x = (self.sprite.width * scale) // 2
             offset_y = (self.sprite.height * scale) // 2
 
             self.scaler.draw_sprite(
                 self.sprite,
-                int(draw_coords.x - offset_x),
-                int(draw_coords.y - offset_y),
+                int(coords[0] - offset_x),
+                int(coords[1] - offset_y),
                 self.image,
                 h_scale=scale,
                 v_scale=scale)
-        """ SPAWN more """
-        prob = 10
-        self.maybe_spawn(prob)
 
+            # print(f"#{i} - x/y {pos.x}/{pos.y}")
+            # print(f"#{i} - speed {speed[0]}/{speed[1]} || factor: {speed_fac}")
+
+
+        """ SPAWN more """
+        self.spawn()
         self.show_prof()
         self.display.swap_buffers()
         self.fps.tick()
 
-    def maybe_spawn(self, prob=5):
+    def spawn(self, prob=20):
         """ Probability in percent (10%) """
         if random.randint(0, 100) < prob:
             if self.mgr.pool.active_count < self.max_sprites:

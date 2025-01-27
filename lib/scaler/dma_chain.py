@@ -5,6 +5,8 @@ from scaler.const import *
 
 from scaler.scaling_patterns import ScalingPatterns
 
+from ssd1331_pio import SSD1331PIO
+
 ROW_ADDR_DMA_BASE = DMA_BASE_2
 ROW_ADDR_TARGET_DMA_BASE = DMA_BASE_3
 COLOR_LOOKUP_DMA_BASE = DMA_BASE_4
@@ -14,22 +16,24 @@ HSCALE_DMA_BASE = DMA_BASE_7
 PX_READ_BYTE_SIZE = 4 # Bytes per word in the pixel reader
 class DMAChain:
 
-    def __init__(self, scaler, display):
+    def __init__(self, scaler, display:SSD1331PIO):
         self.dbg = None
         self.scaler = scaler
         self.px_per_tx = PX_READ_BYTE_SIZE * 2
         self.read_finished = False
         self.read_count = 0
         self.addr_idx = 0
+        self.max_sprite_height = 32
+        self.max_write_addrs = self.max_read_addrs = display.HEIGHT + 1
 
         self.patterns = ScalingPatterns()
 
-        """ Create array with maximum possible number of read and write addresses """
-        read_buf = bytearray((display.height+1)*2 * 4) # why does this need to be x2?
-        write_buf = bytearray((display.height+1) * 4)
+        # read_buf = bytearray(self.max_sprite_height+1 * 4) # why does this need to be x2?
+        # write_buf = bytearray((display.height+1) * 4)
 
-        self.read_addrs = array('L', read_buf)
-        self.write_addrs = array('L', write_buf)
+        """ Create array with maximum possible number of read and write addresses """
+        self.read_addrs = array('L', [0] * self.max_read_addrs)
+        self.write_addrs = array('L', [0] * self.max_write_addrs)
 
         """ Acquire hardware DMA channels """
 

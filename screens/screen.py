@@ -12,7 +12,7 @@ import micropython
 class Screen:
     display = None
     bounds = None
-    margin_px = 8
+    margin_px = 2
     instances: [Sprite]
     last_tick: int = 0
     last_gc: int = 0
@@ -87,16 +87,16 @@ class Screen:
         for my_sprite in self.instances:
             my_sprite.show(self.display)
 
-    def is_within_bounds(self, coords, sprite):
-        x, y = coords.x, coords.y
-        center_x = int(x + (sprite.width/2))
-        center_y = int(y + (sprite.height/2))
+    def is_within_bounds(self, coords_start, coords_end):
+        """ Assess whether a sprite with top, bottom, left and right is within the screen bounds """
+        sprite_left, sprite_top = coords_start[0], coords_start[1]
+        sprite_right, sprite_bottom = coords_end[0], coords_end[1]
         bounds = self.bounds
 
-        if ((center_x > bounds.left) and \
-             (center_x < bounds.right) and \
-              (center_y > bounds.top) and \
-               (center_y < bounds.bottom)):
+        if ((sprite_right > bounds.left) and \
+             (sprite_left < bounds.right) and \
+              (sprite_bottom > bounds.top) and \
+               (sprite_top < bounds.bottom)):
             return True
 
         return False

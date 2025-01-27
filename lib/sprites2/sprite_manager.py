@@ -4,10 +4,9 @@ import uctypes
 from micropython import const
 import micropython
 
-from dump_object import dump_object
 from images.image_loader import ImageLoader
 from perspective_camera import PerspectiveCamera
-from sprites2.sprite_types import SpriteType, SPRITE_DATA_LAYOUT, coord
+from sprites2.sprite_types import SpriteType
 from sprites2.sprite_types import SpriteType as types
 from sprites2.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE, FLAG_BLINK, FLAG_BLINK_FLIP, FLAG_PALETTE_ROTATE
 import framebuf
@@ -119,6 +118,8 @@ class SpriteManager:
         "Spawn" a new sprite. In reality, we are just grabbing one from the pool of available sprites via get() and
         activating it.
         """
+        global prof
+
         if sprite_type not in self.sprite_classes.keys():
             raise IndexError(f"Unknown Sprite Type {sprite_type}")
 
@@ -471,7 +472,7 @@ class SpriteManager:
             x /= self.pos_scale
             y /= self.pos_scale
 
-        return coord(x=int(x), y=int(y))
+        return int(x), int(y)
 
     def set_pos(self, inst, x, y):
         """ To be used to set an instances coordinates when POS scale != 1"""
