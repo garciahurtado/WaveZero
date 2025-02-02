@@ -8,46 +8,66 @@ from ucollections import namedtuple
 from fps_counter import FpsCounter
 from sprites.sprite import Sprite
 import micropython
+from ssd1331_pio import SSD1331PIO
 
 class Screen:
+    debug = False
     display = None
     bounds = None
-    margin_px = 2
+    margin_px = 0
     instances: [Sprite]
     last_tick: int = 0
     last_gc: int = 0
     gc_interval: int = 3000 # how often to call the garbage collector (ms)
-    app: None # ref to ScreenApp
+    # gc_interval = 0
+    app: None # ref. to ScreenApp
     profile_labels = {}
     display_loop_wait = 2 # ms for the display loop to wait between refreshes
     fps = 0
     target_fps = 30
 
-    def __init__(self, display=None):
+    def __init__(self, display:SSD1331PIO=None, margin_px=0):
         self.instances = []
         if display:
             self.display = display
             self.bounds = ScreenBounds(
-                left = -self.margin_px,
-                right= display.width + self.margin_px,
-                top = -self.margin_px,
-                bottom= display.height + self.margin_px
+                left = 0-margin_px,
+                right= display.WIDTH + margin_px,
+                top = 0-margin_px,
+                bottom= display.HEIGHT + margin_px
             )
+        self.margin_px = margin_px
         self.fps = FpsCounter()
+        self.last_gc = utime.ticks_ms()
+
 
     def add(self, sprite):
         self.instances.append(sprite)
 
-    async def refresh_display(self):
+    @property
+    def full_width(self):
+        margin = self.margin_px
+        display = self.display
+        total_width = display.WIDTH + 2 * margin  # Add margin on both sides
+        return total_width
+
+    @property
+    def full_height(self):
+        margin = self.margin_px
+        display = self.display
+        total_height = display.HEIGHT + 2 * margin
+        return total_height
+
+    async def _refresh_display(self):
+        # DEPRECATED?
         wait_s = 1/30# max FPS
         try:
             while True:
                 self.do_refresh()
-                now = utime.ticks_ms()
-
-                if (now - self.last_gc) > self.gc_interval:
-                    gc.collect()
-                    self.last_gc = utime.ticks_ms()
+                # now = utime.ticks_ms()
+                # if (now - self.last_gc) > self.gc_interval:
+                #     gc.collect()
+                #     self.last_gc = utime.ticks_ms()
 
                 await asyncio.sleep(wait_s)
         except asyncio.CancelledError:
@@ -66,41 +86,20 @@ class Screen:
     def do_refresh(self):
         """blocking, non-looping, version of refresh_display(), for when you need a refresh in a specific
         place in the code"""
-        # self.last_tick = self.fps.tick()
-
-        # display_loop_wait = self.display_loop_wait
-        # step = 10
-        # if self.fps > self.target_fps:
-        #     display_loop_wait += step
-        #     if display_loop_wait > 60:
-        #         display_loop_wait = 60
-        # elif self.fps < self.target_fps:
-        #     display_loop_wait -= step
-        #     if display_loop_wait < 1:
-        #         display_loop_wait = 1
-        #
-        # self.display_loop_wait = display_loop_wait
 
         self.display.show()
+        # self.maybe_gc()
 
     def draw_sprites(self):
         for my_sprite in self.instances:
             my_sprite.show(self.display)
 
-    def is_within_bounds(self, coords_start, coords_end):
-        """ Assess whether a sprite with top, bottom, left and right is within the screen bounds """
-        sprite_left, sprite_top = coords_start[0], coords_start[1]
-        sprite_right, sprite_bottom = coords_end[0], coords_end[1]
-        bounds = self.bounds
 
-        if ((sprite_right > bounds.left) and \
-             (sprite_left < bounds.right) and \
-              (sprite_bottom > bounds.top) and \
-               (sprite_top < bounds.bottom)):
-            return True
-
-        return False
-
+    def maybe_gc(self):
+        now = utime.ticks_ms()
+        if self.gc_interval and ((now - self.last_gc) > self.gc_interval):
+            gc.collect()
+            self.last_gc = utime.ticks_ms()
 
     @staticmethod
     def check_mem():

@@ -1,3 +1,6 @@
+import math
+
+
 def aligned_buffer(size, alignment=4):
     """ Create a buffer of 'size' bytes aligned to a memory address power of 'alignment'"""
 
@@ -13,6 +16,25 @@ def aligned_buffer(size, alignment=4):
     aligned_buf = memoryview(buf)[offset:offset + size]
 
     return aligned_buf
+
+def dist_between(from_x, from_y, to_x, to_y):
+    dx = to_x - from_x
+    dy = to_y - from_y
+    if not dx and not dy:
+        return 0
+
+    return math.sqrt(dx**2 + dy**2)
+
+def is_point_within_bounds(point, bounds):
+    x, y = point[0], point[1]
+    bounds = bounds
+
+    if  (bounds.left <= x <= bounds.right) and \
+        (bounds.top <= y <= bounds.bottom):
+        return True
+
+    # Otherwise its out of bounds
+    return False
 
 def pformat(obj, indent=1, width=80, depth=None):
     return repr(obj)

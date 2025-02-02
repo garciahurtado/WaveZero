@@ -1,10 +1,9 @@
 from _rp2 import DMA
 from uarray import array
 from uctypes import addressof
+
 from scaler.const import *
-
-from scaler.scaling_patterns import ScalingPatterns
-
+from scaler.scale_patterns import ScalePatterns
 from ssd1331_pio import SSD1331PIO
 
 ROW_ADDR_DMA_BASE = DMA_BASE_2
@@ -26,7 +25,7 @@ class DMAChain:
         self.max_sprite_height = 32
         self.max_write_addrs = self.max_read_addrs = display.HEIGHT + 1
 
-        self.patterns = ScalingPatterns()
+        self.patterns = ScalePatterns()
 
         # read_buf = bytearray(self.max_sprite_height+1 * 4) # why does this need to be x2?
         # write_buf = bytearray((display.height+1) * 4)
@@ -158,7 +157,7 @@ class DMAChain:
         )
 
     def init_sprite(self, width, h_scale):
-        """Configure DMA for specific sprite parameters."""
+        """Configure Sprite specific DMA parameters."""
         self.color_lookup.count = width
 
         count = (width // 2)

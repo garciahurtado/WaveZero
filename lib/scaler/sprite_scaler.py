@@ -4,6 +4,7 @@ import micropython
 import gc
 from _rp2 import StateMachine
 from uctypes import addressof
+from color import color_util as colors
 
 gc.collect()
 
@@ -40,9 +41,6 @@ class SpriteScaler():
         else:
             self.dbg = None
 
-        self.write_addr2 = []
-
-        self.sprite = None
         self.display:SSD1331PIO = display
         self.framebuf:ScalerFramebuf = ScalerFramebuf(display)
 
@@ -75,22 +73,17 @@ class SpriteScaler():
 
     # @micropython.viper
     def fill_addrs(self, scaled_height: int):
-        # Determine max_row with bounds checking
-        # max_write_addrs =
-        # if max_write_addrs > frame_height:
-        #     max_write_addrs = frame_height
-
         max_write_addrs = min(self.framebuf.max_height, scaled_height)
-        max_read_addrs = max(scaled_height, max_write_addrs)
+        max_read_addrs = min(scaled_height, max_write_addrs)
 
         # Get array pointers
         read_addrs:int = self.dma.read_addrs  # destination
         write_addrs:int = self.dma.write_addrs  # destination
 
         """ Populate DMA with read addresses """
-        row_id: int = 0
+        row_id = 0
 
-        while row_id < max_read_addrs:
+        while row_id < int(max_read_addrs):
             read_addrs[row_id] = mem32[INTERP1_POP_FULL]
             write_addrs[row_id] = mem32[INTERP0_POP_FULL]
             row_id += 1
@@ -108,11 +101,10 @@ class SpriteScaler():
         if self.debug:
             print(f"ABOUT TO DRAW a Sprite on x,y: {x},{y} @ H: {h_scale}x / V: {v_scale}x")
 
-        self.draw_x = x
-        self.draw_y = y
+        # self.draw_x = x
+        # self.draw_y = y
         self.alpha = sprite.alpha_color
         self.dma.read_finished = False
-        self.sprite = sprite
 
         if sprite.width == 16:
             self.framebuf.frac_bits = self.frac_bits = 3  # Use x.y fixed point   (16x16)
@@ -127,6 +119,9 @@ class SpriteScaler():
         scaled_height = int(sprite.height * v_scale)
         scaled_width = int(sprite.width * h_scale)
         prof.end_profile('scaler.scaled_width_height')
+
+        self.draw_x = x
+        self.draw_y = y
 
         self.framebuf.select_buffer(scaled_width, scaled_height)
 
@@ -188,6 +183,49 @@ class SpriteScaler():
 
         """ Start DMA chains and State Machines """
         self.start()
+
+    def draw_dot(self, x, y, type):
+        self.draw_x = x
+        self.draw_y = y
+        self.alpha = type.alpha_color
+
+        color = type.dot_color
+        color = colors.hex_to_565(color)
+
+        self.framebuf.scratch_buffer = self.framebuf.scratch_buffer_4
+        self.framebuf.frame_width = self.frame_height = 4
+        display = self.framebuf.scratch_buffer
+
+        display.pixel(0, 0, color)
+        self.finish_sprite()
+
+    def draw_fat_dot(self, x, y, type):
+        """
+            Draw a 2x2 pixel "dot" in lieu of the sprite image.
+
+            Args:
+                display: Display buffer object
+                x (int): X coordinate for top-left of the 2x2 dot
+                y (int): Y coordinate for top-left of the 2x2 dot
+                color (int, optional): RGB color value. Uses sprite's dot_color if None
+        """
+        self.draw_x = x
+        self.draw_y = y
+        self.alpha = type.alpha_color
+
+        color = type.dot_color
+        color = colors.hex_to_565(color)
+
+        self.framebuf.scratch_buffer = self.framebuf.scratch_buffer_4
+        self.framebuf.frame_width = self.frame_height = 4
+        display = self.framebuf.scratch_buffer
+
+        display.pixel(0, 0, color)
+        display.pixel(0 + 1, 0, color)
+        display.pixel(0, 0 + 1, color)
+        display.pixel(0 + 1, 0 + 1, color)
+        self.finish_sprite()
+
 
     def start(self):
         # This is only to avoid a mem error with profiling the IRQ handler
@@ -364,5 +402,5 @@ class SpriteScaler():
         view_height = self.display.height
         x = (view_width/2) - (sprite_width/2)
         y = (view_height/2) - (sprite_height/2)
-        return round(x), round(y)
+        return int(x), int(y)
 

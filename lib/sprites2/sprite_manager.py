@@ -6,9 +6,11 @@ import micropython
 
 from images.image_loader import ImageLoader
 from perspective_camera import PerspectiveCamera
+from sprites2.sprite_draw import SpriteDraw
+from sprites2.sprite_physics import SpritePhysics
 from sprites2.sprite_types import SpriteType
 from sprites2.sprite_types import SpriteType as types
-from sprites2.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE, FLAG_BLINK, FLAG_BLINK_FLIP, FLAG_PALETTE_ROTATE
+from sprites2.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE, FLAG_BLINK, FLAG_BLINK_FLIP, FLAG_PHYSICS
 import framebuf
 from color.framebuffer_palette import FramebufferPalette
 import math
@@ -20,11 +22,13 @@ import ssd1331_pio
 prof = Profiler()
 
 class SpriteManager:
+
     POS_TYPE_FAR = const(0)
     POS_TYPE_NEAR = const(1)
     display = None
-    pos_scale = 1
+    bounds = None
 
+    debug_inst = False
     sprite_images: Dict[str, List[Image]] = {}
     sprite_palettes: Dict[str, FramebufferPalette] = {}
     sprite_metadata: Dict[str, SpriteType] = {}
@@ -36,6 +40,8 @@ class SpriteManager:
     pool = None
     grid = None
     camera: PerspectiveCamera = None
+    phy: SpritePhysics = SpritePhysics()
+    draw: SpriteDraw = SpriteDraw()
 
     def __init__(self, display: ssd1331_pio, max_sprites, camera=None, grid=None):
         self.display = display
@@ -45,6 +51,7 @@ class SpriteManager:
 
         self.check_mem()
         self.pool = SpritePool(self.max_sprites)
+        self.pool.mgr = self # Remove two way dep.
 
         if camera:
             self.set_camera(camera)
@@ -62,6 +69,9 @@ class SpriteManager:
         else:
             sprite_class: callable = SpriteType
 
+        print(f"REG SPRIT TYPE: {sprite_type}")
+        print(f"REG SPRIT CLASS: {sprite_class}")
+
         """ Register the new class """
         self.sprite_classes[sprite_type] = sprite_class
 
@@ -78,7 +88,8 @@ class SpriteManager:
             'repeats',
             'repeat_spacing',
             'stretch_width',
-            'stretch_height']
+            'stretch_height',
+            'dot_color']
 
         for arg in kwargs:
             if arg not in (defaults + must_have):
@@ -130,15 +141,15 @@ class SpriteManager:
         new_sprite, idx = self.pool.get(sprite_type, meta)
         prof.end_profile('mgr.pool_get')
 
-        self.sprite_inst[sprite_type].append(idx)
+        self.sprite_inst[sprite_type].insert(0, idx) # insert in the beginning, so we have correct Z values
 
         # Set user values passed to the create method
         prof.start_profile('mgr.set_kwargs')
-
-        for key in kwargs:
-            value = kwargs[key]
-            if value is not None:
-                setattr(new_sprite, key, value)
+        #
+        # for key in kwargs:
+        #     value = kwargs[key]
+        #     if value is not None:
+        #         setattr(new_sprite, key, value)
         prof.end_profile('mgr.set_kwargs')
 
         # Some properties belong to the meta class, so they must be set separately
@@ -253,8 +264,8 @@ class SpriteManager:
 
     # @timed
     def update_sprite(self, sprite, meta, elapsed):
-        """The update function only applies to a single sprite at a time, and it is responsible for killing expired
-        / out of bounds sprites, as well as updating the x and y draw coordinates based on the 3D position and camera view
+        """ 3D Only. The update function only applies to a single sprite at a time, and it is responsible for
+         updating the x and y draw coordinates based on the 3D position and camera view
         """
         visible = types.get_flag(sprite, FLAG_VISIBLE)
         active = types.get_flag(sprite, FLAG_ACTIVE)
@@ -343,21 +354,25 @@ class SpriteManager:
         return True
 
     def update(self, elapsed):
-        metas = self.sprite_metadata
+        """
+        ellapsed should be in milliseconds
+        """
+
+        kinds = self.sprite_metadata
         current = self.pool.head
         while current:
             prof.start_profile('mgr.update()')
             sprite = current.sprite
-            meta = metas[sprite.sprite_type]
+            kind = kinds[sprite.sprite_type]
 
-            if self.update_sprite(sprite, meta, elapsed):
-                if meta.is_time_to_rotate(elapsed):
-                    self.rotate_sprite_palette(sprite, meta)
+            if self.update_sprite(sprite, kind, elapsed):
+                if kind.is_time_to_rotate(elapsed):
+                    self.rotate_sprite_palette(sprite, kind)
 
             next_node = current.next
 
             if not types.get_flag(sprite, FLAG_ACTIVE):
-                self.pool.release(sprite, meta)
+                self.pool.release(sprite, kind)
 
             current = next_node
 
@@ -407,8 +422,8 @@ class SpriteManager:
         frame_id = sprite.current_frame # 255 sometimes ???
         image = self.sprite_images[sprite_type][frame_id]
 
-        start_y = sprite.draw_y
         start_x = sprite.draw_x
+        start_y = sprite.draw_y
 
         """ Drawing a single image or a row of them? repeats 0 and 1 mean the same thing (one image) """
 
@@ -455,6 +470,7 @@ class SpriteManager:
         return meta
 
     def get_sprite(self, sprite_type):
+        """ Returns the Sprite Type / Metadata """
         sprite = self.sprite_metadata[sprite_type]
 
         if sprite_type not in self.sprite_images:
@@ -463,26 +479,6 @@ class SpriteManager:
             self.sprite_images[sprite_type] = new_img
 
         return sprite
-
-    def get_pos(self, inst):
-        """ To be used to get an instances coordinates when POS scale != 1"""
-        x = inst.x
-        y = inst.y
-        if self.pos_scale != 1:
-            x /= self.pos_scale
-            y /= self.pos_scale
-
-        return int(x), int(y)
-
-    def set_pos(self, inst, x, y):
-        """ To be used to set an instances coordinates when POS scale != 1"""
-        if self.pos_scale != 1:
-            x = x * self.pos_scale
-            y = y * self.pos_scale
-
-        inst.x = int(x)
-        inst.y = int(y)
-        return True
 
     def set_alpha_color(self, sprite_type: SpriteType):
         """Get the value of the color to be used as an alpha channel when drawing the sprite
@@ -496,6 +492,8 @@ class SpriteManager:
 
     # @micropython.viper
     def get_frame_idx(self, scale:float, num_frames:int):
+        return 0 # debugging / deprecate
+
         if num_frames <= 0:
             raise ArithmeticError(f"Invalid number of frames: {num_frames}. Are width and height set?")
 
@@ -532,7 +530,6 @@ class SpriteManager:
 
     def release(self, inst, sprite):
         idx = self.pool.release(inst, sprite)
-        # self.sprite_inst[sprite].remove(idx)
 
     def check_mem(self):
         gc.collect()

@@ -1,5 +1,9 @@
+import gc
+
 import framebuf
 from display_init import get_display
+from screens.screen import Screen
+
 
 class ScreenApp:
     display: framebuf.FrameBuffer
@@ -13,13 +17,15 @@ class ScreenApp:
         self.screen_height = screen_height
         self.display = get_display()
 
-    def load_screen(self, screen: type):
+    def load_screen(self, screen: Screen):
         screen.app = self
         self.screens.append(screen)
 
     def run(self):
         if not self.screens:
             raise AssertionError("No screens registered with app!")
+
+        gc.threshold(5000) # i think there's a manual one of these somewhere in the code
 
         for screen in self.screens:
             screen.run()

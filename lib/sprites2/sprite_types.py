@@ -1,13 +1,7 @@
 import asyncio
-
-import sys
-
-import time
-from micropython import const
-from ucollections import namedtuple
 import uctypes
 
-from dump_object import dump_object
+from sprites.sprite import Sprite
 
 POS_TYPE_FAR = 0
 POS_TYPE_NEAR = 1
@@ -36,7 +30,9 @@ SPRITE_ALIEN_FIGHTER = 135
 SPRITE_HOLO_TRI = 200
 SPRITE_TEST_SQUARE = 210
 SPRITE_TEST_HEART = 220
+SPRITE_HEART_SPEED = 225
 SPRITE_TEST_GRID = 230
+SPRITE_TEST_GRID_SPEED = 240
 
 """
     Flag Bits:
@@ -72,11 +68,14 @@ SPRITE_DATA_LAYOUT = {
     "floor_y": uctypes.INT8 | 29,        # 1 byte at offset 29
     "color_rot_idx": uctypes.UINT8 | 30, # 1 byte at offset 30
     "flags": uctypes.UINT8 | 31,         # 1 byte at offset 31
-    # "dir_x": uctypes.INT8 | 32,         # 1 byte at offset 32
-    # "dir_y": uctypes.INT8 | 33,         # 1 byte at offset 33
+
+    # "x": uctypes.INT32 | 32,           # 2 bytes at offset 12 (half-float)
+    # "y": uctypes.INT32 | 35,           # 2 bytes at offset 14 (half-float)
+    "dir_x": uctypes.INT16 | 32,         # 2 byte at offset 32
+    "dir_y": uctypes.INT16 | 34,         # 2 byte at offset 34
 }
 
-SPRITE_DATA_SIZE = 32
+SPRITE_DATA_SIZE = 36
 """
 self. = 0   # Normalized (-1 to 1) - INT
 self. = 0
@@ -114,17 +113,20 @@ def create_sprite(
     sprite.lane_num = lane_num
     sprite.lane_mask = lane_mask
     sprite.flags = 0
+    sprite.dir_x = 0
+    sprite.dir_y = 0
 
     return sprite
 
 # Define metadata structure, these values should not change across sprites of this class
 class SpriteType:
     # Flag constants
-    FLAG_ACTIVE = 1 << 0  # 1
-    FLAG_VISIBLE = 1 << 1  # 2
-    FLAG_BLINK = 1 << 2  # 4
-    FLAG_BLINK_FLIP = 1 << 3  # 8
-    FLAG_PALETTE_ROTATE = 1 << 4  # 16
+    FLAG_ACTIVE = 1 << 0            # 1
+    FLAG_VISIBLE = 1 << 1           # 2
+    FLAG_BLINK = 1 << 2             # 4
+    FLAG_BLINK_FLIP = 1 << 3        # 8
+    FLAG_PALETTE_ROTATE = 1 << 4    # 16
+    FLAG_PHYSICS = 1 << 5           # 32
 
     image_path = None
     speed: int = 0
@@ -139,6 +141,7 @@ class SpriteType:
 
     alpha_index: int = -1
     alpha_color: None
+    dot_color = 0x000000
     frames = None
     num_frames: int = 0
     upscale_width = None
@@ -150,8 +153,7 @@ class SpriteType:
     stretch_width: int = 0
     stretch_height: int = 0
     animations = []
-    defaults = []
-
+    pos_type = Sprite.POS_TYPE_FAR
 
     def __init__(self, **kwargs):
         self.rotate_pal_last_change = 0
@@ -159,7 +161,6 @@ class SpriteType:
         for key in kwargs:
             value = kwargs[key]
             if hasattr(self, key):
-                self.defaults.append(key)
                 setattr(self, key, value)
             else:
                 raise AttributeError(f"Object does not have property named '{key}'")
@@ -169,15 +170,32 @@ class SpriteType:
 
     def reset(self, sprite):
         global sprite_fields
+        klass = type(self)
 
-        for key in self.defaults:
-            if key in sprite_fields:
-                default = getattr(self, key)
-                setattr(sprite, key, default)
+        for attr_name in dir(klass):
+            """ Only the properties present in both the class as well as the instance
+            will be reset """
+            if attr_name in sprite_fields:
 
-        # Recalculate number of frames
-        if 'width' in self.defaults and 'height' in self.defaults:
-            sprite.num_frames = max(self.width, self.height)
+                attr_value = getattr(klass, attr_name)
+                setattr(sprite, attr_name, attr_value)
+
+        SpriteType.set_flag(sprite, FLAG_PHYSICS, True)
+
+        # Recalculate number of frames # REWRITE
+        # if 'width' in self.defaults and 'height' in self.defaults:
+        #     sprite.num_frames = max(self.width, self.height)
+
+    def set_default(self, **kwargs):
+        """
+        By changing the defaults on the class object, we also change how a reset sprite will be configured
+        We can use this method to change the defaults on an existing class without having to subclass it. """
+
+        klass = type(self)
+        for key, value in kwargs.items():
+            print(f"klass: {klass}, key: {key}, value: {value}")
+            setattr(klass, key, value)
+
 
     def set_alpha_color(self):
         """Get the value of the color to be used as an alpha channel when drawing the sprite
@@ -226,3 +244,4 @@ FLAG_VISIBLE = SpriteType.FLAG_VISIBLE
 FLAG_BLINK = SpriteType.FLAG_BLINK
 FLAG_BLINK_FLIP = SpriteType.FLAG_BLINK_FLIP
 FLAG_PALETTE_ROTATE = SpriteType.FLAG_PALETTE_ROTATE
+FLAG_PHYSICS = SpriteType.FLAG_PHYSICS

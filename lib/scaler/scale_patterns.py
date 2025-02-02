@@ -1,6 +1,6 @@
 from uarray import array
 
-class ScalingPatterns:
+class ScalePatterns:
     """
     Stores, creates and manages the scaling patters to use in upscale / downscaling (only horizontal)
     """
@@ -30,11 +30,11 @@ class ScalingPatterns:
         patterns1 = self.create_patterns(0, 1, step=0.125)
         patterns2 = self.create_patterns(1, 4, step=0.250)
         patterns3 = self.create_patterns(4, 8, step=0.250)
-        # patterns4 = self.create_patterns(8, 12, step=1)
+        patterns4 = self.create_patterns(8, 12, step=0.500)
 
         patterns1.update(patterns2)
         patterns1.update(patterns3)
-        # patterns1.update(patterns4)
+        patterns1.update(patterns4)
 
         self.horiz_patterns = patterns1
         return self.horiz_patterns
@@ -44,9 +44,10 @@ class ScalingPatterns:
         num_scales = int((to_scale - from_scale) / step)
 
         for i in range(num_scales):
+
+            from_scale += step
             pattern = self.create_one_pattern(from_scale)
             pattern_list[from_scale] = pattern
-            from_scale += step # First one doesn't count
 
         return pattern_list
 
@@ -59,7 +60,7 @@ class ScalingPatterns:
         size = self.scale_precision
 
         if scale == int(scale):
-            """ whole scales are the easiest, every element equals the current scale """
+            """ integer scales are the easiest, every element equals the current scale """
             pattern = [scale] * size
         else:
             """ We have a fractional scale, we will separate the decimal part. """
@@ -73,7 +74,7 @@ class ScalingPatterns:
 
             for i in range(0, size * 8, step_8):
                 """ increase some numbers in the pattern so that the total average = scale"""
-                idx = round(i/size)
+                idx = int(i/size)
                 idx = idx % size
                 pattern[idx] = whole_scale+1
 

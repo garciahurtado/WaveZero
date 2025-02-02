@@ -95,7 +95,8 @@ class SSD1331PIO():
         self.init_dma()
 
     def show(self):
-        """ Flip the buffers to make screen refresh faster"""
+        """ Since the DMA channel that pushes to the display is always reading from the 'read' framebuffer,
+        flipping the buffers means that a new frame starts to be rendered """
         self.swap_buffers()
         return
 

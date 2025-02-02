@@ -12,12 +12,12 @@ class ScalerFramebuf():
     Manages the various framebuffers used for rendering of scaled sprites.
     """
     """ Addtl width (beyond the full width of the screen) which the framebuf will use to fit large sprites.
-        In order to support very high scales, increase this number """
+        In order to support very high scales, increase this number to avoid early clipping """
     extra_width = extra_height = 32
 
     display:SSD1331PIO
     max_width = SSD1331PIO.WIDTH
-    height = max_height = SSD1331PIO.HEIGHT
+    height = max_height = int(SSD1331PIO.HEIGHT)
 
     debug = False
     frame_width = 0
@@ -71,10 +71,6 @@ class ScalerFramebuf():
         """ These temporary buffers are used for implementing transparency. All use the same underlying bytes, arranged
         as framebuffers of different dimensions in order to optimize for different sprite sizes """
 
-        # 2x2
-        self.scratch_buffer_2 = self.make_buffer(2, 2, mode)
-        self.scratch_buffer_2.fill(self.fill_color)
-
         # 4x4
         self.scratch_buffer_4 = self.make_buffer(4, 4, mode)
         self.scratch_buffer_4.fill(self.fill_color)
@@ -115,7 +111,7 @@ class ScalerFramebuf():
         We implement transparency by first drawing the sprite on a scratch framebuffer.
         There are several sizes to optimize this process.
 
-        Here we the right framebuffer based on the (scaled) sprite dimensions
+        Here we pick the right framebuffer based on the scaled sprite dimensions
         """
         max_dim = scaled_width if (scaled_width >= scaled_height) else scaled_height
         self.min_write_addr = addressof(self.scratch_bytes)
