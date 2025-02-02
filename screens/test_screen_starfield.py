@@ -20,10 +20,10 @@ class TestScreenStarfield(Screen):
     debug_inst = False
     screen_width = SSD1331PIO.WIDTH
     screen_height = SSD1331PIO.HEIGHT
-    scale_dist_factor = 170 # The higher this is, the slower the scale grows w/ distance
+    scale_dist_factor = 160 # The higher this is, the slower the scale grows w/ distance
     margin_px = 32
 
-    def __init__(self, display, margin_px = 64):
+    def __init__(self, display, margin_px = 32):
         super().__init__(display, margin_px)
         self.init_camera()
 
@@ -112,7 +112,7 @@ class TestScreenStarfield(Screen):
             scale_id = self.find_scale_id(dist, exp=False)
 
             # scale_id = 5 # DEBUG
-            scale = self.scales[scale_id]
+            inst.scale = self.scales[scale_id]
 
             # if scale <= self.max_scale_dot:
             #     """ Rendering of this sprite is much simpler, since we dont need to do all the scaling stuff """
@@ -131,8 +131,8 @@ class TestScreenStarfield(Screen):
             #     print(f" - INST speed: {inst.speed}")
 
             # Check bounds first
-            actual_width = self.sprite.width * scale
-            actual_height = self.sprite.height * scale
+            actual_width = self.sprite.width * inst.scale
+            actual_height = self.sprite.height * inst.scale
 
             """ Center of the scaled sprite, in px"""
             # offset_x = (self.sprite.width * scale) // 2
@@ -140,6 +140,7 @@ class TestScreenStarfield(Screen):
 
             """ Only needed for bounds checking. Is there a better way? """
             # pos_x, pos_y = self.mgr.get_pos(inst)
+            coords = self.mgr.phy.get_pos(inst)
             pos_x, pos_y = coords[0], coords[1]
 
             # if not self.mgr.is_within_bounds([center_x, center_y]):
@@ -148,17 +149,20 @@ class TestScreenStarfield(Screen):
                 if self.debug_inst:
                     print(f"<< COORDS ({pos_x}, {pos_y}) >>")
                     print(f"<< // IS OUT OF BOUNDS >>")
-                    print(f"<< s:{scale} / {actual_width} / {actual_height} w/h")
+                    print(f"<< s:{inst.scale} / {actual_width} / {actual_height} w/h")
                     print(f"<< SPRITE RELEASED - ACTIVE: {self.mgr.pool.active_count}>>")
                 continue
 
+            pos_x -= actual_width / 2
+            pos_y -= actual_height / 2
+
             self.scaler.draw_sprite(
                 self.sprite,
-                int(coords[0]),
-                int(coords[1]),
+                int(pos_x),
+                int(pos_y),
                 self.image,
-                h_scale=scale,
-                v_scale=scale)
+                h_scale=inst.scale,
+                v_scale=inst.scale)
 
         """ SPAWN more """
         self.spawn()
@@ -205,7 +209,7 @@ class TestScreenStarfield(Screen):
             sprite_type=SPRITE_TEST_HEART,
             sprite_class=TestHeart)
 
-    def spawn(self, prob=10):
+    def spawn(self, prob=8):
         """ Probability in percent """
         if random.randint(0, 100) < prob:
             if self.mgr.pool.active_count < self.max_sprites:

@@ -59,7 +59,7 @@ class SpriteScaler():
 
         self.palette_addr = None
 
-        sm_freq = 40_000_000 # must be 50% or less of the system clock, to avoid visual glitches
+        sm_freq = 80_000_000 # must be 50% or less of the system clock, to avoid visual glitches
         # PIO1 - SM0
         self.sm_read_palette = StateMachine(
             4, read_palette,
@@ -101,8 +101,6 @@ class SpriteScaler():
         if self.debug:
             print(f"ABOUT TO DRAW a Sprite on x,y: {x},{y} @ H: {h_scale}x / V: {v_scale}x")
 
-        # self.draw_x = x
-        # self.draw_y = y
         self.alpha = sprite.alpha_color
         self.dma.read_finished = False
 
