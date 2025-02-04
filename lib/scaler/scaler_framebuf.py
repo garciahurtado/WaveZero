@@ -28,7 +28,6 @@ class ScalerFramebuf():
     scratch_buffer = None
     write_addrs_all = {}
     display_stride = 0
-    display_stride_cache = {}
 
     def __init__(self, display: SSD1331PIO, mode=framebuf.RGB565):
         self.display = display
@@ -45,27 +44,7 @@ class ScalerFramebuf():
         self.fill_color = 0x000000
         self.min_write_addr = addressof(self.scratch_bytes)
 
-
         self.init_buffers(mode)
-        self.cache_addrs()
-
-    def add_scaled_dims(self, width, scale):
-        key = (width, scale)
-        scaled_width = width * scale
-        self.scaled_width_cache[key] = (scaled_width, scaled_width) # Assumes symmetric scales
-
-    def has_scaled_dims(self, width, scale):
-        key = (width, scale)
-        found = key in self.scaled_width_cache.keys()
-
-        return found
-
-    def get_scaled_dims(self, width, scale):
-        get_key = (width, scale)
-        if not self.has_scaled_dims(width, scale):
-            self.add_scaled_dims(width, scale)
-
-        return self.scaled_width_cache[get_key]
 
     def init_buffers(self, mode):
         """ These temporary buffers are used for implementing transparency. All use the same underlying bytes, arranged
@@ -100,12 +79,11 @@ class ScalerFramebuf():
         new_buff.fill(self.fill_color)
         stride = width * 2
 
-        self.display_stride_cache[width] = stride
         self.frame_bytes_cache[height] = height * stride
         return new_buff
 
     def select_buffer(self, scaled_width, scaled_height):
-        prof.start_profile('scaler.setup_buffers')
+        prof.start_profile('scaler.select_buffer')
 
         """
         We implement transparency by first drawing the sprite on a scratch framebuffer.
@@ -139,7 +117,7 @@ class ScalerFramebuf():
         # self.frame_bytes = self.frame_bytes_cache[self.frame_height]
         self.frame_bytes = self.display_stride * self.frame_height
 
-        prof.end_profile('scaler.setup_buffers')
+        prof.end_profile('scaler.select_buffer')
 
         if self.debug:
             print(f"   INSIDE 'SELECT_BUFFER', WITH len(write_addrs_all): {len(self.write_addrs_all)} ")
@@ -156,26 +134,6 @@ class ScalerFramebuf():
             self.display.write_framebuf.blit(self.scratch_buffer, x, y)
         else:
             self.display.write_framebuf.blit(self.scratch_buffer, x, y, alpha)
-
-    def cache_addrs(self):
-        """ Generate up to the maximum amount of write addresses (the height of the viewport) """
-
-        for [height, width] in self.frame_sizes:
-            write_base = self.min_write_addr
-
-            display_stride = self.display_stride_cache[width]
-            row_list = array("L", [0] * (height+1))
-
-            curr_addr = write_base
-            row_id = 0
-            for row_id in range(height):
-                row_list[row_id] = curr_addr
-                curr_addr = self.next_write_addr(curr_addr, display_stride)
-
-            """ Add null terminator """
-            row_list[row_id+1] = 0x00000000
-
-            self.write_addrs_all[height] = row_list
 
     def next_write_addr(self, curr_addr, stride):
         next_addr = curr_addr + stride

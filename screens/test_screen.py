@@ -36,6 +36,8 @@ GREEN = 0x00FF00
 BLACK = 0x000000
 GREY =  0x444444
 
+prof.enabled = False
+
 class TestScreen(Screen):
     debug = False
     debug_inst = False
@@ -106,9 +108,6 @@ class TestScreen(Screen):
         self.sprite_type = None
         # self.preload_images()
 
-        if self.fps_enabled:
-            self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
-
         print(f"Free memory __init__: {gc.mem_free():,} bytes")
 
         # self.x_vals = [(0*i) for i in range(num_sprites)]
@@ -118,7 +117,7 @@ class TestScreen(Screen):
         self.sprite_scales = [random.choice(range(0, 9)) for _ in range(self.num_sprites)]
 
         self.init_camera()
-        self.init_fps()
+        # self.init_fps()
         self.create_lines()
 
         self.scaler = SpriteScaler(self.display)
@@ -136,6 +135,7 @@ class TestScreen(Screen):
         self.grid_beat = False
         self.fallout = False
         self.speed_vectors = []
+
 
     def create_sprite_manager(self, num_sprites=0):
         self.check_mem()
@@ -199,7 +199,14 @@ class TestScreen(Screen):
         self.current_loop = getattr(self, method.__name__, None)
 
         self.check_mem()
-        asyncio.run(self.start_display_loop())
+
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.start_display_loop())
+
+        if self.fps_enabled:
+            self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
+
+        asyncio.run(self.start_main_loop())
 
     def preload_images(self):
         images = [
@@ -216,7 +223,6 @@ class TestScreen(Screen):
 
         """ All top level tasks / threads go here. Once all of these finish, the program ends"""
         await asyncio.gather(
-            self.start_fps_counter(),
             self.update_loop(),
         )
 
@@ -224,21 +230,19 @@ class TestScreen(Screen):
         start_time_ms = self.last_update_ms = utime.ticks_ms()
         self.last_perf_dump_ms = start_time_ms
 
-        print(f"--- Update loop Start time: {start_time_ms}ms ---")
-        print(f" = EXEC ON CORE {_thread.get_ident()} (update_loop)")
+        print(f" == CPU CORE {_thread.get_ident()} (update_loop) ==")
 
         # update loop - will run until task cancellation
         try:
             while True:
-                now = utime.ticks_ms()
-                elapsed = utime.ticks_diff(now, self.last_update_ms)
+                self.last_update_ms = now = utime.ticks_ms()
+                elapsed = utime.ticks_diff(now, self.last_update_ms) + 1
 
                 self.mgr.update(elapsed)
-                self.last_update_ms = utime.ticks_ms()
 
-                # Tweaking this number can give FPS gains / give more frames to `ellapsed`, avoiding near zero
+                # Tweaking this number can give FPS gains / give more frames to `elapsed`, avoiding near zero
                 # errors
-                await asyncio.sleep(1/30)
+                await asyncio.sleep(1)
 
         except asyncio.CancelledError:
             return False
@@ -302,6 +306,11 @@ class TestScreen(Screen):
 
         self.all_coords = all_coords
 
+    async def start_display_loop(self):
+        while True:
+            self.do_refresh_grid()
+            await asyncio.sleep_ms(1)
+
     def init_beating_heart(self):
         # self.sprite = self.mgr.get_meta(self.sprite)
         self.image = self.mgr.sprite_images[self.sprite_type][-1]
@@ -356,19 +365,19 @@ class TestScreen(Screen):
         loop = asyncio.get_event_loop()
         loop.create_task(self.flip_dir())
 
-
     def do_refresh_grid(self):
         """
         Show a grid of heart Sprites
         """
         prof.start_profile('scaler.draw_loop_init')
-
-        prof.end_profile('scaler.draw_loop_init')
         idx = 0
         row_sep = self.sprite.width
         col_sep = self.sprite.width
 
         self.common_bg()
+
+        prof.end_profile('scaler.draw_loop_init')
+
         for c in range(self.num_cols):
             for r in range(self.num_rows):
                 prof.start_profile('scaler.pre_draw')
@@ -376,7 +385,7 @@ class TestScreen(Screen):
                 draw_x = int(c * col_sep)
                 draw_y = int(r * row_sep)
 
-                if self.grid_beat or self.fallout:
+                if False or self.grid_beat or self.fallout:
                     scale_factor = (self.scale_id+idx) % self.scale_source_len
                     self.scale_id += 1
                     self.h_scale = self.scale_source[scale_factor]
@@ -399,7 +408,10 @@ class TestScreen(Screen):
                 prof.end_profile('scaler.draw_sprite')
                 idx += 1
 
-        self.display.swap_buffers()
+        prof.start_profile('scaler.display_show')
+        self.display.show()
+        prof.end_profile('scaler.display_show')
+
         self.show_prof()
         self.fps.tick()
 
@@ -589,14 +601,17 @@ class TestScreen(Screen):
         return self.fps_text
 
     async def start_fps_counter(self):
+        await asyncio.sleep(5) # wait for things to stabilize first
+
         while True:
             fps = self.fps.fps()
             if fps is False:
                 pass
             else:
-                num = self.mgr.pool.active_count
+                # num = self.mgr.pool.active_count
+                # print(f"FPS: {fps_str} / {num} sprites")
                 fps_str = "{: >6.2f}".format(fps)
-                print(f"FPS: {fps_str} / {num} sprites")
+                print(f"FPS: {fps_str}")
 
                 # # ColorWriter.set_textpos(self.display.write_framebuf, 0, 0)
                 # self.fps_text.row_clip = True
@@ -638,7 +653,7 @@ class TestScreen(Screen):
     def load_sprite(self, load_type):
         sprite_type = load_type
 
-        self.sprite = self.mgr.get_sprite(sprite_type)
+        self.sprite = self.mgr.get_sprite_type(sprite_type)
         self.sprite_img = self.mgr.sprite_images[sprite_type]
 
         return self.sprite

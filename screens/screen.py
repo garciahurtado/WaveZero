@@ -16,7 +16,6 @@ class Screen:
     bounds = None
     margin_px = 0
     instances: [Sprite]
-    last_tick: int = 0
     last_gc: int = 0
     gc_interval: int = 3000 # how often to call the garbage collector (ms)
     # gc_interval = 0
@@ -25,6 +24,8 @@ class Screen:
     display_loop_wait = 2 # ms for the display loop to wait between refreshes
     fps = 0
     target_fps = 30
+    total_width = 0
+    total_height = 0
 
     def __init__(self, display:SSD1331PIO=None, margin_px=0):
         self.instances = []
@@ -37,26 +38,17 @@ class Screen:
                 bottom= display.HEIGHT + margin_px
             )
         self.margin_px = margin_px
+        margin = self.margin_px
+        display = self.display
+        self.total_width = display.WIDTH + 2*margin  # Add margin on both sides
+        self.total_height = display.HEIGHT + 2*margin
+
         self.fps = FpsCounter()
         self.last_gc = utime.ticks_ms()
 
 
     def add(self, sprite):
         self.instances.append(sprite)
-
-    @property
-    def full_width(self):
-        margin = self.margin_px
-        display = self.display
-        total_width = display.WIDTH + 2 * margin  # Add margin on both sides
-        return total_width
-
-    @property
-    def full_height(self):
-        margin = self.margin_px
-        display = self.display
-        total_height = display.HEIGHT + 2 * margin
-        return total_height
 
     async def _refresh_display(self):
         # DEPRECATED?

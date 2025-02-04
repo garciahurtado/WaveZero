@@ -13,7 +13,7 @@ class FpsCounter():
         """Initialize FPS counter with timestamp, EMA value, and smoothing factor."""
         self.last_tick = 0    # Last recorded timestamp
         self.ema = 0          # Exponential moving average of frame times
-        self.alpha = 0.008     # Smoothing factor. Lower value = smoother (0.1 = 10% weight to new samples)
+        self.alpha = 0.03     # Smoothing factor. Lower value = smoother (0.1 = 10% weight to new samples)
 
     def tick(self):
         """Record frame timing and update the moving average.

@@ -40,7 +40,7 @@ def main():
     # machine.freq(40_000_000)
 
     current_freq = machine.freq()
-    print(f"CPU: {current_freq / 1_000_000} MHz")
+    print(f"CPU clock: {current_freq / 1_000_000:.2f} MHz")
 
     check_mem()
     print("Compiler opt level: " + str(micropython.opt_level()))
@@ -50,8 +50,8 @@ def main():
     app = ScreenApp(96, 64)
     # app.load_screen(GameScreen(app.display))
     # app.load_screen(TitleScreen(app.display))
-    # app.load_screen(TestScreen(app.display))
-    app.load_screen(TestScreenStarfield(app.display))
+    app.load_screen(TestScreen(app.display))
+    # app.load_screen(TestScreenStarfield(app.display))
 
     print(f"After loading screen class: {type(TestScreenStarfield)}")
     app.run()

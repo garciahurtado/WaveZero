@@ -54,6 +54,8 @@ class DMAChain:
         self.init_px_write()
         self.init_h_scale()
 
+        self.start()
+
     def init_read_addr(self):
         """ CH:2 Sprite read address DMA """
         read_addr_ctrl = self.read_addr.pack_ctrl(
@@ -168,7 +170,7 @@ class DMAChain:
 
     def start(self):
         """Activate DMA channels in correct sequence."""
-        self.h_scale.active(1)
+        # self.h_scale.active(1)
         self.write_addr.active(1)
 
     def reset(self):
@@ -180,7 +182,6 @@ class DMAChain:
         self.h_scale.active(0)
 
         # Reset counts
-        self.read_finished = True
         self.read_count = 0
         self.addr_idx = 0
 
@@ -190,8 +191,9 @@ class DMAChain:
 
     def irq_px_read_end(self, ch):
         """Handle end of pixel read IRQ."""
-        if not self.read_finished:
+        if not self.read_finished: # Avoid double calls
             self.scaler.finish_sprite()
+            self.read_finished = True
 
     def debug_dma_channels(self):
         self.dbg.debug_dma(self.read_addr, "read address", "read_addr", 2)

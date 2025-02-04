@@ -84,6 +84,16 @@ self. = 0   # Single scalar for magnitude - INT
 # Get all field names for outside use
 sprite_fields = SPRITE_DATA_LAYOUT.keys()
 
+# Add flags as "virtual" fields which are not stored directly
+flags = ['flag_active',
+    'flag_visible',
+    'flag_blink',
+    'flag_blink_flip',
+    'flag_palette_rotate',
+    'flag_physics']
+
+sprite_fields = list(sprite_fields) + flags
+
 # Clean this up like we did sprite_manager/create
 def create_sprite(
     x=0, y=0, z=0, scale=1.0, speed=0.0, born_ms=0, sprite_type=0,
@@ -154,6 +164,7 @@ class SpriteType:
     stretch_height: int = 0
     animations = []
     pos_type = Sprite.POS_TYPE_FAR
+    flag_physics = False
 
     def __init__(self, **kwargs):
         self.rotate_pal_last_change = 0
@@ -171,16 +182,21 @@ class SpriteType:
     def reset(self, sprite):
         global sprite_fields
         klass = type(self)
+        # SpriteType.set_flag(sprite, FLAG_PHYSICS, True)
 
         for attr_name in dir(klass):
             """ Only the properties present in both the class as well as the instance
-            will be reset """
+            will be reset (default) """
             if attr_name in sprite_fields:
 
                 attr_value = getattr(klass, attr_name)
-                setattr(sprite, attr_name, attr_value)
+                if attr_name.startswith("flag_"):
+                    """ All booleans are handled via flags and constants"""
+                    flag_const = getattr(SpriteType, attr_name.upper())
+                    SpriteType.set_flag(sprite, flag_const, attr_value)
+                else:
+                    setattr(sprite, attr_name, attr_value)
 
-        SpriteType.set_flag(sprite, FLAG_PHYSICS, True)
 
         # Recalculate number of frames # REWRITE
         # if 'width' in self.defaults and 'height' in self.defaults:
@@ -193,7 +209,7 @@ class SpriteType:
 
         klass = type(self)
         for key, value in kwargs.items():
-            print(f"klass: {klass}, key: {key}, value: {value}")
+            print(f"Sprite Class: {klass}, key: {key}, value: {value}")
             setattr(klass, key, value)
 
 

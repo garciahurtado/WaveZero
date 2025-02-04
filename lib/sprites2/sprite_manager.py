@@ -69,9 +69,6 @@ class SpriteManager:
         else:
             sprite_class: callable = SpriteType
 
-        print(f"REG SPRIT TYPE: {sprite_type}")
-        print(f"REG SPRIT CLASS: {sprite_class}")
-
         """ Register the new class """
         self.sprite_classes[sprite_type] = sprite_class
 
@@ -105,6 +102,7 @@ class SpriteManager:
 
         type_obj = sprite_class(**default_args)
 
+        """ set the default values that will be used when creating new instances (reset) """
         for key in default_args.keys():
             if key in dir(sprite_class):
                 value = default_args[key]
@@ -357,11 +355,11 @@ class SpriteManager:
         """
         ellapsed should be in milliseconds
         """
-
+        print("OLD UPDATE")
         kinds = self.sprite_metadata
         current = self.pool.head
         while current:
-            prof.start_profile('mgr.update()')
+            prof.start_profile('mgr.update_one_sprite()')
             sprite = current.sprite
             kind = kinds[sprite.sprite_type]
 
@@ -376,7 +374,7 @@ class SpriteManager:
 
             current = next_node
 
-            prof.end_profile('mgr.update()')
+            prof.end_profile('mgr.update_one_sprite()')
 
         """ Check for and update actions for all sprite types"""
         prof.start_profile('mgr.sprite_actions()')
@@ -469,7 +467,7 @@ class SpriteManager:
         meta = self.sprite_metadata[inst.sprite_type]
         return meta
 
-    def get_sprite(self, sprite_type):
+    def get_sprite_type(self, sprite_type):
         """ Returns the Sprite Type / Metadata """
         sprite = self.sprite_metadata[sprite_type]
 

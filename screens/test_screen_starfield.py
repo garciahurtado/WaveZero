@@ -8,8 +8,11 @@ from scaler.sprite_scaler import SpriteScaler
 from screens.screen import Screen
 from sprites.sprite import Sprite
 from sprites2.sprite_manager_2d import SpriteManager2D
-from sprites2.sprite_types import SPRITE_TEST_HEART, SpriteType
+from sprites2.sprite_types import SPRITE_TEST_HEART, SpriteType, SPRITE_TEST_SQUARE, SPRITE_TEST_GRID
+from sprites2.sprite_types import FLAG_PHYSICS, FLAG_ACTIVE, FLAG_VISIBLE
+from sprites2.test_grid import TestGrid
 from sprites2.test_heart import TestHeart
+from sprites2.test_square import TestSquare
 from ssd1331_pio import SSD1331PIO
 from utils import dist_between
 from profiler import Profiler as prof
@@ -20,14 +23,16 @@ class TestScreenStarfield(Screen):
     debug_inst = False
     screen_width = SSD1331PIO.WIDTH
     screen_height = SSD1331PIO.HEIGHT
-    scale_dist_factor = 160 # The higher this is, the slower the scale grows w/ distance
+    scale_dist_factor = 140 # The higher this is, the slower the scale grows w/ distance
+    # scale_dist_factor = 250 # The higher this is, the slower the scale grows w/ distance
     margin_px = 32
+    vector_move = True # whether to move the sprites away from the center overtime, or keep them centered
 
     def __init__(self, display, margin_px = 32):
         super().__init__(display, margin_px)
         self.init_camera()
 
-        self.max_sprites = 10
+        self.max_sprites = 1
         self.sprite_type = SPRITE_TEST_HEART
         self.mgr = SpriteManager2D(display, self.max_sprites, self.camera)
         self.mgr.bounds = self.bounds
@@ -71,6 +76,7 @@ class TestScreenStarfield(Screen):
         self.load_types()
         self.base_speed = 0.02
         self.sprite.set_default(speed=self.base_speed)
+        self.sprite.set_default(flag_physics=True)
 
         self.grid_beat = False
         self.fallout = False
@@ -83,7 +89,6 @@ class TestScreenStarfield(Screen):
         spawn_y = int(self.screen_height / 2)
         self.screen_center = [spawn_x, spawn_y]
 
-
         self.speed_vectors = self.random_vectors(self.max_sprites)
         for inst, dir in zip(mgr.pool.sprites, self.speed_vectors):
             mgr.phy.set_dir(inst, dir[0], dir[1])
@@ -95,7 +100,7 @@ class TestScreenStarfield(Screen):
         self.h_scale = self.v_scale = 1
         self.max_scale_id = len(self.scales)
         self.max_scale_dot = 1/self.meta.width # scales lower than this will draw a dot in lieu of render
-        self.max_dist = int(dist_between(spawn_x, spawn_y, self.full_width, self.full_height))
+        self.max_dist = int(dist_between(spawn_x, spawn_y, self.total_width, self.total_height))
 
     def do_refresh(self):
         self.common_bg()
@@ -124,19 +129,15 @@ class TestScreenStarfield(Screen):
             #     self.scaler.draw_dot_2(coords[0], coords[1], meta)
             #     continue
 
-            # if self.debug_inst:
-            #     print(f" - INST coords: {coords[0]}/{coords[1]} - BEFORE speed")
-            #     print(f" - INST scale_id: {scale_id}")
-            #     print(f" - INST scale: {scale}")
-            #     print(f" - INST speed: {inst.speed}")
+            if self.debug_inst:
+                print(f" - INST coords: {coords[0]}/{coords[1]} - BEFORE speed")
+                print(f" - INST scale_id: {scale_id}")
+                print(f" - INST scale: {inst.scale:03f}")
+                print(f" - INST speed: {inst.speed}")
 
             # Check bounds first
             actual_width = self.sprite.width * inst.scale
             actual_height = self.sprite.height * inst.scale
-
-            """ Center of the scaled sprite, in px"""
-            # offset_x = (self.sprite.width * scale) // 2
-            # offset_y = (self.sprite.height * scale) // 2
 
             """ Only needed for bounds checking. Is there a better way? """
             # pos_x, pos_y = self.mgr.get_pos(inst)
@@ -156,6 +157,9 @@ class TestScreenStarfield(Screen):
             pos_x -= actual_width / 2
             pos_y -= actual_height / 2
 
+            if not self.vector_move:
+                pos_x, pos_y = self.display.WIDTH / 2, self.display.HEIGHT / 2
+
             self.scaler.draw_sprite(
                 self.sprite,
                 int(pos_x),
@@ -172,13 +176,12 @@ class TestScreenStarfield(Screen):
         self.fps.tick()
 
     def load_sprite(self, load_type):
-        sprite_type = load_type
+        sprite_type_id = load_type
 
-        self.sprite = self.mgr.get_sprite(sprite_type)
-        self.sprite_img = self.mgr.sprite_images[sprite_type]
+        self.sprite = self.mgr.get_sprite_type(sprite_type_id)
+        self.sprite_img = self.mgr.sprite_images[sprite_type_id]
 
         return self.sprite
-
 
     def random_vectors(self, num):
         """ Generate an array of num x,y pairs """
@@ -209,7 +212,15 @@ class TestScreenStarfield(Screen):
             sprite_type=SPRITE_TEST_HEART,
             sprite_class=TestHeart)
 
-    def spawn(self, prob=8):
+        self.mgr.add_type(
+            sprite_type=SPRITE_TEST_SQUARE,
+            sprite_class=TestSquare)
+
+        self.mgr.add_type(
+            sprite_type=SPRITE_TEST_GRID,
+            sprite_class=TestGrid)
+
+    def spawn(self, prob=10):
         """ Probability in percent """
         if random.randint(0, 100) < prob:
             if self.mgr.pool.active_count < self.max_sprites:
