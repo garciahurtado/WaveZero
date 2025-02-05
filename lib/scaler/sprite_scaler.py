@@ -3,8 +3,10 @@ import sys
 import micropython
 import gc
 from _rp2 import StateMachine
+from time import sleep
 from uctypes import addressof
 from color import color_util as colors
+from sprites2.sprite_physics import SpritePhysics
 
 gc.collect()
 
@@ -43,6 +45,10 @@ class SpriteScaler():
         self.display:SSD1331PIO = display
         self.framebuf:ScalerFramebuf = ScalerFramebuf(display)
 
+        self.draw_x = 0
+        self.draw_y = 0
+        self.alpha = None
+
         self.dma = DMAChain(self, display)
         self.dma.dbg = self.dbg
 
@@ -52,20 +58,15 @@ class SpriteScaler():
         self.base_read = 0
         self.frac_bits = 0
 
-        self.draw_x = 0
-        self.draw_y = 0
-        self.alpha = None
-
         self.palette_addr = None
         self.last_palette_addr = None # For caching
 
-        sm_freq = 40_000_000 # must be 50% or less of the system clock, to avoid visual glitches
+        sm_freq = 20_000_000 # must be 50% or less of the system clock, to avoid visual glitches
         # PIO1 - SM0
         self.sm_read_palette = StateMachine(
             4, read_palette,
             freq=sm_freq,
         )
-        self.sm_read_palette.active(1)
 
         self.init_interp()
 
@@ -99,7 +100,6 @@ class SpriteScaler():
         This method is synchronous (will not return until the whole sprite has been drawn)
         """
 
-
         prof.start_profile('scaler.draw_sprite.init')
         if self.debug:
             print(f"ABOUT TO DRAW a Sprite on x,y: {x},{y} @ H: {h_scale}x / V: {v_scale}x")
@@ -120,8 +120,9 @@ class SpriteScaler():
         prof.start_profile('scaler.draw_sprite.scaled_dims')
         scaled_height = int(sprite.height * v_scale)
         scaled_width = int(sprite.width * h_scale)
-        self.draw_x = x
-        self.draw_y = y
+        draw_x, draw_y = SpritePhysics.get_draw_pos(x, y, scaled_width, scaled_height)
+        self.draw_x = draw_x
+        self.draw_y = draw_y
         prof.end_profile('scaler.draw_sprite.scaled_dims')
 
         prof.start_profile('scaler.select_buffer')
@@ -170,9 +171,8 @@ class SpriteScaler():
 
         """ Start DMA chains and State Machines """
         prof.start_profile('scaler.start')
-        # self.sm_read_palette.active(1)
-        # self.dma.start()
-        self.dma.write_addr.active(1)
+        self.dma.start()
+        self.sm_read_palette.active(1)
         prof.end_profile('scaler.start')
 
 
@@ -234,7 +234,7 @@ class SpriteScaler():
     def finish_sprite(self):
         prof.start_profile('scaler.finish_sprite')
         self.framebuf.blit_with_alpha(self.draw_x, self.draw_y, self.alpha)
-
+        sleep(0.02)
         self.reset()
         prof.end_profile('scaler.finish_sprite')
 
@@ -389,4 +389,6 @@ class SpriteScaler():
         x = (view_width/2) - (sprite_width/2)
         y = (view_height/2) - (sprite_height/2)
         return int(x), int(y)
+
+
 

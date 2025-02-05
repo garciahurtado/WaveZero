@@ -54,7 +54,6 @@ class DMAChain:
         self.init_px_write()
         self.init_h_scale()
 
-        self.start()
 
     def init_read_addr(self):
         """ CH:2 Sprite read address DMA """
@@ -190,7 +189,7 @@ class DMAChain:
         self.write_addr.read = addressof(self.write_addrs)
 
     def irq_px_read_end(self, ch):
-        """Handle end of pixel read IRQ."""
+        """Handle end of ALL pixels read IRQ."""
         if not self.read_finished: # Avoid double calls
             self.scaler.finish_sprite()
             self.read_finished = True

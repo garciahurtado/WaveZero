@@ -81,7 +81,6 @@ class ui_screen():
 
     def init_lives(self, num_lives):
         self.lives_text = ColorWriter(
-            self.display,
             font_vtks,
             40, 15,
             self.lives_palette,
@@ -103,7 +102,6 @@ class ui_screen():
 
     def init_score(self):
         self.score_text = ColorWriter(
-            self.display,
             font_vtks,
             36, 6,
             self.score_palette,
@@ -118,7 +116,6 @@ class ui_screen():
 
     def init_game_over(self):
         game_over_text = ColorWriter(
-            self.display,
             large_font,
             96, 10,
             self.game_over_palette,

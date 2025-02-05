@@ -116,10 +116,9 @@ class MonochromeWriter(FontRenderer):
 
 
 class ColorWriter():
-    def __init__(self, device: framebuf.FrameBuffer, font,
+    def __init__(self, font,
                  text_width: int, text_height: int, palette, fixed_width: int = None, color_format: int = fb.GS4_HMSB):
 
-        self.device = device
         self.font = font
         self.text_height = text_height
         self.text_width = text_width

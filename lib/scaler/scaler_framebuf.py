@@ -33,7 +33,6 @@ class ScalerFramebuf():
         self.display = display
 
         self.frame_bytes = 0
-        self.frame_bytes_cache = {}
         self.frame_sizes = [
             [4, 4],
             [8, 8],
@@ -77,9 +76,7 @@ class ScalerFramebuf():
     def make_buffer(self, width, height, mode):
         new_buff = framebuf.FrameBuffer(self.scratch_bytes, width, height, mode)
         new_buff.fill(self.fill_color)
-        stride = width * 2
 
-        self.frame_bytes_cache[height] = height * stride
         return new_buff
 
     def select_buffer(self, scaled_width, scaled_height):

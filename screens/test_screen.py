@@ -10,13 +10,15 @@ import input_rotary
 from scaler.sprite_scaler import SpriteScaler
 from screens.screen import Screen
 from sprites.sprite import Sprite
+from sprites2.sprite_physics import SpritePhysics
 
 from sprites2.test_square import TestSquare
 from sprites2.test_heart import TestHeart
 from sprites2.test_grid import TestGrid
 from sprites2.sprite_manager_2d import SpriteManager2D
 
-from sprites2.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART, SPRITE_TEST_GRID, SPRITE_TEST_GRID_SPEED
+from sprites2.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART, SPRITE_TEST_GRID, SPRITE_TEST_GRID_SPEED, \
+    SpriteType
 
 from profiler import Profiler as prof
 from images.image_loader import ImageLoader
@@ -31,10 +33,12 @@ from color import color_util as colors
 from color.framebuffer_palette import FramebufferPalette
 import framebuf as fb
 
+BLACK = 0x000000
 CYAN =  0x00FFFF
 GREEN = 0x00FF00
-BLACK = 0x000000
 GREY =  0x444444
+YELLOW = 0xFFFF00
+WHITE = 0xFFFFFF
 
 prof.enabled = False
 
@@ -55,6 +59,7 @@ class TestScreen(Screen):
     scaler = None
     scaled_width = 0
     scaled_height = 0
+    score = 0
 
     base_speed = 1 / 800
     base_x = 0
@@ -68,7 +73,7 @@ class TestScreen(Screen):
     slide_sel = 'vert'
     h_scale = 1
     v_scale = 1
-    current_loop = None
+    refresh_method = None
     num_sprites = 40
     max_sprites = 0
     scaler_num_sprites = 1
@@ -104,6 +109,8 @@ class TestScreen(Screen):
         print()
         print(f"=== Testing performance of {self.num_sprites} sprites ===")
         print()
+
+        self.idx = 0
 
         self.sprite_type = None
         # self.preload_images()
@@ -149,7 +156,7 @@ class TestScreen(Screen):
         self.init_common()
         self.load_types()
 
-        test = 'grid1'
+        test = 'scale_control'
         self.check_mem()
         method = None
 
@@ -166,6 +173,7 @@ class TestScreen(Screen):
         if test == 'scale_control':
             self.sprite_type = SPRITE_TEST_HEART
             self.load_sprite(SPRITE_TEST_HEART)
+            self.init_score()
             self.init_scale_control()
             method = self.do_refresh_scale_control
         elif test == 'grid1':
@@ -196,7 +204,7 @@ class TestScreen(Screen):
         else:
             raise Exception(f"Invalid method: {method}")
 
-        self.current_loop = getattr(self, method.__name__, None)
+        self.refresh_method = getattr(self, method.__name__, None)
 
         self.check_mem()
 
@@ -238,7 +246,7 @@ class TestScreen(Screen):
                 self.last_update_ms = now = utime.ticks_ms()
                 elapsed = utime.ticks_diff(now, self.last_update_ms) + 1
 
-                self.mgr.update(elapsed)
+                # self.mgr.update(elapsed)
 
                 # Tweaking this number can give FPS gains / give more frames to `elapsed`, avoiding near zero
                 # errors
@@ -308,7 +316,7 @@ class TestScreen(Screen):
 
     async def start_display_loop(self):
         while True:
-            self.do_refresh_grid()
+            self.refresh_method()
             await asyncio.sleep_ms(1)
 
     def init_beating_heart(self):
@@ -326,23 +334,47 @@ class TestScreen(Screen):
 
     def init_scale_control(self):
         # self.sprite = self.mgr.get_meta(self.sprite)
+        self.draw_x = self.display.width // 2
+        self.draw_y = self.display.height // 2
         self.image = self.mgr.sprite_images[self.sprite_type][-1]
+
+        # init 4bit palette
+        for i in range(16):
+            if i == 0:
+                self.score_palette.set_bytes(i, 0)
+            elif i == 1:
+                self.score_palette.set_bytes(i, WHITE)
+            else:
+                self.score_palette.set_bytes(i, WHITE)
+
+        # init 4bit palette
+
+        inv = True
+        # self.score_palette.set_rgb(0, colors.hex_to_rgb(BLACK, inv=inv))
+        # self.score_palette.set_rgb(1, colors.hex_to_rgb(YELLOW, inv=inv))
+        # self.score_palette.set_rgb(2, colors.hex_to_rgb(CYAN, inv=inv))
+        # self.score_palette.set_rgb(3, colors.hex_to_rgb(WHITE, inv=inv))
 
         self.h_scales = list(self.all_scales.keys())
         self.h_scales.sort()
 
-        default = 3.750
+        default = 1
         self.scale_id = self.h_scales.index(default)
+        # self.scale_id = 0
 
         self.input_handler = input_rotary.InputRotary()
         self.input_handler.handler_right = self.scale_control_right
         self.input_handler.handler_left = self.scale_control_left
+
+        loop = asyncio.get_event_loop()
+        self.update_score_task = loop.create_task(self.update_score())
 
     def scale_control_right(self):
         if self.scale_id < len(self.h_scales)-1:
             self.scale_id += 1
             if self.debug:
                 scale = self.h_scales[self.scale_id]
+                self.sprite.scale = scale
                 print(f"S: {scale:.03f}")
 
     def scale_control_left(self):
@@ -350,7 +382,33 @@ class TestScreen(Screen):
             self.scale_id -= 1
             if self.debug:
                 scale = self.h_scales[self.scale_id]
+                self.sprite.scale = scale
                 print(f"S: {scale:.03f}")
+
+    def init_score(self):
+        self.score_text = ColorWriter(
+            font_vtks,
+            36, 6,
+            self.score_palette,
+            fixed_width=4,
+            color_format=fb.GS4_HMSB
+        )
+        self.score_text.orig_x = 68
+        self.score_text.orig_y = 0
+        self.score_text.visible = True
+
+        return self.score_text
+
+    async def update_score(self):
+        while True:
+            new_score = 100
+            if new_score == self.score:
+                return False
+
+            self.score = new_score
+
+            await asyncio.sleep(1)
+
 
     def init_clipping_square(self):
         # self.sprite = self.mgr.get_meta(self.sprite)
@@ -370,7 +428,6 @@ class TestScreen(Screen):
         Show a grid of heart Sprites
         """
         prof.start_profile('scaler.draw_loop_init')
-        idx = 0
         row_sep = self.sprite.width
         col_sep = self.sprite.width
 
@@ -378,15 +435,19 @@ class TestScreen(Screen):
 
         prof.end_profile('scaler.draw_loop_init')
 
+        self.idx = 0
+
+        print(f"FOR RANGE: {self.num_cols} and {self.num_rows}")
         for c in range(self.num_cols):
             for r in range(self.num_rows):
+                print(f"idx at start: {self.idx}")  # Debug print
                 prof.start_profile('scaler.pre_draw')
 
                 draw_x = int(c * col_sep)
                 draw_y = int(r * row_sep)
 
                 if False or self.grid_beat or self.fallout:
-                    scale_factor = (self.scale_id+idx) % self.scale_source_len
+                    scale_factor = (self.scale_id+self.idx) % self.scale_source_len
                     self.scale_id += 1
                     self.h_scale = self.scale_source[scale_factor]
                     self.v_scale = self.h_scale
@@ -397,7 +458,10 @@ class TestScreen(Screen):
                     draw_x, draw_y = self.scaler.center_sprite(self.scaled_width, self.scaled_height)
                 prof.end_profile('scaler.pre_draw')
 
-                prof.start_profile('scaler.draw_sprite')
+                print(f"draw_x, draw_y {draw_x}, {draw_y}")
+                print(f"h_scale = {self.h_scale}")
+                print(f"v_scale = {self.v_scale}")
+
                 self.scaler.draw_sprite(
                     self.sprite,
                     int(draw_x),
@@ -405,10 +469,14 @@ class TestScreen(Screen):
                     self.image,
                     h_scale=self.h_scale,
                     v_scale=self.v_scale)
-                prof.end_profile('scaler.draw_sprite')
-                idx += 1
+
+                self.idx = self.idx + 1
 
         prof.start_profile('scaler.display_show')
+
+        while not self.scaler.dma.read_finished:
+            pass
+
         self.display.show()
         prof.end_profile('scaler.display_show')
 
@@ -465,30 +533,30 @@ class TestScreen(Screen):
         """
 
         h_scale = self.h_scales[self.scale_id]
-        v_scale = h_scale
+        self.sprite.scale = v_scale = h_scale
 
-        sprite_scaled_width = self.sprite.width * h_scale
-        sprite_scaled_height = self.sprite.height * v_scale
-
-        display_width = self.display.width
-        display_height = self.display.height
-
-        draw_x = (display_width / 2) - (sprite_scaled_width / 2)
-        draw_y = (display_height - sprite_scaled_height) / 2
+        scaled_width = scaled_height = int(h_scale * self.sprite.height)
+        # draw_x, draw_y = SpritePhysics.get_draw_pos(self.draw_x, self.draw_y, scaled_width=scaled_width, scaled_height=scaled_height)
+        x, y = 48, 32
 
         self.common_bg()
         self.scaler.draw_sprite(
             self.sprite,
-            int(draw_x),
-            int(draw_y),
+            int(x),
+            int(y),
             self.image,
             h_scale=h_scale,
             v_scale=v_scale)
 
-        self.show_prof()
-        self.display.swap_buffers()
+        # self.score_text.render_text(f"{self.score:09}")
+        # print(f"PRINTING SCALE: {h_scale}")
+        self.score_text.render_text(f"{h_scale:.3f}")
+        self.score_text.show(self.display.write_framebuf, self.score_palette)
 
-        time.sleep_ms(50)
+        self.display.show()
+
+        self.show_prof()
+        time.sleep_ms(1)
         self.fps.tick()
 
     def do_refresh_clipping_square(self):
@@ -572,7 +640,7 @@ class TestScreen(Screen):
             await asyncio.sleep_ms(2000)
 
     def do_refresh(self):
-        return self.current_loop()
+        return self.refresh_method()
 
     def create_lines(self):
         count = 64
@@ -587,7 +655,6 @@ class TestScreen(Screen):
 
     def init_fps(self):
         self.fps_text = ColorWriter(
-            self.display,
             font_vtks,
             36, 6,
             self.score_palette,

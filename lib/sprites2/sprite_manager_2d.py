@@ -49,16 +49,16 @@ class SpriteManager2D(SpriteManager):
             self.phy.apply_speed(sprite, elapsed)
         prof.end_profile('mgr.update_sprite.physics')
 
-        # sprite.draw_x = int(new_x)
-        # sprite.draw_y = int(new_y)
+        scaled_width = sprite.width * sprite.scale
+        scaled_height = sprite.height * sprite.scale
+
+        # sprite.draw_x, sprite.draw_y = self.phy.get_draw_pos(sprite.x, sprite.y, scaled_width, scaled_height, scaled=True)
 
         if self.debug_inst:
             print("2D UPDATE SPRITE:")
-            # print(f"  Pos {pos}")
             print(f"  Dir {dir}")
             print(f"  Speed {sprite.speed}")
             print(f"  Elapsed {elapsed}")
-            # print(f"  New_x, new_y {[new_x,new_y]}")
             print(f"  FORMULA: new_y += sprite.speed * dir_y * elapsed")
 
         return True
@@ -66,4 +66,5 @@ class SpriteManager2D(SpriteManager):
     def is_within_bounds(self, coords):
         x, y = coords
         return is_point_within_bounds([x, y], self.bounds)
+
 

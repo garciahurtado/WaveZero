@@ -45,7 +45,7 @@ class SpritePhysics:
 
     @staticmethod
     def get_pos(inst):
-        """ Convert fixed point coordinates to display integers """
+        """ Convert fixed point coordinates to display integers. These coords point to the center of the sprite """
         x = inst.x >> FP_SHIFT
         y = inst.y >> FP_SHIFT
         return x, y
@@ -84,5 +84,20 @@ class SpritePhysics:
                 print("Returning without updating sprite")
 
         SpritePhysics.set_pos(sprite, new_x, new_y)
+
+    @staticmethod
+    def get_draw_pos(sprite_x, sprite_y, scaled_width, scaled_height, scaled=False):
+        if scaled:
+            coords = {'x': sprite_x, 'y': sprite_y}
+            draw_x, draw_y = SpritePhysics.get_pos(coords)
+        else:
+            draw_x, draw_y = sprite_x, sprite_y
+
+        draw_x += -(scaled_width // 2)
+        draw_y += -(scaled_height // 2)
+
+        return int(draw_x), int(draw_y)
+
+
 
 

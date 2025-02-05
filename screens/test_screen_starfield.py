@@ -18,12 +18,16 @@ from utils import dist_between
 from profiler import Profiler as prof
 import utime
 class TestScreenStarfield(Screen):
+    max_sprites = 20
+    max_scale_id = 0
+    max_scale_dot = 0
+    max_dist = 0
 
     debug = False
     debug_inst = False
     screen_width = SSD1331PIO.WIDTH
     screen_height = SSD1331PIO.HEIGHT
-    scale_dist_factor = 140 # The higher this is, the slower the scale grows w/ distance
+    scale_dist_factor = 120 # The higher this is, the slower the scale grows w/ distance
     # scale_dist_factor = 250 # The higher this is, the slower the scale grows w/ distance
     margin_px = 32
     vector_move = True # whether to move the sprites away from the center overtime, or keep them centered
@@ -32,7 +36,8 @@ class TestScreenStarfield(Screen):
         super().__init__(display, margin_px)
         self.init_camera()
 
-        self.max_sprites = 1
+
+
         self.sprite_type = SPRITE_TEST_HEART
         self.mgr = SpriteManager2D(display, self.max_sprites, self.camera)
         self.mgr.bounds = self.bounds
@@ -74,7 +79,7 @@ class TestScreenStarfield(Screen):
 
     def init_starfield(self):
         self.load_types()
-        self.base_speed = 0.02
+        self.base_speed = 0.03
         self.sprite.set_default(speed=self.base_speed)
         self.sprite.set_default(flag_physics=True)
 
@@ -100,7 +105,7 @@ class TestScreenStarfield(Screen):
         self.h_scale = self.v_scale = 1
         self.max_scale_id = len(self.scales)
         self.max_scale_dot = 1/self.meta.width # scales lower than this will draw a dot in lieu of render
-        self.max_dist = int(dist_between(spawn_x, spawn_y, self.total_width, self.total_height))
+        self.max_dist = abs(int(dist_between(spawn_x, spawn_y, self.total_width, self.total_height)))
 
     def do_refresh(self):
         self.common_bg()

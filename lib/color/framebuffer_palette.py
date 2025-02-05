@@ -17,6 +17,7 @@ class FramebufferPalette(framebuf.FrameBuffer):
     color_mode = BGR565
 
     def __init__(self, palette, color_mode=None):
+        """ Palette could be an int, in which case it is the total number of colors"""
         if color_mode:
             self.color_mode = color_mode
 
