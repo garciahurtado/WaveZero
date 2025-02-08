@@ -61,7 +61,7 @@ class SpriteScaler():
         self.palette_addr = None
         self.last_palette_addr = None # For caching
 
-        sm_freq = 20_000_000 # must be 50% or less of the system clock, to avoid visual glitches
+        sm_freq = 40_000_000 # must be 50% or less of the system clock, to avoid visual glitches
         # PIO1 - SM0
         self.sm_read_palette = StateMachine(
             4, read_palette,
@@ -94,11 +94,13 @@ class SpriteScaler():
         write_addrs[row_id-1] = 0x00000000 # finish it with a NULL trigger
         self.dma.read_addrs = read_addrs
 
-    def draw_sprite(self, sprite:SpriteType, x, y, image:Image, h_scale=1.0, v_scale=1.0):
+    def draw_sprite(self, sprite:SpriteType, inst, image:Image, h_scale=1.0, v_scale=1.0):
         """
         Draw a scaled sprite at the specified position.
         This method is synchronous (will not return until the whole sprite has been drawn)
         """
+        self.draw_x = x = inst.draw_x
+        self.draw_y = y = inst.draw_y
 
         prof.start_profile('scaler.draw_sprite.init')
         if self.debug:
@@ -120,9 +122,6 @@ class SpriteScaler():
         prof.start_profile('scaler.draw_sprite.scaled_dims')
         scaled_height = int(sprite.height * v_scale)
         scaled_width = int(sprite.width * h_scale)
-        draw_x, draw_y = SpritePhysics.get_draw_pos(x, y, scaled_width, scaled_height)
-        self.draw_x = draw_x
-        self.draw_y = draw_y
         prof.end_profile('scaler.draw_sprite.scaled_dims')
 
         prof.start_profile('scaler.select_buffer')
@@ -150,7 +149,8 @@ class SpriteScaler():
 
         prof.end_profile('scaler.init_interp_sprite')
 
-        palette_addr = addressof(image.palette_bytes)
+        palette_addr = addressof(image.palette.palette)
+
         if not (palette_addr == self.last_palette_addr):
             prof.start_profile('scaler.init_pio')
 
@@ -170,11 +170,14 @@ class SpriteScaler():
         prof.end_profile('scaler.fill_addrs')
 
         """ Start DMA chains and State Machines """
-        prof.start_profile('scaler.start')
+        prof.start_profile('scaler.dma_pio')
         self.dma.start()
         self.sm_read_palette.active(1)
-        prof.end_profile('scaler.start')
 
+        while not self.dma.read_finished:
+            pass
+
+        self.finish_sprite()
 
     def draw_dot(self, x, y, type):
         self.draw_x = x
@@ -218,24 +221,16 @@ class SpriteScaler():
         display.pixel(0 + 1, 0 + 1, color)
         self.finish_sprite()
 
-
-    def start(self):
-        # This is only to avoid a mem error with profiling the IRQ handler
-        prof.start_profile('scaler.start_channels')
-
-        """ Color lookup must be activated too, since it is right after a SM, so there's no direct way to trigger it"""
-
-        # self.sm_read_palette.active(1)
-        # self.dma.start()
-
-        prof.end_profile('scaler.start_channels')
-
-
     def finish_sprite(self):
+        prof.end_profile('scaler.dma_pio')
+
         prof.start_profile('scaler.finish_sprite')
         self.framebuf.blit_with_alpha(self.draw_x, self.draw_y, self.alpha)
-        sleep(0.02)
+
+        prof.start_profile('scaler.finish_sprite.reset')
         self.reset()
+        prof.end_profile('scaler.finish_sprite.reset')
+
         prof.end_profile('scaler.finish_sprite')
 
     def init_interp(self):
@@ -335,11 +330,11 @@ class SpriteScaler():
         self.init_convert_fixed_point(int(sprite_width), scale_x_one)
         prof.end_profile('scaler.init_convert_fixed_point')
 
-    # @micropython.viper
+    @micropython.viper
     def init_convert_fixed_point(self, sprite_width, scale_x_one):
         # Precompute constants if possible
         # Assuming sprite_width, scale_x_one, and frac_bits are constants or precomputed
-        read_step = (sprite_width << self.frac_bits) // (scale_x_one * 2)  # Convert to fixed point directly
+        read_step = (int(sprite_width) << int(self.frac_bits)) // (int(scale_x_one) * 2)  # Convert to fixed point directly
 
         # Ensure fixed_step is even
         fixed_step = read_step if read_step % 2 == 0 else read_step - 1
@@ -367,10 +362,12 @@ class SpriteScaler():
         self.dma.reset()
 
         # Clear interpolator accumulators
-        mem32[INTERP0_ACCUM1] = 0
+        prof.start_profile('scaler.finish.reset_interp')
 
+        mem32[INTERP0_ACCUM1] = 0
         mem32[INTERP1_ACCUM0] = 0
         mem32[INTERP1_ACCUM1] = 0
+        prof.end_profile('scaler.finish.reset_interp')
 
         self.min_read_addr = 0
         self.row_id = 0

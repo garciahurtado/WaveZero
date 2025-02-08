@@ -93,7 +93,15 @@ class SpritePool:
         self.active_count += 1
 
         prof.start_profile('pool.reset')
+        # print(type(meta))
+        # print(meta)
+        # print(dir(meta))
+        #
+        # print(type(sprite))
+        # print(sprite)
+
         meta.reset(sprite)
+
         prof.end_profile('pool.reset')
 
         return sprite, index

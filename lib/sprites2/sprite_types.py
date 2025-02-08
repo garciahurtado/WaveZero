@@ -33,6 +33,7 @@ SPRITE_TEST_HEART = 220
 SPRITE_HEART_SPEED = 225
 SPRITE_TEST_GRID = 230
 SPRITE_TEST_GRID_SPEED = 240
+SPRITE_TEST_PYRAMID = 250
 
 """
     Flag Bits:
@@ -100,6 +101,7 @@ def create_sprite(
     pos_type=POS_TYPE_FAR, frame_width=0, frame_height=0,
     current_frame=0, num_frames=0, lane_num=0, lane_mask=0
 ):
+    """ Creates a lightweight sprite _instance_"""
     mem = bytearray(SPRITE_DATA_SIZE)
     sprite = uctypes.struct(uctypes.addressof(mem), SPRITE_DATA_LAYOUT)
 

@@ -22,7 +22,7 @@ class SpriteManager2D(SpriteManager):
         while current:
             prof.start_profile('mgr.update_one_sprite()')
             sprite = current.sprite
-            kind = kinds[sprite.sprite_type]
+            kind = kinds[sprite.sprite_id]
 
             self.update_sprite(sprite, kind, elapsed)
 
@@ -49,10 +49,10 @@ class SpriteManager2D(SpriteManager):
             self.phy.apply_speed(sprite, elapsed)
         prof.end_profile('mgr.update_sprite.physics')
 
-        scaled_width = sprite.width * sprite.scale
-        scaled_height = sprite.height * sprite.scale
+        scaled_width = meta.width * sprite.scale
+        scaled_height = meta.height * sprite.scale
 
-        # sprite.draw_x, sprite.draw_y = self.phy.get_draw_pos(sprite.x, sprite.y, scaled_width, scaled_height, scaled=True)
+        sprite.draw_x, sprite.draw_y = self.phy.get_draw_pos(sprite, scaled_width, scaled_height, True)
 
         if self.debug_inst:
             print("2D UPDATE SPRITE:")

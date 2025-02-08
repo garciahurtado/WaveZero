@@ -5,8 +5,6 @@ from profiler import Profiler as prof
 from ssd1331_pio import SSD1331PIO
 from uctypes import addressof
 
-prof.enabled = False
-
 class ScalerFramebuf():
     """
     Manages the various framebuffers used for rendering of scaled sprites.

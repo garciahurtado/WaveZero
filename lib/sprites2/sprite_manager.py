@@ -12,7 +12,7 @@ from sprites2.sprite_types import SpriteType
 from sprites2.sprite_types import SpriteType as types
 from sprites2.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE, FLAG_BLINK, FLAG_BLINK_FLIP, FLAG_PHYSICS
 import framebuf
-from color.framebuffer_palette import FramebufferPalette
+from colors.framebuffer_palette import FramebufferPalette
 import math
 from images.indexed_image import Image, create_image
 from sprites2.sprite_pool_lite import SpritePool
@@ -51,7 +51,7 @@ class SpriteManager:
 
         self.check_mem()
         self.pool = SpritePool(self.max_sprites)
-        self.pool.mgr = self # Remove two way dep.
+        self.pool.mgr = self # Remove 2-way dependency
 
         if camera:
             self.set_camera(camera)
@@ -61,9 +61,10 @@ class SpriteManager:
         # self.sprite_actions = Actions(display=display, camera=camera, mgr=self)
 
     def add_type(self, **kwargs):
-        """ These arguments are mandatory """
+        """ New SpriteType factory / registry """
         sprite_type = kwargs['sprite_type']
 
+        """ Look for the actual Python class, or default to SpriteType """
         if 'sprite_class' in kwargs:
             sprite_class: callable = kwargs['sprite_class']
         else:
@@ -72,6 +73,7 @@ class SpriteManager:
         """ Register the new class """
         self.sprite_classes[sprite_type] = sprite_class
 
+        """ These arguments are mandatory """
         must_have = ['sprite_type', 'sprite_class']
         defaults = [
             'image_path',
@@ -102,13 +104,20 @@ class SpriteManager:
 
         type_obj = sprite_class(**default_args)
 
+        # This will load the sprite image
+        new_img = self.load_img_and_scale(type_obj, sprite_type)
+        self.sprite_images[sprite_type] = new_img
+        self.sprite_metadata[sprite_type] = type_obj
+        self.sprite_palettes[sprite_type] = new_img[0].palette
+
+        print(f"NEW PALETTE ADDED FOR TYPE: {sprite_type} :: {new_img[0].palette}")
+
         """ set the default values that will be used when creating new instances (reset) """
         for key in default_args.keys():
             if key in dir(sprite_class):
                 value = default_args[key]
                 setattr(type_obj, key, value)
 
-        self.sprite_metadata[sprite_type] = type_obj
         self.sprite_inst[sprite_type] = []
 
     def get_class_properties(self, cls):
@@ -155,7 +164,7 @@ class SpriteManager:
         if ('width' in kwargs and 'height' in kwargs):
             meta.num_frames = max(kwargs['width'], kwargs['height'])
 
-        new_sprite.sprite_type = sprite_type
+        new_sprite.sprite_id = sprite_type
 
         """ Load image and create scaling frames """
         if sprite_type not in self.sprite_images:
@@ -218,7 +227,7 @@ class SpriteManager:
 
         return frames
 
-    def scale_frame(self, orig_img, new_width, new_height, color_depth):
+    def scale_frame(self, orig_img, new_width, new_height, color_depth) -> Image:
         if color_depth not in [4, 8]:
             raise ValueError(f"Unsupported color depth: {color_depth}")
 
@@ -361,7 +370,7 @@ class SpriteManager:
         while current:
             prof.start_profile('mgr.update_one_sprite()')
             sprite = current.sprite
-            kind = kinds[sprite.sprite_type]
+            kind = kinds[sprite.sprite_id]
 
             if self.update_sprite(sprite, kind, elapsed):
                 if kind.is_time_to_rotate(elapsed):
@@ -398,7 +407,7 @@ class SpriteManager:
     # @timed
     def show_sprite(self, sprite, display: framebuf.FrameBuffer):
         """Draw a single sprite on the display (or several, if multisprites)"""
-        sprite_type = sprite.sprite_type
+        sprite_type = sprite.sprite_id
 
         if not types.get_flag(sprite, FLAG_VISIBLE):
             return False
@@ -467,16 +476,22 @@ class SpriteManager:
         meta = self.sprite_metadata[inst.sprite_type]
         return meta
 
-    def get_sprite_type(self, sprite_type):
+    def _get_sprite_type(self, sprite_type):
         """ Returns the Sprite Type / Metadata """
         sprite = self.sprite_metadata[sprite_type]
+        print(f"CALLING GET_SPRITE_TYPE-> sprite_type: {sprite_type} / meta: {sprite}")
 
         if sprite_type not in self.sprite_images:
             print(f"Sprite type: {sprite_type} - creating scaled images for 1st time")
             new_img = self.load_img_and_scale(sprite, sprite_type)
             self.sprite_images[sprite_type] = new_img
+            self.sprite_palettes[sprite_type] = new_img[0].palette
 
         return sprite
+
+    def get_palette(self, sprite_type):
+        pal = self.sprite_palettes[sprite_type]
+        return pal
 
     def set_alpha_color(self, sprite_type: SpriteType):
         """Get the value of the color to be used as an alpha channel when drawing the sprite

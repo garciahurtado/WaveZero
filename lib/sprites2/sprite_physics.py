@@ -86,13 +86,14 @@ class SpritePhysics:
         SpritePhysics.set_pos(sprite, new_x, new_y)
 
     @staticmethod
-    def get_draw_pos(sprite_x, sprite_y, scaled_width, scaled_height, scaled=False):
+    def get_draw_pos(sprite, scaled_width, scaled_height, scaled=False):
         if scaled:
-            coords = {'x': sprite_x, 'y': sprite_y}
-            draw_x, draw_y = SpritePhysics.get_pos(coords)
+            draw_x, draw_y = SpritePhysics.get_pos(sprite)
         else:
-            draw_x, draw_y = sprite_x, sprite_y
+            draw_x, draw_y = sprite.x, sprite.y
 
+        """ Since sprite x/y indicate the center of the sprite, we offset the draw origin left and up relative to half 
+        the sprite dimensions. """
         draw_x += -(scaled_width // 2)
         draw_y += -(scaled_height // 2)
 

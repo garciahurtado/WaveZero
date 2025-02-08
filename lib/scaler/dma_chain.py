@@ -122,7 +122,7 @@ class DMAChain:
             write=PIO1_TX0,
             ctrl=px_read_ctrl
         )
-        self.px_read.irq(handler=self.irq_px_read_end)
+        self.px_read.irq(handler=self.irq_px_read_end, hard=True)
 
     def init_px_write(self):
         """ CH:6. Display write DMA --------------------------- """
@@ -184,15 +184,13 @@ class DMAChain:
         self.read_count = 0
         self.addr_idx = 0
 
-        # Reset addresses
+        # Reset address list pointers
         self.read_addr.read = addressof(self.read_addrs)
         self.write_addr.read = addressof(self.write_addrs)
 
     def irq_px_read_end(self, ch):
         """Handle end of ALL pixels read IRQ."""
-        if not self.read_finished: # Avoid double calls
-            self.scaler.finish_sprite()
-            self.read_finished = True
+        self.read_finished = True
 
     def debug_dma_channels(self):
         self.dbg.debug_dma(self.read_addr, "read address", "read_addr", 2)

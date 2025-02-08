@@ -2,8 +2,7 @@ import framebuf
 import framebuf as fb
 from color import color_util as colors
 
-
-class FramebufferPalette(framebuf.FrameBuffer):
+class FramebufferPalette1(framebuf.FrameBuffer):
     """
     A color palette in framebuffer format (rgb565), ready to be used by display.blit()
     """
@@ -115,7 +114,7 @@ class FramebufferPalette(framebuf.FrameBuffer):
 
     def set_bytes(self, index, color):
         if self.color_mode in (fb.RGB565, self.RGB565, self.BGR565):
-            # Convert the color value to bytes
+            # Convert the color value (int) to 2 bytes
             color_bytes = color.to_bytes(2, 'little')
 
             # Convert the flipped bytes back to an integer
@@ -125,6 +124,11 @@ class FramebufferPalette(framebuf.FrameBuffer):
             self.pixel(index, 0, color)
         else:
             self.pixel(index, 0, color)
+
+    def set_hexoooo(self, index, new_color):
+        """ 'Hex' just means that its a 3 byte RGB int """
+        new_color = colors.hex_to_565(new_color)
+        self.pixel(index, 0, new_color)
 
     def get_int(self, index):
         return self.pixel(index, 0)

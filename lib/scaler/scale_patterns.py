@@ -26,11 +26,10 @@ class ScalePatterns:
         """
         steps tested = 0.016, 0.032, 0.064, 0.125, 0.250, 0.500
         """
-        patterns1 = {}
         patterns1 = self.create_patterns(0, 1, step=0.125)
         patterns2 = self.create_patterns(1, 4, step=0.250)
         patterns3 = self.create_patterns(4, 8, step=0.250)
-        patterns4 = self.create_patterns(8, 12, step=0.500)
+        patterns4 = self.create_patterns(8, 16, step=0.500)
 
         patterns1.update(patterns2)
         patterns1.update(patterns3)

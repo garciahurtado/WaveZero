@@ -183,7 +183,8 @@ class TestScreenStarfield(Screen):
     def load_sprite(self, load_type):
         sprite_type_id = load_type
 
-        self.sprite = self.mgr.get_sprite_type(sprite_type_id)
+        # self.sprite = self.mgr.get_sprite_type(sprite_type_id)
+        self.sprite = self.mgr.sprite_metadata[sprite_type_id]
         self.sprite_img = self.mgr.sprite_images[sprite_type_id]
 
         return self.sprite

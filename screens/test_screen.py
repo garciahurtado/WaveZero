@@ -5,12 +5,12 @@ import time
 import math
 import random
 
+from uctypes import addressof
+
 import input_rotary
 
 from scaler.sprite_scaler import SpriteScaler
 from screens.screen import Screen
-from sprites.sprite import Sprite
-from sprites2.sprite_physics import SpritePhysics
 
 from sprites2.test_square import TestSquare
 from sprites2.test_heart import TestHeart
@@ -18,10 +18,9 @@ from sprites2.test_grid import TestGrid
 from sprites2.sprite_manager_2d import SpriteManager2D
 
 from sprites2.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART, SPRITE_TEST_GRID, SPRITE_TEST_GRID_SPEED, \
-    SpriteType
+    SpriteType, SPRITE_TEST_PYRAMID
 
 from profiler import Profiler as prof
-from images.image_loader import ImageLoader
 import fonts.vtks_blocketo_6px as font_vtks
 from font_writer_new import ColorWriter
 
@@ -29,8 +28,10 @@ import utime
 import uasyncio as asyncio
 
 from perspective_camera import PerspectiveCamera
-from color import color_util as colors
-from color.framebuffer_palette import FramebufferPalette
+from colors import color_util as colors
+from colors import framebuffer_palette as fp
+
+FramebufferPalette = fp.FramebufferPalette
 import framebuf as fb
 
 BLACK = 0x000000
@@ -40,15 +41,16 @@ GREY =  0x444444
 YELLOW = 0xFFFF00
 WHITE = 0xFFFFFF
 
-prof.enabled = False
-
 class TestScreen(Screen):
-    debug = False
+    debug = True
     debug_inst = False
     fps_enabled = True
     fps_counter_task = None
     grid_center = False
     grid_lines = False
+    color_idx = 0
+    color_len = 0
+    color_demo = False
 
     screen_width = 96
     screen_height = 64
@@ -60,6 +62,7 @@ class TestScreen(Screen):
     scaled_width = 0
     scaled_height = 0
     score = 0
+    sprite_palette = None
 
     base_speed = 1 / 800
     base_x = 0
@@ -90,10 +93,25 @@ class TestScreen(Screen):
     line_colors = [ colors.hex_to_565(0xFF0000),
                     colors.hex_to_565(0x00FF00),
                     colors.hex_to_565(0x0000FF)]
+
+    rainbow_colors = [
+        0xFF0000,  # Red
+        0xFF7F00,  # Orange
+        0xFFFF00,  # Yellow
+        0x7FFF00,  # Chartreuse
+        0x00FF00,  # Green
+        0x00FF7F,  # Spring Green
+        0x00FFFF,  # Cyan
+        0x0000FF,  # Blue
+        0x7F00FF,  # Purple
+        0xFF00FF,  # Magenta
+    ]
+
     score_palette = FramebufferPalette(16, color_mode=fb.GS4_HMSB)
     mgr = None
 
     sprite = None # SpriteType (not instance)
+    inst = None
     image = None
     num_cols = None
     num_rows = None
@@ -112,9 +130,7 @@ class TestScreen(Screen):
 
         self.idx = 0
 
-        self.sprite_type = None
-        # self.preload_images()
-
+        self.sprite_id = None
         print(f"Free memory __init__: {gc.mem_free():,} bytes")
 
         # self.x_vals = [(0*i) for i in range(num_sprites)]
@@ -156,47 +172,49 @@ class TestScreen(Screen):
         self.init_common()
         self.load_types()
 
-        test = 'scale_control'
+        test = 'grid1'
         self.check_mem()
         method = None
 
         if test == 'zoom_heart':
-            self.sprite_type = SPRITE_TEST_HEART
+            self.sprite_id = SPRITE_TEST_HEART
             self.load_sprite(SPRITE_TEST_HEART)
             self.init_beating_heart()
             method = self.do_refresh_zoom_in
         elif test == 'zoom_sq':
-            self.sprite_type = SPRITE_TEST_SQUARE
+            self.sprite_id = SPRITE_TEST_SQUARE
             self.load_sprite(SPRITE_TEST_SQUARE)
             self.init_beating_heart()
             method = self.do_refresh_zoom_in
         if test == 'scale_control':
-            self.sprite_type = SPRITE_TEST_HEART
-            self.load_sprite(SPRITE_TEST_HEART)
+            self.sprite_id = SPRITE_TEST_PYRAMID
+            self.load_sprite(SPRITE_TEST_PYRAMID)
             self.init_score()
             self.init_scale_control()
             method = self.do_refresh_scale_control
         elif test == 'grid1':
-            self.sprite_type = SPRITE_TEST_HEART
-            self.load_sprite(SPRITE_TEST_HEART)
-            self.init_grid()
             self.grid_beat = False
             self.fallout = False
+            self.color_demo = False
+
+            self.sprite_id = SPRITE_TEST_HEART
+            self.load_sprite(SPRITE_TEST_HEART)
+            self.init_grid()
             method = self.do_refresh_grid
         elif test == 'grid2':
-            self.sprite_type = SPRITE_TEST_SQUARE
+            self.sprite_id = SPRITE_TEST_SQUARE
             self.load_sprite(SPRITE_TEST_SQUARE)
             self.init_grid()
             self.grid_beat = False
             self.fallout = True
             method = self.do_refresh_grid
         elif test == 'grid3':
-            self.sprite_type = SPRITE_TEST_GRID
+            self.sprite_id = SPRITE_TEST_GRID
             self.load_sprite(SPRITE_TEST_GRID)
             self.init_grid()
             method = self.do_refresh_grid
         elif test == 'square':
-            self.sprite_type = SPRITE_TEST_SQUARE
+            self.sprite_id = SPRITE_TEST_SQUARE
             self.init_common(1)
             self.load_sprite(SPRITE_TEST_SQUARE)
             self.init_clipping_square()
@@ -216,15 +234,6 @@ class TestScreen(Screen):
 
         asyncio.run(self.start_main_loop())
 
-    def preload_images(self):
-        images = [
-            # {"name": "bike_sprite.bmp", "width": 32, "height": 22, "color_depth": 4},
-            # {"name": "laser_wall.bmp", "width": 24, "height": 10, "color_depth": 4},
-            # {"name": "laser_orb_grey.bmp", "width": 16, "height": 16, "color_depth": 4},
-        ]
-
-        ImageLoader.load_images(images, self.display)
-
     async def start_main_loop(self):
         print("-- ... MAIN LOOP STARTING ...")
         self.check_mem()
@@ -243,14 +252,15 @@ class TestScreen(Screen):
         # update loop - will run until task cancellation
         try:
             while True:
-                self.last_update_ms = now = utime.ticks_ms()
-                elapsed = utime.ticks_diff(now, self.last_update_ms) + 1
-
-                # self.mgr.update(elapsed)
+                last_update_ms = now = utime.ticks_ms()
+                elapsed = utime.ticks_diff(now, self.last_update_ms)
+                if elapsed:
+                    self.mgr.update(elapsed)
+                    self.last_update_ms = last_update_ms
 
                 # Tweaking this number can give FPS gains / give more frames to `elapsed`, avoiding near zero
                 # errors
-                await asyncio.sleep(1)
+                await asyncio.sleep_ms(10)
 
         except asyncio.CancelledError:
             return False
@@ -263,10 +273,14 @@ class TestScreen(Screen):
         self.mgr = self.create_sprite_manager(num_sprites)
 
     def init_grid(self):
-        # self.sprite = self.mgr.get_meta(self.sprite)
+        # meta = self.mgr.get_meta(self.sprite)
+        self.inst, idx = self.mgr.pool.get(self.sprite_id, self.sprite)
+
         sprite_width = self.sprite.width
         sprite_height = self.sprite.height
-        self.image = self.mgr.sprite_images[self.sprite_type][-1]
+        self.image = self.mgr.sprite_images[self.sprite_id][-1]
+
+        print(f"RIGHT NOW IMAGE.palette is: {addressof(self.image.palette.palette)}")
 
         one_scales1 = list(self.one_scales.keys())
         one_scales1_rev = one_scales1.copy()
@@ -300,6 +314,9 @@ class TestScreen(Screen):
             self.scale_source = list(self.scale_source)
             self.scale_source_len = len(self.scale_source)
 
+        if self.color_demo:
+            self.color_len = len(self.rainbow_colors)
+
         """ Precache x/y (scale 1 only) """
         row_sep = sprite_width - 1
         col_sep = sprite_width
@@ -321,7 +338,7 @@ class TestScreen(Screen):
 
     def init_beating_heart(self):
         # self.sprite = self.mgr.get_meta(self.sprite)
-        self.image = self.mgr.sprite_images[self.sprite_type][-1]
+        self.image = self.mgr.sprite_images[self.sprite_id][-1]
 
         h_scales1 = list(self.all_scales.keys())
         h_scales1.sort()
@@ -336,7 +353,7 @@ class TestScreen(Screen):
         # self.sprite = self.mgr.get_meta(self.sprite)
         self.draw_x = self.display.width // 2
         self.draw_y = self.display.height // 2
-        self.image = self.mgr.sprite_images[self.sprite_type][-1]
+        self.image = self.mgr.sprite_images[self.sprite_id][-1]
 
         # init 4bit palette
         for i in range(16):
@@ -360,7 +377,6 @@ class TestScreen(Screen):
 
         default = 1
         self.scale_id = self.h_scales.index(default)
-        # self.scale_id = 0
 
         self.input_handler = input_rotary.InputRotary()
         self.input_handler.handler_right = self.scale_control_right
@@ -412,7 +428,7 @@ class TestScreen(Screen):
 
     def init_clipping_square(self):
         # self.sprite = self.mgr.get_meta(self.sprite)
-        self.image = self.mgr.sprite_images[self.sprite_type][-1]
+        self.image = self.mgr.sprite_images[self.sprite_id][-1]
         self.curr_dir = 'horiz'
         self.bounce_count = 0
 
@@ -437,14 +453,16 @@ class TestScreen(Screen):
 
         self.idx = 0
 
-        print(f"FOR RANGE: {self.num_cols} and {self.num_rows}")
+        inst = self.inst
+
+        color_demo = self.color_demo
+
         for c in range(self.num_cols):
             for r in range(self.num_rows):
-                print(f"idx at start: {self.idx}")  # Debug print
                 prof.start_profile('scaler.pre_draw')
 
-                draw_x = int(c * col_sep)
-                draw_y = int(r * row_sep)
+                inst.draw_x = c * col_sep
+                inst.draw_y = r * row_sep
 
                 if False or self.grid_beat or self.fallout:
                     scale_factor = (self.scale_id+self.idx) % self.scale_source_len
@@ -455,22 +473,22 @@ class TestScreen(Screen):
                     self.scaled_width = self.sprite.height * self.h_scale
                     self.scaled_height = self.sprite.height * self.v_scale
 
-                    draw_x, draw_y = self.scaler.center_sprite(self.scaled_width, self.scaled_height)
+                    # draw_x, draw_y = self.scaler.center_sprite(self.scaled_width, self.scaled_height)
                 prof.end_profile('scaler.pre_draw')
-
-                print(f"draw_x, draw_y {draw_x}, {draw_y}")
-                print(f"h_scale = {self.h_scale}")
-                print(f"v_scale = {self.v_scale}")
 
                 self.scaler.draw_sprite(
                     self.sprite,
-                    int(draw_x),
-                    int(draw_y),
+                    inst,
                     self.image,
                     h_scale=self.h_scale,
                     v_scale=self.v_scale)
 
                 self.idx = self.idx + 1
+
+                if color_demo:
+                    new_color = self.rainbow_colors[self.color_idx % self.color_len]
+                    self.sprite_palette.set_hex(3, new_color)
+                    self.color_idx += 1
 
         prof.start_profile('scaler.display_show')
 
@@ -498,7 +516,7 @@ class TestScreen(Screen):
         display_height = self.display.height
 
         draw_x = (display_width / 2) - (sprite_scaled_width / 2)
-        draw_y = (display_height - sprite_scaled_height) / 2
+        draw_y = (display_height / 2) - (sprite_scaled_height / 2)
 
         if self.scaler.debug:
             print("IN SCREEN about to draw_sprite:")
@@ -514,8 +532,7 @@ class TestScreen(Screen):
         self.display.fill(0x000000)
         self.scaler.draw_sprite(
             self.sprite,
-            int(draw_x),
-            int(draw_y),
+            self.inst,
             self.image,
             h_scale=h_scale,
             v_scale=v_scale)
@@ -542,8 +559,7 @@ class TestScreen(Screen):
         self.common_bg()
         self.scaler.draw_sprite(
             self.sprite,
-            int(x),
-            int(y),
+            self.inst,
             self.image,
             h_scale=h_scale,
             v_scale=v_scale)
@@ -564,11 +580,6 @@ class TestScreen(Screen):
         Do a demo of several diverse horizontal scale ratios
         """
         self.h_scales = [2]
-
-        h_scale = self.h_scales[self.scale_id % len(self.h_scales)]
-        v_scale = h_scale
-
-        draw_x = 48 - (self.scaled_width / 2)
 
         x_max = 96
         x_min = 0 - self.scaled_width
@@ -596,8 +607,7 @@ class TestScreen(Screen):
         self.display.fill(0x000000)
         self.scaler.draw_sprite(
             self.sprite,
-            int(self.draw_x),
-            int(self.draw_y),
+            self.inst,
             self.image,
             h_scale=self.h_scale,
             v_scale=self.v_scale)
@@ -717,31 +727,34 @@ class TestScreen(Screen):
     #         self.mgr.update(0)
     #         await asyncio.sleep(1 / 60)
 
-    def load_sprite(self, load_type):
-        sprite_type = load_type
-
-        self.sprite = self.mgr.get_sprite_type(sprite_type)
+    def load_sprite(self, sprite_type):
+        """ Creates images if not exist, returns meta"""
+        self.sprite = self.mgr.sprite_metadata[sprite_type]
+        self.sprite_palette = self.mgr.get_palette(sprite_type)
         self.sprite_img = self.mgr.sprite_images[sprite_type]
 
         return self.sprite
-
 
     def load_types(self):
         self.mgr.add_type(
             sprite_type=SPRITE_TEST_HEART,
             sprite_class=TestHeart)
 
-        self.mgr.add_type(
-            sprite_type=SPRITE_TEST_SQUARE,
-            sprite_class=TestSquare)
-
-        self.mgr.add_type(
-            sprite_type=SPRITE_TEST_GRID,
-            sprite_class=TestGrid)
-
-        self.mgr.add_type(
-            sprite_type=SPRITE_TEST_GRID_SPEED,
-            sprite_class=TestGrid)
+        # self.mgr.add_type(
+        #     sprite_type=SPRITE_TEST_SQUARE,
+        #     sprite_class=TestSquare)
+        #
+        # self.mgr.add_type(
+        #     sprite_type=SPRITE_TEST_GRID,
+        #     sprite_class=TestGrid)
+        #
+        # self.mgr.add_type(
+        #     sprite_type=SPRITE_TEST_GRID_SPEED,
+        #     sprite_class=TestGrid)
+        #
+        # self.mgr.add_type(
+        #     sprite_type=SPRITE_TEST_PYRAMID,
+        #     sprite_class=TestPyramid)
 
     def init_camera(self):
         # Camera

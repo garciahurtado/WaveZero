@@ -45,3 +45,33 @@ FPS:     79
 FPS:     89
 FPS:     91
 
+AFTER PREALLOCATE ARRAY (single sprite)
+
+func                             runs     avg ms          total ms
+--------------------------------------------------------------------
+scaler.draw_sprite               3085     2.6934           8309.20
+scaler.init_v_ctrl_blocks        3085     0.9780           3017.06
+scaler.init_dma_sprite           3085     0.2849            879.04
+scaler.init_interp_sprite        3085     0.2830            872.94
+scaler.scaled_width_height       3085     0.2502            771.77
+scaler.init_pio                  3085     0.2062            636.01
+scaler.fill_address_list         3085     0.1591            490.70
+scaler.wait_sleep                3085     0.1038            320.32
+scaler.create_address_array      3085     0.0926            285.61
+
+FPS:    104
+FPS:    104
+FPS:    104
+FPS:    104
+FPS:    103
+FPS:    103
+
+No profiler:
+
+FPS:    120
+FPS:    120
+FPS:    122
+FPS:    123
+
+
+

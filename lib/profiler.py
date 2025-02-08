@@ -5,7 +5,7 @@ import asyncio
 class Profiler():
     __slots__ = ()  # No instance attributes needed
     profile_labels = OrderedDict()
-    enabled = False
+    enabled = True
 
     @staticmethod
     def start_profile(label):

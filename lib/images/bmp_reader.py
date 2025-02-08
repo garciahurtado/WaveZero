@@ -5,10 +5,9 @@ import uctypes
 from framebuf import *
 from struct import unpack
 
-from color.framebuffer_palette import FramebufferPalette as BufPalette
+from colors.framebuffer_palette import FramebufferPalette as BufPalette
 from images.indexed_image import Image, create_image
-from color import color_util as colors
-
+from colors import color_util as colors
 
 class BMPReader():
     color_mode_map = {
@@ -116,7 +115,6 @@ class BMPReader():
         color_depth, num_colors = header.color_depth, header.num_colors
         palette_bytes = bytearray(num_colors * 2)
 
-        # print("READING PALETTE")
         if color_depth <= 8:
             palette = BufPalette(num_colors)
             for color_idx in range(num_colors):
@@ -129,9 +127,6 @@ class BMPReader():
                 # print(f"color bytes: 0x{color_bytes[0]:02x}{color_bytes[1]:02x}")
 
                 color = int.from_bytes(color_bytes[:2], "little")
-                palette_bytes[color_idx * 2] = color_bytes[0]
-                palette_bytes[color_idx * 2 + 1] = color_bytes[1]
-
                 palette.set_bytes(color_idx, color)
 
             return palette, palette_bytes

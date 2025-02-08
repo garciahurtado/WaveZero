@@ -82,7 +82,6 @@ def rgb_to_hex(rgb):
 
     return hex_color
 
-
 def hex_to_rgb(hex_value, inv=False):
     # Extract the red, green, and blue components
     red = (hex_value >> 16) & 0xFF
