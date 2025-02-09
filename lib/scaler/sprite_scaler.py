@@ -298,12 +298,11 @@ class SpriteScaler():
                 """ We need to offset base_read in order to clip vertically when generating addresses """
                 self.scaled_height += self.draw_y
                 skip_rows = abs(self.draw_y)
-                skip_rows = skip_rows / scale_y_one
+                skip_rows = int(skip_rows / scale_y_one)
                 skip_bytes_y = (skip_rows * sprite_width) // 2  # Integer division
-                self.base_read += skip_bytes_y + (1 if (skip_rows * sprite_width) % 2 else 0)  # Simulate ceil
-                self.base_read = int(self.base_read)
+                self.base_read += math.ceil(skip_bytes_y)
 
-                self.draw_y = 0
+
 
         if self.draw_x < 0 and scaled_width > frame_width: # we could probably defer this to an even lower number
                 """ We need to offset base_read in order to clip horizontally when generating addresses """
