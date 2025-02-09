@@ -5,11 +5,10 @@ import random
 
 from perspective_camera import PerspectiveCamera
 from scaler.sprite_scaler import SpriteScaler
-from screens.screen import Screen
+from screens.test_screen_base import TestScreenBase
 from sprites.sprite import Sprite
 from sprites2.sprite_manager_2d import SpriteManager2D
 from sprites2.sprite_types import SPRITE_TEST_HEART, SpriteType, SPRITE_TEST_SQUARE, SPRITE_TEST_GRID
-from sprites2.sprite_types import FLAG_PHYSICS, FLAG_ACTIVE, FLAG_VISIBLE
 from sprites2.test_grid import TestGrid
 from sprites2.test_heart import TestHeart
 from sprites2.test_square import TestSquare
@@ -17,16 +16,15 @@ from ssd1331_pio import SSD1331PIO
 from utils import dist_between
 from profiler import Profiler as prof
 import utime
-class TestScreenStarfield(Screen):
-    max_sprites = 20
+class TestScreenStarfield(TestScreenBase):
+    max_sprites = num_sprites = 10
     max_scale_id = 0
     max_scale_dot = 0
     max_dist = 0
 
     debug = False
     debug_inst = False
-    screen_width = SSD1331PIO.WIDTH
-    screen_height = SSD1331PIO.HEIGHT
+    fps_enabled = True
     scale_dist_factor = 120 # The higher this is, the slower the scale grows w/ distance
     # scale_dist_factor = 250 # The higher this is, the slower the scale grows w/ distance
     margin_px = 32
@@ -35,9 +33,6 @@ class TestScreenStarfield(Screen):
     def __init__(self, display, margin_px = 32):
         super().__init__(display, margin_px)
         self.init_camera()
-
-
-
         self.sprite_type = SPRITE_TEST_HEART
         self.mgr = SpriteManager2D(display, self.max_sprites, self.camera)
         self.mgr.bounds = self.bounds
@@ -60,6 +55,7 @@ class TestScreenStarfield(Screen):
 
         self.init_starfield()
 
+
     def init_camera(self):
         # Camera
         horiz_y: int = 16
@@ -78,8 +74,11 @@ class TestScreenStarfield(Screen):
             fov=90.0)
 
     def init_starfield(self):
+        self.init_fps()
+        self.init_score()
+
         self.load_types()
-        self.base_speed = 0.03
+        self.base_speed = 0.02
         self.sprite.set_default(speed=self.base_speed)
         self.sprite.set_default(flag_physics=True)
 
@@ -99,8 +98,8 @@ class TestScreenStarfield(Screen):
             mgr.phy.set_dir(inst, dir[0], dir[1])
 
         # self.meta = self.mgr.get_meta(mgr.pool.sprites[0])
-        self.meta = self.mgr.sprite_metadata[self.sprite_type]
-        self.image = self.mgr.sprite_images[self.sprite_type][-1]
+        self.meta = mgr.sprite_metadata[self.sprite_type]
+        self.image = mgr.sprite_images[self.sprite_type][-1]
 
         self.h_scale = self.v_scale = 1
         self.max_scale_id = len(self.scales)
@@ -121,7 +120,7 @@ class TestScreenStarfield(Screen):
             dist = dist_between(center[0], center[1], coords[0], coords[1])
             scale_id = self.find_scale_id(dist, exp=False)
 
-            # scale_id = 5 # DEBUG
+            # scale_id = 34 # DEBUG (x8)
             inst.scale = self.scales[scale_id]
 
             # if scale <= self.max_scale_dot:
@@ -145,7 +144,6 @@ class TestScreenStarfield(Screen):
             actual_height = self.sprite.height * inst.scale
 
             """ Only needed for bounds checking. Is there a better way? """
-            # pos_x, pos_y = self.mgr.get_pos(inst)
             coords = self.mgr.phy.get_pos(inst)
             pos_x, pos_y = coords[0], coords[1]
 
@@ -167,8 +165,7 @@ class TestScreenStarfield(Screen):
 
             self.scaler.draw_sprite(
                 self.sprite,
-                int(pos_x),
-                int(pos_y),
+                inst,
                 self.image,
                 h_scale=inst.scale,
                 v_scale=inst.scale)
@@ -207,10 +204,13 @@ class TestScreenStarfield(Screen):
         self.check_mem()
 
         """ The display loop goes to the background (as do any input loops, other animations, etc..) """
+
         loop = asyncio.get_event_loop()
         loop.create_task(self.start_display_loop())
 
-        print("-- Starting update_loop")
+        if self.fps_enabled:
+            self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
+
         asyncio.run(self.start_main_loop())
 
     def load_types(self):
@@ -258,7 +258,7 @@ class TestScreenStarfield(Screen):
 
                 # Tweaking this number can give FPS gains / give more frames to `ellapsed`, avoiding near zero
                 # errors
-                await asyncio.sleep(1/30)
+                await asyncio.sleep_ms(10)
 
         except asyncio.CancelledError:
             return False
@@ -274,7 +274,6 @@ class TestScreenStarfield(Screen):
 
         """ All top level tasks / threads go here. Once all of these finish, the program ends"""
         await asyncio.gather(
-            self.start_fps_counter(),
             self.update_loop(),
         )
 

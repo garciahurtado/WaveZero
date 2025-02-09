@@ -489,29 +489,7 @@ FPS:   7.95
 FPS:   7.88
 FPS:   7.80
 
-Profile Results:
-func                             runs     avg ms          total ms
---------------------------------------------------------------------
-scaler.init_interp_sprite        3072     1.4214           4366.65
-scaler.finish_sprite             3072     0.5240           1609.74
-scaler.fill_addrs                3072     0.5237           1608.81
-scaler.init_dma_sprite           3072     0.2146            659.40
-scaler.dma_pio                   3072     0.1817            558.19
-scaler.draw_sprite.scaled_dims   3072     0.1753            538.42
-scaler.select_buffer             3072     0.1748            536.91
-scaler.init_convert_fixed_point  3072     0.1610            494.74
-scaler.draw_sprite.init          3072     0.1161            356.76
-scaler.pre_draw                  3072     0.1127            346.12
-scaler.init_interp_sprite.lanes  3072     0.1047            321.77
-scaler.interp_cfg                3072     0.0852            261.83
-scaler.init_interp_sprite.cfg    3072     0.0800            245.72
-scaler.init_interp_sprite.clip   3072     0.0555            170.39
-scaler.draw_loop_init            128      1.2879            164.85
-scaler.display_show              128      0.2029             25.97
-scaler.init_pio                  1        0.1760              0.18
-
-
-
+---
 
 
 

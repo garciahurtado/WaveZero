@@ -5,7 +5,7 @@ import gc
 from _rp2 import StateMachine
 from time import sleep
 from uctypes import addressof
-from color import color_util as colors
+from colors import color_util as colors
 from sprites2.sprite_physics import SpritePhysics
 
 gc.collect()
@@ -86,8 +86,12 @@ class SpriteScaler():
         row_id = 0
 
         while row_id < int(max_read_addrs):
-            read_addrs[row_id] = mem32[INTERP1_POP_FULL]
-            write_addrs[row_id] = mem32[INTERP0_POP_FULL]
+            if row_id == 0:
+                read_addrs[row_id] = self.base_read
+                write_addrs[row_id] = self.framebuf.min_write_addr
+            else:
+                read_addrs[row_id] = mem32[INTERP1_POP_FULL]
+                write_addrs[row_id] = mem32[INTERP0_POP_FULL]
             row_id += 1
 
         read_addrs[row_id-1] = 0x00000000 # finish it with a NULL trigger
@@ -134,18 +138,20 @@ class SpriteScaler():
         prof.start_profile('scaler.interp_cfg')
         self.base_read = addressof(image.pixel_bytes)
 
-        self.min_read_addr = self.base_read
         prof.end_profile('scaler.interp_cfg')
 
         prof.start_profile('scaler.init_interp_sprite')
         self.init_interp_sprite(int(sprite.width), scaled_width, scaled_height, h_scale, v_scale)
 
         if self.debug_dma:
-            print(f"Drawing a sprite of {sprite.width}x{sprite.height} @ base addr 0x{self.framebuf.min_write_addr:08X}")
-            print(f"x/y: {self.draw_x}/{self.draw_y} ")
-            print(f"Hscale: x{h_scale} / Vscale: x{v_scale}")
-            print(f"Sprite Stride: {sprite.width // 2}")
-            print(f"Display Stride: { self.framebuf.display_stride}")
+            print(f"Drawing a sprite of {sprite.width}x{sprite.height} ")
+            print(f"\t img_src:    0x{self.base_read:08X}")
+            print(f"\t fb_target:  0x{self.framebuf.min_write_addr:08X}")
+            print()
+            print(f"\t x/y: {self.draw_x}/{self.draw_y} ")
+            print(f"\t Hscale: x{h_scale} / Vscale: x{v_scale}")
+            print(f"\t Sprite Stride: {sprite.width // 2}")
+            print(f"\t Display Stride: { self.framebuf.display_stride}")
 
         prof.end_profile('scaler.init_interp_sprite')
 
@@ -173,9 +179,6 @@ class SpriteScaler():
         prof.start_profile('scaler.dma_pio')
         self.dma.start()
         self.sm_read_palette.active(1)
-
-        while not self.dma.read_finished:
-            pass
 
         self.finish_sprite()
 
@@ -295,9 +298,10 @@ class SpriteScaler():
                 """ We need to offset base_read in order to clip vertically when generating addresses """
                 self.scaled_height += self.draw_y
                 skip_rows = abs(self.draw_y)
-                skip_rows = int(skip_rows / scale_y_one)
+                skip_rows = skip_rows / scale_y_one
                 skip_bytes_y = (skip_rows * sprite_width) // 2  # Integer division
                 self.base_read += skip_bytes_y + (1 if (skip_rows * sprite_width) % 2 else 0)  # Simulate ceil
+                self.base_read = int(self.base_read)
 
                 self.draw_y = 0
 
@@ -314,8 +318,8 @@ class SpriteScaler():
                 self.draw_x = math.ceil(-extra_px_diff)
                 # self.draw_x = 0
 
-                if self.debug_dma:
-                    print(f"CLIPPING: (-x)")
+                if self.debug_interp:
+                    print(f"CLIPPING: (-X)")
                     print(f"\tnew_draw_x:           {self.draw_x}")
                     print(f"\textra_px:             {extra_px}")
                     print(f"\textra_px_read:        {extra_px_read}")
@@ -327,17 +331,43 @@ class SpriteScaler():
 
         # Configure remaining variables
         prof.start_profile('scaler.init_convert_fixed_point')
-        self.init_convert_fixed_point(int(sprite_width), scale_x_one)
+        # frac_bits = int(self.frac_bits)
+        # read_step = sprite_width / scale_x_one
+        # read_step = math.ceil(read_step / 2)  # Because of 2px per byte
+
+        self._init_convert_fixed_point(sprite_width, scale_x_one)
+
+        # Ensure step is even
+        # read_step = read_step if read_step % 2 else read_step + 1
+        # fixed_step = (sprite_width << self.frac_bits) // (scale_x_one * 2)  # Convert to fixed point directly
+
+
+        # fixed_step = int((1 << frac_bits) * read_step)  # Convert step to fixed point
+        # if fixed_step % 2:
+        #     fixed_step -= 1
+        #
+        # if self.debug_interp:
+        #     print(f"INTERP read_step: {read_step}")
+        #     print(f"INTERP fixed_step: {int(fixed_step)}")
+        #     print(f"INTERP base_read: {int(self.base_read):08x}")
+        #
+        # mem32[INTERP1_BASE1] = int(fixed_step)
+        # mem32[INTERP1_BASE2] = int(self.base_read)  # Base sprite read address
+
         prof.end_profile('scaler.init_convert_fixed_point')
 
-    @micropython.viper
-    def init_convert_fixed_point(self, sprite_width, scale_x_one):
+    # @micropython.viper
+    def _init_convert_fixed_point(self, sprite_width, scale_x_one):
         # Precompute constants if possible
         # Assuming sprite_width, scale_x_one, and frac_bits are constants or precomputed
-        read_step = (int(sprite_width) << int(self.frac_bits)) // (int(scale_x_one) * 2)  # Convert to fixed point directly
+        # read_step = sprite_width / scale_x_one
+        # read_step = read_step / 2 # Because of 2px per byte
+        # Ensure step is even
+        # read_step = read_step if (read_step % 2 == 0) else read_step - 1
+        fixed_step = int((sprite_width << self.frac_bits) / (scale_x_one * 2))  # Convert to fixed point directly
 
-        # Ensure fixed_step is even
-        fixed_step = read_step if read_step % 2 == 0 else read_step - 1
+        # fixed_step = int((1 << frac_bits) * read_step) # Convert step to fixed point
+        fixed_step = fixed_step if (fixed_step % 2 == 0) else fixed_step - 1
 
         mem32[INTERP1_BASE1] = int(fixed_step)
         mem32[INTERP1_BASE2] = self.base_read  # Base sprite read address
@@ -369,7 +399,6 @@ class SpriteScaler():
         mem32[INTERP1_ACCUM1] = 0
         prof.end_profile('scaler.finish.reset_interp')
 
-        self.min_read_addr = 0
         self.row_id = 0
         self.scaled_width = 0
         self.scaled_height = 0

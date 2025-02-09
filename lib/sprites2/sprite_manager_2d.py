@@ -1,3 +1,6 @@
+import math
+
+from images.image_loader import ImageLoader
 from profiler import Profiler
 from sprites2.sprite_manager import SpriteManager
 from sprites2.sprite_types import SpriteType as types, SpriteType, FLAG_PHYSICS, FLAG_ACTIVE
@@ -11,7 +14,7 @@ class SpriteManager2D(SpriteManager):
     hierarchy should probably be the other way around)
     """
     last_update_ms = 0
-    
+
     def update(self, elapsed):
         """ The order here is very important """
         if not elapsed:
@@ -22,7 +25,7 @@ class SpriteManager2D(SpriteManager):
         while current:
             prof.start_profile('mgr.update_one_sprite()')
             sprite = current.sprite
-            kind = kinds[sprite.sprite_id]
+            kind = kinds[sprite.sprite_type]
 
             self.update_sprite(sprite, kind, elapsed)
 
@@ -56,12 +59,24 @@ class SpriteManager2D(SpriteManager):
 
         if self.debug_inst:
             print("2D UPDATE SPRITE:")
-            print(f"  Dir {dir}")
-            print(f"  Speed {sprite.speed}")
-            print(f"  Elapsed {elapsed}")
-            print(f"  FORMULA: new_y += sprite.speed * dir_y * elapsed")
+            print(f"  Dir:   {sprite.dir_x},{sprite.dir_y}")
+            print(f"  Speed: {sprite.speed}")
+            print(f"  Elaps. {elapsed}")
+            print(f"  (new_y += sprite.speed * dir_y * elapsed)")
 
         return True
+
+    def load_img_and_scale(self, meta, sprite_type):
+        """ Overrides parent to get rid of preloaded scaled sprite frames from v1 """
+        orig_img = ImageLoader.load_image(meta.image_path, meta.width, meta.height)
+        if isinstance(orig_img, list):
+            orig_img = orig_img[0]
+
+        self.sprite_palettes[sprite_type] = orig_img.palette
+        meta.palette = orig_img.palette
+        self.set_alpha_color(meta)
+        img_list = [orig_img] # Legacy
+        return img_list
 
     def is_within_bounds(self, coords):
         x, y = coords

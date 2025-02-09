@@ -11,7 +11,7 @@ import micropython
 from ssd1331_pio import SSD1331PIO
 
 class Screen:
-    debug = False
+    debug = True
     display = None
     bounds = None
     margin_px = 0
@@ -74,6 +74,23 @@ class Screen:
         await asyncio.gather(
             self.update_loop(),
         )
+
+    async def start_fps_counter(self):
+        await asyncio.sleep(5) # wait for things to stabilize first
+
+        while True:
+            fps = self.fps.fps()
+            if fps is False:
+                pass
+            else:
+                fps_str = "{: >6.2f}".format(fps)
+                print(f"FPS: {fps_str}")
+
+                # # ColorWriter.set_textpos(self.display.write_framebuf, 0, 0)
+                # self.fps_text.row_clip = True
+                # self.fps_text.render_text(fps_str)
+
+            await asyncio.sleep(1)
 
     def do_refresh(self):
         """blocking, non-looping, version of refresh_display(), for when you need a refresh in a specific

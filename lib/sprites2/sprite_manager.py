@@ -110,8 +110,6 @@ class SpriteManager:
         self.sprite_metadata[sprite_type] = type_obj
         self.sprite_palettes[sprite_type] = new_img[0].palette
 
-        print(f"NEW PALETTE ADDED FOR TYPE: {sprite_type} :: {new_img[0].palette}")
-
         """ set the default values that will be used when creating new instances (reset) """
         for key in default_args.keys():
             if key in dir(sprite_class):
@@ -164,7 +162,7 @@ class SpriteManager:
         if ('width' in kwargs and 'height' in kwargs):
             meta.num_frames = max(kwargs['width'], kwargs['height'])
 
-        new_sprite.sprite_id = sprite_type
+        new_sprite.sprite_type = sprite_type
 
         """ Load image and create scaling frames """
         if sprite_type not in self.sprite_images:

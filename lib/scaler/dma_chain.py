@@ -169,7 +169,7 @@ class DMAChain:
 
     def start(self):
         """Activate DMA channels in correct sequence."""
-        # self.h_scale.active(1)
+        self.h_scale.active(1)
         self.write_addr.active(1)
 
     def reset(self):

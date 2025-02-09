@@ -10,7 +10,9 @@ from uctypes import addressof
 import input_rotary
 
 from scaler.sprite_scaler import SpriteScaler
-from screens.screen import Screen
+from screens.test_screen_base import TestScreenBase
+from sprites2.sprite_physics import SpritePhysics
+from sprites2.test_pyramid import TestPyramid
 
 from sprites2.test_square import TestSquare
 from sprites2.test_heart import TestHeart
@@ -21,8 +23,6 @@ from sprites2.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART, SPRITE_
     SpriteType, SPRITE_TEST_PYRAMID
 
 from profiler import Profiler as prof
-import fonts.vtks_blocketo_6px as font_vtks
-from font_writer_new import ColorWriter
 
 import utime
 import uasyncio as asyncio
@@ -41,13 +41,11 @@ GREY =  0x444444
 YELLOW = 0xFFFF00
 WHITE = 0xFFFFFF
 
-class TestScreen(Screen):
-    debug = True
+class TestScreen(TestScreenBase):
+    debug = False
     debug_inst = False
     fps_enabled = True
     fps_counter_task = None
-    grid_center = False
-    grid_lines = False
     color_idx = 0
     color_len = 0
     color_demo = False
@@ -82,11 +80,8 @@ class TestScreen(Screen):
     scaler_num_sprites = 1
     sprite_max_z = 1000
     display_task = None
-    grid_color = colors.hex_to_565(0x00FF00)
-    grid_lines_color = colors.hex_to_565(0x0b2902)
 
     last_perf_dump_ms = None
-    fps_text: ColorWriter
     instances = []
     lines = []
     # line_color = colors.hex_to_rgb(0xFFFFFF)
@@ -107,7 +102,6 @@ class TestScreen(Screen):
         0xFF00FF,  # Magenta
     ]
 
-    score_palette = FramebufferPalette(16, color_mode=fb.GS4_HMSB)
     mgr = None
 
     sprite = None # SpriteType (not instance)
@@ -140,7 +134,6 @@ class TestScreen(Screen):
         self.sprite_scales = [random.choice(range(0, 9)) for _ in range(self.num_sprites)]
 
         self.init_camera()
-        # self.init_fps()
         self.create_lines()
 
         self.scaler = SpriteScaler(self.display)
@@ -159,7 +152,6 @@ class TestScreen(Screen):
         self.fallout = False
         self.speed_vectors = []
 
-
     def create_sprite_manager(self, num_sprites=0):
         self.check_mem()
         print("-- Creating Sprite Manager...")
@@ -172,7 +164,7 @@ class TestScreen(Screen):
         self.init_common()
         self.load_types()
 
-        test = 'grid1'
+        test = 'scale_control'
         self.check_mem()
         method = None
 
@@ -351,9 +343,13 @@ class TestScreen(Screen):
 
     def init_scale_control(self):
         # self.sprite = self.mgr.get_meta(self.sprite)
+        self.init_fps()
+        self.inst, idx = self.mgr.pool.get(self.sprite_id, self.sprite)
+
         self.draw_x = self.display.width // 2
         self.draw_y = self.display.height // 2
         self.image = self.mgr.sprite_images[self.sprite_id][-1]
+
 
         # init 4bit palette
         for i in range(16):
@@ -363,14 +359,6 @@ class TestScreen(Screen):
                 self.score_palette.set_bytes(i, WHITE)
             else:
                 self.score_palette.set_bytes(i, WHITE)
-
-        # init 4bit palette
-
-        inv = True
-        # self.score_palette.set_rgb(0, colors.hex_to_rgb(BLACK, inv=inv))
-        # self.score_palette.set_rgb(1, colors.hex_to_rgb(YELLOW, inv=inv))
-        # self.score_palette.set_rgb(2, colors.hex_to_rgb(CYAN, inv=inv))
-        # self.score_palette.set_rgb(3, colors.hex_to_rgb(WHITE, inv=inv))
 
         self.h_scales = list(self.all_scales.keys())
         self.h_scales.sort()
@@ -400,31 +388,6 @@ class TestScreen(Screen):
                 scale = self.h_scales[self.scale_id]
                 self.sprite.scale = scale
                 print(f"S: {scale:.03f}")
-
-    def init_score(self):
-        self.score_text = ColorWriter(
-            font_vtks,
-            36, 6,
-            self.score_palette,
-            fixed_width=4,
-            color_format=fb.GS4_HMSB
-        )
-        self.score_text.orig_x = 68
-        self.score_text.orig_y = 0
-        self.score_text.visible = True
-
-        return self.score_text
-
-    async def update_score(self):
-        while True:
-            new_score = 100
-            if new_score == self.score:
-                return False
-
-            self.score = new_score
-
-            await asyncio.sleep(1)
-
 
     def init_clipping_square(self):
         # self.sprite = self.mgr.get_meta(self.sprite)
@@ -551,11 +514,12 @@ class TestScreen(Screen):
 
         h_scale = self.h_scales[self.scale_id]
         self.sprite.scale = v_scale = h_scale
+        # self.sprite.scale = v_scale = h_scale = 3.750
+        # self.sprite.scale = v_scale = h_scale = 3
 
         scaled_width = scaled_height = int(h_scale * self.sprite.height)
-        # draw_x, draw_y = SpritePhysics.get_draw_pos(self.draw_x, self.draw_y, scaled_width=scaled_width, scaled_height=scaled_height)
-        x, y = 48, 32
-
+        self.inst.x, self.inst.y = 48, 32
+        self.inst.draw_x, self.inst.draw_y = SpritePhysics.get_draw_pos(self.inst, scaled_width=scaled_width, scaled_height=scaled_height)
         self.common_bg()
         self.scaler.draw_sprite(
             self.sprite,
@@ -621,26 +585,6 @@ class TestScreen(Screen):
         self.fps.tick()
 
 
-    def common_bg(self):
-        self.display.fill(0x000000)
-        width = self.screen_width
-        height = self.screen_height
-
-        if self.grid_lines:
-            # Vertical lines
-            for x in range(0, width, 8):
-                self.display.line(x, 0, x, height, self.grid_lines_color)
-            self.display.line(width-1, 0, width-1, height, self.grid_lines_color)
-
-            # Horiz lines
-            for y in range(0, height, 8):
-                self.display.line(0, y, width, y, self.grid_lines_color)
-            self.display.line(0, height-1, width, height-1, self.grid_lines_color)
-
-        if self.grid_center:
-            self.display.hline(0, height//2, width, self.grid_color)
-            self.display.line(width//2, 0, width//2, height, self.grid_color)
-
     async def flip_dir(self):
         while True:
             if self.slide_sel == 'horiz':
@@ -662,39 +606,6 @@ class TestScreen(Screen):
             idx = math.floor(random.randrange(0,3))
             color = self.line_colors[idx]
             self.lines.append([int(0), int(y_start-16), int(95), int(y_start), color])
-
-    def init_fps(self):
-        self.fps_text = ColorWriter(
-            font_vtks,
-            36, 6,
-            self.score_palette,
-            fixed_width=4,
-            color_format=fb.GS4_HMSB
-        )
-        self.fps_text.orig_x = 60
-        self.fps_text.orig_y = 0
-        self.fps_text.visible = True
-
-        return self.fps_text
-
-    async def start_fps_counter(self):
-        await asyncio.sleep(5) # wait for things to stabilize first
-
-        while True:
-            fps = self.fps.fps()
-            if fps is False:
-                pass
-            else:
-                # num = self.mgr.pool.active_count
-                # print(f"FPS: {fps_str} / {num} sprites")
-                fps_str = "{: >6.2f}".format(fps)
-                print(f"FPS: {fps_str}")
-
-                # # ColorWriter.set_textpos(self.display.write_framebuf, 0, 0)
-                # self.fps_text.row_clip = True
-                # self.fps_text.render_text(fps_str)
-
-            await asyncio.sleep(1)
 
     async def sprite_fps_test(self):
         # self.create_sprites()
@@ -740,21 +651,17 @@ class TestScreen(Screen):
             sprite_type=SPRITE_TEST_HEART,
             sprite_class=TestHeart)
 
-        # self.mgr.add_type(
-        #     sprite_type=SPRITE_TEST_SQUARE,
-        #     sprite_class=TestSquare)
-        #
-        # self.mgr.add_type(
-        #     sprite_type=SPRITE_TEST_GRID,
-        #     sprite_class=TestGrid)
-        #
-        # self.mgr.add_type(
-        #     sprite_type=SPRITE_TEST_GRID_SPEED,
-        #     sprite_class=TestGrid)
-        #
-        # self.mgr.add_type(
-        #     sprite_type=SPRITE_TEST_PYRAMID,
-        #     sprite_class=TestPyramid)
+        self.mgr.add_type(
+            sprite_type=SPRITE_TEST_SQUARE,
+            sprite_class=TestSquare)
+
+        self.mgr.add_type(
+            sprite_type=SPRITE_TEST_GRID,
+            sprite_class=TestGrid)
+
+        self.mgr.add_type(
+            sprite_type=SPRITE_TEST_PYRAMID,
+            sprite_class=TestPyramid)
 
     def init_camera(self):
         # Camera

@@ -27,7 +27,6 @@ def dist_between(from_x, from_y, to_x, to_y):
 
 def is_point_within_bounds(point, bounds):
     x, y = point[0], point[1]
-    bounds = bounds
 
     if  (bounds.left <= x <= bounds.right) and \
         (bounds.top <= y <= bounds.bottom):

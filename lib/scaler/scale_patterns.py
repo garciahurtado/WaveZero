@@ -26,16 +26,21 @@ class ScalePatterns:
         """
         steps tested = 0.016, 0.032, 0.064, 0.125, 0.250, 0.500
         """
+        patterns_all = {}
+
         patterns1 = self.create_patterns(0, 1, step=0.125)
         patterns2 = self.create_patterns(1, 4, step=0.250)
         patterns3 = self.create_patterns(4, 8, step=0.250)
-        patterns4 = self.create_patterns(8, 16, step=0.500)
+        patterns4 = self.create_patterns(8, 14, step=0.500)
+        patterns5 = self.create_patterns(14, 24, step=1)
 
-        patterns1.update(patterns2)
-        patterns1.update(patterns3)
-        patterns1.update(patterns4)
+        patterns_all |= patterns1
+        patterns_all |= patterns2
+        patterns_all |= patterns3
+        patterns_all |= patterns4
+        patterns_all |= patterns5
 
-        self.horiz_patterns = patterns1
+        self.horiz_patterns = patterns_all
         return self.horiz_patterns
 
     def create_patterns(self, from_scale, to_scale, step=0.125):
