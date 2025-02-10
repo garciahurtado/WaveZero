@@ -27,12 +27,12 @@ gc.collect()
 class SpriteScaler():
     def __init__(self, display):
         """ Debugging """
-        self.debug = False
-        self.debug_dma = False
+        self.debug = True
+        self.debug_dma = True
         self.debug_dma_ch = False
         self.debug_pio = False
         self.debug_irq = False
-        self.debug_interp = False
+        self.debug_interp = True
         self.debug_interp_list = False
         self.debug_scale_patterns = False
         self.debug_with_debug_bytes = False
@@ -49,7 +49,7 @@ class SpriteScaler():
         self.draw_y = 0
         self.alpha = None
 
-        self.dma = DMAChain(self, display)
+        self.dma = DMAChain(self, display, extra_write_addrs=self.framebuf.extra_subpx_top)
         self.dma.dbg = self.dbg
 
         self.scaled_height = 0
@@ -103,12 +103,8 @@ class SpriteScaler():
         Draw a scaled sprite at the specified position.
         This method is synchronous (will not return until the whole sprite has been drawn)
         """
-        self.draw_x = x = inst.draw_x
-        self.draw_y = y = inst.draw_y
 
         prof.start_profile('scaler.draw_sprite.init')
-        if self.debug:
-            print(f"ABOUT TO DRAW a Sprite on x,y: {x},{y} @ H: {h_scale}x / V: {v_scale}x")
 
         self.alpha = sprite.alpha_color
         self.dma.read_finished = False
@@ -128,6 +124,16 @@ class SpriteScaler():
         scaled_width = int(sprite.width * h_scale)
         prof.end_profile('scaler.draw_sprite.scaled_dims')
 
+        prof.start_profile('scaler.draw_sprite.draw_xy')
+        inst.draw_x, inst.draw_y = SpritePhysics.get_draw_pos(inst, scaled_width, scaled_height)
+        prof.end_profile('scaler.draw_sprite.draw_xy')
+
+        self.draw_x = int(inst.draw_x)
+        self.draw_y = int(inst.draw_y)
+
+        if self.debug:
+            print(f"ABOUT TO DRAW a Sprite on x,y: {self.draw_x},{self.draw_y} @ H: {h_scale}x / V: {v_scale}x")
+
         prof.start_profile('scaler.select_buffer')
         self.framebuf.select_buffer(scaled_width, scaled_height)
         self.scaled_height = scaled_height
@@ -144,12 +150,15 @@ class SpriteScaler():
         self.init_interp_sprite(int(sprite.width), scaled_width, scaled_height, h_scale, v_scale)
 
         if self.debug_dma:
+            coords = SpritePhysics.get_pos(inst)
+
             print(f"Drawing a sprite of {sprite.width}x{sprite.height} ")
             print(f"\t img_src:    0x{self.base_read:08X}")
             print(f"\t fb_target:  0x{self.framebuf.min_write_addr:08X}")
             print()
-            print(f"\t x/y: {self.draw_x}/{self.draw_y} ")
-            print(f"\t Hscale: x{h_scale} / Vscale: x{v_scale}")
+            print(f"\t x/y: {coords[0]}/{coords[1]} ")
+            print(f"\t draw_x/draw_y: {self.draw_x}/{self.draw_y} ")
+            print(f"\t H scale: x{h_scale} / V scale: x{v_scale}")
             print(f"\t Sprite Stride: {sprite.width // 2}")
             print(f"\t Display Stride: { self.framebuf.display_stride}")
 
@@ -228,7 +237,7 @@ class SpriteScaler():
         prof.end_profile('scaler.dma_pio')
 
         prof.start_profile('scaler.finish_sprite')
-        self.framebuf.blit_with_alpha(self.draw_x, self.draw_y, self.alpha)
+        self.framebuf.blit_with_alpha(int(self.draw_x), int(self.draw_y), self.alpha)
 
         prof.start_profile('scaler.finish_sprite.reset')
         self.reset()
@@ -269,16 +278,8 @@ class SpriteScaler():
         frac_bits = self.frac_bits
         framebuf = self.framebuf
 
-        """ Avoid division by zero """
-        if not scale_y_one:
-            scale_y_one = 0.0001
-
-        if not scale_x_one:
-            scale_x_one = 0.0001
-
         write_base = self.framebuf.min_write_addr
-        frame_width = framebuf.frame_width
-        frame_height = framebuf.frame_height
+
         prof.end_profile('scaler.init_interp_sprite.cfg')
 
 
@@ -294,14 +295,76 @@ class SpriteScaler():
         """ HANDLE BOUNDS CHECK / CROPPING ------------------------  """
 
         prof.start_profile('scaler.init_interp_sprite.clip')
-        if self.draw_y < 0 and scaled_height > frame_height:
+        self.interp_clip(sprite_width, scaled_width, scaled_height, scale_x_one, scale_y_one)
+        prof.end_profile('scaler.init_interp_sprite.clip')
+
+        # Configure remaining variables
+        prof.start_profile('scaler.init_convert_fixed_point')
+        # frac_bits = int(self.frac_bits)
+        # read_step = sprite_width / scale_x_one
+        # read_step = math.ceil(read_step / 2)  # Because of 2px per byte
+
+        fixed_step = self.init_convert_fixed_point(sprite_width, scale_x_one)
+        mem32[INTERP1_BASE1] = int(fixed_step)
+        mem32[INTERP1_BASE2] = self.base_read  # Base sprite read address
+
+        # Ensure step is even
+        # read_step = read_step if read_step % 2 else read_step + 1
+        # fixed_step = (sprite_width << self.frac_bits) // (scale_x_one * 2)  # Convert to fixed point directly
+
+        if self.debug_interp:
+            print(f"INTERP sprite_width: {sprite_width}")
+            print(f"INTERP fixed_step: {int(fixed_step)}")
+            print(f"INTERP base_read: {int(self.base_read):08x}")
+        #
+        mem32[INTERP1_BASE1] = int(fixed_step)
+        mem32[INTERP1_BASE2] = int(self.base_read)  # Base sprite read address
+
+        prof.end_profile('scaler.init_convert_fixed_point')
+
+    def interp_clip(self, sprite_width, scaled_width, scaled_height, scale_x_one, scale_y_one):
+        """ Handles the clipping of very large sprites so that they can be rendered.
+        Overflow in the Y coordinate will lead to skipping rows, and overflow in the X coordinate will lead to
+        increased start addr of each row (1 byte/2px at a time) """
+        framebuf = self.framebuf
+        frame_width = framebuf.frame_width
+        frame_height = framebuf.frame_height
+
+        """ Avoid division by zero """
+        if not scale_x_one:
+            scale_x_one = 0.0001
+
+        if not scale_y_one:
+            scale_y_one = 0.0001
+
+        if (    self.draw_y < 0 and
+                scaled_height >= self.framebuf.max_height):
+
+                skip_rows = int(abs(self.draw_y) / scale_y_one)
+                modulo = self.draw_y % scale_y_one
+                self.draw_y = -modulo
+                # self.draw_y += skip_rows * scale_y_one
+
                 """ We need to offset base_read in order to clip vertically when generating addresses """
-                self.scaled_height += self.draw_y
-                skip_rows = abs(self.draw_y)
-                skip_rows = int(skip_rows / scale_y_one)
+                # self.scaled_height += self.draw_y
+                # skip_rows = abs(self.draw_y)
+                #
+                # if skip_rows > scale_y_one:
+                #     modulo = skip_rows % scale_y_one
+                #     self.draw_y = -modulo
+                #
+                # skip_rows = int(skip_rows / scale_y_one)
                 skip_bytes_y = (skip_rows * sprite_width) // 2  # Integer division
+
                 self.base_read += math.ceil(skip_bytes_y)
 
+                if self.debug_interp:
+                    print(f"CLIPPING: (-Y)")
+                    print(f"\tnew_draw_y:           {self.draw_y}")
+                    print(f"\tmodulo:               {modulo}")
+                    print(f"\tskip_rows:            {skip_rows}")
+                    print(f"\tskip_bytes_y:         {skip_bytes_y}")
+                    print(f"\tbase_read after:      0x{self.base_read:08X}")
 
 
         if self.draw_x < 0 and scaled_width > frame_width: # we could probably defer this to an even lower number
@@ -326,37 +389,8 @@ class SpriteScaler():
                     print(f"\textra_px_diff:        {extra_px_diff}")
                     print(f"\tbase_read after:      0x{self.base_read:08X}")
 
-        prof.end_profile('scaler.init_interp_sprite.clip')
-
-        # Configure remaining variables
-        prof.start_profile('scaler.init_convert_fixed_point')
-        # frac_bits = int(self.frac_bits)
-        # read_step = sprite_width / scale_x_one
-        # read_step = math.ceil(read_step / 2)  # Because of 2px per byte
-
-        self._init_convert_fixed_point(sprite_width, scale_x_one)
-
-        # Ensure step is even
-        # read_step = read_step if read_step % 2 else read_step + 1
-        # fixed_step = (sprite_width << self.frac_bits) // (scale_x_one * 2)  # Convert to fixed point directly
-
-
-        # fixed_step = int((1 << frac_bits) * read_step)  # Convert step to fixed point
-        # if fixed_step % 2:
-        #     fixed_step -= 1
-        #
-        # if self.debug_interp:
-        #     print(f"INTERP read_step: {read_step}")
-        #     print(f"INTERP fixed_step: {int(fixed_step)}")
-        #     print(f"INTERP base_read: {int(self.base_read):08x}")
-        #
-        # mem32[INTERP1_BASE1] = int(fixed_step)
-        # mem32[INTERP1_BASE2] = int(self.base_read)  # Base sprite read address
-
-        prof.end_profile('scaler.init_convert_fixed_point')
-
     # @micropython.viper
-    def _init_convert_fixed_point(self, sprite_width, scale_x_one):
+    def init_convert_fixed_point(self, sprite_width, scale_x_one):
         # Precompute constants if possible
         # Assuming sprite_width, scale_x_one, and frac_bits are constants or precomputed
         # read_step = sprite_width / scale_x_one
@@ -367,9 +401,8 @@ class SpriteScaler():
 
         # fixed_step = int((1 << frac_bits) * read_step) # Convert step to fixed point
         fixed_step = fixed_step if (fixed_step % 2 == 0) else fixed_step - 1
+        return fixed_step
 
-        mem32[INTERP1_BASE1] = int(fixed_step)
-        mem32[INTERP1_BASE2] = self.base_read  # Base sprite read address
 
     @micropython.viper
     def init_interp_lanes(self, frac_bits:int, int_bits:int, display_stride:int, write_base:int):

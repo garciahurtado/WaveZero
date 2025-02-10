@@ -14,15 +14,15 @@ class InputRotary:
     pin_dt   = 26
     pin_clk  = 27
 
-    def __init__(self):
+    def __init__(self, half_step=False):
         self.last_pos = 0
-        self.init_input()
+        self.init_input(half_step)
 
-    def init_input(self):
+    def init_input(self, half_step):
         self.encoder = RotaryIRQ(
             self.pin_clk,
             self.pin_dt,
-            half_step=False,
+            half_step=half_step,
             incr=1
         )
         self.encoder.add_listener(("read_input", self))

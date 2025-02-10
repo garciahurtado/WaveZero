@@ -15,7 +15,8 @@ HSCALE_DMA_BASE = DMA_BASE_7
 PX_READ_BYTE_SIZE = 4 # Bytes per word in the pixel reader
 class DMAChain:
 
-    def __init__(self, scaler, display:SSD1331PIO):
+    def __init__(self, scaler, display:SSD1331PIO, extra_write_addrs=0):
+        """ extra_read_addrs: additional rows in the margin of the full screen buffer"""
         self.dbg = None
         self.scaler = scaler
         self.px_per_tx = PX_READ_BYTE_SIZE * 2
@@ -23,7 +24,7 @@ class DMAChain:
         self.read_count = 0
         self.addr_idx = 0
         self.max_sprite_height = 32
-        self.max_write_addrs = self.max_read_addrs = display.HEIGHT + 1
+        self.max_write_addrs = self.max_read_addrs = display.HEIGHT + extra_write_addrs
 
         self.patterns = ScalePatterns()
 

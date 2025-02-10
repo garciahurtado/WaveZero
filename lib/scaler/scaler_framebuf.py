@@ -13,14 +13,19 @@ class ScalerFramebuf():
         In order to support very high scales, increase this number to avoid early clipping """
     extra_width = extra_height = 32
 
+    """ Because we can only read source pixels in whole rows, even when upscaling, if the upscaled pixel falls in the 
+    middle of the bounds, we have to have an additional buffer to render the out of bounds portion. This margin should
+    never need to be more than (max_scale / 2) """
+    extra_subpx_top = extra_subpx_left = 16
+
     display:SSD1331PIO
-    max_width = SSD1331PIO.WIDTH
-    height = max_height = int(SSD1331PIO.HEIGHT)
+    max_width = int(SSD1331PIO.WIDTH) + extra_subpx_left
+    max_height = int(SSD1331PIO.HEIGHT) + extra_subpx_top
 
     debug = False
     frame_width = 0
     frame_height = 0
-    scratch_size = height * (max_width + extra_width) * 2
+    scratch_size = max_width * max_height * 2
     scratch_bytes = bytearray(scratch_size)  # scratch framebuf, declared early on when more memory is available
     scratch_addr = addressof(scratch_bytes)
     scratch_buffer = None
@@ -67,8 +72,8 @@ class ScalerFramebuf():
         self.scratch_buffer_64 = self.make_buffer(96, 64, mode)
         self.scratch_buffer_64.fill(self.fill_color)
 
-        # fullscreen - extra 32 px on the width to accommodate really large sprites with -x
-        self.scratch_buffer_full = self.make_buffer(self.max_width + self.extra_width, self.height, mode)
+        # fullscreen - extra 32 px on the width to accommodate really large sprites with -x (or -y)
+        self.scratch_buffer_full = self.make_buffer(self.max_width, self.max_height, mode)
         self.scratch_buffer_full.fill(self.fill_color)
 
     def make_buffer(self, width, height, mode):
@@ -102,14 +107,13 @@ class ScalerFramebuf():
             self.scratch_buffer = self.scratch_buffer_32
             self.frame_width = self.frame_height = 32
         else:
+            """ Full Screen buffer """
             self.scratch_buffer = self.scratch_buffer_full
-            self.frame_width = self.display.width + self.extra_width
-            self.frame_height = self.display.height
+            self.frame_width = self.display.width + self.extra_subpx_left
+            self.frame_height = self.display.height + self.extra_subpx_top
 
         self.scratch_buffer.fill(self.fill_color)
-        # self.display_stride = self.display_stride_cache[self.frame_width]
         self.display_stride = self.frame_width * 2
-        # self.frame_bytes = self.frame_bytes_cache[self.frame_height]
         self.frame_bytes = self.display_stride * self.frame_height
 
         prof.end_profile('scaler.select_buffer')

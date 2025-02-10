@@ -17,7 +17,7 @@ from utils import dist_between
 from profiler import Profiler as prof
 import utime
 class TestScreenStarfield(TestScreenBase):
-    max_sprites = num_sprites = 1
+    max_sprites = num_sprites = 10
     max_scale_id = 0
     max_scale_dot = 0
     max_dist = 0
@@ -25,7 +25,7 @@ class TestScreenStarfield(TestScreenBase):
     debug = False
     debug_inst = False
     fps_enabled = True
-    scale_dist_factor = 120 # The higher this is, the slower the scale grows w/ distance
+    scale_dist_factor = 140 # The higher this is, the slower the scale grows w/ distance
     # scale_dist_factor = 250 # The higher this is, the slower the scale grows w/ distance
     margin_px = 32
     vector_move = True # whether to move the sprites away from the center overtime, or keep them centered
@@ -76,10 +76,8 @@ class TestScreenStarfield(TestScreenBase):
     def init_starfield(self):
         self.init_fps()
         self.init_score()
-
         self.load_types()
-        self.base_speed = 0.002
-        self.base_speed = 0
+        self.base_speed = 0.005
         self.sprite.set_default(speed=self.base_speed)
         self.sprite.set_default(flag_physics=True)
 
@@ -96,7 +94,6 @@ class TestScreenStarfield(TestScreenBase):
 
         self.speed_vectors = self.random_vectors(self.max_sprites)
         for inst, dir in zip(mgr.pool.sprites, self.speed_vectors):
-            dir = [0,0]
             mgr.phy.set_dir(inst, dir[0], dir[1])
 
         # self.meta = self.mgr.get_meta(mgr.pool.sprites[0])
@@ -122,7 +119,7 @@ class TestScreenStarfield(TestScreenBase):
             dist = dist_between(center[0], center[1], coords[0], coords[1])
             scale_id = self.find_scale_id(dist, exp=False)
 
-            scale_id = 28 # DEBUG
+            # scale_id = 28 # DEBUG
             inst.scale = self.scales[scale_id]
 
             # if scale <= self.max_scale_dot:
@@ -149,7 +146,6 @@ class TestScreenStarfield(TestScreenBase):
             coords = self.mgr.phy.get_pos(inst)
             pos_x, pos_y = coords[0], coords[1]
 
-            # if not self.mgr.is_within_bounds([center_x, center_y]):
             if not self.mgr.is_within_bounds([pos_x, pos_y]):
                 self.mgr.release(inst, self.sprite)
                 if self.debug_inst:
@@ -162,10 +158,9 @@ class TestScreenStarfield(TestScreenBase):
             pos_x -= actual_width / 2
             pos_y -= actual_height / 2
 
-            if True or not self.vector_move:
+            if not self.vector_move:
                 pos_x, pos_y = self.display.WIDTH / 2, self.display.HEIGHT / 2
-
-            self.mgr.phy.set_pos(inst, pos_x, pos_y)
+                self.mgr.phy.set_pos(inst, pos_x, pos_y)
 
             self.scaler.draw_sprite(
                 self.sprite,

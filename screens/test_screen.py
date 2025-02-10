@@ -42,8 +42,8 @@ YELLOW = 0xFFFF00
 WHITE = 0xFFFFFF
 
 class TestScreen(TestScreenBase):
-    debug = False
-    debug_inst = False
+    debug = True
+    debug_inst = True
     fps_enabled = True
     fps_counter_task = None
     color_idx = 0
@@ -164,7 +164,7 @@ class TestScreen(TestScreenBase):
         self.init_common()
         self.load_types()
 
-        test = 'grid1'
+        test = 'scale_control'
         self.check_mem()
         method = None
 
@@ -366,7 +366,7 @@ class TestScreen(TestScreenBase):
         default = 1
         self.scale_id = self.h_scales.index(default)
 
-        self.input_handler = input_rotary.InputRotary()
+        self.input_handler = input_rotary.InputRotary(half_step=True)
         self.input_handler.handler_right = self.scale_control_right
         self.input_handler.handler_left = self.scale_control_left
 
@@ -391,6 +391,8 @@ class TestScreen(TestScreenBase):
 
     def init_clipping_square(self):
         # self.sprite = self.mgr.get_meta(self.sprite)
+        self.inst, idx = self.mgr.pool.get(self.sprite_id, self.sprite)
+
         self.image = self.mgr.sprite_images[self.sprite_id][-1]
         self.curr_dir = 'horiz'
         self.bounce_count = 0
@@ -515,11 +517,17 @@ class TestScreen(TestScreenBase):
         h_scale = self.h_scales[self.scale_id]
         self.sprite.scale = v_scale = h_scale
         # self.sprite.scale = v_scale = h_scale = 3.750
-        # self.sprite.scale = v_scale = h_scale = 3
+        self.sprite.scale = v_scale = h_scale = 8.5
 
-        scaled_width = scaled_height = int(h_scale * self.sprite.height)
-        self.inst.x, self.inst.y = 48, 32
-        self.inst.draw_x, self.inst.draw_y = SpritePhysics.get_draw_pos(self.inst, scaled_width=scaled_width, scaled_height=scaled_height)
+        center_x = 48
+        center_y = 32
+        self.mgr.phy.set_pos(self.inst, center_x, center_y) # Center the sprite
+        coords = self.mgr.phy.get_pos(self.inst)
+
+        print(f" * SCREEN CENTER AT:        {center_x}/{center_y}")
+        print(f" * SPRITE POSITIONED AT:    {coords[0]}/{coords[1]}")
+        print(f" * SPRITE DRAWS AT:         {self.inst.draw_x}/{self.inst.draw_y}")
+
         self.common_bg()
         self.scaler.draw_sprite(
             self.sprite,
@@ -551,7 +559,6 @@ class TestScreen(TestScreenBase):
         y_max = 64
         y_min = 0 - self.scaled_height
 
-
         if self.slide_sel == 'horiz':
             """ Modify draw_x over time"""
             if self.draw_x > x_max:
@@ -568,6 +575,8 @@ class TestScreen(TestScreenBase):
                 self.draw_y_dir = +1
             self.draw_y += self.delta_y * self.draw_y_dir
 
+        self.mgr.phy.set_pos(self.inst, self.draw_x, self.draw_y)
+
         self.display.fill(0x000000)
         self.scaler.draw_sprite(
             self.sprite,
@@ -578,12 +587,8 @@ class TestScreen(TestScreenBase):
 
         self.scale_id += 1
         self.show_prof()
-        # loop = asyncio.get_event_loop()
-        # loop.create_task(self.display.swap_buffers())
         self.display.swap_buffers()
-        # time.sleep_ms(10)
         self.fps.tick()
-
 
     async def flip_dir(self):
         while True:
