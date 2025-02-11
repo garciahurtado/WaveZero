@@ -3,6 +3,7 @@ import asyncio
 import math
 import random
 
+import utils
 from perspective_camera import PerspectiveCamera
 from scaler.sprite_scaler import SpriteScaler
 from screens.test_screen_base import TestScreenBase
@@ -25,13 +26,13 @@ class TestScreenStarfield(TestScreenBase):
     debug = False
     debug_inst = False
     fps_enabled = True
-    scale_dist_factor = 140 # The higher this is, the slower the scale grows w/ distance
+    scale_dist_factor = 110 # The higher this is, the slower the scale grows w/ distance
     # scale_dist_factor = 250 # The higher this is, the slower the scale grows w/ distance
-    margin_px = 32
+    margin_px = 16
     vector_move = True # whether to move the sprites away from the center overtime, or keep them centered
 
-    def __init__(self, display, margin_px = 32):
-        super().__init__(display, margin_px)
+    def __init__(self, display, margin_px = 16):
+        super().__init__(display,  margin_px=32)
         self.init_camera()
         self.sprite_type = SPRITE_TEST_HEART
         self.mgr = SpriteManager2D(display, self.max_sprites, self.camera)
@@ -146,11 +147,11 @@ class TestScreenStarfield(TestScreenBase):
             coords = self.mgr.phy.get_pos(inst)
             pos_x, pos_y = coords[0], coords[1]
 
-            if not self.mgr.is_within_bounds([pos_x, pos_y]):
+            if not utils.is_within_bounds([pos_x, pos_y], self.bounds):
                 self.mgr.release(inst, self.sprite)
                 if self.debug_inst:
                     print(f"<< COORDS ({pos_x}, {pos_y}) >>")
-                    print(f"<< // IS OUT OF BOUNDS >>")
+                    print(f"<< // IS OUT OF BOUNDS [{self.bounds.left} {self.bounds.right} {self.bounds.top} {self.bounds.bottom}] >>")
                     print(f"<< s:{inst.scale} / {actual_width} / {actual_height} w/h")
                     print(f"<< SPRITE RELEASED - ACTIVE: {self.mgr.pool.active_count}>>")
                 continue

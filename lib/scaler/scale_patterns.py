@@ -32,7 +32,7 @@ class ScalePatterns:
         patterns2 = self.create_patterns(1, 4, step=0.250)
         patterns3 = self.create_patterns(4, 8, step=0.250)
         patterns4 = self.create_patterns(8, 14, step=0.500)
-        patterns5 = self.create_patterns(14, 24, step=1)
+        patterns5 = self.create_patterns(14, 18, step=1)
 
         patterns_all |= patterns1
         patterns_all |= patterns2

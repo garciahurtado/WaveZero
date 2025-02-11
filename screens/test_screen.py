@@ -42,8 +42,8 @@ YELLOW = 0xFFFF00
 WHITE = 0xFFFFFF
 
 class TestScreen(TestScreenBase):
-    debug = True
-    debug_inst = True
+    debug = False
+    debug_inst = False
     fps_enabled = True
     fps_counter_task = None
     color_idx = 0
@@ -117,7 +117,7 @@ class TestScreen(TestScreenBase):
     all_coords = [] # list of x/y tuples
 
     def __init__(self, display, *args, **kwargs):
-        super().__init__(display)
+        super().__init__(display, margin_px=16)
         print()
         print(f"=== Testing performance of {self.num_sprites} sprites ===")
         print()
@@ -179,8 +179,8 @@ class TestScreen(TestScreenBase):
             self.init_beating_heart()
             method = self.do_refresh_zoom_in
         if test == 'scale_control':
-            self.sprite_id = SPRITE_TEST_PYRAMID
-            self.load_sprite(SPRITE_TEST_PYRAMID)
+            self.sprite_id = SPRITE_TEST_HEART
+            self.load_sprite(SPRITE_TEST_HEART)
             self.init_score()
             self.init_scale_control()
             method = self.do_refresh_scale_control
@@ -511,22 +511,17 @@ class TestScreen(TestScreenBase):
 
     def do_refresh_scale_control(self):
         """
-        Do a zoom in demo of increasingly higher scale ratios
+        Do a zoom in demo of scales controlled by rotary input
         """
 
         h_scale = self.h_scales[self.scale_id]
         self.sprite.scale = v_scale = h_scale
-        # self.sprite.scale = v_scale = h_scale = 3.750
-        self.sprite.scale = v_scale = h_scale = 8.5
+        # self.sprite.scale = v_scale = h_scale = 6
 
         center_x = 48
         center_y = 32
         self.mgr.phy.set_pos(self.inst, center_x, center_y) # Center the sprite
         coords = self.mgr.phy.get_pos(self.inst)
-
-        print(f" * SCREEN CENTER AT:        {center_x}/{center_y}")
-        print(f" * SPRITE POSITIONED AT:    {coords[0]}/{coords[1]}")
-        print(f" * SPRITE DRAWS AT:         {self.inst.draw_x}/{self.inst.draw_y}")
 
         self.common_bg()
         self.scaler.draw_sprite(

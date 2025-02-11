@@ -2,16 +2,19 @@ import framebuf
 from uarray import array
 
 from profiler import Profiler as prof
+from screens.screen import ScreenBounds
 from ssd1331_pio import SSD1331PIO
 from uctypes import addressof
+
 
 class ScalerFramebuf():
     """
     Manages the various framebuffers used for rendering of scaled sprites.
     """
-    """ Addtl width (beyond the full width of the screen) which the framebuf will use to fit large sprites.
-        In order to support very high scales, increase this number to avoid early clipping """
-    extra_width = extra_height = 32
+    """ Addtl width (beyond the full width of the screen) which the framebuf will use to calculate bounds.
+        In order to support very high scales, increase this number to avoid early clipping. This is only a number and 
+         does not cost additional framebuffer memory. """
+    extra_width = extra_height = 64
 
     """ Because we can only read source pixels in whole rows, even when upscaling, if the upscaled pixel falls in the 
     middle of the bounds, we have to have an additional buffer to render the out of bounds portion. This margin should
@@ -34,6 +37,17 @@ class ScalerFramebuf():
 
     def __init__(self, display: SSD1331PIO, mode=framebuf.RGB565):
         self.display = display
+        bounds_left = int(display.width) - (self.extra_width / 2)
+        bounds_right = int(display.width) + (self.extra_width / 2)
+        bounds_top = int(display.height) - (self.extra_height / 2)
+        bounds_bottom = int(display.height) + (self.extra_height / 2)
+
+        self.bounds = ScreenBounds(
+            bounds_left,
+            bounds_right,
+            bounds_top,
+            bounds_bottom,
+        )
 
         self.frame_bytes = 0
         self.frame_sizes = [
@@ -41,7 +55,7 @@ class ScalerFramebuf():
             [8, 8],
             [16, 16],
             [32, 32],
-            [64, self.max_width + self.extra_width]
+            [64, self.max_width]
         ]
         self.fill_color = 0x000000
         self.min_write_addr = addressof(self.scratch_bytes)
@@ -137,4 +151,3 @@ class ScalerFramebuf():
     def next_write_addr(self, curr_addr, stride):
         next_addr = curr_addr + stride
         return next_addr
-

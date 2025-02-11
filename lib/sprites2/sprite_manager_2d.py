@@ -4,8 +4,6 @@ from images.image_loader import ImageLoader
 from profiler import Profiler
 from sprites2.sprite_manager import SpriteManager
 from sprites2.sprite_types import SpriteType as types, SpriteType, FLAG_PHYSICS, FLAG_ACTIVE
-from utils import is_point_within_bounds
-import utime
 
 prof = Profiler()
 
@@ -84,8 +82,5 @@ class SpriteManager2D(SpriteManager):
         img_list = [orig_img] # Legacy
         return img_list
 
-    def is_within_bounds(self, coords):
-        x, y = coords
-        return is_point_within_bounds([x, y], self.bounds)
 
 
