@@ -47,7 +47,7 @@ class SpriteManager2D(SpriteManager):
 
         prof.start_profile('mgr.update_sprite.physics')
         old_speed = sprite.speed
-        sprite.speed = sprite.speed * sprite.scale
+        # sprite.speed = sprite.speed * sprite.scale
 
         if SpriteType.get_flag(sprite, FLAG_PHYSICS) == True:
             self.phy.apply_speed(sprite, elapsed)

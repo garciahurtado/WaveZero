@@ -26,6 +26,8 @@ class Screen:
     target_fps = 30
     total_width = 0
     total_height = 0
+    half_height = 0
+    half_width = 0
 
     def __init__(self, display:SSD1331PIO=None, margin_px=0):
         self.instances = []
@@ -37,6 +39,9 @@ class Screen:
                 top = 0-margin_px,
                 bottom= display.HEIGHT + margin_px
             )
+            self.half_height = display.height // 2
+            self.half_width = display.width // 2
+
         self.margin_px = margin_px
         margin = self.margin_px
         display = self.display

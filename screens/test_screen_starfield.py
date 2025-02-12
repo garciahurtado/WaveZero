@@ -8,8 +8,9 @@ from perspective_camera import PerspectiveCamera
 from scaler.sprite_scaler import SpriteScaler
 from screens.test_screen_base import TestScreenBase
 from sprites.sprite import Sprite
+from sprites2.gameboy import GameboySprite
 from sprites2.sprite_manager_2d import SpriteManager2D
-from sprites2.sprite_types import SPRITE_TEST_HEART, SpriteType, SPRITE_TEST_SQUARE, SPRITE_TEST_GRID
+from sprites2.sprite_types import SPRITE_TEST_HEART, SpriteType, SPRITE_TEST_SQUARE, SPRITE_TEST_GRID, SPRITE_GAMEBOY
 from sprites2.test_grid import TestGrid
 from sprites2.test_heart import TestHeart
 from sprites2.test_square import TestSquare
@@ -18,13 +19,13 @@ from utils import dist_between
 from profiler import Profiler as prof
 import utime
 class TestScreenStarfield(TestScreenBase):
-    max_sprites = num_sprites = 10
+    max_sprites = num_sprites = 1
     max_scale_id = 0
     max_scale_dot = 0
     max_dist = 0
 
-    debug = False
-    debug_inst = False
+    debug = True
+    debug_inst = True
     fps_enabled = True
     scale_dist_factor = 110 # The higher this is, the slower the scale grows w/ distance
     # scale_dist_factor = 250 # The higher this is, the slower the scale grows w/ distance
@@ -32,16 +33,16 @@ class TestScreenStarfield(TestScreenBase):
     vector_move = True # whether to move the sprites away from the center overtime, or keep them centered
 
     def __init__(self, display, margin_px = 16):
-        super().__init__(display,  margin_px=32)
+        super().__init__(display,  margin_px=16)
         self.init_camera()
-        self.sprite_type = SPRITE_TEST_HEART
+        self.sprite_type = SPRITE_GAMEBOY
         self.mgr = SpriteManager2D(display, self.max_sprites, self.camera)
-        self.mgr.bounds = self.bounds
         self.load_types()
         self.meta:SpriteType = self.load_sprite(self.sprite_type)
 
         self.scaler = SpriteScaler(self.display)
         self.scaler.prof = prof
+        self.bounds = self.scaler.framebuf.bounds
 
         patt = self.scaler.dma.patterns
         self.all_scales = patt.get_horiz_patterns()
@@ -78,7 +79,7 @@ class TestScreenStarfield(TestScreenBase):
         self.init_fps()
         self.init_score()
         self.load_types()
-        self.base_speed = 0.005
+        self.base_speed = 0.01
         self.sprite.set_default(speed=self.base_speed)
         self.sprite.set_default(flag_physics=True)
 
@@ -95,7 +96,9 @@ class TestScreenStarfield(TestScreenBase):
 
         self.speed_vectors = self.random_vectors(self.max_sprites)
         for inst, dir in zip(mgr.pool.sprites, self.speed_vectors):
-            mgr.phy.set_dir(inst, dir[0], dir[1])
+            # dir_x, dir_y= -1, 0
+            dir_x, dir_y = dir[0], dir[1]
+            mgr.phy.set_dir(inst, dir_x, dir_y)
 
         # self.meta = self.mgr.get_meta(mgr.pool.sprites[0])
         self.meta = mgr.sprite_metadata[self.sprite_type]
@@ -160,8 +163,12 @@ class TestScreenStarfield(TestScreenBase):
             pos_y -= actual_height / 2
 
             if not self.vector_move:
+                """ Center it """
                 pos_x, pos_y = self.display.WIDTH / 2, self.display.HEIGHT / 2
                 self.mgr.phy.set_pos(inst, pos_x, pos_y)
+
+            if self.debug_inst:
+                print(f"<< inst.scale / actual w/h:{inst.scale} / {actual_width} / {actual_height} >>")
 
             self.scaler.draw_sprite(
                 self.sprite,
@@ -225,6 +232,10 @@ class TestScreenStarfield(TestScreenBase):
         self.mgr.add_type(
             sprite_type=SPRITE_TEST_GRID,
             sprite_class=TestGrid)
+
+        self.mgr.add_type(
+            sprite_type=SPRITE_GAMEBOY,
+            sprite_class=GameboySprite)
 
     def spawn(self, prob=10):
         """ Probability in percent """

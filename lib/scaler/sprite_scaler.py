@@ -29,7 +29,7 @@ class SpriteScaler():
         """ Debugging """
         self.debug = False
         self.debug_dma = False
-        self.debug_dma_ch = False
+        self.debug_dma_addr = False
         self.debug_pio = False
         self.debug_irq = False
         self.debug_interp = False
@@ -37,6 +37,7 @@ class SpriteScaler():
         self.debug_scale_patterns = False
         self.debug_with_debug_bytes = False
         self.skip_rows = 0
+        self.skip_cols = 0
 
         if self.debug:
             self.dbg = ScalerDebugger()
@@ -57,6 +58,7 @@ class SpriteScaler():
         self.scaled_width = 0
 
         self.base_read = 0
+        self.read_stride = 0
         self.frac_bits = 0
 
         self.palette_addr = None
@@ -81,6 +83,12 @@ class SpriteScaler():
         max_write_addrs = min(self.framebuf.max_height, visible_rows)
         max_read_addrs = min(visible_rows, max_write_addrs)
 
+        if self.debug_dma:
+            print(f" + VISIBLE ROWS:    {visible_rows}")
+            print(f" + scaled_height:   {scaled_height}")
+            print(f" + max_write_addrs: {max_write_addrs}")
+            print(f" + max_read_addrs:  {max_read_addrs}")
+
         # Get array pointers
         read_addrs: [int] = self.dma.read_addrs  # destination
         write_addrs: [int] = self.dma.write_addrs  # destination
@@ -90,15 +98,25 @@ class SpriteScaler():
 
         while row_id < int(max_read_addrs):
             if row_id == 0:
+                """ This doubles up the first address, to fix a weird bug """
                 read_addrs[row_id] = self.base_read
                 write_addrs[row_id] = self.framebuf.min_write_addr
             else:
                 read_addrs[row_id] = mem32[INTERP1_POP_FULL]
                 write_addrs[row_id] = mem32[INTERP0_POP_FULL]
+
+            if self.debug_dma_addr:
+                print(f">>> [{row_id:02.}] R: 0x{read_addrs[row_id]:08X}")
+                print(f">>> [{row_id:02.}] W: 0x{write_addrs[row_id]:08X}")
+                print("-------------------------")
+
             row_id += 1
 
-        read_addrs[row_id-1] = 0x00000000 # finish it with a NULL trigger
-        write_addrs[row_id-1] = 0x00000000 # finish it with a NULL trigger
+        if self.debug_dma:
+            print(f" - TOTAL # READ ADDRS: {max_read_addrs}")
+
+        read_addrs[row_id] = 0x00000000 # finish it with a NULL trigger
+        write_addrs[row_id] = 0x00000000 # finish it with a NULL trigger
         self.dma.read_addrs = read_addrs
 
     def draw_sprite(self, sprite:SpriteType, inst, image:Image, h_scale=1.0, v_scale=1.0):
@@ -162,8 +180,9 @@ class SpriteScaler():
             print(f"\t x/y: {coords[0]}/{coords[1]} ")
             print(f"\t draw_x/draw_y: {self.draw_x}/{self.draw_y} ")
             print(f"\t H scale: x{h_scale} / V scale: x{v_scale}")
-            print(f"\t Sprite Stride: {sprite.width // 2}")
-            print(f"\t Display Stride: { self.framebuf.display_stride}")
+            print(f"\t Sprite Stride (px): {sprite.width}")
+            print(f"\t Sprite Stride (bytes): {sprite.width//2}")
+            print(f"\t Display Stride (fb): { self.framebuf.display_stride}")
 
         prof.end_profile('scaler.init_interp_sprite')
 
@@ -177,6 +196,8 @@ class SpriteScaler():
             prof.end_profile('scaler.init_pio')
 
         prof.start_profile('scaler.init_dma_sprite')
+        stride = sprite.width - self.skip_cols
+        # self.dma.init_sprite(stride, h_scale) # DEBUG
         self.dma.init_sprite(sprite.width, h_scale)
         prof.end_profile('scaler.init_dma_sprite')
 
@@ -187,10 +208,10 @@ class SpriteScaler():
 
         prof.end_profile('scaler.fill_addrs')
 
-        """ Start DMA chains and State Machines """
-        prof.start_profile('scaler.dma_pio')
-        self.dma.start()
-        self.sm_read_palette.active(1)
+        self.start()
+
+        while not self.dma.read_finished:
+            pass
 
         self.finish_sprite()
 
@@ -235,6 +256,19 @@ class SpriteScaler():
         display.pixel(0, 0 + 1, color)
         display.pixel(0 + 1, 0 + 1, color)
         self.finish_sprite()
+
+    def start(self):
+        """ Start DMA chains and State Machines """
+        prof.start_profile('scaler.dma_pio')
+        if self.debug:
+            print("* STARTING DMA / PIO... *")
+
+        self.dma.start()
+        self.sm_read_palette.active(1)
+
+        if self.debug:
+            print("* ...AFTER DMA / PIO START *")
+        prof.end_profile('scaler.dma_pio')
 
     def finish_sprite(self):
         prof.end_profile('scaler.dma_pio')
@@ -290,17 +324,16 @@ class SpriteScaler():
         """ INTERPOLATOR CONFIGURATION --------- """
         """ (read / write address generation) """
 
-        """ Lane 1 config - handles integer extraction - must be reconfigured because it depends on self.frac_bits """
-
-        prof.start_profile('scaler.init_interp_sprite.lanes')
-        self.init_interp_lanes(frac_bits, self.int_bits, framebuf.display_stride, write_base)
-        prof.end_profile('scaler.init_interp_sprite.lanes')
-
         """ HANDLE BOUNDS CHECK / CROPPING ------------------------  """
 
         prof.start_profile('scaler.init_interp_sprite.clip')
         self.interp_clip(sprite_width, scale_x_one, scale_y_one)
         prof.end_profile('scaler.init_interp_sprite.clip')
+
+        """ Lane 1 config - handles integer extraction - must be reconfigured because it depends on self.frac_bits """
+        prof.start_profile('scaler.init_interp_sprite.lanes')
+        self.init_interp_lanes(frac_bits, self.int_bits, framebuf.display_stride, write_base)
+        prof.end_profile('scaler.init_interp_sprite.lanes')
 
         # Configure remaining variables
         prof.start_profile('scaler.init_convert_fixed_point')
@@ -319,7 +352,7 @@ class SpriteScaler():
         if self.debug_interp:
             print(f"INTERP sprite_width: {sprite_width}")
             print(f"INTERP fixed_step: {int(fixed_step)}")
-            print(f"INTERP base_read: {int(self.base_read):08x}")
+            print(f"INTERP base_read: {int(self.base_read):08X}")
         #
         mem32[INTERP1_BASE1] = int(fixed_step)
         mem32[INTERP1_BASE2] = int(self.base_read)  # Base sprite read address
@@ -345,8 +378,6 @@ class SpriteScaler():
 
         if (self.draw_y < 0):
             self.skip_rows = skip_rows = int(abs(self.draw_y) / scale_y_one)
-            modulo = self.draw_y % scale_y_one
-
             self.draw_y += (skip_rows * scale_y_one)
 
             """ We need to offset base_read in order to clip vertically when generating addresses """
@@ -357,33 +388,42 @@ class SpriteScaler():
             if self.debug_interp:
                 print(f"CLIPPING: (-Y)")
                 print(f"\tnew_draw_y:           {self.draw_y}")
-                print(f"\tmodulo:               {modulo}")
                 print(f"\tskip_rows:            {skip_rows}")
                 print(f"\tskip_bytes_y:         {skip_bytes_y}")
                 print(f"\tbase_read after:      0x{self.base_read:08X}")
 
+        """ Horizontal clipping (X-axis) """
+        if self.draw_x < 0:
+            self.skip_cols = skip_cols = abs(self.draw_x)  # Screen pixels to clip
+            original_pixels_skipped = math.ceil(skip_cols / scale_x_one)
 
-        if self.draw_x < 0 and scaled_width > frame_width: # we could probably defer this to an even lower number
-                """ We need to offset base_read in order to clip horizontally when generating addresses """
-                extra_px = abs(self.draw_x)
-                extra_px_read = int(extra_px / scale_x_one)      # Extra pixels to add to the read start offset
-                extra_read_bytes = int(extra_px_read / 2)   # Extra bytes to add to the base read addr (skip columns)
-                extra_px_diff = extra_px - math.ceil(extra_read_bytes * scale_x_one * 2) + 3
+            # Clamp to sprite's maximum original pixels (width)
+            max_original_skip = sprite_width
+            original_pixels_skipped = min(original_pixels_skipped, max_original_skip)
 
-                # We have shorter rows now, since some of it is cropped on the left side
-                self.base_read += int(extra_read_bytes)
+            # Adjust draw_x based on ACTUAL skipped screen pixels
+            actual_skip_screen = original_pixels_skipped * scale_x_one
+            self.draw_x += actual_skip_screen
 
-                self.draw_x = math.ceil(-extra_px_diff)
-                # self.draw_x = 0
+            # Clamp draw_x to screen bounds
+            if self.draw_x >= self.framebuf.frame_width:
+                self.draw_x = self.framebuf.frame_width - 1  # Prevent overflow
 
-                if self.debug_interp:
-                    print(f"CLIPPING: (-X)")
-                    print(f"\tnew_draw_x:           {self.draw_x}")
-                    print(f"\textra_px:             {extra_px}")
-                    print(f"\textra_px_read:        {extra_px_read}")
-                    print(f"\textra_read_bytes:     {extra_read_bytes}")
-                    print(f"\textra_px_diff:        {extra_px_diff}")
-                    print(f"\tbase_read after:      0x{self.base_read:08X}")
+            # Calculate bytes to skip (2 pixels = 1 byte)
+            skip_read_bytes = math.ceil(original_pixels_skipped / 2)
+            # Clamp to sprite's byte width
+            max_bytes_skip = (sprite_width // 2)
+            skip_read_bytes = min(skip_read_bytes, max_bytes_skip)
+
+            self.base_read += skip_read_bytes
+            self.read_stride = math.ceil(sprite_width / 2) - math.ceil(skip_read_bytes)
+
+            if self.debug_interp:
+                print(f"CLIPPING: (-X)")
+                print(f"\tnew_draw_x:           {self.draw_x}")
+                print(f"\tskip_cols:             {skip_cols}")
+                print(f"\tskip_read_bytes:     {skip_read_bytes}")
+                print(f"\tbase_read after:      0x{self.base_read:08X}")
 
     # @micropython.viper
     def init_convert_fixed_point(self, sprite_width, scale_x_one):
@@ -431,6 +471,7 @@ class SpriteScaler():
         self.scaled_width = 0
         self.scaled_height = 0
         self.skip_rows = 0
+        self.skip_cols = 0
 
     def init_pio(self, palette_addr):
         self.sm_read_palette.restart()

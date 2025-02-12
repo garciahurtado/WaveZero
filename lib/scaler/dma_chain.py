@@ -170,16 +170,17 @@ class DMAChain:
 
     def start(self):
         """Activate DMA channels in correct sequence."""
-        self.h_scale.active(1)
-        self.write_addr.active(1)
+        # self.h_scale.active(1)
+        # self.write_addr.active(1)
+        self.read_addr.active(1)
 
     def reset(self):
         """Reset all DMA channels."""
         self.read_addr.active(0)
-        self.write_addr.active(0)
-        self.px_read.active(0)
-        self.color_lookup.active(0)
-        self.h_scale.active(0)
+        # self.write_addr.active(0)
+        # self.px_read.active(0)
+        # self.color_lookup.active(0)
+        # self.h_scale.active(0)
 
         # Reset counts
         self.read_count = 0

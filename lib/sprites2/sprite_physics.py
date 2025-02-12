@@ -73,11 +73,17 @@ class SpritePhysics:
 
     @staticmethod
     def apply_speed(sprite, elapsed):
+
         """ Based on the time passed, apply the speed and direction to the position of this sprite """
         old_x, old_y = SpritePhysics.get_pos(sprite)
         dir_x, dir_y = SpritePhysics.get_dir(sprite)
         new_x = old_x + (sprite.speed * dir_x * elapsed)
         new_y = old_y + (sprite.speed * dir_y * elapsed)
+
+        if SpritePhysics.debug:
+            print(f"* APPLY SPEED sprite:{sprite}, elapsed: {elapsed}, speed: {sprite.speed}")
+            print(f"\t dir_x, dir_y x:{dir_x}, y: {dir_y}")
+            print(f"\t new_x, new_y x:{new_x}, y: {new_y}")
 
         if ([int(old_x), int(old_y)] == [int(new_x), int(new_y)]):
             if SpritePhysics.debug:
@@ -91,8 +97,8 @@ class SpritePhysics:
 
         """ Since sprite x/y indicate the center of the sprite, we offset the draw origin left and up relative to half 
         the sprite dimensions. """
-        draw_x += -(scaled_width // 2)
-        draw_y += -(scaled_height // 2)
+        draw_x += -(scaled_width / 2)
+        draw_y += -(scaled_height / 2)
 
         return int(draw_x), int(draw_y)
 

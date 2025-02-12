@@ -37,9 +37,9 @@ class ScalerFramebuf():
 
     def __init__(self, display: SSD1331PIO, mode=framebuf.RGB565):
         self.display = display
-        bounds_left = int(display.width) - (self.extra_width / 2)
+        bounds_left = -(self.extra_width // 2)
         bounds_right = int(display.width) + (self.extra_width / 2)
-        bounds_top = int(display.height) - (self.extra_height / 2)
+        bounds_top = -(self.extra_height // 2)
         bounds_bottom = int(display.height) + (self.extra_height / 2)
 
         self.bounds = ScreenBounds(
@@ -135,12 +135,15 @@ class ScalerFramebuf():
         if self.debug:
             print(f"   INSIDE 'SELECT_BUFFER', WITH len(write_addrs_all): {len(self.write_addrs_all)} ")
             print(f"   FOR w/h: {scaled_width}, {scaled_height} a frame height of {self.frame_height}")
-            print(f"   SELECTED STRIDE: {self.display_stride}")
-            print(f"   FRAME BYTES: {self.frame_bytes}")
+            print(f"   SELECTED FB STRIDE: 0x{self.display_stride:08X}")
+            print(f"   FRAME BYTES:        {self.frame_bytes}")
 
     def blit_with_alpha(self, x, y, alpha):
         """ Copy the sprite from the "scratch" framebuffer to the final one in the display.
          This is needed to implement transparency """
+
+        if self.debug:
+            print(f"> BLITTING TO X/Y: {x},{y}")
 
         """ Negative x and y have already been taking into account in interp config"""
         if alpha is None:

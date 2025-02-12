@@ -146,7 +146,8 @@ class SpriteManager:
         new_sprite, idx = self.pool.get(sprite_type, meta)
         prof.end_profile('mgr.pool_get')
 
-        self.sprite_inst[sprite_type].insert(0, idx) # insert in the beginning, so we have correct Z values
+        # self.sprite_inst[sprite_type].insert(0, idx) # insert in the beginning, so we have correct Z values
+        self.sprite_inst[sprite_type].append(idx) # insert in the beginning, so we have correct Z values
 
         # Set user values passed to the create method
         prof.start_profile('mgr.set_kwargs')
