@@ -1,3 +1,4 @@
+import math
 from _rp2 import DMA
 from uarray import array
 from uctypes import addressof
@@ -158,15 +159,13 @@ class DMAChain:
             ctrl=h_scale_ctrl
         )
 
-    def init_sprite(self, width, h_scale):
+    def init_sprite(self, read_stride_px, h_scale):
         """Configure Sprite specific DMA parameters."""
-        self.color_lookup.count = width
-
-        count = (width // 2)
-        self.px_read.count = count
-
+        self.color_lookup.count = read_stride_px
+        self.px_read.count = math.ceil(read_stride_px / 2)
+        # self.h_scale.count = read_stride_px
+        self.h_scale.count = read_stride_px
         self.h_scale.read = self.patterns.get_pattern(h_scale)
-        self.h_scale.count = width
 
     def start(self):
         """Activate DMA channels in correct sequence."""

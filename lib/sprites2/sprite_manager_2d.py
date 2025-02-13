@@ -4,6 +4,7 @@ from images.image_loader import ImageLoader
 from profiler import Profiler
 from sprites2.sprite_manager import SpriteManager
 from sprites2.sprite_types import SpriteType as types, SpriteType, FLAG_PHYSICS, FLAG_ACTIVE
+from scaler.const import *
 
 prof = Profiler()
 
@@ -59,14 +60,17 @@ class SpriteManager2D(SpriteManager):
         scaled_width = meta.width * sprite.scale
         scaled_height = meta.height * sprite.scale
 
-        sprite.draw_x, sprite.draw_y = self.phy.get_draw_pos(sprite, scaled_width, scaled_height, True)
+        draw_x, draw_y = self.phy.get_draw_pos(sprite, scaled_width, scaled_height)
+        x, y = self.phy.get_pos(sprite)
 
-        if self.debug_inst:
-            print("2D UPDATE SPRITE:")
-            print(f"  Dir:   {sprite.dir_x},{sprite.dir_y}")
-            print(f"  Speed: {sprite.speed}")
-            print(f"  Elaps. {elapsed}")
-            print(f"  (new_y += sprite.speed * dir_y * elapsed)")
+        if DEBUG_INST:
+            dir_x, dir_y = self.phy.get_dir(sprite)
+            print(f"SPRITE 2D UPDATE :")
+            print(f"  Pos:      {x},{y}")
+            print(f"  Draw:     {draw_x},{draw_y}")
+            print(f"  Dir:      {dir_x},{dir_y}")
+            print(f"  Speed:    {sprite.speed}")
+            print(f"  Elaps.    {elapsed}")
 
         return True
 

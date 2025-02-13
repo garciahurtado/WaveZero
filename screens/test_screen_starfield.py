@@ -24,8 +24,8 @@ class TestScreenStarfield(TestScreenBase):
     max_scale_dot = 0
     max_dist = 0
 
-    debug = True
-    debug_inst = True
+    debug = False
+    debug_inst = False
     fps_enabled = True
     scale_dist_factor = 110 # The higher this is, the slower the scale grows w/ distance
     # scale_dist_factor = 250 # The higher this is, the slower the scale grows w/ distance

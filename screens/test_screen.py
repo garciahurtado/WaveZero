@@ -180,7 +180,7 @@ class TestScreen(TestScreenBase):
         self.init_common()
         self.load_types()
 
-        test = 'grid2'
+        test = 'clipping'
         self.check_mem()
         method = None
 
@@ -222,7 +222,7 @@ class TestScreen(TestScreenBase):
             self.fallout = True
             method = self.do_refresh_grid
         elif test == 'clipping':
-            self.sprite_id = SPRITE_TEST_HEART
+            self.sprite_id = SPRITE_GAMEBOY
             self.init_common(1)
             self.load_sprite(self.sprite_id)
             self.init_clipping()
@@ -414,8 +414,9 @@ class TestScreen(TestScreenBase):
         self.image = self.mgr.sprite_images[self.sprite_id][-1]
         self.curr_dir = 'horiz'
         self.bounce_count = 0
-        self.inst.speed = self.base_speed = 0.03
+        self.inst.speed = self.base_speed = 0.02
         self.h_scale = self.v_scale = 4
+
         self.scaled_width = math.ceil(self.sprite.width * self.h_scale)
         self.scaled_height = math.ceil(self.sprite.height * self.v_scale)
         self.set_state(self.STATE_START)
@@ -564,7 +565,6 @@ class TestScreen(TestScreenBase):
         """
         Do a demo of several diverse horizontal scale ratios
         """
-        self.h_scales = [2]
         phy = self.phy
 
         x_max = 96
@@ -578,6 +578,8 @@ class TestScreen(TestScreenBase):
         pos_x, pos_y = phy.get_pos(self.inst)
         inst = self.inst
 
+        print("BOUNDS")
+        print(self.bounds)
         if not utils.is_within_bounds([pos_x, pos_y], self.bounds):
             """ Turn around when we reach the edges"""
             if state == self.STATE_DIR_LEFT:
@@ -624,7 +626,7 @@ class TestScreen(TestScreenBase):
             h_scale=self.h_scale,
             v_scale=self.v_scale)
 
-        self.scale_id += 1
+        # self.scale_id += 1
         self.show_prof()
         self.display.swap_buffers()
         self.fps.tick()

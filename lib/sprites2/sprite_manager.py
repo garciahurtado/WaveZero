@@ -28,7 +28,6 @@ class SpriteManager:
     display = None
     bounds = None
 
-    debug_inst = False
     sprite_images: Dict[str, List[Image]] = {}
     sprite_palettes: Dict[str, FramebufferPalette] = {}
     sprite_metadata: Dict[str, SpriteType] = {}

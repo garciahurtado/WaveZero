@@ -1,6 +1,5 @@
 import math
 
-
 def aligned_buffer(size, alignment=4):
     """ Create a buffer of 'size' bytes aligned to a memory address power of 'alignment'"""
 
@@ -31,6 +30,8 @@ def is_within_bounds(point, bounds):
     if  (bounds.left <= x <= bounds.right) and \
         (bounds.top <= y <= bounds.bottom):
         return True
+
+    print(f"OUTTA BOUNDS: {x}, {y}")
 
     # Otherwise its out of bounds
     return False

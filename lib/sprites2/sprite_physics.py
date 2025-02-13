@@ -1,3 +1,5 @@
+from scaler.const import *
+
 """
 In order to store floating point as fixed point 16bit ints:
 
@@ -38,7 +40,7 @@ FP_SHIFT_RAD = 11
 FP_ONE_RAD = (1 << FP_SHIFT_RAD)  # = 2048 (1.0 in fixed point)
 FP_SCALE_RAD = int(1.5 * FP_ONE_RAD)  # = 3072 (1.5 in fixed point)
 class SpritePhysics:
-    debug = False
+    debug = True
 
     def __init__(self):
         pass
@@ -80,19 +82,19 @@ class SpritePhysics:
         new_x = old_x + (sprite.speed * dir_x * elapsed)
         new_y = old_y + (sprite.speed * dir_y * elapsed)
 
-        if SpritePhysics.debug:
+        if DEBUG_PHYSICS:
             print(f"* APPLY SPEED sprite:{sprite}, elapsed: {elapsed}, speed: {sprite.speed}")
             print(f"\t dir_x, dir_y x:{dir_x}, y: {dir_y}")
             print(f"\t new_x, new_y x:{new_x}, y: {new_y}")
 
         if ([int(old_x), int(old_y)] == [int(new_x), int(new_y)]):
-            if SpritePhysics.debug:
+            if DEBUG_PHYSICS:
                 print("Returning without updating sprite")
 
         SpritePhysics.set_pos(sprite, new_x, new_y)
 
     @staticmethod
-    def get_draw_pos(sprite, scaled_width, scaled_height, scaled=False):
+    def get_draw_pos(sprite, scaled_width, scaled_height):
         draw_x, draw_y = SpritePhysics.get_pos(sprite)
 
         """ Since sprite x/y indicate the center of the sprite, we offset the draw origin left and up relative to half 

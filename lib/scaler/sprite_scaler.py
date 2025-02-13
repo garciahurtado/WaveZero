@@ -26,20 +26,10 @@ gc.collect()
 
 class SpriteScaler():
     def __init__(self, display):
-        """ Debugging """
-        self.debug = False
-        self.debug_dma = False
-        self.debug_dma_addr = False
-        self.debug_pio = False
-        self.debug_irq = False
-        self.debug_interp = False
-        self.debug_interp_list = False
-        self.debug_scale_patterns = False
-        self.debug_with_debug_bytes = False
         self.skip_rows = 0
         self.skip_cols = 0
 
-        if self.debug:
+        if DEBUG:
             self.dbg = ScalerDebugger()
         else:
             self.dbg = None
@@ -58,7 +48,7 @@ class SpriteScaler():
         self.scaled_width = 0
 
         self.base_read = 0
-        self.read_stride = 0
+        self.read_stride_px = 0
         self.frac_bits = 0
 
         self.palette_addr = None
@@ -73,7 +63,7 @@ class SpriteScaler():
 
         self.init_interp()
 
-        if self.debug_scale_patterns:
+        if DEBUG_SCALE_PATTERNS:
             self.dma.patterns.print_patterns()
 
     # @micropython.viper
@@ -83,7 +73,7 @@ class SpriteScaler():
         max_write_addrs = min(self.framebuf.max_height, visible_rows)
         max_read_addrs = min(visible_rows, max_write_addrs)
 
-        if self.debug_dma:
+        if DEBUG_DMA:
             print(f" + VISIBLE ROWS:    {visible_rows}")
             print(f" + scaled_height:   {scaled_height}")
             print(f" + max_write_addrs: {max_write_addrs}")
@@ -105,18 +95,18 @@ class SpriteScaler():
                 read_addrs[row_id] = mem32[INTERP1_POP_FULL]
                 write_addrs[row_id] = mem32[INTERP0_POP_FULL]
 
-            if self.debug_dma_addr:
+            if DEBUG_DMA_ADDR:
                 print(f">>> [{row_id:02.}] R: 0x{read_addrs[row_id]:08X}")
                 print(f">>> [{row_id:02.}] W: 0x{write_addrs[row_id]:08X}")
                 print("-------------------------")
 
             row_id += 1
 
-        if self.debug_dma:
+        if DEBUG_DMA:
             print(f" - TOTAL # READ ADDRS: {max_read_addrs}")
 
-        read_addrs[row_id] = 0x00000000 # finish it with a NULL trigger
-        write_addrs[row_id] = 0x00000000 # finish it with a NULL trigger
+        read_addrs[row_id-1] = 0x00000000 # finish it with a NULL trigger
+        write_addrs[row_id-1] = 0x00000000 # finish it with a NULL trigger
         self.dma.read_addrs = read_addrs
 
     def draw_sprite(self, sprite:SpriteType, inst, image:Image, h_scale=1.0, v_scale=1.0):
@@ -152,7 +142,7 @@ class SpriteScaler():
         self.draw_x = int(inst.draw_x)
         self.draw_y = int(inst.draw_y)
 
-        if self.debug:
+        if DEBUG:
             print(f"ABOUT TO DRAW a Sprite on x,y: {self.draw_x},{self.draw_y} @ H: {h_scale}x / V: {v_scale}x")
 
         prof.start_profile('scaler.select_buffer')
@@ -170,7 +160,7 @@ class SpriteScaler():
         prof.start_profile('scaler.init_interp_sprite')
         self.init_interp_sprite(int(sprite.width), h_scale, v_scale)
 
-        if self.debug_dma:
+        if DEBUG_DMA:
             coords = SpritePhysics.get_pos(inst)
 
             print(f"Drawing a sprite of {sprite.width}x{sprite.height} ")
@@ -198,12 +188,13 @@ class SpriteScaler():
         prof.start_profile('scaler.init_dma_sprite')
         stride = sprite.width - self.skip_cols
         # self.dma.init_sprite(stride, h_scale) # DEBUG
-        self.dma.init_sprite(sprite.width, h_scale)
+
+        self.dma.init_sprite(self.read_stride_px, h_scale)
         prof.end_profile('scaler.init_dma_sprite')
 
         prof.start_profile('scaler.fill_addrs')
         self.fill_addrs(int(self.scaled_height), h_scale, v_scale)
-        if self.debug_dma:
+        if DEBUG_DMA:
             self.dma.debug_dma_addr()
 
         prof.end_profile('scaler.fill_addrs')
@@ -260,13 +251,13 @@ class SpriteScaler():
     def start(self):
         """ Start DMA chains and State Machines """
         prof.start_profile('scaler.dma_pio')
-        if self.debug:
+        if DEBUG:
             print("* STARTING DMA / PIO... *")
 
         self.dma.start()
         self.sm_read_palette.active(1)
 
-        if self.debug:
+        if DEBUG:
             print("* ...AFTER DMA / PIO START *")
         prof.end_profile('scaler.dma_pio')
 
@@ -349,7 +340,7 @@ class SpriteScaler():
         # read_step = read_step if read_step % 2 else read_step + 1
         # fixed_step = (sprite_width << self.frac_bits) // (scale_x_one * 2)  # Convert to fixed point directly
 
-        if self.debug_interp:
+        if DEBUG_INTERP:
             print(f"INTERP sprite_width: {sprite_width}")
             print(f"INTERP fixed_step: {int(fixed_step)}")
             print(f"INTERP base_read: {int(self.base_read):08X}")
@@ -368,6 +359,7 @@ class SpriteScaler():
         frame_height = framebuf.frame_height
         scaled_width = self.scaled_width
         scaled_height = self.scaled_height
+        self.read_stride_px = sprite_width
 
         """ Avoid division by zero """
         if not scale_x_one:
@@ -385,7 +377,7 @@ class SpriteScaler():
 
             self.base_read += math.ceil(skip_bytes_y)
 
-            if self.debug_interp:
+            if DEBUG_INTERP:
                 print(f"CLIPPING: (-Y)")
                 print(f"\tnew_draw_y:           {self.draw_y}")
                 print(f"\tskip_rows:            {skip_rows}")
@@ -394,36 +386,33 @@ class SpriteScaler():
 
         """ Horizontal clipping (X-axis) """
         if self.draw_x < 0:
-            self.skip_cols = skip_cols = abs(self.draw_x)  # Screen pixels to clip
-            original_pixels_skipped = math.ceil(skip_cols / scale_x_one)
+            # Calculate needed clipping in screen pixels
+            skip_px_total = abs(self.draw_x)
 
-            # Clamp to sprite's maximum original pixels (width)
-            max_original_skip = sprite_width
-            original_pixels_skipped = min(original_pixels_skipped, max_original_skip)
+            # 1. Convert screen skip to source pixels (original sprite resolution)
+            source_pixels_needed = int(skip_px_total / scale_x_one)
+            source_pixels_skipped = min(source_pixels_needed, sprite_width)
 
-            # Adjust draw_x based on ACTUAL skipped screen pixels
-            actual_skip_screen = original_pixels_skipped * scale_x_one
-            self.draw_x += actual_skip_screen
+            # 2. Align to 2px boundaries (since 2px/byte in source)
+            # source_pixels_skipped = (source_pixels_skipped + 1) // 2 * 2
+            skip_read_bytes = source_pixels_skipped // 2  # Bytes to skip
 
-            # Clamp draw_x to screen bounds
-            if self.draw_x >= self.framebuf.frame_width:
-                self.draw_x = self.framebuf.frame_width - 1  # Prevent overflow
+            # 3. Calculate actual screen position adjustment
+            self.draw_x += source_pixels_needed
 
-            # Calculate bytes to skip (2 pixels = 1 byte)
-            skip_read_bytes = math.ceil(original_pixels_skipped / 2)
-            # Clamp to sprite's byte width
-            max_bytes_skip = (sprite_width // 2)
-            skip_read_bytes = min(skip_read_bytes, max_bytes_skip)
+            # 4. Update memory pointers (source is 2px/byte)
+            self.base_read += source_pixels_needed
+            # self.read_stride_px = sprite_width - source_pixels_skipped  # In pixels
+            self.read_stride_px = sprite_width
 
-            self.base_read += skip_read_bytes
-            self.read_stride = math.ceil(sprite_width / 2) - math.ceil(skip_read_bytes)
-
-            if self.debug_interp:
+            if DEBUG_INTERP:
                 print(f"CLIPPING: (-X)")
-                print(f"\tnew_draw_x:           {self.draw_x}")
-                print(f"\tskip_cols:             {skip_cols}")
-                print(f"\tskip_read_bytes:     {skip_read_bytes}")
-                print(f"\tbase_read after:      0x{self.base_read:08X}")
+                print(f"\tnew_draw_x:               {self.draw_x}")
+                print(f"\tskip_px_total:            {skip_px_total}")
+                print(f"\tsource_pixels_needed:     {source_pixels_needed}")
+                print(f"\tsource_pixels_skipped:    {source_pixels_skipped}")
+                print(f"\tskip_read_bytes:          {skip_read_bytes}")
+                print(f"\tbase_read after:          0x{self.base_read:08X}")
 
     # @micropython.viper
     def init_convert_fixed_point(self, sprite_width, scale_x_one):
