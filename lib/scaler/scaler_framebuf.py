@@ -1,11 +1,8 @@
 import framebuf
-from uarray import array
-
 from profiler import Profiler as prof
-from screens.screen import ScreenBounds
+from screens.screen import PixelBounds
 from ssd1331_pio import SSD1331PIO
 from uctypes import addressof
-
 
 class ScalerFramebuf():
     """
@@ -13,7 +10,7 @@ class ScalerFramebuf():
     """
     """ Addtl width (beyond the full width of the screen) which the framebuf will use to calculate bounds.
         In order to support very high scales, increase this number to avoid early clipping. This is only a number and 
-         does not cost additional framebuffer memory. """
+         does not cost additional framebuffer memory since nothing is drawn here. """
     extra_width = extra_height = 64
 
     """ Because we can only read source pixels in whole rows, even when upscaling, if the upscaled pixel falls in the 
@@ -42,7 +39,7 @@ class ScalerFramebuf():
         bounds_top = -(self.extra_height // 2)
         bounds_bottom = int(display.height) + (self.extra_height / 2)
 
-        self.bounds = ScreenBounds(
+        self.bounds = PixelBounds(
             bounds_left,
             bounds_right,
             bounds_top,

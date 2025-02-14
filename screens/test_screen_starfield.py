@@ -150,7 +150,7 @@ class TestScreenStarfield(TestScreenBase):
             coords = self.mgr.phy.get_pos(inst)
             pos_x, pos_y = coords[0], coords[1]
 
-            if not utils.is_within_bounds([pos_x, pos_y], self.bounds):
+            if not self.is_sprite_in_bounds([pos_x, pos_y]):
                 self.mgr.release(inst, self.sprite)
                 if self.debug_inst:
                     print(f"<< COORDS ({pos_x}, {pos_y}) >>")

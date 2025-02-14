@@ -8,11 +8,11 @@ from sprites2.sprite_types import create_sprite, SPRITE_DATA_LAYOUT, SPRITE_DATA
 from sprites2.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE
 import uctypes
 from profiler import Profiler as prof
+from scaler.const import DEBUG_POOL
 
 POOL_CHUNK_SIZE = 50
 
 class SpritePool:
-    debug = False
     all_indices = 0
     free_count = 0
     active_count = 0
@@ -24,7 +24,7 @@ class SpritePool:
 
     def __init__(self, pool_size):
         self.pool_size = pool_size
-        print(f"About to create sprite pool of {pool_size}")
+        print(f"About to create sprite pool of {pool_size} (typeless)")
 
         self.create_pool(pool_size)
 
@@ -63,11 +63,13 @@ class SpritePool:
 
         self.free_count = self.free_count - 1
 
-        if self.debug:
-            print(f"get() - {len(self.all_indices)} total indices / free_count={self.free_count} ")
-
         index = self.ready_indices[self.free_count]
         sprite = self.sprites[index]
+
+        if DEBUG_POOL:
+            print(f".get() - {len(self.all_indices)} total indices / free_count={self.free_count} ")
+            print(f".ready index will be {index} for sprite {sprite}")
+
 
         sprite.sprite_type = sprite_type # int
         sprite.current_frame = 0

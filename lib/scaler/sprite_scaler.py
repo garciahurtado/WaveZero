@@ -87,13 +87,8 @@ class SpriteScaler():
         row_id = 0
 
         while row_id < int(max_read_addrs):
-            if row_id == 0:
-                """ This doubles up the first address, to fix a weird bug """
-                read_addrs[row_id] = self.base_read
-                write_addrs[row_id] = self.framebuf.min_write_addr
-            else:
-                read_addrs[row_id] = mem32[INTERP1_POP_FULL]
-                write_addrs[row_id] = mem32[INTERP0_POP_FULL]
+            read_addrs[row_id] = mem32[INTERP1_POP_FULL]
+            write_addrs[row_id] = mem32[INTERP0_POP_FULL]
 
             if DEBUG_DMA_ADDR:
                 print(f">>> [{row_id:02.}] R: 0x{read_addrs[row_id]:08X}")
@@ -398,10 +393,10 @@ class SpriteScaler():
             skip_read_bytes = source_pixels_skipped // 2  # Bytes to skip
 
             # 3. Calculate actual screen position adjustment
-            self.draw_x += source_pixels_needed
+            self.draw_x += source_pixels_skipped
 
             # 4. Update memory pointers (source is 2px/byte)
-            self.base_read += source_pixels_needed
+            # self.base_read += math.ceil(source_pixels_skipped / 2)
             # self.read_stride_px = sprite_width - source_pixels_skipped  # In pixels
             self.read_stride_px = sprite_width
 

@@ -1,9 +1,9 @@
 import random
-from color import color_util as colors
+from colors import color_util as colors
 from collections import namedtuple
 
-ScreenBounds = namedtuple(
-        "ScreenBounds",
+PixelBounds = namedtuple(
+        "PixelBounds",
         (
             "left",
             "right",
@@ -27,7 +27,7 @@ class Actions:
         self.display = display
         # self.bounds_width = display.width +
 
-        self.margins = ScreenBounds(
+        self.margins = PixelBounds(
             -extra_width,
             display.width + extra_width,
             -extra_height,

@@ -1,5 +1,6 @@
 import _thread
 import gc
+import sys
 
 import time
 import math
@@ -9,9 +10,11 @@ from uctypes import addressof
 
 import input_rotary
 import utils
+from screens.screen import PixelBounds
 
 from scaler.sprite_scaler import SpriteScaler
 from screens.test_screen_base import TestScreenBase
+from sprites2.cherries_16 import Cherries16
 from sprites2.gameboy import GameboySprite
 from sprites2.sprite_physics import SpritePhysics
 from sprites2.test_pyramid import TestPyramid
@@ -22,7 +25,7 @@ from sprites2.test_grid import TestGrid
 from sprites2.sprite_manager_2d import SpriteManager2D
 
 from sprites2.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART, SPRITE_TEST_GRID, SPRITE_TEST_GRID_SPEED, \
-    SpriteType, SPRITE_TEST_PYRAMID, FLAG_PHYSICS, SPRITE_GAMEBOY
+    SpriteType, SPRITE_TEST_PYRAMID, FLAG_PHYSICS, SPRITE_GAMEBOY, SPRITE_CHERRIES
 
 from profiler import Profiler as prof
 
@@ -45,7 +48,7 @@ WHITE = 0xFFFFFF
 
 class TestScreen(TestScreenBase):
     debug = True
-    debug_inst = True
+    debug_inst = False
     fps_enabled = True
     fps_counter_task = None
     color_idx = 0
@@ -63,7 +66,9 @@ class TestScreen(TestScreenBase):
     scaled_height = 0
     score = 0
     sprite_palette = None
-    sprite_type= None
+    sprite_type= None           # Numeric ID of sprite type (const)
+    sprite:SpriteType = None    # SpriteType / meta (not instance)
+    inst = None                 # Sprite instance
 
     base_speed = 1 / 800
     base_x = 0
@@ -90,6 +95,15 @@ class TestScreen(TestScreenBase):
     STATE_DIR_RIGHT = const(3)
     STATE_DIR_UP = const(4)
     STATE_DIR_DOWN = const(5)
+
+    state_names = [
+        'STATE_NONE',
+        'STATE_START',
+        'STATE_DIR_LEFT',
+        'STATE_DIR_RIGHT',
+        'STATE_DIR_UP',
+        'STATE_DIR_DOWN',
+    ]
     state = None
     last_state = None
 
@@ -116,8 +130,7 @@ class TestScreen(TestScreenBase):
 
     mgr = None
 
-    sprite = None # SpriteType (not instance)
-    inst = None
+
     image = None
     num_cols = None
     num_rows = None
@@ -138,7 +151,6 @@ class TestScreen(TestScreenBase):
 
         self.idx = 0
 
-        self.sprite_id = None
         print(f"Free memory __init__: {gc.mem_free():,} bytes")
 
         # self.x_vals = [(0*i) for i in range(num_sprites)]
@@ -180,23 +192,20 @@ class TestScreen(TestScreenBase):
         self.init_common()
         self.load_types()
 
-        test = 'clipping'
+        test = 'grid1'
         self.check_mem()
         method = None
 
         if test == 'zoom_heart':
-            self.sprite_id = SPRITE_TEST_HEART
-            self.load_sprite(self.sprite_id)
+            self.load_sprite(SPRITE_TEST_HEART)
             self.init_beating_heart()
             method = self.do_refresh_zoom_in
         elif test == 'zoom_sq':
-            self.sprite_id = SPRITE_TEST_SQUARE
-            self.load_sprite(self.sprite_id)
+            self.load_sprite(SPRITE_TEST_SQUARE)
             self.init_beating_heart()
             method = self.do_refresh_zoom_in
         if test == 'scale_control':
-            self.sprite_id = SPRITE_TEST_HEART
-            self.load_sprite(self.sprite_id)
+            self.load_sprite(SPRITE_TEST_HEART)
             self.init_score()
             self.init_scale_control()
             method = self.do_refresh_scale_control
@@ -204,27 +213,21 @@ class TestScreen(TestScreenBase):
             self.grid_beat = False
             self.fallout = False
             self.color_demo = False
-
-            self.sprite_id = SPRITE_TEST_HEART
-            self.load_sprite(self.sprite_id)
+            self.load_sprite(SPRITE_TEST_HEART)
             self.init_grid()
             method = self.do_refresh_grid
         elif test == 'grid2':
-            self.sprite_id = SPRITE_GAMEBOY
-            self.load_sprite(self.sprite_id)
+            self.load_sprite(SPRITE_GAMEBOY)
             self.init_grid()
             method = self.do_refresh_grid
         elif test == 'grid3':
-            self.sprite_id = SPRITE_TEST_SQUARE
-            self.load_sprite(self.sprite_id)
+            self.load_sprite(SPRITE_TEST_SQUARE)
             self.init_grid()
             self.grid_beat = False
             self.fallout = True
             method = self.do_refresh_grid
         elif test == 'clipping':
-            self.sprite_id = SPRITE_GAMEBOY
-            self.init_common(1)
-            self.load_sprite(self.sprite_id)
+            self.load_sprite(SPRITE_CHERRIES)
             self.init_clipping()
             method = self.do_refresh_clipping
         else:
@@ -283,12 +286,11 @@ class TestScreen(TestScreenBase):
         self.phy = self.mgr.phy
 
     def init_grid(self):
-        # meta = self.mgr.get_meta(self.sprite)
-        self.inst, idx = self.mgr.pool.get(self.sprite_id, self.sprite)
+        self.inst, idx = self.mgr.pool.get(self.sprite_type, self.sprite)
+        # self.sprite = self.mgr.get_meta(self.inst)
 
         sprite_width = self.sprite.width
         sprite_height = self.sprite.height
-        self.image = self.mgr.sprite_images[self.sprite_id][-1]
 
         one_scales1 = list(self.one_scales.keys())
         one_scales1_rev = one_scales1.copy()
@@ -296,7 +298,6 @@ class TestScreen(TestScreenBase):
 
         one_scales2 = one_scales1.copy()
         one_scales2.reverse()
-        self.plus_one_scale_keys = one_scales2 + one_scales1
 
         times = 2
         self.one_two_scale_keys = [1] * times + list(self.two_scales.keys()) + [1] * times
@@ -346,7 +347,7 @@ class TestScreen(TestScreenBase):
 
     def init_beating_heart(self):
         # self.sprite = self.mgr.get_meta(self.sprite)
-        self.image = self.mgr.sprite_images[self.sprite_id][-1]
+        self.image = self.mgr.sprite_images[self.sprite_type][-1]
 
         h_scales1 = list(self.all_scales.keys())
         h_scales1.sort()
@@ -360,11 +361,11 @@ class TestScreen(TestScreenBase):
     def init_scale_control(self):
         # self.sprite = self.mgr.get_meta(self.sprite)
         self.init_fps()
-        self.inst, idx = self.mgr.pool.get(self.sprite_id, self.sprite)
+        self.inst, idx = self.mgr.pool.get(self.sprite_type, self.sprite)
 
         self.draw_x = self.display.width // 2
         self.draw_y = self.display.height // 2
-        self.image = self.mgr.sprite_images[self.sprite_id][-1]
+        self.image = self.mgr.sprite_images[self.sprite_type][-1]
 
 
         # init 4bit palette
@@ -406,23 +407,20 @@ class TestScreen(TestScreenBase):
                 print(f"S: {scale:.03f}")
 
     def init_clipping(self):
-        self.inst, idx = self.mgr.pool.get(self.sprite_id, self.sprite)
-        self.sprite_type = self.mgr.get_meta(self.inst)
+        self.inst, idx = self.mgr.pool.get(self.sprite_type, self.sprite)
+        self.sprite = self.mgr.get_meta(self.inst)
 
-        self.sprite_type.set_flag(self.inst, FLAG_PHYSICS, True)
+        # self.sprite_type.set_flag(self.inst, FLAG_PHYSICS, True)
         self.phy.set_pos(self.inst, self.center_x, self.center_y)
-        self.image = self.mgr.sprite_images[self.sprite_id][-1]
         self.curr_dir = 'horiz'
         self.bounce_count = 0
-        self.inst.speed = self.base_speed = 0.02
-        self.h_scale = self.v_scale = 4
+        self.inst.speed = self.base_speed = 0.1
+        self.h_scale = self.v_scale = 1
 
+        self.bounds = self.scaler.framebuf.bounds
         self.scaled_width = math.ceil(self.sprite.width * self.h_scale)
         self.scaled_height = math.ceil(self.sprite.height * self.v_scale)
         self.set_state(self.STATE_START)
-
-        loop = asyncio.get_event_loop()
-        loop.create_task(self.flip_dir())
 
     def do_refresh_grid(self):
         """
@@ -566,27 +564,39 @@ class TestScreen(TestScreenBase):
         Do a demo of several diverse horizontal scale ratios
         """
         phy = self.phy
+        scaled_width = self.scaled_width
+        scaled_height = self.scaled_height
 
         x_max = 96
-        x_min = 0 - self.scaled_width
+        x_min = 0 - scaled_width
 
         y_max = 64
-        y_min = 0 - self.scaled_height
+        y_min = 0 - scaled_height
 
         state = self.state
 
         pos_x, pos_y = phy.get_pos(self.inst)
+        draw_x, draw_y = phy.get_draw_pos(self.inst, scaled_width, scaled_height)
         inst = self.inst
 
-        print("BOUNDS")
-        print(self.bounds)
-        if not utils.is_within_bounds([pos_x, pos_y], self.bounds):
+        sprite_dims = PixelBounds(
+            left = draw_x,
+            right= draw_x + scaled_width,
+            top = draw_y,
+            bottom= draw_y + scaled_height
+        )
+        self.last_state = state
+
+        """ Sprite center out of bounds """
+        if not self.is_point_in_bounds([pos_x, pos_y]):
             """ Turn around when we reach the edges"""
             if state == self.STATE_DIR_LEFT:
                 self.set_state(self.STATE_DIR_RIGHT)
+                phy.set_pos(inst, self.bounds.left + 10, pos_y)
                 phy.set_dir(inst, 1, 0)
             elif state == self.STATE_DIR_RIGHT:
                 self.set_state(self.STATE_DIR_LEFT)
+                phy.set_pos(inst, self.bounds.right - 1, pos_y)
                 phy.set_dir(inst, -1, 0)
             elif state == self.STATE_DIR_UP:
                 self.set_state(self.STATE_DIR_DOWN)
@@ -597,26 +607,25 @@ class TestScreen(TestScreenBase):
 
             return
 
+        """ Sprite center within bounds """
         if state == self.STATE_START:
             self.set_state(self.STATE_DIR_LEFT)
             phy.set_dir(inst, -1, 0)
         elif state == self.STATE_DIR_LEFT and pos_x < self.half_width:
+            print(f"LAST STATE: {self.state_names[self.last_state]}")
+
             if self.was_state(self.STATE_DIR_RIGHT):
+
                 """ We crossed over the middle point, so change direction """
                 self.set_state(self.STATE_DIR_UP)
                 self.center_sprite(inst)
                 phy.set_dir(inst, 0, -1)
-        elif state == self.STATE_DIR_UP and pos_y < self.half_height:
-            if self.was_state(self.STATE_DIR_DOWN):
+        elif state == self.STATE_DIR_DOWN and pos_y < self.half_height:
+            if self.was_state(self.STATE_DIR_UP):
                 """ We crossed over the middle point, so restart """
                 self.set_state(self.STATE_START)
                 self.center_sprite(inst)
                 phy.set_dir(inst, 0, 0)
-
-
-        # draw_coords = self.phy.get_draw_pos(self.inst, self.scaled_width, self.scaled_height)
-        # draw_x = draw_coords[0]
-        # draw_y = draw_coords[1]
 
         self.display.fill(0x000000)
         self.scaler.draw_sprite(
@@ -632,8 +641,10 @@ class TestScreen(TestScreenBase):
         self.fps.tick()
 
         if self.debug:
-            print(f"STATE: {self.state}")
-            print(f"LAST STATE: {self.last_state}")
+            names = self.state_names
+            print(f" * LAST STATE:  {names[self.last_state]}")
+            print(f" * STATE:       {names[self.state]}")
+            print("--")
 
     def center_sprite(self, sprite):
         self.phy.set_pos(sprite, self.center_x, self.center_y)
@@ -671,13 +682,6 @@ class TestScreen(TestScreenBase):
             color = self.line_colors[idx]
             self.lines.append([int(0), int(y_start-16), int(95), int(y_start), color])
 
-    async def sprite_fps_test(self):
-        # self.create_sprites()
-        self.last_tick = utime.ticks_ms()
-
-        while True:
-            self.sprite_fps_test_func()
-            await asyncio.sleep(1 / 100)
 
     def show_prof(self):
         interval = 5000  # Every 5 secs
@@ -694,16 +698,15 @@ class TestScreen(TestScreenBase):
         for i, sprite in enumerate(self.instances):
             sprite.z = sprite.z + 6
             sprite.update(elapsed)
-            # print(f"z: {sprite.z}")
         self.last_tick = utime.ticks_ms()
 
     def load_sprite(self, sprite_type):
         """ Creates images if not exist, returns meta"""
-        self.sprite = self.mgr.sprite_metadata[sprite_type]
+        self.sprite_type = sprite_type
+        self.sprite_meta = self.sprite = self.mgr.sprite_metadata[sprite_type]
         self.sprite_palette = self.mgr.get_palette(sprite_type)
-        self.sprite_img = self.mgr.sprite_images[sprite_type]
-
-        return self.sprite
+        self.image = self.mgr.sprite_images[self.sprite_type][-1]
+        return self.sprite_meta
 
     def load_types(self):
         self.mgr.add_type(
@@ -725,6 +728,10 @@ class TestScreen(TestScreenBase):
         self.mgr.add_type(
             sprite_type=SPRITE_GAMEBOY,
             sprite_class=GameboySprite)
+
+        self.mgr.add_type(
+            sprite_type=SPRITE_CHERRIES,
+            sprite_class=Cherries16)
 
     def init_camera(self):
         # Camera

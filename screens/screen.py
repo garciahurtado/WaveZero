@@ -10,6 +10,16 @@ from sprites.sprite import Sprite
 import micropython
 from ssd1331_pio import SSD1331PIO
 
+PixelBounds = namedtuple(
+    "PixelBounds",
+    (
+        "left",
+        "right",
+        "top",
+        "bottom",
+    )
+)
+
 class Screen:
     debug = True
     display = None
@@ -33,7 +43,7 @@ class Screen:
         self.instances = []
         if display:
             self.display = display
-            self.bounds = ScreenBounds(
+            self.bounds = PixelBounds(
                 left = 0-margin_px,
                 right= display.WIDTH + margin_px,
                 top = 0-margin_px,
@@ -108,6 +118,32 @@ class Screen:
         for my_sprite in self.instances:
             my_sprite.show(self.display)
 
+    def is_sprite_in_bounds(self, sprite_bounds: PixelBounds, screen_bounds=None):
+        if not screen_bounds:
+            screen_bounds = self.bounds
+
+        if (screen_bounds.left <= sprite_bounds.left <= screen_bounds.right) and \
+           (screen_bounds.left <= sprite_bounds.right <= screen_bounds.right) and \
+           (screen_bounds.top <= sprite_bounds.top <= screen_bounds.bottom) and \
+           (screen_bounds.top <= sprite_bounds.bottom <= screen_bounds.bottom):
+            return True
+
+        # Otherwise its out of bounds
+        return False
+
+    def is_point_in_bounds(self, point, screen_bounds=None):
+        if not screen_bounds:
+            screen_bounds = self.bounds
+
+        point_x, point_y = point
+
+        if (screen_bounds.left <= point_x <= screen_bounds.right) and \
+           (screen_bounds.top <= point_y <= screen_bounds.bottom):
+            return True
+
+        # Otherwise its out of bounds
+        return False
+
 
     def maybe_gc(self):
         now = utime.ticks_ms()
@@ -126,13 +162,3 @@ class Screen:
         gc.collect()
         print(msg)
         print(micropython.mem_info())
-
-ScreenBounds = namedtuple(
-    "ScreenBounds",
-    (
-        "left",
-        "right",
-        "top",
-        "bottom",
-    )
-)

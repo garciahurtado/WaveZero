@@ -48,9 +48,32 @@ class SSD1331PIO():
     xA0 x72 -> RGB
     xA0 x76 -> BGR
     """
-    INIT_BYTES = b'\xAE\xA0\x76\xA1\x00\xA2\x00\xA4\xA8\x3F\xAD\x8E\xB0'\
-                 b'\x0B\xB1\x31\xB3\xF0\x8A\x64\x8B\x78\x8C\x64\xBB\x3A\xBE\x3E\x87'\
-                 b'\x06\x81\x91\x82\x50\x83\x7D\xAF'\
+    # INIT_BYTES = b'\xAE\xA0\x76\xA1\x00\xA2\x00\xA4\xA8\x3F\xAD\x8E\xB0'\
+    #              b'\x0B\xB1\x31\xB3\xF0\x8A\x64\x8B\x78\x8C\x64\xBB\x3A\xBE\x3E\x87'\
+    #              b'\x06\x81\x91\x82\x50\x83\x7D\xAF'\
+
+    INIT_BYTES = (
+        b'\xAE'  # Set Display Off (turn off display during initialization)
+        b'\xA0\x76'  # Set Remap/Color Depth: Horizontal address increment, column remap, nibble remap, vertical increment, COM split, 65k color depth (16-bit)
+        b'\xA1\x00'  # Set Display Start Line: Start at line 0
+        b'\xA2\x00'  # Set Display Offset: No offset
+        b'\xA4'      # Set Display Mode: Normal Display (not all pixels on/off)
+        b'\xA8\x3F'  # Set Multiplex Ratio: 64 COM lines (0x3F = 63 for 64 rows)
+        b'\xAD\x8E'  # Set Master Configuration: Enable internal VCC regulator, default settings
+        b'\xB0\x0B'  # Set Power Save Mode: Disabled
+        b'\xB1\x31'  # Set Phase 1 and 2 Periods: Phase 1 = 3 DCLKs, Phase 2 = 1 DCLK
+        b'\xB3\xF0'  # Set Display Clock Divide Ratio/Oscillator Frequency: Divide Ratio = 0x0, Oscillator Frequency = 0xF (max)
+        b'\x8A\x64'  # Set Second Pre-Charge Period: 100 us
+        b'\x8B\x78'  # Set Pre-Charge Voltage: Default
+        b'\x8C\x64'  # Set VCOMH Deselect Level: Default
+        b'\xBB\x3A'  # Set Pre-Charge Period: Default
+        b'\xBE\x3E'  # Set VSL (Voltage Supply Level): Default
+        b'\x87\x06'  # Set Master Current Control: Default
+        b'\x81\x91'  # Set Contrast for Color A (Red): Default
+        b'\x82\x50'  # Set Contrast for Color B (Green): Default
+        b'\x83\x7D'  # Set Contrast for Color C (Blue): Default
+        b'\xAF'  # Set Display On (turn on display after initialization)
+    )
 
     def __init__(self, spi, pin_cs, pin_dc, pin_rs, pin_sck, pin_sda, height=HEIGHT, width=WIDTH):
         self.spi = spi
