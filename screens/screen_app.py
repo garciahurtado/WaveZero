@@ -25,8 +25,6 @@ class ScreenApp:
         if not self.screens:
             raise AssertionError("No screens registered with app!")
 
-        gc.threshold(5000) # i think there's a manual one of these somewhere in the code
-
         for screen in self.screens:
             screen.run()
 

@@ -6,6 +6,7 @@ import time
 import math
 import random
 
+import micropython
 from uctypes import addressof
 
 import input_rotary
@@ -210,8 +211,8 @@ class TestScreen(TestScreenBase):
             self.init_scale_control()
             method = self.do_refresh_scale_control
         elif test == 'grid1':
-            self.grid_beat = False
-            self.fallout = False
+            # self.grid_beat = False
+            # self.fallout = False
             self.color_demo = False
             self.load_sprite(SPRITE_TEST_HEART)
             self.init_grid()
@@ -427,35 +428,33 @@ class TestScreen(TestScreenBase):
         Show a grid of heart Sprites
         """
         prof.start_profile('scaler.draw_loop_init')
-        row_sep = self.sprite.width
-        col_sep = self.sprite.width
+
 
         self.common_bg()
 
         prof.end_profile('scaler.draw_loop_init')
 
         self.idx = 0
-
         inst = self.inst
-
-        color_demo = self.color_demo
-
+        row_sep = self.sprite.width
+        col_sep = self.sprite.width
         for c in range(self.num_cols):
             for r in range(self.num_rows):
                 prof.start_profile('scaler.pre_draw')
 
-                self.phy.set_pos(inst, c * col_sep + 8, r * row_sep + 8)
+                self.phy.set_pos(inst,
+                                 c * col_sep + 8,
+                                 r * row_sep + 8)
 
                 if self.grid_beat or self.fallout:
-                    scale_factor = (self.scale_id+self.idx) % self.scale_source_len
-                    self.scale_id += 1
+                    scale_factor = (self.scale_id + self.idx) % self.scale_source_len
+                    self.scale_id = self.scale_id + 1
                     self.h_scale = self.scale_source[scale_factor]
                     self.v_scale = self.h_scale
 
                     self.scaled_width = self.sprite.height * self.h_scale
                     self.scaled_height = self.sprite.height * self.v_scale
 
-                    # draw_x, draw_y = self.scaler.center_sprite(self.scaled_width, self.scaled_height)
                 prof.end_profile('scaler.pre_draw')
 
                 self.scaler.draw_sprite(
@@ -467,10 +466,10 @@ class TestScreen(TestScreenBase):
 
                 self.idx = self.idx + 1
 
-                if color_demo:
-                    new_color = self.rainbow_colors[self.color_idx % self.color_len]
-                    self.sprite_palette.set_hex(3, new_color)
-                    self.color_idx += 1
+        if self.color_demo:
+            new_color = self.rainbow_colors[self.color_idx % self.color_len]
+            self.sprite_palette.set_hex(3, new_color)
+            self.color_idx += 1
 
         prof.start_profile('scaler.display_show')
 

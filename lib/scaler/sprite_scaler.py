@@ -66,7 +66,7 @@ class SpriteScaler():
         if DEBUG_SCALE_PATTERNS:
             self.dma.patterns.print_patterns()
 
-    # @micropython.viper
+    @micropython.viper
     def fill_addrs(self, scaled_height: int, h_scale, v_scale):
         # Calculate visible rows after vertical clipping
         visible_rows = scaled_height - int(self.skip_rows * v_scale)

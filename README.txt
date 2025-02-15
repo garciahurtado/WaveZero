@@ -10,3 +10,7 @@ python ./watch_files.py
     - Press RESET on the pico (or perform a soft reset via the console)
     - Quickly save the file in the IDE
     - The file watcher should be able to catch the change and copy the file to the pico. This will also stop the program from starting all the way.
+
+How to remove all profiler statements from the project source:
+
+[^\n]*prof\.\w*_profile\(.*$

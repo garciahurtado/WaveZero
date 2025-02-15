@@ -1,0 +1,30 @@
+FPS comparison with without profiler
+
+105 or so profiler statements / 24 16x16 sprites @
+
+
+FPS:   3.90
+FPS:   3.90
+FPS:   3.88
+
+
+[^\n]*prof\.\w*_profile\(.*$
+
+Removed them all: (about 4.88%. increase)
+
+FPS:   4.08
+FPS:   4.08
+FPS:   4.09
+
+------- GO!
+
+FPS:   3.90 
+FPS:   3.90
+FPS:   3.88
+
+
+@viper
+
+FPS:   4.76
+FPS:   4.76
+FPS:   4.76
