@@ -211,8 +211,6 @@ class TestScreen(TestScreenBase):
             self.init_scale_control()
             method = self.do_refresh_scale_control
         elif test == 'grid1':
-            # self.grid_beat = False
-            # self.fallout = False
             self.color_demo = False
             self.load_sprite(SPRITE_TEST_HEART)
             self.init_grid()
@@ -285,6 +283,8 @@ class TestScreen(TestScreenBase):
         self.max_sprites = num_sprites
         self.mgr = self.create_sprite_manager(num_sprites)
         self.phy = self.mgr.phy
+        if prof and prof.enabled:
+            prof.fps = self.fps
 
     def init_grid(self):
         self.inst, idx = self.mgr.pool.get(self.sprite_type, self.sprite)
@@ -427,12 +427,9 @@ class TestScreen(TestScreenBase):
         """
         Show a grid of heart Sprites
         """
-        prof.start_profile('scaler.draw_loop_init')
-
-
-        self.common_bg()
-
-        prof.end_profile('scaler.draw_loop_init')
+        prof.start_profile('scaler.draw_loop_fill')
+        self.display.fill(0x000000)
+        prof.end_profile('scaler.draw_loop_fill')
 
         self.idx = 0
         inst = self.inst

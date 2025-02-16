@@ -17,8 +17,8 @@ class TestScreenBase(Screen):
 
     fps_text: ColorWriter
     score_palette = FramebufferPalette(16, color_mode=framebuf.GS4_HMSB)
-    grid_lines = False
     grid_lines_color = colors.hex_to_565(0x0b2902)
+    grid_lines = False
     grid_center = False
     grid_color = colors.hex_to_565(0x00FF00)
 
@@ -48,11 +48,12 @@ class TestScreenBase(Screen):
 
     def common_bg(self):
         self.display.fill(0x000000)
-        width = self.screen_width
-        height = self.screen_height
 
         if self.grid_lines:
             # Vertical lines
+            width = self.screen_width
+            height = self.screen_height
+
             for x in range(0, width, 8):
                 self.display.line(x, 0, x, height, self.grid_lines_color)
             self.display.line(width-1, 0, width-1, height, self.grid_lines_color)
@@ -63,6 +64,10 @@ class TestScreenBase(Screen):
             self.display.line(0, height-1, width, height-1, self.grid_lines_color)
 
         if self.grid_center:
+            """ Center grid origin """
+            width = self.screen_width
+            height = self.screen_height
+
             self.display.hline(0, height//2, width, self.grid_color)
             self.display.line(width//2, 0, width//2, height, self.grid_color)
 

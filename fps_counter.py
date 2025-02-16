@@ -38,3 +38,10 @@ class FpsCounter():
         Returns FPS based on EMA of frame times, or 0 if no measurements yet.
         """
         return 1000 / self.ema if self.ema > 0 else 0
+
+    def frame_ms(self):
+        """Calculate the current frame time in milliseconds.
+
+        Returns the EMA of frame times, or 0 if no measurements yet.
+        """
+        return self.ema if self.ema > 0 else 0

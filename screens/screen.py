@@ -30,10 +30,7 @@ class Screen:
     gc_interval: int = 3000 # how often to call the garbage collector (ms)
     # gc_interval = 0
     app: None # ref. to ScreenApp
-    profile_labels = {}
-    display_loop_wait = 2 # ms for the display loop to wait between refreshes
-    fps = 0
-    target_fps = 30
+    fps = None
     total_width = 0
     total_height = 0
     half_height = 0
@@ -65,21 +62,6 @@ class Screen:
     def add(self, sprite):
         self.instances.append(sprite)
 
-    async def _refresh_display(self):
-        # DEPRECATED?
-        wait_s = 1/30# max FPS
-        try:
-            while True:
-                self.do_refresh()
-                # now = utime.ticks_ms()
-                # if (now - self.last_gc) > self.gc_interval:
-                #     gc.collect()
-                #     self.last_gc = utime.ticks_ms()
-
-                await asyncio.sleep(wait_s)
-        except asyncio.CancelledError:
-            return True
-
     async def start_display_loop(self):
         while True:
             self.do_refresh()
@@ -91,7 +73,7 @@ class Screen:
         )
 
     async def start_fps_counter(self):
-        await asyncio.sleep(5) # wait for things to stabilize first
+        await asyncio.sleep(5) # wait for things to stabilize before measuring FPS
 
         while True:
             fps = self.fps.fps()

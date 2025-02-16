@@ -1,4 +1,6 @@
 import math
+
+import time
 from _rp2 import DMA
 from uarray import array
 from uctypes import addressof
@@ -190,7 +192,7 @@ class DMAChain:
         self.write_addr.read = addressof(self.write_addrs)
 
     def irq_px_read_end(self, ch):
-        """Handle end of ALL pixels read IRQ."""
+        """IRQ Handler for end of ALL pixels read"""
         self.read_finished = True
 
     def debug_dma_channels(self):

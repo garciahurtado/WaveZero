@@ -28,3 +28,40 @@ FPS:   3.88
 FPS:   4.76
 FPS:   4.76
 FPS:   4.76
+
+FPS:   4.80
+FPS:   4.78
+FPS:   4.78
+FPS:   4.81
+
+Disabled specific gc() interval (5s) ----------------------- !!!
+Prety much a 2x improvement. Turns out the GC threshold is in bytes and not ms!.
+
+FPS:   9.76
+FPS:   9.73
+FPS:   9.71
+FPS:   9.71
+
+--- clean common_bg
+
+FPS:   9.77
+FPS:   9.75
+FPS:   9.73
+
+--- changed delay in update_loop to 100ms
+
+FPS:   9.90
+FPS:   9.86
+FPS:   9.81
+
+- (w/ profiler)
+
+FPS:   6.67
+FPS:   6.70
+FPS:   6.77
+FPS:   6.78
+
+
+
+
+

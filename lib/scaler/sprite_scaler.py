@@ -2,6 +2,8 @@ import math
 import sys
 import micropython
 import gc
+
+import time
 from _rp2 import StateMachine
 from time import sleep
 from uctypes import addressof
@@ -54,6 +56,7 @@ class SpriteScaler():
         self.palette_addr = None
         self.last_palette_addr = None # For caching
 
+        """ There's a sweet spot for this frequency, related to the system clock. About 1/3 """
         sm_freq = 40_000_000 # must be 50% or less of the system clock, to avoid visual glitches
         # PIO1 - SM0
         self.sm_read_palette = StateMachine(
@@ -114,6 +117,7 @@ class SpriteScaler():
 
         self.alpha = sprite.alpha_color
         self.dma.read_finished = False
+        self.dma.palette_finished = False
 
         if sprite.width == 16:
             self.framebuf.frac_bits = self.frac_bits = 3  # Use x.y fixed point   (16x16)
