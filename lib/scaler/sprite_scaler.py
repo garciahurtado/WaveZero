@@ -1,29 +1,30 @@
+import gc
+
+from scaler.scaler_framebuf import ScalerFramebuf
+gc.collect()
+
 import math
 import sys
 import micropython
-import gc
-
-import time
 from _rp2 import StateMachine
-from time import sleep
+from machine import mem32
 from uctypes import addressof
 from colors import color_util as colors
+from scaler.const import DEBUG, DEBUG_SCALE_PATTERNS, DEBUG_DMA, INTERP0_POP_FULL, INTERP1_POP_FULL, DEBUG_DMA_ADDR, \
+    INTERP0_CTRL_LANE0, INTERP0_CTRL_LANE1, INTERP0_BASE0, INTERP1_CTRL_LANE0, INTERP1_BASE0, INTERP1_ACCUM0, \
+    INTERP1_ACCUM1, INTERP1_BASE1, INTERP1_BASE2, DEBUG_INTERP, INTERP1_CTRL_LANE1, INTERP0_BASE1, INTERP0_ACCUM0, \
+    INTERP0_ACCUM1
 from sprites2.sprite_physics import SpritePhysics
 
-gc.collect()
-
 from images.indexed_image import Image
-from scaler.const import *
 from scaler.dma_chain import DMAChain
 from scaler.scaler_pio import read_palette
 from scaler.scaler_debugger import ScalerDebugger
-from scaler.scaler_framebuf import ScalerFramebuf
 
 from sprites2.sprite_types import SpriteType
 from ssd1331_pio import SSD1331PIO
 
 from profiler import Profiler as prof
-
 gc.collect()
 
 class SpriteScaler():
@@ -69,7 +70,7 @@ class SpriteScaler():
         if DEBUG_SCALE_PATTERNS:
             self.dma.patterns.print_patterns()
 
-    @micropython.viper
+    # @micropython.viper
     def fill_addrs(self, scaled_height: int, h_scale, v_scale):
         # Calculate visible rows after vertical clipping
         visible_rows = scaled_height - int(self.skip_rows * v_scale)

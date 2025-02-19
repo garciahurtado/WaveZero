@@ -25,14 +25,14 @@ class ProfileLabel:
 
 class Profiler:
     __slots__ = ()  # No instance attributes needed
-    enabled = True
+    enabled = False
     fps: FpsCounter = None
     profile_labels = OrderedDict()
 
     @staticmethod
     def start_frame():
-        """ Starts a new frame: erase frame level stats while keeping the totals """
-        for record in Profiler.profile_labels:
+        """ Starts a new frame: reset frame level stats while keeping the totals """
+        for key, record in Profiler.profile_labels.items():
             record.frame_calls = 0
             record.frame_time = 0
 
@@ -72,9 +72,11 @@ class Profiler:
         if not Profiler.enabled:
             return
 
-        max_col = 80
+        max_col = 79
+        print()
         print("\nProfile Results:")
-        print(f"{'func': <32} {'frame runs': <10} {'runs': <8} {'func ms': >9} {'total ms': >9} {'avg ms': <14}")
+        print()
+        print(f"{'func': <31} {'Calls': >6} {'Per frame': >10} {'Avg ms': >9} {'Frame ms': >9} {'Tot ms': >9} ")
         print("-" * max_col)
 
         if not Profiler.profile_labels:
@@ -93,6 +95,8 @@ class Profiler:
         def sort_key(item):
             return item[1].total_time
 
+        total_frame_time = 0 # keep running tally
+
         for label, record in sorted(
                 Profiler.profile_labels.items(),
                 key=sort_key,
@@ -101,29 +105,27 @@ class Profiler:
             if not show_label(label):
                 continue
 
-            total_calls = record.total_calls
             frame_calls = record.frame_calls
-            frame_time = record.frame_time
-            total_time_ms = record.total_time / 1000
+            frame_time = record.frame_time / 1000 # us -> ms
+            total_frame_time += frame_time
+
+            total_calls = record.total_calls
+            total_time_ms = record.total_time / 1000 # us -> ms
 
             if total_calls == 0:
-                print(f"{label: <32} {'N/A': <8} {'N/A': <14} {'N/A': >9}")
+                print(f"{label: <30} {'N/A': <8} {'N/A': <10} {'N/A': <14} {'N/A': >9} {'N/A': >9}")
                 continue
 
             avg_time_ms = total_time_ms / total_calls
-            print(f"{label: <32} {frame_calls: <10} {total_calls: <8} {frame_time: >9} {total_time_ms: >9.2f} {avg_time_ms: <14.4f} ")
+            print(f"{label: <31} {total_calls: >6} {frame_calls: >10} {avg_time_ms: >9.2f} {frame_time: >9.2f} {total_time_ms: >9.2f} ")
 
         print('-' * max_col)
-        print()
-        print()
+        print(f"TOTALS: {total_frame_time:>61.2f}")
 
         if Profiler.fps:
             frame_time = Profiler.fps.frame_ms()
-            print(f"Frame time: {int(frame_time)}ms")
-            print()
-            print()
-            print()
-            print()
+
+        print()
 
 
     @staticmethod

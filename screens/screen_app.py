@@ -1,8 +1,6 @@
-import gc
-
 import framebuf
 from display_init import get_display
-from screens.screen import Screen
+# from screens.screen import Screen
 
 
 class ScreenApp:
@@ -17,7 +15,7 @@ class ScreenApp:
         self.screen_height = screen_height
         self.display = get_display()
 
-    def load_screen(self, screen: Screen):
+    def load_screen(self, screen):
         screen.app = self
         self.screens.append(screen)
 
@@ -27,5 +25,3 @@ class ScreenApp:
 
         for screen in self.screens:
             screen.run()
-
-

@@ -2,9 +2,9 @@ import gc
 
 import uos
 from images.bmp_reader import BMPReader
-from color import color_util as colors
+from colors.color_util import rgb_to_565
 from images.indexed_image import Image
-from framebuf import *
+from framebuf import GS4_HMSB
 
 class ImageLoader():
     """Preloads a list of images in order to cache their framebuffers (as RGB565) to later be used by Sprites"""
@@ -14,8 +14,8 @@ class ImageLoader():
 
     progress_loaded = 0
     progress_total = 0
-    progress_bar_color = colors.rgb_to_565([24, 24, 24])
-    progress_bar_bg_color = colors.rgb_to_565([12, 12, 12])
+    progress_bar_color = rgb_to_565([24, 24, 24])
+    progress_bar_bg_color = rgb_to_565([12, 12, 12])
 
     @staticmethod
     def load_images(images, display):

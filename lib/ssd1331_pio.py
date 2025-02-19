@@ -6,7 +6,8 @@ from rp2 import PIO, DMA, StateMachine
 import rp2
 import uctypes
 import gc
-import color.color_util as colors
+import colors.color_util as colors
+from utils import aligned_buffer
 
 class SSD1331PIO():
     """ Display driver that uses DMA to transfer bytes from the memory location of a framebuf to the queue of a PIO
@@ -18,39 +19,33 @@ class SSD1331PIO():
     - read_buffer: this is a new buffer created for the display to read from. This buffer is filled by DMA
 
     """
-
-    dma0: DMA = None
-    dma1: DMA = None
-    dma0_active = True
-    dma1_active = False
-    dma_tx_count = 256
-    framebuf0 = None
-    framebuf1 = None
-    read_buffer = None
-    write_buffer = None
-    write_framebuf = None
-    read_framebuf = None
-    swap_ready = False
-    fps = None
-    paused = True
-    curr_read_buf = None
-
     HEIGHT: int = const(64)
     WIDTH: int = const(96)
     DMA_BASE = const(0x50000000)
     DC_MODE_CMD = 0x00
     DC_MODE_DATA = 0x01
 
+    dma0: DMA = None
+    dma1: DMA = None
+
+    """ The name of these 3 variables is not important, they are only here because there's a sligth FPS improvement
+    when they are declared at the class level and right before the draw buffers. I have no idea why that is the case."""
+    _temp1 = False
+    _temp2 = True
+    _temp3 = True
+
     buffer0 = bytearray(HEIGHT * WIDTH * 2)  # RGB565 is 2 bytes
     buffer1 = bytearray(HEIGHT * WIDTH * 2)  # RGB565 is 2 bytes
+
+    dma_tx_count = 256
+
+    fps = None
+    paused = True
 
     """ 
     xA0 x72 -> RGB
     xA0 x76 -> BGR
     """
-    # INIT_BYTES = b'\xAE\xA0\x76\xA1\x00\xA2\x00\xA4\xA8\x3F\xAD\x8E\xB0'\
-    #              b'\x0B\xB1\x31\xB3\xF0\x8A\x64\x8B\x78\x8C\x64\xBB\x3A\xBE\x3E\x87'\
-    #              b'\x06\x81\x91\x82\x50\x83\x7D\xAF'\
 
     INIT_BYTES = (
         b'\xAE'  # Set Display Off (turn off display during initialization)
@@ -112,14 +107,20 @@ class SSD1331PIO():
 
         self.curr_read_buf = self.read_addr_buf
 
+
     def start(self):
         self.init_display()
         self.init_pio_spi()
         self.init_dma()
 
     def show(self):
-        """ Since the DMA channel that pushes to the display is always reading from the 'read' framebuffer,
-        flipping the buffers means that a new frame starts to be rendered """
+        """
+        Swaps the framebuffers to prepare for rendering the next frame.
+
+        The DMA channel responsible for pushing data to the display always reads from the 'read' framebuffer.
+        By swapping the buffers, the 'read' framebuffer becomes the newly rendered frame, and the 'write' framebuffer
+        becomes available for the next frame to be drawn. This effectively triggers the rendering of a new frame.
+        """
         self.swap_buffers()
         return
 
@@ -127,18 +128,15 @@ class SSD1331PIO():
         self.read_addr_buf, self.write_addr_buf = self.write_addr_buf, self.read_addr_buf
         self.read_framebuf, self.write_framebuf = self.write_framebuf, self.read_framebuf
 
-        """ Now that we've flipped the buffers, reprogram the DMA so that it will start reading from the 
-        correct buffer (the one that just finished writing) in the next iteration """
-
         if self.curr_read_buf == self.read_addr_buf:
             self.curr_read_buf = self.write_addr_buf
         else:
             self.curr_read_buf = self.read_addr_buf
 
+        """ Now that we've flipped the buffers, reprogram the DMA so that it will start reading from the 
+        correct buffer (the one that just finished writing) in the next iteration """
 
-        # Kickoff the DMA channel automatically by assigning it a read address
         self.dma1.read = uctypes.addressof(self.curr_read_buf)
-
 
     def init_display(self):
         self.pin_rs(0)  # Pulse the reset line
@@ -178,7 +176,8 @@ class SSD1331PIO():
         self.pin_cs(1)
         self.pin_dc(self.DC_MODE_DATA)
 
-    def init_pio_spi(self):
+    def init_pio_spi(self, freq=120_000_000):
+        """ If the frequency is too close to the system clock, the system may hang here """
         # Define the pins
         pin_sck = self.pin_sck
         pin_sda = self.pin_sda
@@ -186,10 +185,6 @@ class SSD1331PIO():
         pin_cs = self.pin_cs
 
         # Set up the PIO state machine
-        freq = 120 * 1000 * 1000
-        # freq = 62500000
-        # freq = 30_000_000
-
         sm = StateMachine(0)
 
         pin_cs.value(0) # Pull down to enable CS
@@ -202,7 +197,6 @@ class SSD1331PIO():
             out_base=pin_sda,
             sideset_base=pin_sck,
         )
-
         # self.sm_debug(sm)
         sm.active(1)
 
@@ -282,7 +276,7 @@ class SSD1331PIO():
             write=PIO0_BASE_TXF0,
             ctrl=ctrl0,
         )
-        self.dma0.irq(handler=self.render_done, hard=False)
+        # self.dma0.irq(handler=self.dma_transfer_finished, hard=False)
 
         """ Control Channel """
         ctrl1 = self.dma1.pack_ctrl(
@@ -292,8 +286,8 @@ class SSD1331PIO():
             chain_to=self.dma0.channel
         )
 
-        offset = (0x040 * self.dma0.channel) + 0x03C                #   CH0_AL3_READ_ADDR_TRIG
-        dma_read_offset = 0x014                                     #   CH0_AL1_READ_ADDR
+        # offset = (0x040 * self.dma0.channel) + 0x03C                #   CH0_AL3_READ_ADDR_TRIG
+        # dma_read_offset = 0x014                                     #   CH0_AL1_READ_ADDR
 
         self.dma1.config(
             count=1,
@@ -301,10 +295,10 @@ class SSD1331PIO():
             write=self.DMA_BASE,
             ctrl=ctrl1,
         )
+        # self.dma1.irq(handler=self.dma_transfer_finished, hard=True)
 
         """ Kick it off! """
         self.dma0.active(1)
-        self.dma0_active = True
 
     def render_done(self, event):
         # print("================= Render Done ============")

@@ -1,3 +1,4 @@
+import _thread
 import gc
 import time
 
@@ -37,6 +38,7 @@ class Screen:
     half_width = 0
 
     def __init__(self, display:SSD1331PIO=None, margin_px=0):
+
         self.instances = []
         if display:
             self.display = display
@@ -58,6 +60,8 @@ class Screen:
         self.fps = FpsCounter()
         self.last_gc = utime.ticks_ms()
 
+    def run(self):
+        raise RuntimeError("* screen.run() not implemented! *")
 
     def add(self, sprite):
         self.instances.append(sprite)
@@ -68,6 +72,7 @@ class Screen:
             await asyncio.sleep_ms(1)
 
     async def start_main_loop(self):
+        return True
         await asyncio.gather(
             self.update_loop(),
         )

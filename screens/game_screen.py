@@ -23,9 +23,10 @@ from collider import Collider
 from sprites2.sprite_types import *
 
 from profiler import Profiler as prof
+from micropython import const
 
 class GameScreen(Screen):
-    ground_speed: int = const(-0)
+    ground_speed: int = 0
     max_ground_speed: int = const(-1000)
     grid: RoadGrid = None
     sun: Sprite = None
@@ -35,7 +36,7 @@ class GameScreen(Screen):
     max_sprites: int = 100
     saved_ground_speed = 0
     lane_width: int = const(24)
-    num_lives: int = const(4)
+    num_lives: int = 4
     total_frames = 0
     last_update_ms = 0
     fps_every_n_frames = 30
@@ -136,7 +137,10 @@ class GameScreen(Screen):
 
         self.check_mem()
         loop = asyncio.get_event_loop()
+
+        print("-- Starting display_loop...")
         loop.create_task(self.start_display_loop())
+
 
         self.input = make_input_handler(self.player)
         self.update_score_task = loop.create_task(self.mock_update_score())
@@ -148,10 +152,10 @@ class GameScreen(Screen):
         self.player.has_physics = True
         self.player.visible = True
 
-        print("-- Starting stage")
+        print("-- Starting stage...")
         self.stage.start()
 
-        print("-- Starting update_loop")
+        print("-- Starting update_loop...")
         asyncio.run(self.start_main_loop())
 
 

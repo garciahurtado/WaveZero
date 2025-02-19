@@ -1,10 +1,8 @@
-import math
-
 from images.image_loader import ImageLoader
 from profiler import Profiler
+from scaler.const import DEBUG_INST
 from sprites2.sprite_manager import SpriteManager
-from sprites2.sprite_types import SpriteType as types, SpriteType, FLAG_PHYSICS, FLAG_ACTIVE
-from scaler.const import *
+from sprites2.sprite_types import SpriteType as types, FLAG_PHYSICS, FLAG_ACTIVE
 
 prof = Profiler()
 
@@ -50,7 +48,7 @@ class SpriteManager2D(SpriteManager):
         old_speed = sprite.speed
         # sprite.speed = sprite.speed * sprite.scale
 
-        if SpriteType.get_flag(sprite, FLAG_PHYSICS) == True:
+        if types.get_flag(sprite, FLAG_PHYSICS) == True:
             self.phy.apply_speed(sprite, elapsed)
 
         sprite.speed = old_speed

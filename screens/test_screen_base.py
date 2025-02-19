@@ -1,5 +1,6 @@
+import _thread
 import asyncio
-
+import utime
 import fonts.vtks_blocketo_6px as font_vtks
 
 from colors import color_util as colors
@@ -9,7 +10,6 @@ from screens.screen import Screen
 import framebuf
 
 from ssd1331_pio import SSD1331PIO
-
 
 class TestScreenBase(Screen):
     screen_width = SSD1331PIO.WIDTH
@@ -21,6 +21,7 @@ class TestScreenBase(Screen):
     grid_lines = False
     grid_center = False
     grid_color = colors.hex_to_565(0x00FF00)
+    mgr = None
 
     def init_score(self):
         self.score_text = ColorWriter(
@@ -45,6 +46,26 @@ class TestScreenBase(Screen):
             self.score = new_score
 
             await asyncio.sleep(1)
+
+    def init_thread_2(self):
+        print(f" == CPU CORE THREAD# {_thread.get_ident()} STARTED ==")
+
+        utime.sleep_ms(1000)
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.start_display_loop())
+        # loop.create_task(self.start_main_loop())
+
+    async def endless_wait(self):
+        """ Here only so that the screen doesn't suddenly end """
+        while True:
+            await asyncio.sleep_ms(1)
+            pass
+
+    async def async_thread_2(self):
+        """ Test Method """
+        while True:
+            print("YELLO! from ASYNC THREAD #2")
+            await asyncio.sleep_ms(1000)
 
     def common_bg(self):
         self.display.fill(0x000000)
@@ -71,6 +92,14 @@ class TestScreenBase(Screen):
             self.display.hline(0, height//2, width, self.grid_color)
             self.display.line(width//2, 0, width//2, height, self.grid_color)
 
+    def load_sprite(self, sprite_type):
+        """ Creates images if not exist, returns meta"""
+        self.sprite_type = sprite_type
+        self.sprite_meta = self.sprite = self.mgr.sprite_metadata[sprite_type]
+        self.sprite_palette = self.mgr.get_palette(sprite_type)
+        self.image = self.mgr.sprite_images[self.sprite_type][-1]
+        return self.sprite_meta
+
     def init_fps(self):
         """ FPS text is the same as 'score text', a place on the screen to display debug info """
         self.fps_text = ColorWriter(
@@ -85,7 +114,3 @@ class TestScreenBase(Screen):
         self.fps_text.visible = True
 
         return self.fps_text
-
-
-
-

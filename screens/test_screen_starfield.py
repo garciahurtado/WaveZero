@@ -10,16 +10,15 @@ from screens.test_screen_base import TestScreenBase
 from sprites.sprite import Sprite
 from sprites2.gameboy import GameboySprite
 from sprites2.sprite_manager_2d import SpriteManager2D
-from sprites2.sprite_types import SPRITE_TEST_HEART, SpriteType, SPRITE_TEST_SQUARE, SPRITE_TEST_GRID, SPRITE_GAMEBOY
-from sprites2.test_grid import TestGrid
 from sprites2.test_heart import TestHeart
 from sprites2.test_square import TestSquare
-from ssd1331_pio import SSD1331PIO
+from sprites2.cherries_16 import Cherries16
+from sprites2.sprite_types import SpriteType, SPRITE_TEST_HEART, SPRITE_TEST_SQUARE, SPRITE_GAMEBOY, SPRITE_CHERRIES
 from utils import dist_between
 from profiler import Profiler as prof
 import utime
 class TestScreenStarfield(TestScreenBase):
-    max_sprites = num_sprites = 1
+    max_sprites = num_sprites = 5
     max_scale_id = 0
     max_scale_dot = 0
     max_dist = 0
@@ -27,15 +26,15 @@ class TestScreenStarfield(TestScreenBase):
     debug = False
     debug_inst = False
     fps_enabled = True
-    scale_dist_factor = 110 # The higher this is, the slower the scale grows w/ distance
+    scale_dist_factor = 150 # The higher this is, the slower the scale grows w/ distance
     # scale_dist_factor = 250 # The higher this is, the slower the scale grows w/ distance
-    margin_px = 16
+    margin_px = 0
     vector_move = True # whether to move the sprites away from the center overtime, or keep them centered
 
     def __init__(self, display, margin_px = 16):
         super().__init__(display,  margin_px=16)
         self.init_camera()
-        self.sprite_type = SPRITE_GAMEBOY
+        self.sprite_type = SPRITE_TEST_HEART
         self.mgr = SpriteManager2D(display, self.max_sprites, self.camera)
         self.load_types()
         self.meta:SpriteType = self.load_sprite(self.sprite_type)
@@ -78,7 +77,6 @@ class TestScreenStarfield(TestScreenBase):
     def init_starfield(self):
         self.init_fps()
         self.init_score()
-        self.load_types()
         self.base_speed = 0.01
         self.sprite.set_default(speed=self.base_speed)
         self.sprite.set_default(flag_physics=True)
@@ -150,7 +148,7 @@ class TestScreenStarfield(TestScreenBase):
             coords = self.mgr.phy.get_pos(inst)
             pos_x, pos_y = coords[0], coords[1]
 
-            if not self.is_sprite_in_bounds([pos_x, pos_y]):
+            if not self.is_point_in_bounds([pos_x, pos_y]):
                 self.mgr.release(inst, self.sprite)
                 if self.debug_inst:
                     print(f"<< COORDS ({pos_x}, {pos_y}) >>")
@@ -177,21 +175,12 @@ class TestScreenStarfield(TestScreenBase):
                 h_scale=inst.scale,
                 v_scale=inst.scale)
 
-        """ SPAWN more """
+        """ SPAWN more (might return nothing) """
         self.spawn()
 
         # self.show_prof()
         self.display.show()
         self.fps.tick()
-
-    def load_sprite(self, load_type):
-        sprite_type_id = load_type
-
-        # self.sprite = self.mgr.get_sprite_type(sprite_type_id)
-        self.sprite = self.mgr.sprite_metadata[sprite_type_id]
-        self.sprite_img = self.mgr.sprite_images[sprite_type_id]
-
-        return self.sprite
 
     def random_vectors(self, num):
         """ Generate an array of num x,y pairs """
@@ -230,8 +219,8 @@ class TestScreenStarfield(TestScreenBase):
             sprite_class=TestSquare)
 
         self.mgr.add_type(
-            sprite_type=SPRITE_TEST_GRID,
-            sprite_class=TestGrid)
+            sprite_type=SPRITE_CHERRIES,
+            sprite_class=Cherries16)
 
         self.mgr.add_type(
             sprite_type=SPRITE_GAMEBOY,
@@ -247,6 +236,9 @@ class TestScreenStarfield(TestScreenBase):
                 x = 48
                 y = 32
                 self.mgr.phy.set_pos(inst, x, y)
+                return inst, idx
+
+        return False
 
     def common_bg(self):
         self.display.fill(0x000000)

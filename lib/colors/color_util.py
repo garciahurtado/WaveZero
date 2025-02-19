@@ -4,6 +4,13 @@ BGR565 = 2
 
 color_format = RGB565
 
+BLACK = 0x000000
+CYAN =  0x00FFFF
+GREEN = 0x00FF00
+GREY =  0x444444
+YELLOW = 0xFFFF00
+WHITE = 0xFFFFFF
+
 def color_mix(c1, c2, mix):
     """Returns a 24 bit (true color) bytes array"""
     r1, g1, b1 = c1

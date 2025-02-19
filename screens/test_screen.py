@@ -1,51 +1,40 @@
 import _thread
-import gc
-import sys
 
-import time
+import utime
+import uasyncio as asyncio
+
+import gc
+
 import math
 import random
 
-import micropython
-from uctypes import addressof
-
 import input_rotary
-import utils
 from screens.screen import PixelBounds
 
 from scaler.sprite_scaler import SpriteScaler
 from screens.test_screen_base import TestScreenBase
 from sprites2.cherries_16 import Cherries16
 from sprites2.gameboy import GameboySprite
-from sprites2.sprite_physics import SpritePhysics
 from sprites2.test_pyramid import TestPyramid
 
 from sprites2.test_square import TestSquare
 from sprites2.test_heart import TestHeart
 from sprites2.test_grid import TestGrid
+gc.collect()
+
 from sprites2.sprite_manager_2d import SpriteManager2D
 
 from sprites2.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART, SPRITE_TEST_GRID, SPRITE_TEST_GRID_SPEED, \
-    SpriteType, SPRITE_TEST_PYRAMID, FLAG_PHYSICS, SPRITE_GAMEBOY, SPRITE_CHERRIES
+    SpriteType, SPRITE_TEST_PYRAMID, SPRITE_GAMEBOY, SPRITE_CHERRIES
 
 from profiler import Profiler as prof
 
-import utime
-import uasyncio as asyncio
-
-from perspective_camera import PerspectiveCamera
-from colors import color_util as colors
-from colors import framebuffer_palette as fp
+from colors.color_util import hex_to_565
+from colors.color_util import GREY
+from colors.color_util import WHITE
 from micropython import const
-FramebufferPalette = fp.FramebufferPalette
-import framebuf as fb
 
-BLACK = 0x000000
-CYAN =  0x00FFFF
-GREEN = 0x00FF00
-GREY =  0x444444
-YELLOW = 0xFFFF00
-WHITE = 0xFFFFFF
+
 
 class TestScreen(TestScreenBase):
     debug = True
@@ -112,32 +101,13 @@ class TestScreen(TestScreenBase):
     instances = []
     lines = []
     # line_color = colors.hex_to_rgb(0xFFFFFF)
-    line_colors = [ colors.hex_to_565(0xFF0000),
-                    colors.hex_to_565(0x00FF00),
-                    colors.hex_to_565(0x0000FF)]
-
-    rainbow_colors = [
-        0xFF0000,  # Red
-        0xFF7F00,  # Orange
-        0xFFFF00,  # Yellow
-        0x7FFF00,  # Chartreuse
-        0x00FF00,  # Green
-        0x00FF7F,  # Spring Green
-        0x00FFFF,  # Cyan
-        0x0000FF,  # Blue
-        0x7F00FF,  # Purple
-        0xFF00FF,  # Magenta
-    ]
-
-    mgr = None
-
 
     image = None
     num_cols = None
     num_rows = None
     sep = 2
     sep_dir = 1
-    bg_color = colors.hex_to_565(GREY)
+    bg_color = hex_to_565(GREY)
     x_offset = 0
     y_offset = 0
     center_x = 0
@@ -145,6 +115,10 @@ class TestScreen(TestScreenBase):
     all_coords = [] # list of x/y tuples
 
     def __init__(self, display, *args, **kwargs):
+        """ Thread #2 """
+        # gc.collect()
+        _thread.start_new_thread(self.init_thread_2, [])
+
         super().__init__(display, margin_px=16)
         print()
         print(f"=== Testing performance of {self.num_sprites} sprites ===")
@@ -160,8 +134,8 @@ class TestScreen(TestScreenBase):
 
         self.sprite_scales = [random.choice(range(0, 9)) for _ in range(self.num_sprites)]
 
-        self.init_camera()
-        self.create_lines()
+        # self.init_camera()
+        # self.create_lines()
 
         self.scaler = SpriteScaler(self.display)
         self.scaler.prof = prof
@@ -181,11 +155,29 @@ class TestScreen(TestScreenBase):
         self.center_x = self.screen_width // 2
         self.center_y = self.screen_height // 2
 
+    def create_line_colors(self):
+        self.line_colors = [hex_to_565(0xFF0000),
+                       hex_to_565(0x00FF00),
+                       hex_to_565(0x0000FF)]
+
+        self.rainbow_colors = [
+            0xFF0000,  # Red
+            0xFF7F00,  # Orange
+            0xFFFF00,  # Yellow
+            0x7FFF00,  # Chartreuse
+            0x00FF00,  # Green
+            0x00FF7F,  # Spring Green
+            0x00FFFF,  # Cyan
+            0x0000FF,  # Blue
+            0x7F00FF,  # Purple
+            0xFF00FF,  # Magenta
+        ]
+
     def create_sprite_manager(self, num_sprites=0):
         self.check_mem()
         print("-- Creating Sprite Manager...")
         self.max_sprites = num_sprites
-        self.mgr = SpriteManager2D(self.display, self.max_sprites, self.camera)
+        self.mgr = SpriteManager2D(self.display, self.max_sprites)
         return self.mgr
 
     def run(self):
@@ -196,6 +188,8 @@ class TestScreen(TestScreenBase):
         test = 'grid1'
         self.check_mem()
         method = None
+
+        # self.create_line_colors()
 
         if test == 'zoom_heart':
             self.load_sprite(SPRITE_TEST_HEART)
@@ -236,16 +230,15 @@ class TestScreen(TestScreenBase):
 
         self.check_mem()
 
-        loop = asyncio.get_event_loop()
-        loop.create_task(self.start_display_loop())
-
         if self.fps_enabled:
             self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
 
         asyncio.run(self.start_main_loop())
+        # asyncio.run(self.start_display_loop())
+        # asyncio.run(self.endless_wait())
 
     async def start_main_loop(self):
-        print("-- ... MAIN LOOP STARTING ...")
+        print(f"-- ... MAIN LOOP STARTING ON THREAD #{_thread.get_ident()} ... --")
         self.check_mem()
 
         """ All top level tasks / threads go here. Once all of these finish, the program ends"""
@@ -271,7 +264,7 @@ class TestScreen(TestScreenBase):
 
                 # Tweaking this number can give FPS gains / give more frames to `elapsed`, avoiding near zero
                 # errors
-                await asyncio.sleep_ms(10)
+                await asyncio.sleep_ms(0)
 
         except asyncio.CancelledError:
             return False
@@ -344,7 +337,7 @@ class TestScreen(TestScreenBase):
     async def start_display_loop(self):
         while True:
             self.refresh_method()
-            await asyncio.sleep_ms(1)
+            await asyncio.sleep_ms(0)
 
     def init_beating_heart(self):
         # self.sprite = self.mgr.get_meta(self.sprite)
@@ -409,14 +402,13 @@ class TestScreen(TestScreenBase):
 
     def init_clipping(self):
         self.inst, idx = self.mgr.pool.get(self.sprite_type, self.sprite)
-        self.sprite = self.mgr.get_meta(self.inst)
 
         # self.sprite_type.set_flag(self.inst, FLAG_PHYSICS, True)
         self.phy.set_pos(self.inst, self.center_x, self.center_y)
         self.curr_dir = 'horiz'
         self.bounce_count = 0
-        self.inst.speed = self.base_speed = 0.1
-        self.h_scale = self.v_scale = 1
+        self.inst.speed = self.base_speed = 0.2
+        self.h_scale = self.v_scale = 4
 
         self.bounds = self.scaler.framebuf.bounds
         self.scaled_width = math.ceil(self.sprite.width * self.h_scale)
@@ -427,14 +419,17 @@ class TestScreen(TestScreenBase):
         """
         Show a grid of heart Sprites
         """
-        prof.start_profile('scaler.draw_loop_fill')
-        self.display.fill(0x000000)
-        prof.end_profile('scaler.draw_loop_fill')
+        prof.start_frame()
 
         self.idx = 0
         inst = self.inst
         row_sep = self.sprite.width
         col_sep = self.sprite.width
+
+        prof.start_profile('scaler.draw_loop_fill')
+        self.display.fill(0x000000)
+        prof.end_profile('scaler.draw_loop_fill')
+
         for c in range(self.num_cols):
             for r in range(self.num_rows):
                 prof.start_profile('scaler.pre_draw')
@@ -472,6 +467,8 @@ class TestScreen(TestScreenBase):
 
         while not self.scaler.dma.read_finished:
             pass
+
+        # utime.sleep_ms(500) # Dislay flickers due to lack of delay here
 
         self.display.show()
         prof.end_profile('scaler.display_show')
@@ -517,9 +514,9 @@ class TestScreen(TestScreenBase):
 
         self.scale_id += 1
         self.show_prof()
-        self.display.swap_buffers()
+        self.display.show()
 
-        time.sleep_ms(50)
+        utime.sleep_ms(50)
         self.fps.tick()
 
     def do_refresh_scale_control(self):
@@ -552,7 +549,7 @@ class TestScreen(TestScreenBase):
         self.display.show()
 
         self.show_prof()
-        time.sleep_ms(1)
+        utime.sleep_ms(1)
         self.fps.tick()
 
     def do_refresh_clipping(self):
@@ -633,7 +630,7 @@ class TestScreen(TestScreenBase):
 
         # self.scale_id += 1
         self.show_prof()
-        self.display.swap_buffers()
+        self.display.show()
         self.fps.tick()
 
         if self.debug:
@@ -695,14 +692,6 @@ class TestScreen(TestScreenBase):
             sprite.z = sprite.z + 6
             sprite.update(elapsed)
         self.last_tick = utime.ticks_ms()
-
-    def load_sprite(self, sprite_type):
-        """ Creates images if not exist, returns meta"""
-        self.sprite_type = sprite_type
-        self.sprite_meta = self.sprite = self.mgr.sprite_metadata[sprite_type]
-        self.sprite_palette = self.mgr.get_palette(sprite_type)
-        self.image = self.mgr.sprite_images[self.sprite_type][-1]
-        return self.sprite_meta
 
     def load_types(self):
         self.mgr.add_type(

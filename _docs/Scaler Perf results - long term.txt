@@ -491,6 +491,59 @@ FPS:   7.80
 
 ---
 
+FPS:  10.04
+FPS:  10.01
+FPS:  10.00
+FPS:   9.95
+
+removed common_bg / FPS ordereddict --------------------
+
+FPS:  10.03
+FPS:  10.01
+FPS:  10.00
+FPS:   9.96
+
+FPS:  10.06
+FPS:  10.06
+FPS:  10.06
+
+FPS:   9.81
+FPS:   9.82
+FPS:   9.83
+
+rearranged thread responsibilities ----------------------
+
+FPS:  11.80
+FPS:  11.84
+FPS:  11.74
+FPS:  11.78
+
+sent display loop to thread #2 --------------------
+
+FPS:  11.80
+FPS:  11.86
+FPS:  11.89
+
+Display driver changes ---------------------------------
+
+Display driver old:
+10.56 FPS
+
+NEW:
+FPS: 10.69
+
+Removed swap ready system from display driver --------------------
+
+FPS: 10.78
+FPS: 10.82
+
+---
+FPS: 10.88
+
+
+
+
+
 
 
 

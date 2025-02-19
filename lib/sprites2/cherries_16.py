@@ -7,3 +7,4 @@ class Cherries16(SpriteType):
     height = 16
     color_depth = 4
     alpha_color = 0x0
+

@@ -1,13 +1,11 @@
 from machine import Pin, SPI
 from ssd1331_pio import SSD1331PIO as DisplayDriver
+import utime
 
-display = None # Global display variable, so we can make a singleton
+# display = None # Global display variable, so we can make a singleton
 
 def get_display():
-    global display
-    if not display:
-        display = setup_display()
-
+    display = setup_display()
     return display
 
 def setup_display():
@@ -20,8 +18,6 @@ def setup_display():
     # GPIO4 (or any)        RES
     # GPIO5 (or any)        DC
 
-    global display
-
     screen_width = 96
     screen_height = 64
 
@@ -31,7 +27,9 @@ def setup_display():
     pin_rst = Pin(4, Pin.OUT, value=0)
     pin_dc = Pin(5, Pin.OUT, value=0)
 
-    spi = SPI(0, baudrate=62_500_000, sck=pin_sck, mosi=pin_sda, miso=None)
+    utime.sleep_ms(100)
+
+    spi = SPI(0, baudrate=93_000_000, sck=pin_sck, mosi=pin_sda, miso=None)
     display = DisplayDriver(
         spi,
         pin_cs,
