@@ -28,17 +28,19 @@ class ScalePatterns:
         """
         patterns_all = {}
 
-        patterns1 = self.create_patterns(0, 1, step=0.125)
-        patterns2 = self.create_patterns(1, 4, step=0.250)
-        patterns3 = self.create_patterns(4, 8, step=0.250)
-        patterns4 = self.create_patterns(8, 14, step=0.500)
-        patterns5 = self.create_patterns(14, 18, step=1)
+        # patterns1 = self.create_patterns(0, 1, step=0.125)
+        # patterns2 = self.create_patterns(1, 4, step=0.250)
+        # patterns3 = self.create_patterns(4, 8, step=0.250)
+        # patterns4 = self.create_patterns(8, 14, step=0.500)
+        # patterns5 = self.create_patterns(14, 18, step=1)
 
-        patterns_all |= patterns1
-        patterns_all |= patterns2
-        patterns_all |= patterns3
-        patterns_all |= patterns4
-        patterns_all |= patterns5
+
+        # patterns_all |= patterns1
+        # patterns_all |= patterns2
+        # patterns_all |= patterns3
+        # patterns_all |= patterns4
+        # patterns_all |= patterns5
+        patterns_all = self.create_patterns(1, 16, step=0.5)
 
         self.horiz_patterns = patterns_all
         return self.horiz_patterns

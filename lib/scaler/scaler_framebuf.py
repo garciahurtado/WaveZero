@@ -3,6 +3,7 @@ from profiler import Profiler as prof
 from screens.screen import PixelBounds
 from ssd1331_pio import SSD1331PIO
 from uctypes import addressof
+from scaler.const import DEBUG
 
 class ScalerFramebuf():
     """
@@ -22,7 +23,6 @@ class ScalerFramebuf():
     max_width = int(SSD1331PIO.WIDTH) + extra_subpx_left
     max_height = int(SSD1331PIO.HEIGHT) + extra_subpx_top
 
-    debug = False
     frame_width = 0
     frame_height = 0
     scratch_size = max_width * max_height * 2
@@ -52,7 +52,9 @@ class ScalerFramebuf():
             [8, 8],
             [16, 16],
             [32, 32],
-            [64, self.max_width]
+            [48, 48],
+            [64, 64],
+            [self.max_height, self.max_width]
         ]
         self.fill_color = 0x000000
         self.min_write_addr = addressof(self.scratch_bytes)
@@ -65,23 +67,27 @@ class ScalerFramebuf():
 
         # 4x4
         self.scratch_buffer_4 = self.make_buffer(4, 4, mode)
-        self.scratch_buffer_4.fill(self.fill_color)
+        # self.scratch_buffer_4.fill(self.fill_color)
 
         # 8x8
         self.scratch_buffer_8 = self.make_buffer(8, 8, mode)
-        self.scratch_buffer_8.fill(self.fill_color)
+        # self.scratch_buffer_8.fill(self.fill_color)
 
         # 16x16
         self.scratch_buffer_16 = self.make_buffer(16, 16, mode)
-        self.scratch_buffer_16.fill(self.fill_color)
+        # self.scratch_buffer_16.fill(self.fill_color)
 
         # 32x32
         self.scratch_buffer_32 = self.make_buffer(32, 32, mode)
-        self.scratch_buffer_32.fill(self.fill_color)
+        # self.scratch_buffer_32.fill(self.fill_color)
 
-        # 96x64
-        self.scratch_buffer_64 = self.make_buffer(96, 64, mode)
-        self.scratch_buffer_64.fill(self.fill_color)
+        # 48x48
+        self.scratch_buffer_48 = self.make_buffer(48, 48, mode)
+        # self.scratch_buffer_48.fill(self.fill_color)
+
+        # 64x64
+        self.scratch_buffer_64 = self.make_buffer(64, 64, mode)
+        # self.scratch_buffer_64.fill(self.fill_color)
 
         # fullscreen - extra 32 px on the width to accommodate really large sprites with -x (or -y)
         self.scratch_buffer_full = self.make_buffer(self.max_width, self.max_height, mode)
@@ -117,11 +123,17 @@ class ScalerFramebuf():
         elif max_dim <= 32:
             self.scratch_buffer = self.scratch_buffer_32
             self.frame_width = self.frame_height = 32
+        elif max_dim <= 48:
+            self.scratch_buffer = self.scratch_buffer_48
+            self.frame_width = self.frame_height = 48
+        elif max_dim <= 64:
+            self.scratch_buffer = self.scratch_buffer_64
+            self.frame_width = self.frame_height = 64
         else:
             """ Full Screen buffer """
             self.scratch_buffer = self.scratch_buffer_full
-            self.frame_width = self.display.width + self.extra_subpx_left
-            self.frame_height = self.display.height + self.extra_subpx_top
+            self.frame_width = self.max_width
+            self.frame_height = self.max_height
 
         self.scratch_buffer.fill(self.fill_color)
         self.display_stride = self.frame_width * 2
@@ -129,17 +141,17 @@ class ScalerFramebuf():
 
         prof.end_profile('scaler.select_buffer')
 
-        if self.debug:
+        if DEBUG:
             print(f"   INSIDE 'SELECT_BUFFER', WITH len(write_addrs_all): {len(self.write_addrs_all)} ")
-            print(f"   FOR w/h: {scaled_width}, {scaled_height} a frame height of {self.frame_height}")
-            print(f"   SELECTED FB STRIDE: 0x{self.display_stride:08X}")
-            print(f"   FRAME BYTES:        {self.frame_bytes}")
+            print(f"    FOR w/h: {scaled_width}, {scaled_height} selected frame w/h: {self.frame_width}x{self.frame_height}")
+            print(f"    SELECTED FB STRIDE: 0x{self.display_stride:08X}")
+            print(f"    FRAME BYTES:        {self.frame_bytes}")
 
     def blit_with_alpha(self, x, y, alpha):
         """ Copy the sprite from the "scratch" framebuffer to the final one in the display.
          This is needed to implement transparency """
 
-        if self.debug:
+        if DEBUG:
             print(f"> BLITTING TO X/Y: {x},{y}")
 
         """ Negative x and y have already been taking into account in interp config"""

@@ -29,11 +29,10 @@ from sprites2.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART, SPRITE_
 
 from profiler import Profiler as prof
 
-from colors.color_util import hex_to_565
+from colors.color_util import hex_to_565, BGR565
 from colors.color_util import GREY
 from colors.color_util import WHITE
 from micropython import const
-
 
 
 class TestScreen(TestScreenBase):
@@ -185,7 +184,7 @@ class TestScreen(TestScreenBase):
         self.init_common()
         self.load_types()
 
-        test = 'grid1'
+        test = 'scale_control'
         self.check_mem()
         method = None
 
@@ -200,7 +199,7 @@ class TestScreen(TestScreenBase):
             self.init_beating_heart()
             method = self.do_refresh_zoom_in
         if test == 'scale_control':
-            self.load_sprite(SPRITE_TEST_HEART)
+            self.load_sprite(SPRITE_TEST_PYRAMID)
             self.init_score()
             self.init_scale_control()
             method = self.do_refresh_scale_control
@@ -214,10 +213,8 @@ class TestScreen(TestScreenBase):
             self.init_grid()
             method = self.do_refresh_grid
         elif test == 'grid3':
-            self.load_sprite(SPRITE_TEST_SQUARE)
+            self.load_sprite(SPRITE_TEST_PYRAMID)
             self.init_grid()
-            self.grid_beat = False
-            self.fallout = True
             method = self.do_refresh_grid
         elif test == 'clipping':
             self.load_sprite(SPRITE_CHERRIES)
@@ -353,14 +350,12 @@ class TestScreen(TestScreenBase):
         self.h_scales = h_scales1
 
     def init_scale_control(self):
-        # self.sprite = self.mgr.get_meta(self.sprite)
         self.init_fps()
         self.inst, idx = self.mgr.pool.get(self.sprite_type, self.sprite)
 
         self.draw_x = self.display.width // 2
         self.draw_y = self.display.height // 2
         self.image = self.mgr.sprite_images[self.sprite_type][-1]
-
 
         # init 4bit palette
         for i in range(16):
@@ -374,10 +369,10 @@ class TestScreen(TestScreenBase):
         self.h_scales = list(self.all_scales.keys())
         self.h_scales.sort()
 
-        default = 1
-        self.scale_id = self.h_scales.index(default)
+        default_scale = 4
+        self.scale_id = self.h_scales.index(default_scale)
 
-        self.input_handler = input_rotary.InputRotary(half_step=True)
+        self.input_handler = input_rotary.InputRotary()
         self.input_handler.handler_right = self.scale_control_right
         self.input_handler.handler_left = self.scale_control_left
 
@@ -390,7 +385,8 @@ class TestScreen(TestScreenBase):
             if self.debug:
                 scale = self.h_scales[self.scale_id]
                 self.sprite.scale = scale
-                print(f"S: {scale:.03f}")
+                if self.debug:
+                    print(f"Scale: {scale:.03f}")
 
     def scale_control_left(self):
         if self.scale_id > 0:
@@ -398,7 +394,8 @@ class TestScreen(TestScreenBase):
             if self.debug:
                 scale = self.h_scales[self.scale_id]
                 self.sprite.scale = scale
-                print(f"S: {scale:.03f}")
+                if self.debug:
+                    print(f"Scale: {scale:.03f}")
 
     def init_clipping(self):
         self.inst, idx = self.mgr.pool.get(self.sprite_type, self.sprite)
@@ -533,7 +530,7 @@ class TestScreen(TestScreenBase):
         self.mgr.phy.set_pos(self.inst, center_x, center_y) # Center the sprite
         coords = self.mgr.phy.get_pos(self.inst)
 
-        self.common_bg()
+        self.common_bg(hex_to_565(0x111111))
         self.scaler.draw_sprite(
             self.sprite,
             self.inst,
@@ -717,24 +714,6 @@ class TestScreen(TestScreenBase):
         self.mgr.add_type(
             sprite_type=SPRITE_CHERRIES,
             sprite_class=Cherries16)
-
-    def init_camera(self):
-        # Camera
-        horiz_y: int = 16
-        pos_y = 50
-        max_sprite_height = -6
-
-        self.camera = PerspectiveCamera(
-            self.display,
-            pos_x=0,
-            pos_y=pos_y,
-            pos_z=-int(pos_y / 2),
-            vp_x=0,
-            vp_y=horiz_y,
-            min_y=horiz_y + 4,
-            max_y=self.display.height + max_sprite_height,
-            fov=90.0)
-
 
     def show_lines(self):
         for line in self.lines:

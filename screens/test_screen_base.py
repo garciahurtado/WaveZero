@@ -67,8 +67,8 @@ class TestScreenBase(Screen):
             print("YELLO! from ASYNC THREAD #2")
             await asyncio.sleep_ms(1000)
 
-    def common_bg(self):
-        self.display.fill(0x000000)
+    def common_bg(self, color=0x000000):
+        self.display.fill(color)
 
         if self.grid_lines:
             # Vertical lines
@@ -114,3 +114,22 @@ class TestScreenBase(Screen):
         self.fps_text.visible = True
 
         return self.fps_text
+
+    def init_camera(self):
+        # Camera
+        horiz_y: int = 16
+        pos_y = 50
+        max_sprite_height = -6
+
+        self.camera = PerspectiveCamera(
+            self.display,
+            pos_x=0,
+            pos_y=pos_y,
+            pos_z=-int(pos_y / 2),
+            vp_x=0,
+            vp_y=horiz_y,
+            min_y=horiz_y + 4,
+            max_y=self.display.height + max_sprite_height,
+            fov=90.0)
+
+

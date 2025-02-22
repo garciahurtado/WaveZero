@@ -18,7 +18,7 @@ from utils import dist_between
 from profiler import Profiler as prof
 import utime
 class TestScreenStarfield(TestScreenBase):
-    max_sprites = num_sprites = 5
+    max_sprites = num_sprites = 10
     max_scale_id = 0
     max_scale_dot = 0
     max_dist = 0
@@ -34,7 +34,7 @@ class TestScreenStarfield(TestScreenBase):
     def __init__(self, display, margin_px = 16):
         super().__init__(display,  margin_px=16)
         self.init_camera()
-        self.sprite_type = SPRITE_TEST_HEART
+        self.sprite_type = SPRITE_CHERRIES
         self.mgr = SpriteManager2D(display, self.max_sprites, self.camera)
         self.load_types()
         self.meta:SpriteType = self.load_sprite(self.sprite_type)

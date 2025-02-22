@@ -35,8 +35,8 @@ class DMAChain:
         # write_buf = bytearray((display.height+1) * 4)
 
         """ Create array with maximum possible number of read and write addresses """
-        self.read_addrs = array('L', [0] * self.max_read_addrs)
-        self.write_addrs = array('L', [0] * self.max_write_addrs)
+        self.read_addrs = array('L', [0] * (self.max_read_addrs+1))
+        self.write_addrs = array('L', [0] * (self.max_write_addrs+1))
 
         """ Acquire hardware DMA channels """
 
@@ -164,20 +164,17 @@ class DMAChain:
     def init_sprite(self, read_stride_px, h_scale):
         """Configure Sprite specific DMA parameters."""
         self.color_lookup.count = read_stride_px
-        self.px_read.count = math.ceil(read_stride_px / 2)
-        # self.h_scale.count = read_stride_px
+        self.px_read.count = int(read_stride_px / 2)
         self.h_scale.count = read_stride_px
         self.h_scale.read = self.patterns.get_pattern(h_scale)
 
     def start(self):
         """Activate DMA channels in correct sequence."""
-        # self.h_scale.active(1)
-        # self.write_addr.active(1)
-        self.read_addr.active(1)
+        self.write_addr.active(1)
 
     def reset(self):
         """Reset all DMA channels."""
-        self.read_addr.active(0)
+        # self.read_addr.active(0)
         # self.write_addr.active(0)
         # self.px_read.active(0)
         # self.color_lookup.active(0)
@@ -188,8 +185,8 @@ class DMAChain:
         self.addr_idx = 0
 
         # Reset address list pointers
-        self.read_addr.read = addressof(self.read_addrs)
         self.write_addr.read = addressof(self.write_addrs)
+        self.read_addr.read = addressof(self.read_addrs)
 
     def irq_px_read_end(self, ch):
         """IRQ Handler for end of ALL pixels read"""

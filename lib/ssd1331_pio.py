@@ -176,7 +176,7 @@ class SSD1331PIO():
         self.pin_cs(1)
         self.pin_dc(self.DC_MODE_DATA)
 
-    def init_pio_spi(self, freq=120_000_000):
+    def init_pio_spi(self, freq=40_000_000):
         """ If the frequency is too close to the system clock, the system may hang here """
         # Define the pins
         pin_sck = self.pin_sck
