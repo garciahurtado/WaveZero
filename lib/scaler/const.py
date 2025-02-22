@@ -2,15 +2,15 @@ from machine import mem32
 from micropython import const
 
 """ Debugging Constants """
-DEBUG =                     const(1)
-DEBUG_DMA =                 const(1)
-DEBUG_DMA_ADDR =            const(1)
+DEBUG =                     const(0)
+DEBUG_DMA =                 const(0)
+DEBUG_DMA_ADDR =            const(0)
 DEBUG_PIO =                 const(0)
 DEBUG_PHYSICS =             const(0)
 DEBUG_IRQ =                 const(0)
-DEBUG_INTERP =              const(1)
+DEBUG_INTERP =              const(0)
 DEBUG_INST =                const(0)
-DEBUG_INTERP_LIST =         const(1)
+DEBUG_INTERP_LIST =         const(0)
 DEBUG_SCALE_PATTERNS =      const(0)
 DEBUG_POOL =                const(0)
 

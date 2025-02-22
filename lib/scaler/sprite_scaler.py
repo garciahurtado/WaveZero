@@ -299,8 +299,6 @@ class SpriteScaler():
         mem32[INTERP0_CTRL_LANE0] = write_ctrl_config
         mem32[INTERP0_CTRL_LANE1] = write_ctrl_config
         mem32[INTERP0_BASE0] = 0  # Base address component
-        # mem32[INTERP0_ACCUM0] = 0
-        # mem32[INTERP0_ACCUM1] = 0
 
         # INTERP1: Read address generation with scaling
         read_ctrl_lane0 = (
@@ -494,7 +492,7 @@ class SpriteScaler():
 
         # Clear interpolator accumulators
         prof.start_profile('scaler.finish.reset_interp')
-        # mem32[INTERP0_ACCUM0] = 0
+        mem32[INTERP0_ACCUM0] = 0
         mem32[INTERP0_ACCUM1] = 0
         mem32[INTERP1_ACCUM0] = 0
         mem32[INTERP1_ACCUM1] = 0
