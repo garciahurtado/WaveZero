@@ -33,9 +33,9 @@ class TestScreenStarfield(TestScreenBase):
 
     def __init__(self, display, margin_px = 16):
         super().__init__(display,  margin_px=16)
-        self.init_camera()
+        # self.init_camera()
         self.sprite_type = SPRITE_TEST_HEART
-        self.mgr = SpriteManager2D(display, self.max_sprites, self.camera)
+        self.mgr = SpriteManager2D(display, self.max_sprites, None)
         self.load_types()
         self.meta:SpriteType = self.load_sprite(self.sprite_type)
 
@@ -77,7 +77,7 @@ class TestScreenStarfield(TestScreenBase):
     def init_starfield(self):
         self.init_fps()
         self.init_score()
-        self.base_speed = 0.01
+        self.base_speed = 0.03
         self.sprite.set_default(speed=self.base_speed)
         self.sprite.set_default(flag_physics=True)
 

@@ -133,7 +133,6 @@ class TestScreen(TestScreenBase):
 
         self.sprite_scales = [random.choice(range(0, 9)) for _ in range(self.num_sprites)]
 
-        # self.init_camera()
         # self.create_lines()
 
         self.scaler = SpriteScaler(self.display)
@@ -184,7 +183,7 @@ class TestScreen(TestScreenBase):
         self.init_common()
         self.load_types()
 
-        test = 'grid1'
+        test = 'scale_control'
         self.check_mem()
         method = None
 
@@ -369,7 +368,7 @@ class TestScreen(TestScreenBase):
         self.h_scales = list(self.all_scales.keys())
         self.h_scales.sort()
 
-        default_scale = 4
+        default_scale = 2.750
         self.scale_id = self.h_scales.index(default_scale)
 
         self.input_handler = input_rotary.InputRotary()

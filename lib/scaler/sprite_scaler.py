@@ -13,7 +13,7 @@ from colors import color_util as colors
 from scaler.const import DEBUG, DEBUG_SCALE_PATTERNS, DEBUG_DMA, INTERP0_POP_FULL, INTERP1_POP_FULL, DEBUG_DMA_ADDR, \
     INTERP0_CTRL_LANE0, INTERP0_CTRL_LANE1, INTERP0_BASE0, INTERP1_CTRL_LANE0, INTERP1_BASE0, INTERP1_ACCUM0, \
     INTERP1_ACCUM1, INTERP1_BASE1, INTERP1_BASE2, DEBUG_INTERP, INTERP1_CTRL_LANE1, INTERP0_BASE1, INTERP0_ACCUM0, \
-    INTERP0_ACCUM1
+    INTERP0_ACCUM1, DEBUG_DISPLAY
 from sprites2.sprite_physics import SpritePhysics
 
 from images.indexed_image import Image
@@ -53,6 +53,7 @@ class SpriteScaler():
         self.base_read = 0
         self.read_stride_px = 0
         self.frac_bits = 0
+        self.int_bits = 0
 
         self.palette_addr = None
         self.last_palette_addr = None # For caching
@@ -133,9 +134,9 @@ class SpriteScaler():
 
         """ Configure num of fractional bits for fixed point math """
         if sprite.width == 16:
-            self.framebuf.frac_bits = self.frac_bits = 3 # Use x.y fixed point   (16x16)
+            self.frac_bits = 3 # Use x.y fixed point   (16x16)
         elif sprite.width == 32:
-            self.framebuf.frac_bits = self.frac_bits = 4  # Use x.y fixed point (32x32)
+            self.frac_bits = 4  # Use x.y fixed point (32x32)
         else:
             print("ERROR: Max 32x32 Sprite allowed")
             sys.exit(1)
@@ -206,6 +207,7 @@ class SpriteScaler():
 
         prof.start_profile('scaler.fill_addrs')
         self.fill_addrs(int(self.scaled_height), h_scale, v_scale)
+
         if DEBUG_DMA:
             self.dma.debug_dma_addr()
 
@@ -277,6 +279,9 @@ class SpriteScaler():
         prof.end_profile('scaler.dma_pio')
 
         prof.start_profile('scaler.finish_sprite')
+        if DEBUG_DISPLAY:
+            print(f"> BLITTING to {self.draw_x}, {self.draw_y} / alpha: {self.alpha}")
+
         self.framebuf.blit_with_alpha(int(self.draw_x), int(self.draw_y), self.alpha)
 
         prof.start_profile('scaler.finish_sprite.reset')
@@ -345,7 +350,7 @@ class SpriteScaler():
         # read_step = math.ceil(read_step / 2)  # Because of 2px per byte
 
         # fixed_step = self.init_convert_fixed_point(sprite_width, scale_x_one)
-        fixed_step = self.init_convert_fixed_point(sprite_width, scale_y_one)
+        fixed_step = self.convert_fixed_point(sprite_width, scale_y_one)
 
         mem32[INTERP1_BASE1] = int(fixed_step)
         mem32[INTERP1_BASE2] = self.base_read  # Base sprite read address
@@ -427,9 +432,9 @@ class SpriteScaler():
                 print(f"\tbase_read after:          0x{self.base_read:08X}")
 
     # @micropython.viper
-    def init_convert_fixed_point(self, sprite_width, scale_y):
+    def convert_fixed_point(self, sprite_width, scale_y):
         """Calculate step between source rows in fixed-point."""
-        fixed_step = round((sprite_width << self.frac_bits) / (scale_y * 2))
+        fixed_step = int((sprite_width << self.frac_bits) / (scale_y*2))
         return fixed_step
 
 
@@ -461,7 +466,7 @@ class SpriteScaler():
         )
         mem32[INTERP1_CTRL_LANE0] = read_ctrl_lane0
 
-        # INTERP1 / LANE1: Extract address, masking out counter bits
+        # INTERP1 / LANE1: Extract address, masking out counter/decimal bits
         read_ctrl_lane1 = (
                 (frac_bits << 0) |  # Shift right by frac_bits
                 (frac_bits << 5) |  # Start masking at bit 0
@@ -472,7 +477,7 @@ class SpriteScaler():
         mem32[INTERP1_CTRL_LANE1] = read_ctrl_lane1
 
         # Configure additional mask to preserve counter bits
-        mem32[INTERP1_BASE0] = 0x3  # Use bottom 2 bits for 4-state counter
+        # mem32[INTERP1_BASE0] = 0x3  # Use bottom 2 bits for 4-state counter
 
 
     @micropython.viper

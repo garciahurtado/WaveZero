@@ -49,7 +49,6 @@ class ScalePatterns:
         num_scales = int((to_scale - from_scale) / step)
 
         for i in range(num_scales):
-
             from_scale += step
             pattern = self.create_one_pattern(from_scale)
             pattern_list[from_scale] = pattern
@@ -79,7 +78,7 @@ class ScalePatterns:
 
             for i in range(0, size * 8, step_8):
                 """ increase some numbers in the pattern so that the total average = scale"""
-                idx = int(i/size)
+                idx = round(i/size)
                 idx = idx % size
                 pattern[idx] = whole_scale+1
 
