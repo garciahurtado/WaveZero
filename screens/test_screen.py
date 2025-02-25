@@ -183,7 +183,7 @@ class TestScreen(TestScreenBase):
         self.init_common()
         self.load_types()
 
-        test = 'scale_control'
+        test = 'grid1'
         self.check_mem()
         method = None
 

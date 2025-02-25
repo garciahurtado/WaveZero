@@ -71,14 +71,13 @@ class SpriteScaler():
         if DEBUG_SCALE_PATTERNS:
             self.dma.patterns.print_patterns()
 
-    # @micropython.viper
-    def fill_addrs(self, scaled_height: int, h_scale, v_scale):
+    @micropython.viper
+    def fill_addrs(self, scaled_height: int, visible_rows, debug: int = 0):
         # Calculate visible rows after vertical clipping
-        visible_rows = scaled_height - int(self.skip_rows * v_scale)
         max_write_addrs = min(self.framebuf.max_height, visible_rows)# Make room for the last element (NULL)
         max_read_addrs = min(visible_rows, max_write_addrs)
 
-        if DEBUG_DMA:
+        if debug:
             print(f" + VISIBLE ROWS:    {visible_rows}")
             print(f" + scaled_height:   {scaled_height}")
             print(f" + max_write_addrs: {max_write_addrs}")
@@ -95,13 +94,10 @@ class SpriteScaler():
             new_read_addr = mem32[INTERP1_POP_FULL]
             new_write_addr = mem32[INTERP0_POP_FULL]
 
-            new_read_addr = new_read_addr if not new_read_addr % 2 else new_read_addr - 1
-            # new_write_addr = new_write_addr if not new_write_addr % 2 else new_write_addr - 1
-
             read_addrs[row_id] = new_read_addr
             write_addrs[row_id] = new_write_addr
 
-            if DEBUG_DMA_ADDR:
+            if debug:
                 print(f">>> [{row_id:02.}] R: 0x{read_addrs[row_id]:08X}")
                 print(f">>> [{row_id:02.}] W: 0x{write_addrs[row_id]:08X}")
                 print("-------------------------")
@@ -110,15 +106,6 @@ class SpriteScaler():
 
         read_addrs[row_id] = 0x00000000 # finish it with a NULL trigger
         write_addrs[row_id] = 0x00000000 # finish it with a NULL trigger
-        # self.dma.read_addrs = read_addrs
-        # self.dma.write_addrs = write_addrs
-
-        if DEBUG_DMA_ADDR:
-            print(f">>> [{row_id:02.}] R: 0x{read_addrs[row_id]:08X}")
-            print(f">>> [{row_id:02.}] W: 0x{write_addrs[row_id]:08X}")
-            print("-------------------------")
-        if DEBUG_DMA:
-            print(f" - TOTAL # READ ADDRS: {max_read_addrs+1}")
 
     def draw_sprite(self, sprite:SpriteType, inst, image:Image, h_scale=1.0, v_scale=1.0):
         """
@@ -134,9 +121,9 @@ class SpriteScaler():
 
         """ Configure num of fractional bits for fixed point math """
         if sprite.width == 16:
-            self.frac_bits = 3 # Use x.y fixed point   (16x16)
+            self.framebuf.frac_bits = self.frac_bits = 3 # Use x.y fixed point   (16x16)
         elif sprite.width == 32:
-            self.frac_bits = 4  # Use x.y fixed point (32x32)
+            self.framebuf.frac_bits = self.frac_bits = 4  # Use x.y fixed point (32x32)
         else:
             print("ERROR: Max 32x32 Sprite allowed")
             sys.exit(1)
@@ -199,14 +186,12 @@ class SpriteScaler():
             prof.end_profile('scaler.init_pio')
 
         prof.start_profile('scaler.init_dma_sprite')
-        stride = sprite.width - self.skip_cols
-        # self.dma.init_sprite(stride, h_scale) # DEBUG
-
         self.dma.init_sprite(self.read_stride_px, h_scale)
         prof.end_profile('scaler.init_dma_sprite')
 
         prof.start_profile('scaler.fill_addrs')
-        self.fill_addrs(int(self.scaled_height), h_scale, v_scale)
+        visible_rows = scaled_height - int(self.skip_rows * v_scale)
+        self.fill_addrs(int(self.scaled_height), visible_rows, DEBUG_DMA)
 
         if DEBUG_DMA:
             self.dma.debug_dma_addr()
@@ -435,6 +420,7 @@ class SpriteScaler():
     def convert_fixed_point(self, sprite_width, scale_y):
         """Calculate step between source rows in fixed-point."""
         fixed_step = int((sprite_width << self.frac_bits) / (scale_y*2))
+        fixed_step = fixed_step if (fixed_step % 2 == 0) else fixed_step - 1
         return fixed_step
 
 
@@ -497,16 +483,11 @@ class SpriteScaler():
 
         # Clear interpolator accumulators
         prof.start_profile('scaler.finish.reset_interp')
-        mem32[INTERP0_ACCUM0] = 0
         mem32[INTERP0_ACCUM1] = 0
         mem32[INTERP1_ACCUM0] = 0
         mem32[INTERP1_ACCUM1] = 0
-
         prof.end_profile('scaler.finish.reset_interp')
 
-        self.row_id = 0
-        self.scaled_width = 0
-        self.scaled_height = 0
         self.skip_rows = 0
         self.skip_cols = 0
 

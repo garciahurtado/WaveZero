@@ -176,7 +176,7 @@ class SSD1331PIO():
         self.pin_cs(1)
         self.pin_dc(self.DC_MODE_DATA)
 
-    def init_pio_spi(self, freq=40_000_000):
+    def init_pio_spi(self, freq=120_000_000):
         """ If the frequency is too close to the system clock, the system may hang here """
         # Define the pins
         pin_sck = self.pin_sck
@@ -276,7 +276,7 @@ class SSD1331PIO():
             write=PIO0_BASE_TXF0,
             ctrl=ctrl0,
         )
-        # self.dma0.irq(handler=self.dma_transfer_finished, hard=False)
+        # self.dma0.irq(handler=self.render_done, hard=False)
 
         """ Control Channel """
         ctrl1 = self.dma1.pack_ctrl(
@@ -286,16 +286,12 @@ class SSD1331PIO():
             chain_to=self.dma0.channel
         )
 
-        # offset = (0x040 * self.dma0.channel) + 0x03C                #   CH0_AL3_READ_ADDR_TRIG
-        # dma_read_offset = 0x014                                     #   CH0_AL1_READ_ADDR
-
         self.dma1.config(
             count=1,
             read=self.read_addr_buf,
             write=self.DMA_BASE,
             ctrl=ctrl1,
         )
-        # self.dma1.irq(handler=self.dma_transfer_finished, hard=True)
 
         """ Kick it off! """
         self.dma0.active(1)

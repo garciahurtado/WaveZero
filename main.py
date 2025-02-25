@@ -62,26 +62,6 @@ def check_mem():
     gc.collect()
     print(micropython.mem_info())
 
-def midi_test():
-    pwm_player = None
-    player = pwm_player.audio_pwmSimplePwmPlayer(Pin(18))
-
-    print("Play 440")
-    player.play(440, 2)
-
-    print("Play 220")
-    player.play(220, 2)
-
-    print("Play 880")
-    player.play(880, 2)
-
-    print("Play 440")
-    player.play(440, 0.5)
-    sleep(5)
-    player.stop()
-
-    sys.exit(1)
-
 if __name__ == "__main__":
     print("======== APP START ========")
     check_mem()

@@ -59,6 +59,7 @@ scaler.irq_color_lookup          1032     0.3073            317.17
 
 
 Not even sure what happened here... (compiler opt level?)
+ - OPTLEVEL 3 from here forward
 
 FPS:   5.65
 FPS:   5.62
@@ -539,6 +540,28 @@ FPS: 10.82
 
 ---
 FPS: 10.88
+
+---
+
+FPS:  10.60
+FPS:  10.61
+FPS:  10.62
+
+AVG: 10.57
+
+Readded viper to fill_addrs ----------------------
+
+FPS: 11.72 
+
+-----------
+
+
+---
+FPS:   6.82
+FPS:   6.88
+FPS:   6.93
+FPS:   6.97
+
 
 
 

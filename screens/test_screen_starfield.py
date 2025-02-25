@@ -26,13 +26,13 @@ class TestScreenStarfield(TestScreenBase):
     debug = False
     debug_inst = False
     fps_enabled = True
-    scale_dist_factor = 120 # The higher this is, the slower the scale grows w/ distance
+    scale_dist_factor = 130 # The higher this is, the slower the scale grows w/ distance
     # scale_dist_factor = 250 # The higher this is, the slower the scale grows w/ distance
     margin_px = 0
     vector_move = True # whether to move the sprites away from the center overtime, or keep them centered
 
     def __init__(self, display, margin_px = 16):
-        super().__init__(display,  margin_px=16)
+        super().__init__(display,  margin_px=24)
         # self.init_camera()
         self.sprite_type = SPRITE_TEST_HEART
         self.mgr = SpriteManager2D(display, self.max_sprites, None)

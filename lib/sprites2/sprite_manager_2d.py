@@ -1,6 +1,6 @@
 from images.image_loader import ImageLoader
 from profiler import Profiler
-from scaler.const import DEBUG_INST
+from scaler.const import DEBUG_INST, DEBUG_PHYSICS
 from sprites2.sprite_manager import SpriteManager
 from sprites2.sprite_types import SpriteType as types, FLAG_PHYSICS, FLAG_ACTIVE
 
@@ -61,7 +61,7 @@ class SpriteManager2D(SpriteManager):
         draw_x, draw_y = self.phy.get_draw_pos(sprite, scaled_width, scaled_height)
         x, y = self.phy.get_pos(sprite)
 
-        if DEBUG_INST:
+        if DEBUG_PHYSICS:
             dir_x, dir_y = self.phy.get_dir(sprite)
             print(f"SPRITE 2D UPDATE :")
             print(f"  Pos:      {x},{y}")

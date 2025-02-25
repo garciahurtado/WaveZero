@@ -72,11 +72,11 @@ class Profiler:
         if not Profiler.enabled:
             return
 
-        max_col = 79
+        max_col = 74
         print()
         print("\nProfile Results:")
         print()
-        print(f"{'func': <31} {'Calls': >6} {'Per frame': >10} {'Avg ms': >9} {'Frame ms': >9} {'Tot ms': >9} ")
+        print(f"{'func': <30}{'Calls': >7} {'Per frame': >4}{'Avg ms': >8} {'Frame ms': >2} {'Tot ms': >8}")
         print("-" * max_col)
 
         if not Profiler.profile_labels:
@@ -113,14 +113,15 @@ class Profiler:
             total_time_ms = record.total_time / 1000 # us -> ms
 
             if total_calls == 0:
-                print(f"{label: <30} {'N/A': <8} {'N/A': <10} {'N/A': <14} {'N/A': >9} {'N/A': >9}")
+                print(f"{label: <31} {'N/A': <5} {'N/A': <8} {'N/A': <9} {'N/A': >10} {'N/A': >10}")
                 continue
 
             avg_time_ms = total_time_ms / total_calls
-            print(f"{label: <31} {total_calls: >6} {frame_calls: >10} {avg_time_ms: >9.2f} {frame_time: >9.2f} {total_time_ms: >9.2f} ")
+            print(f"{label: <31} {total_calls: >5} {frame_calls: >8} {avg_time_ms: >7.2f} {frame_time: >8.2f} {total_time_ms: >8.2f} ")
 
         print('-' * max_col)
-        print(f"TOTALS: {total_frame_time:>61.2f}")
+        print(f"TOTALS: {total_frame_time:>56.2f}")
+        print('-' * max_col)
 
         if Profiler.fps:
             frame_time = Profiler.fps.frame_ms()

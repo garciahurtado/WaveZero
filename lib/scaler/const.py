@@ -2,17 +2,17 @@ from machine import mem32
 from micropython import const
 
 """ Debugging Constants """
-DEBUG =                     const(1)
+DEBUG =                     const(0)
 DEBUG_DMA =                 const(0)
-DEBUG_DMA_ADDR =            const(1)
+DEBUG_DMA_ADDR =            const(0)
 DEBUG_DISPLAY =             const(0)
 DEBUG_PIO =                 const(0)
 DEBUG_PHYSICS =             const(0)
 DEBUG_IRQ =                 const(0)
-DEBUG_INTERP =              const(1)
+DEBUG_INTERP =              const(0)
 DEBUG_INST =                const(0)
 DEBUG_INTERP_LIST =         const(0)
-DEBUG_SCALE_PATTERNS =      const(1)
+DEBUG_SCALE_PATTERNS =      const(0)
 DEBUG_POOL =                const(0)
 
 """
@@ -55,8 +55,6 @@ DMA_DBG_TCR = 0x804
 DMA_PX_READ_BASE = DMA_BASE_5
 DMA_PX_WRITE_BASE = DMA_BASE_6
 DMA_HORIZ_SCALE_BASE = DMA_BASE_7
-DMA_ADDR_SKIP = DMA_BASE_8
-DMA_SKIP_CTRL = DMA_BASE_9
 
 # SNIFF_CTRL = 0x50000438  # DMA_SNIFF_CTRL register address
 # SNIFF_CHAN = 0x50000434  # DMA_SNIFF_CHAN register address
@@ -144,9 +142,9 @@ INTERP0_CTRL_LANE1 = SIO_BASE + 0x0B0
 INTERP0_POP_LANE0 = SIO_BASE + 0x094
 INTERP0_POP_LANE1 = SIO_BASE + 0x098
 INTERP0_POP_FULL = SIO_BASE + 0x09c  # This is what we want for texture lookup
+INTERP0_PEEK_FULL = SIO_BASE + 0x0A8
 INTERP0_PEEK_LANE0 = SIO_BASE + 0x0a0
 INTERP0_PEEK_LANE1 = SIO_BASE + 0x0a4
-INTERP0_PEEK_FULL = SIO_BASE + 0x0a8
 
 INTERP1_ACCUM0 = SIO_BASE + 0x0C0
 INTERP1_ACCUM1 = SIO_BASE + 0x0C4
@@ -160,5 +158,8 @@ INTERP1_CTRL_LANE1 = SIO_BASE + 0x0F0
 INTERP1_POP_LANE0 = SIO_BASE + 0x0d4
 INTERP1_POP_LANE1 = SIO_BASE + 0x0d8
 INTERP1_POP_FULL = SIO_BASE + 0x0DC
+
+INTERP_NEW_READ_ADDR = INTERP1_POP_FULL
+INTERP_NEW_WRITE_ADDR = INTERP0_POP_FULL
 
 INTERP0_BASE_1AND0 = SIO_BASE + 0x0BC
