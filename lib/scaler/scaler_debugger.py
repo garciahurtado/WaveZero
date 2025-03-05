@@ -51,20 +51,20 @@ class ScalerDebugger():
         print()
 
         if sm0:
-            line_num = mem32[PIO1_BASE + SM0_ADDR]
-            inst_code = mem32[PIO1_BASE + SM0_INST_DEBUG]
+            line_num = mem32[PIO0_BASE + SM0_ADDR]
+            inst_code = mem32[PIO0_BASE + SM0_INST_DEBUG]
             print(f"-- SM0 (line {line_num}) ----------------------------")
             self.read_pio_opcode(inst_code)
 
         if sm1:
-            line_num = mem32[PIO1_BASE + SM1_ADDR]
-            inst_code = mem32[PIO1_BASE + SM1_INST_DEBUG]
+            line_num = mem32[PIO0_BASE + SM1_ADDR]
+            inst_code = mem32[PIO0_BASE + SM1_INST_DEBUG]
             print(f"-- SM1 (line {line_num}) -----------------------------")
             self.read_pio_opcode(inst_code)
 
         if sm2:
-            line_num = mem32[PIO1_BASE + SM2_ADDR]
-            inst_code = mem32[PIO1_BASE + SM2_INST_DEBUG]
+            line_num = mem32[PIO0_BASE + SM2_ADDR]
+            inst_code = mem32[PIO0_BASE + SM2_INST_DEBUG]
             print(f"-- SM2 (line {line_num}) -----------------------------")
             self.read_pio_opcode(inst_code)
 

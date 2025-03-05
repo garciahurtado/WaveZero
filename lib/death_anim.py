@@ -5,10 +5,10 @@ import time
 import utime
 
 from anim.animation import Animation
-from color.framebuffer_palette import FramebufferPalette
-from color.framebuffer_palette import FramebufferPalette as fp
+from colors.framebuffer_palette import FramebufferPalette
+from colors.framebuffer_palette import FramebufferPalette as fp
 from sprites.spritesheet import Spritesheet
-from color import color_util as colors
+from colors import color_util as colors
 from profiler import Profiler as prof
 
 class DeathAnim(Animation):

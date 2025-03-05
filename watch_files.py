@@ -16,7 +16,7 @@ file_timestamps = {}
 # ANSI escape codes for color formatting
 RED = "\033[91m"
 RESET = "\033[0m"
-
+COM = "COM4"
 
 def upload_file(file_path):
     try:
@@ -27,7 +27,7 @@ def upload_file(file_path):
         relative_path = os.path.relpath(file_path, project_root)
 
         # Use MicroPython tools to upload the file
-        subprocess.run(["python", os.path.join(micropython_tools_path, "pyboard.py"), "--device", "COM7", "-f", "cp", file_path, ":/" + relative_path], check=True)
+        subprocess.run(["python", os.path.join(micropython_tools_path, "pyboard.py"), "--device", COM, "-f", "cp", file_path, ":/" + relative_path], check=True)
 
         # Success! - show Windows toast
         toaster = WindowsToaster('File Watcher')

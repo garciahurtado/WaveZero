@@ -63,16 +63,15 @@ class Screen:
     def run(self):
         raise RuntimeError("* screen.run() not implemented! *")
 
-    def add(self, sprite):
-        self.instances.append(sprite)
-
     async def start_display_loop(self):
+        print("** DISPLAY LOOP START (screen.py) **")
+
         while True:
             self.do_refresh()
-            await asyncio.sleep_ms(1)
+            await asyncio.sleep_ms(10)
 
     async def start_main_loop(self):
-        return True
+        print("<< UPDATE LOOP START (screen.py) >>")
         await asyncio.gather(
             self.update_loop(),
         )
@@ -95,9 +94,7 @@ class Screen:
             await asyncio.sleep(1)
 
     def do_refresh(self):
-        """blocking, non-looping, version of refresh_display(), for when you need a refresh in a specific
-        place in the code"""
-
+        """ Meant to be overridden in child classes """
         self.display.show()
         # self.maybe_gc()
 

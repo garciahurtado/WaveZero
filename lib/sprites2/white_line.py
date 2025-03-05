@@ -1,6 +1,6 @@
 from sprites2.sprite_types import *
-from color.palettes import PALETTE_SHIFT, PALETTE_UI_FLASH_TEXT, convert_hex_palette, PALETTE_FIRE, PALETTE_CODE_GREEN, PALETTE_CODE_BLUE
-from color.color_util import BGR565, RGB565
+from colors.palettes import PALETTE_SHIFT, PALETTE_UI_FLASH_TEXT, convert_hex_palette, PALETTE_FIRE, PALETTE_CODE_GREEN, PALETTE_CODE_BLUE
+from colors.color_util import BGR565, RGB565
 
 class WhiteLine(SpriteType):
     name = SPRITE_WHITE_LINE

@@ -1,5 +1,8 @@
+import _thread
+
 import framebuf
 import utime
+from machine import mem32
 from micropython import const
 
 from rp2 import PIO, DMA, StateMachine
@@ -8,6 +11,8 @@ import uctypes
 import gc
 import colors.color_util as colors
 from utils import aligned_buffer
+from scaler.const import DEBUG_DMA, DMA_BASE_1, DMA_READ_ADDR_TRIG, DMA_WRITE_ADDR_TRIG, DMA_READ_ADDR
+
 
 class SSD1331PIO():
     """ Display driver that uses DMA to transfer bytes from the memory location of a framebuf to the queue of a PIO
@@ -18,6 +23,14 @@ class SSD1331PIO():
     - write_buffer: this is the original framebuf from the parent class. We use this for writing to the canvas.
     - read_buffer: this is a new buffer created for the display to read from. This buffer is filled by DMA
 
+    Inspired by:
+    https://github.com/stienman/Raspberry-Pi-Pico-PIO-LCD-Driver
+    https://github.com/messani/pico-hd44780/blob/main/pio_hd44780.pio
+    https://github.com/sumotoy/SSD_13XX/blob/master/_includes/SSD_1331_registers.h
+    https://github.com/WolfWings/SSD1331_t3/blob/master/SSD1331_t3.cpp
+    https://github.com/robert-hh/SSD1963-TFT-Library-for-PyBoard-and-RP2040/blob/master/rp2040/tft_pio.py
+    https://github.com/ohmytime/TFT_eSPI_DynamicSpeed
+
     """
     HEIGHT: int = const(64)
     WIDTH: int = const(96)
@@ -27,6 +40,8 @@ class SSD1331PIO():
 
     dma0: DMA = None
     dma1: DMA = None
+
+    sm = StateMachine(0)
 
     """ The name of these 3 variables is not important, they are only here because there's a sligth FPS improvement
     when they are declared at the class level and right before the draw buffers. I have no idea why that is the case."""
@@ -71,6 +86,9 @@ class SSD1331PIO():
     )
 
     def __init__(self, spi, pin_cs, pin_dc, pin_rs, pin_sck, pin_sda, height=HEIGHT, width=WIDTH):
+        # mem32[PIO0_BASE+INPUT_SYNC_BYPASS] = 0xFFFFFFFF
+        # mem32[PIO1_BASE+INPUT_SYNC_BYPASS] = 0xFFFFFFFF
+
         self.spi = spi
         self.pin_cs = pin_cs
         self.pin_dc = pin_dc
@@ -79,6 +97,19 @@ class SSD1331PIO():
         self.pin_sda = pin_sda
         self.height = height
         self.width = width
+
+        # Initialize DMA channels
+        self.dma0 = DMA()
+        self.dma1 = DMA()
+
+        print(" - SSD1331 PIO Driver. Acquired DMA channels:")
+        print(f"   * DMA0 (CH:{self.dma0.channel})")
+        print(f"   * DMA1 (CH:{self.dma1.channel})")
+
+        self.transfer_lock = _thread.allocate_lock()
+
+        self.is_render_done = False
+        self.is_render_ctrl_done = False
 
         mode = framebuf.RGB565
         gc.collect()
@@ -111,6 +142,7 @@ class SSD1331PIO():
     def start(self):
         self.init_display()
         self.init_pio_spi()
+        utime.sleep_ms(100)
         self.init_dma()
 
     def show(self):
@@ -125,6 +157,11 @@ class SSD1331PIO():
         return
 
     def swap_buffers(self):
+        while not (self.is_render_done and self.is_render_ctrl_done):
+            pass
+        self.is_render_done = False
+        self.is_render_ctrl_done = False
+
         self.read_addr_buf, self.write_addr_buf = self.write_addr_buf, self.read_addr_buf
         self.read_framebuf, self.write_framebuf = self.write_framebuf, self.read_framebuf
 
@@ -136,7 +173,8 @@ class SSD1331PIO():
         """ Now that we've flipped the buffers, reprogram the DMA so that it will start reading from the 
         correct buffer (the one that just finished writing) in the next iteration """
 
-        self.dma1.read = uctypes.addressof(self.curr_read_buf)
+        """ Assign and trigger DMA1. DMA1 will trigger DMA0 later, so this completes the loop """
+        mem32[DMA_BASE_1 + DMA_READ_ADDR] = uctypes.addressof(self.curr_read_buf)
 
     def init_display(self):
         self.pin_rs(0)  # Pulse the reset line
@@ -176,7 +214,7 @@ class SSD1331PIO():
         self.pin_cs(1)
         self.pin_dc(self.DC_MODE_DATA)
 
-    def init_pio_spi(self, freq=120_000_000):
+    def init_pio_spi(self, freq=32_000_000):
         """ If the frequency is too close to the system clock, the system may hang here """
         # Define the pins
         pin_sck = self.pin_sck
@@ -185,16 +223,16 @@ class SSD1331PIO():
         pin_cs = self.pin_cs
 
         # Set up the PIO state machine
-        sm = StateMachine(0)
+        sm = self.sm
 
         pin_cs.value(0) # Pull down to enable CS
         pin_dc.value(1) # D/C = 'data'
 
         sm.init(
-            self.dmi_to_spi,
+            self.pixels_to_spi,
             freq=freq,
-            set_base=pin_cs,
             out_base=pin_sda,
+            set_base=pin_cs,
             sideset_base=pin_sck,
         )
         # self.sm_debug(sm)
@@ -203,33 +241,35 @@ class SSD1331PIO():
     @rp2.asm_pio(
         out_shiftdir=PIO.SHIFT_LEFT,
         set_init=PIO.OUT_LOW,
-        sideset_init=PIO.OUT_LOW,
+        sideset_init=PIO.OUT_HIGH,
         out_init=PIO.OUT_LOW
         )
 
-    def dmi_to_spi():
+    def pixels_to_spi():
         """This PIO program is in charge for reading from the TX FIFO and writing to the output pin of the display
         until it runs out of data in the queue"""
+        """
+        set()   -> pin.cs
+        .side() -> pin.sck
+        """
 
-        pull(ifempty, block)       .side(1)     # Block with CSn high (minimum 2 cycles)
-        nop()                      .side(0)     # CSn front porch
+        pull(ifempty, block)         .side(1)     # Block with CSn high (minimum 2 cycles)
+        set(x, 31)                   .side(0)    # Push out 4 bytes per bitloop
 
-        set(x, 31)                  .side(1)    # Push out 4 bytes per bitloop
         wrap_target()
 
         pull(ifempty, block)        .side(1)
-        set(pins, 0)                .side(0)  # pull down CS
+        set(pins, 0)                .side(0)  # pull down CS, SCK low
+        # nop().side(1)
 
         label("bitloop")
         out(pins, 1)                .side(0)
         jmp(x_dec, "bitloop")       .side(1)
 
         set(x, 31)                  .side(1)
+        set(pins, 1)                .side(1) # Pulse the CS pin high (end transaction)
 
-        set(pins, 1)                .side(1) # Pulse the CS pin high (set)
-        jmp(not_osre, "bitloop")    .side(0) # Fallthru if TXF empties
-
-        nop()                       .side(0)  # CSn back porch
+        jmp(not_osre, "bitloop").side(1)  # If more data, do next block
 
     def sm_debug(self, sm):
         sm.irq(
@@ -245,20 +285,15 @@ class SSD1331PIO():
         pio_num = 0 # PIO program number
         sm_num = 0 # State Machine number
         DATA_REQUEST_INDEX = (pio_num << 3) + sm_num
-        # DATA_REQUEST_INDEX = 16
         PIO0_BASE = const(0x50200000)
         PIO0_BASE_TXF0 = const(PIO0_BASE + 0x10)
 
         total_bytes = (self.width * self.height) * 2
         self.dma_tx_count = total_bytes // 4
 
-        # self.debug_dma(buffer_addr, data_bytes)
-
-        # Initialize DMA channels
-        self.dma0 = DMA()
-        self.dma1 = DMA()
-
-        # print(f"Start Read Addr: {self.read_addr:032X}")
+        if DEBUG_DMA:
+            print(f"Start Read Addr: {self.read_addr:032X}")
+            print("........................................")
 
         """ Data Channel """
         ctrl0 = self.dma0.pack_ctrl(
@@ -276,13 +311,14 @@ class SSD1331PIO():
             write=PIO0_BASE_TXF0,
             ctrl=ctrl0,
         )
-        # self.dma0.irq(handler=self.render_done, hard=False)
+        self.dma0.irq(handler=self.render_done, hard=False)
 
         """ Control Channel """
         ctrl1 = self.dma1.pack_ctrl(
             size=2,
             inc_read=False,
             inc_write=False,
+            irq_quiet=False,
             chain_to=self.dma0.channel
         )
 
@@ -292,12 +328,21 @@ class SSD1331PIO():
             write=self.DMA_BASE,
             ctrl=ctrl1,
         )
+        self.dma1.irq(handler=self.render_ctrl_done, hard=False)
 
         """ Kick it off! """
         self.dma0.active(1)
 
     def render_done(self, event):
-        # print("================= Render Done ============")
+        # print("================= RENDER DONE ============")
+        self.is_render_done = True
+        pass
+
+    def render_ctrl_done(self, event):
+        # print("<<<<<<<<<<<<<<<<< RENDER CTRL DONE >>>>>>>>>>>>>>>>>")
+        self.is_render_ctrl_done = True
+        # utime.sleep_ms(10)
+
         pass
 
     def can_write(self):

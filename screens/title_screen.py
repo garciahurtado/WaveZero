@@ -4,8 +4,8 @@ import gc
 from machine import Pin
 
 from anim.anim_attr import AnimAttr
-from color.framebuffer_palette import FramebufferPalette
-from color import color_util as colors
+from colors.framebuffer_palette import FramebufferPalette
+from colors import color_util as colors
 from screens.screen import Screen
 from sprites.sprite import Sprite
 from collections import deque

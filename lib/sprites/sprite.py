@@ -2,8 +2,8 @@
 import framebuf
 from micropython import const
 
-from color import color_util as colors
-from color.framebuffer_palette import FramebufferPalette
+from colors import color_util as colors
+from colors.framebuffer_palette import FramebufferPalette
 from images.image_loader import ImageLoader
 from images.indexed_image import Image
 

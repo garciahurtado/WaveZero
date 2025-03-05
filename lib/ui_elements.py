@@ -9,10 +9,10 @@ from sprites.sprite_rect import SpriteRect
 from sprites.sprite import Sprite
 
 import uasyncio as asyncio
-from color.framebuffer_palette import FramebufferPalette as fp, FramebufferPalette
+from colors.framebuffer_palette import FramebufferPalette as fp, FramebufferPalette
 import framebuf as fb
-from color import color_util as colors
-from color.palettes import PALETTE_UI_FLASH_TEXT
+from colors import color_util as colors
+from colors.palettes import PALETTE_UI_FLASH_TEXT
 
 BLACK = 0x000000
 CYAN = 0x00FFFF

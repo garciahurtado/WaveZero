@@ -1,6 +1,6 @@
 import math
 
-import time
+import utime
 from _rp2 import DMA
 from uarray import array
 from uctypes import addressof
@@ -17,13 +17,19 @@ WRITE_DMA_BASE = DMA_BASE_6
 HSCALE_DMA_BASE = DMA_BASE_7
 PX_READ_BYTE_SIZE = 4 # Bytes per word in the pixel reader
 class DMAChain:
+    read_addr = None
+    read_finished = False
+    write_addr = None
+    color_lookup = None
+    px_read = None
+    px_write = None
+    h_scale = None
 
     def __init__(self, scaler, display:SSD1331PIO, extra_write_addrs=0):
         """ extra_read_addrs: additional rows in the margin of the full screen buffer"""
         self.dbg = None
         self.scaler = scaler
         self.px_per_tx = PX_READ_BYTE_SIZE * 2
-        self.read_finished = False
         self.read_count = 0
         self.addr_idx = 0
         self.max_sprite_height = 32
@@ -38,19 +44,16 @@ class DMAChain:
         self.read_addrs = array('L', [0] * (self.max_read_addrs+1))
         self.write_addrs = array('L', [0] * (self.max_write_addrs+1))
 
-        """ Acquire hardware DMA channels """
-
-        self.read_addr = DMA()      # 2. Vertical / row control (read and write)
-        self.write_addr = DMA()     # 3. Uses ring buffer to tell read_addr where to write its address to
-        self.color_lookup = DMA()   # 4. Palette color lookup / transfer
-        self.px_read = DMA()        # 5. Sprite data
-        self.px_write = DMA()       # 6. Display output
-        self.h_scale = DMA()        # 7. Horizontal scale pattern
-
-        self.init_channels()
-
     def init_channels(self):
         """Initialize the complete DMA chain for sprite scaling."""
+        """ Acquire hardware DMA channels """
+        self.read_addr = DMA()      #2. Vertical / row control (read and write)
+        self.write_addr = DMA()     #3. Uses ring buffer to tell read_addr where to write its address to
+        self.color_lookup = DMA()   #4. Palette color lookup / transfer
+        self.px_read = DMA()        #5. Sprite data
+        self.px_write = DMA()       #6. Display output
+        self.h_scale = DMA()        #7. Horizontal scale pattern
+
         self.init_read_addr()
         self.init_write_addr()
         self.init_color_lookup()
@@ -97,13 +100,13 @@ class DMAChain:
             size=2,  # 16bit colors in the palette, but 32 bit addresses
             inc_read=False,
             inc_write=False,  # always writes to DMA WRITE
-            treq_sel=DREQ_PIO1_RX0,
+            treq_sel=DREQ_PIO0_RX1,
             chain_to=self.write_addr.channel
         )
 
         self.color_lookup.config(
             count=1,  # TBD
-            read=PIO1_RX0,
+            read=PIO0_RX1,
             write=WRITE_DMA_BASE + DMA_READ_ADDR,
             ctrl=color_lookup_ctrl,
         )
@@ -114,16 +117,17 @@ class DMAChain:
             size=0,
             inc_read=True,      # Through sprite data
             inc_write=False,    # debug_bytes: True / PIO: False
-            treq_sel=DREQ_PIO1_TX0,
+            treq_sel=DREQ_PIO0_TX1,
             bswap=True,
             irq_quiet=True,
+            high_pri=True,
             chain_to=self.h_scale.channel
         )
 
         self.px_read.config(
             count=1,
             read=0,  # To be Set per row
-            write=PIO1_TX0,
+            write=PIO0_TX1,
             ctrl=px_read_ctrl
         )
         self.px_read.irq(handler=self.irq_px_read_end, hard=True)
@@ -149,7 +153,7 @@ class DMAChain:
             size=2,
             inc_read=True,
             inc_write=False,
-            treq_sel=DREQ_PIO1_RX0,
+            treq_sel=DREQ_PIO0_RX1,
             ring_sel=False,  # ring on read
             ring_size=4,  # n bytes = 2^n
         )
@@ -174,15 +178,18 @@ class DMAChain:
 
     def reset(self):
         """Reset all DMA channels."""
-        # self.read_addr.active(0)
-        # self.write_addr.active(0)
-        # self.px_read.active(0)
-        # self.color_lookup.active(0)
-        # self.h_scale.active(0)
+        self.read_addr.active(0)
+        self.write_addr.active(0)
+        self.px_read.active(0)
+        self.color_lookup.active(0)
+        self.h_scale.active(0)
 
         # Reset counts
         self.read_count = 0
         self.addr_idx = 0
+
+        while self.write_addr.active() or self.read_addr.active():
+            pass
 
         # Reset address list pointers
         self.write_addr.read = addressof(self.write_addrs)

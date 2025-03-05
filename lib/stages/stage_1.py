@@ -1,7 +1,7 @@
 import asyncio
 
 from anim.palette_rotate_one import PaletteRotateOne
-from color.color_util import BGR565, RGB565
+from colors.color_util import BGR565, RGB565
 from dump_object import dump_object
 from sprites2.alien_fighter import AlienFighter
 from sprites2.laser_wall import LaserWall
@@ -10,9 +10,9 @@ from stages.events import Event
 from stages.stage import Stage
 from sprites2.sprite_types import *
 from sprites2.white_line import WhiteLine
-from color.framebuffer_palette import FramebufferPalette as BufPalette
-from color.palettes import PALETTE_UI_FLASH_TEXT, convert_hex_palette, PALETTE_SHIFT, PALETTE_FIRE
-from color import color_util as colors
+from colors.framebuffer_palette import FramebufferPalette as BufPalette
+from colors.palettes import PALETTE_UI_FLASH_TEXT, convert_hex_palette, PALETTE_SHIFT, PALETTE_FIRE
+from colors import color_util as colors
 import micropython
 
 class Stage1(Stage):
@@ -46,29 +46,29 @@ class Stage1(Stage):
 
         self.sequence([
             evt.multi(evt_list),
-            # evt.multi([
-            #     evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z),
-            #     evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z),
-            #     # evt.spawn(SPRITE_WHITE_LINE_VERT, lane=0, z=spawn_z),
-            #     # evt.spawn(SPRITE_WHITE_LINE_VERT, lane=5, z=spawn_z),
-            #     # evt.spawn(SPRITE_WHITE_LINE_VERT, lane=0, z=spawn_z, y=line_height),
-            #     # evt.spawn(SPRITE_WHITE_LINE_VERT, lane=5, z=spawn_z, y=line_height),
-            #     # evt.spawn(SPRITE_WHITE_LINE_x5, lane=0, z=spawn_z, y=line_height*2),
-            #     # evt.spawn(SPRITE_WHITE_LINE_VERT_x3, lane=3, z=spawn_z),
-            #
-            #     evt.wait(tiny_wait)],
-            #     repeat=10),
+            evt.multi([
+                evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z),
+                evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z),
+                evt.spawn(SPRITE_WHITE_LINE_VERT, lane=0, z=spawn_z),
+                evt.spawn(SPRITE_WHITE_LINE_VERT, lane=5, z=spawn_z),
+                evt.spawn(SPRITE_WHITE_LINE_VERT, lane=0, z=spawn_z, y=line_height),
+                evt.spawn(SPRITE_WHITE_LINE_VERT, lane=5, z=spawn_z, y=line_height),
+                evt.spawn(SPRITE_WHITE_LINE_x5, lane=0, z=spawn_z, y=line_height*2),
+                evt.spawn(SPRITE_WHITE_LINE_VERT_x3, lane=3, z=spawn_z),
+
+                evt.wait(tiny_wait)],
+                repeat=10),
             evt.wait(med_wait),
 
-            # evt.multi([
-            #     evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z),
-            #     evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z),
-            #     evt.wait(tiny_wait)],
-            #     repeat=16),
-            # evt.wait(small_wait),
+            evt.multi([
+                evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z),
+                evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z),
+                evt.wait(tiny_wait)],
+                repeat=16),
+            evt.wait(small_wait),
 
         ], repeat=1)
-        # self.wait(500)
+        self.wait(500)
 
         # asyncio.create_task(self.rotate_palette())
 

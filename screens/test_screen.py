@@ -29,10 +29,11 @@ from sprites2.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART, SPRITE_
 
 from profiler import Profiler as prof
 
-from colors.color_util import hex_to_565, BGR565
+from colors.color_util import hex_to_565
 from colors.color_util import GREY
 from colors.color_util import WHITE
 from micropython import const
+
 
 
 class TestScreen(TestScreenBase):
@@ -183,7 +184,7 @@ class TestScreen(TestScreenBase):
         self.init_common()
         self.load_types()
 
-        test = 'grid1'
+        test = 'grid2'
         self.check_mem()
         method = None
 
@@ -198,7 +199,7 @@ class TestScreen(TestScreenBase):
             self.init_beating_heart()
             method = self.do_refresh_zoom_in
         if test == 'scale_control':
-            self.load_sprite(SPRITE_TEST_PYRAMID)
+            self.load_sprite(SPRITE_TEST_HEART)
             self.init_score()
             self.init_scale_control()
             method = self.do_refresh_scale_control
@@ -212,8 +213,10 @@ class TestScreen(TestScreenBase):
             self.init_grid()
             method = self.do_refresh_grid
         elif test == 'grid3':
-            self.load_sprite(SPRITE_TEST_PYRAMID)
+            self.load_sprite(SPRITE_TEST_SQUARE)
             self.init_grid()
+            self.grid_beat = False
+            self.fallout = True
             method = self.do_refresh_grid
         elif test == 'clipping':
             self.load_sprite(SPRITE_CHERRIES)
@@ -230,8 +233,6 @@ class TestScreen(TestScreenBase):
             self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
 
         asyncio.run(self.start_main_loop())
-        # asyncio.run(self.start_display_loop())
-        # asyncio.run(self.endless_wait())
 
     async def start_main_loop(self):
         print(f"-- ... MAIN LOOP STARTING ON THREAD #{_thread.get_ident()} ... --")
@@ -247,7 +248,7 @@ class TestScreen(TestScreenBase):
         start_time_ms = self.last_update_ms = utime.ticks_ms()
         self.last_perf_dump_ms = start_time_ms
 
-        print(f" == CPU CORE {_thread.get_ident()} (update_loop) ==")
+        print(f" == STARTING UPDATE LOOP - ON THREAD #{_thread.get_ident()} ==")
 
         # update loop - will run until task cancellation
         try:
@@ -260,7 +261,7 @@ class TestScreen(TestScreenBase):
 
                 # Tweaking this number can give FPS gains / give more frames to `elapsed`, avoiding near zero
                 # errors
-                await asyncio.sleep_ms(0)
+                await asyncio.sleep(1 / 160)
 
         except asyncio.CancelledError:
             return False
@@ -368,10 +369,10 @@ class TestScreen(TestScreenBase):
         self.h_scales = list(self.all_scales.keys())
         self.h_scales.sort()
 
-        default_scale = 2.750
-        self.scale_id = self.h_scales.index(default_scale)
+        default = 1
+        self.scale_id = self.h_scales.index(default)
 
-        self.input_handler = input_rotary.InputRotary()
+        self.input_handler = input_rotary.InputRotary(half_step=True)
         self.input_handler.handler_right = self.scale_control_right
         self.input_handler.handler_left = self.scale_control_left
 
@@ -384,8 +385,6 @@ class TestScreen(TestScreenBase):
             if self.debug:
                 scale = self.h_scales[self.scale_id]
                 self.sprite.scale = scale
-                if self.debug:
-                    print(f"Scale: {scale:.03f}")
 
     def scale_control_left(self):
         if self.scale_id > 0:
@@ -393,8 +392,6 @@ class TestScreen(TestScreenBase):
             if self.debug:
                 scale = self.h_scales[self.scale_id]
                 self.sprite.scale = scale
-                if self.debug:
-                    print(f"Scale: {scale:.03f}")
 
     def init_clipping(self):
         self.inst, idx = self.mgr.pool.get(self.sprite_type, self.sprite)
@@ -464,8 +461,6 @@ class TestScreen(TestScreenBase):
         while not self.scaler.dma.read_finished:
             pass
 
-        # utime.sleep_ms(500) # Dislay flickers due to lack of delay here
-
         self.display.show()
         prof.end_profile('scaler.display_show')
 
@@ -529,7 +524,7 @@ class TestScreen(TestScreenBase):
         self.mgr.phy.set_pos(self.inst, center_x, center_y) # Center the sprite
         coords = self.mgr.phy.get_pos(self.inst)
 
-        self.common_bg(hex_to_565(0x111111))
+        self.common_bg()
         self.scaler.draw_sprite(
             self.sprite,
             self.inst,

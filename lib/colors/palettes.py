@@ -1,6 +1,6 @@
-from color.framebuffer_palette import FramebufferPalette
-from color import color_util as colors
-from color.color_util import BGR565, RGB565
+from colors.framebuffer_palette import FramebufferPalette
+from colors import color_util as colors
+from colors.color_util import BGR565, RGB565
 
 PALETTE_UI_FLASH_TEXT = [0x00FFFF,
                          0xFF00FF,

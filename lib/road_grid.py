@@ -4,8 +4,8 @@ import math
 import utime
 from micropython import const
 
-from color import color_util as colors
-from color.framebuffer_palette import FramebufferPalette as fp
+from colors import color_util as colors
+from colors.framebuffer_palette import FramebufferPalette as fp
 
 MIDDLE_CYAN = 0x217eff
 MIDDLE_BLUE = 0x008097

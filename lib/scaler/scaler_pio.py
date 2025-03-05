@@ -14,7 +14,7 @@ def read_palette():
     Takes a full 4 byte word from a 16bit indexed image, and splits it into its individual pixels (so 8 total)
 
     2. Palette Lookup.
-    Uses the 4 bit pixel indices to generate the address which points to the specified color in the palette
+    Uses the 4 bit pixel indices to generate the address which points to the specified color in the palette in RAM
     """
     pull()
     out(isr, 32)            # First word is the palette base address

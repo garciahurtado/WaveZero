@@ -61,14 +61,8 @@ class TestScreenBase(Screen):
             await asyncio.sleep_ms(1)
             pass
 
-    async def async_thread_2(self):
-        """ Test Method """
-        while True:
-            print("YELLO! from ASYNC THREAD #2")
-            await asyncio.sleep_ms(1000)
-
-    def common_bg(self, color=0x000000):
-        self.display.fill(color)
+    def common_bg(self):
+        self.display.fill(0x000000)
 
         if self.grid_lines:
             # Vertical lines

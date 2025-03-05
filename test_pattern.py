@@ -1,5 +1,5 @@
 from display_init import get_display
-from color import color_util
+from colors import color_util
 
 test_colors = [
     [0x88ff00, 0xffee00, 0xdd66cc, 0xbb0000, 0xee0000, 0xff0088],

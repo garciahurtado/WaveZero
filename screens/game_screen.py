@@ -137,10 +137,7 @@ class GameScreen(Screen):
 
         self.check_mem()
         loop = asyncio.get_event_loop()
-
-        print("-- Starting display_loop...")
         loop.create_task(self.start_display_loop())
-
 
         self.input = make_input_handler(self.player)
         self.update_score_task = loop.create_task(self.mock_update_score())
@@ -163,7 +160,7 @@ class GameScreen(Screen):
         start_time_ms = self.last_update_ms = utime.ticks_ms()
         self.last_perf_dump_ms = start_time_ms
 
-        print(f"--- Update loop Start time: {start_time_ms}ms ---")
+        print(f"--- (game screen) Update loop Start time: {start_time_ms}ms ---")
         self.check_mem()
         num_lanes = 5
 
@@ -187,7 +184,7 @@ class GameScreen(Screen):
                 self.last_update_ms = now
 
                 if not self.paused:
-                    self.stage.update(elapsed)
+                    # self.stage.update(elapsed)
                     self.grid.update_horiz_lines(elapsed)
                     self.player.update(elapsed)
                     self.sun.x = self.sun_start_x - round(self.player.turn_angle * 4)

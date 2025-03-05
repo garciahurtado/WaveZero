@@ -156,9 +156,9 @@ class ScalerFramebuf():
 
         """ Negative x and y have already been taking into account in interp config"""
         if alpha is None:
-            self.display.write_framebuf.blit(self.scratch_buffer, x, y)
+            self.display.blit(self.scratch_buffer, x, y)
         else:
-            self.display.write_framebuf.blit(self.scratch_buffer, x, y, alpha)
+            self.display.blit(self.scratch_buffer, x, y, alpha)
 
     def next_write_addr(self, curr_addr, stride):
         next_addr = curr_addr + stride

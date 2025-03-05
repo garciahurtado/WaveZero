@@ -1,6 +1,6 @@
 from sprites.sprite import Sprite
 import framebuf
-from color import color_util as colors
+from colors import color_util as colors
 from sprites.sprite_3d import Sprite3D
 
 

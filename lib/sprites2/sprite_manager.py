@@ -362,7 +362,7 @@ class SpriteManager:
         """
         ellapsed should be in milliseconds
         """
-        print("OLD UPDATE")
+        # print("OLD UPDATE")
         kinds = self.sprite_metadata
         current = self.pool.head
         while current:
@@ -380,6 +380,7 @@ class SpriteManager:
                 self.pool.release(sprite, kind)
 
             current = next_node
+            current.sprite_id = current.sprite_type
 
             prof.end_profile('mgr.update_one_sprite()')
 
@@ -530,6 +531,7 @@ class SpriteManager:
             # print(f"ACTIVE:  {SpriteType.get_flag(sprite, SpriteType.FLAG_ACTIVE)}")
 
             if types.get_flag(sprite, FLAG_VISIBLE):
+                sprite.sprite_id = sprite.sprite_type
                 self.show_sprite(sprite, display)
             current = current.next
 
