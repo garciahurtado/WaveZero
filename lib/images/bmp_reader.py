@@ -8,6 +8,8 @@ from struct import unpack
 from colors.framebuffer_palette import FramebufferPalette as BufPalette
 from images.indexed_image import Image, create_image
 from colors import color_util as colors
+from utils import aligned_buffer
+
 
 class BMPReader():
     color_mode_map = {
@@ -219,7 +221,8 @@ class BMPReader():
         else:
             div = 1/1
 
-        byte_pixels = bytearray(int(frame_size // div))
+        size = int(frame_size // div)
+        byte_pixels = aligned_buffer(size)
         fbuffer = FrameBuffer(
             byte_pixels,
             width,

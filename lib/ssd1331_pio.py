@@ -1,6 +1,7 @@
 import _thread
 
 import framebuf
+import math
 import utime
 from machine import mem32
 from micropython import const
@@ -11,7 +12,8 @@ import uctypes
 import gc
 import colors.color_util as colors
 from utils import aligned_buffer
-from scaler.const import DEBUG_DMA, DMA_BASE_1, DMA_READ_ADDR_TRIG, DMA_WRITE_ADDR_TRIG, DMA_READ_ADDR
+from scaler.const import DEBUG_DMA, DMA_BASE_1, DMA_READ_ADDR_TRIG, DMA_WRITE_ADDR_TRIG, DMA_READ_ADDR, PIO0_BASE, \
+    PIO1_BASE, INPUT_SYNC_BYPASS, PIO0_TX0, PIO0_CTRL, DMA_BASE, DEBUG_DISPLAY, DMA_TRANS_COUNT, DREQ_PIO0_TX0
 
 
 class SSD1331PIO():
@@ -106,8 +108,6 @@ class SSD1331PIO():
         print(f"   * DMA0 (CH:{self.dma0.channel})")
         print(f"   * DMA1 (CH:{self.dma1.channel})")
 
-        self.transfer_lock = _thread.allocate_lock()
-
         self.is_render_done = False
         self.is_render_ctrl_done = False
 
@@ -162,7 +162,6 @@ class SSD1331PIO():
         self.is_render_done = False
         self.is_render_ctrl_done = False
 
-        self.read_addr_buf, self.write_addr_buf = self.write_addr_buf, self.read_addr_buf
         self.read_framebuf, self.write_framebuf = self.write_framebuf, self.read_framebuf
 
         if self.curr_read_buf == self.read_addr_buf:
@@ -173,8 +172,11 @@ class SSD1331PIO():
         """ Now that we've flipped the buffers, reprogram the DMA so that it will start reading from the 
         correct buffer (the one that just finished writing) in the next iteration """
 
-        """ Assign and trigger DMA1. DMA1 will trigger DMA0 later, so this completes the loop """
+        """ Assign DMA1. DMA1 will trigger DMA0 later, so this completes the loop """
         mem32[DMA_BASE_1 + DMA_READ_ADDR] = uctypes.addressof(self.curr_read_buf)
+
+        if DEBUG_DISPLAY:
+            print("-- Display Buffers Swapped --")
 
     def init_display(self):
         self.pin_rs(0)  # Pulse the reset line
@@ -214,8 +216,11 @@ class SSD1331PIO():
         self.pin_cs(1)
         self.pin_dc(self.DC_MODE_DATA)
 
-    def init_pio_spi(self, freq=32_000_000):
-        """ If the frequency is too close to the system clock, the system may hang here """
+    def init_pio_spi(self, freq=95_000_000):
+        """"""
+        """ Ideal freq for 1x1: 96_500_000 (no pio delays)"""
+        """ Ideal freq for 2x2: 97_000_000 (no pio delays)"""
+
         # Define the pins
         pin_sck = self.pin_sck
         pin_sda = self.pin_sda
@@ -260,16 +265,16 @@ class SSD1331PIO():
 
         pull(ifempty, block)        .side(1)
         set(pins, 0)                .side(0)  # pull down CS, SCK low
-        # nop().side(1)
 
         label("bitloop")
         out(pins, 1)                .side(0)
         jmp(x_dec, "bitloop")       .side(1)
 
         set(x, 31)                  .side(1)
-        set(pins, 1)                .side(1) # Pulse the CS pin high (end transaction)
+        set(pins, 1)                .side(1) # CS pin high (end transaction)
 
-        jmp(not_osre, "bitloop").side(1)  # If more data, do next block
+        jmp(not_osre, "bitloop")    .side(0)  # If more data, do next block
+
 
     def sm_debug(self, sm):
         sm.irq(
@@ -292,8 +297,9 @@ class SSD1331PIO():
         self.dma_tx_count = total_bytes // 4
 
         if DEBUG_DMA:
-            print(f"Start Read Addr: {self.read_addr:032X}")
-            print("........................................")
+            print(f" Start Read Addr: {self.read_addr:032X}")
+            print(f" No. TX: {self.dma_tx_count}")
+            print(" ........................................")
 
         """ Data Channel """
         ctrl0 = self.dma0.pack_ctrl(
@@ -302,13 +308,12 @@ class SSD1331PIO():
             inc_write=False,
             irq_quiet=False,
             bswap=True,
-            treq_sel=DATA_REQUEST_INDEX,
-            chain_to=self.dma1.channel
+            treq_sel=DREQ_PIO0_TX0,
         )
         self.dma0.config(
             count=self.dma_tx_count,
             read=self.read_addr,
-            write=PIO0_BASE_TXF0,
+            write=PIO0_TX0,
             ctrl=ctrl0,
         )
         self.dma0.irq(handler=self.render_done, hard=False)
@@ -319,13 +324,12 @@ class SSD1331PIO():
             inc_read=False,
             inc_write=False,
             irq_quiet=False,
-            chain_to=self.dma0.channel
         )
 
         self.dma1.config(
             count=1,
             read=self.read_addr_buf,
-            write=self.DMA_BASE,
+            write=self.DMA_BASE + DMA_READ_ADDR,
             ctrl=ctrl1,
         )
         self.dma1.irq(handler=self.render_ctrl_done, hard=False)

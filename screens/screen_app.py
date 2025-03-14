@@ -6,7 +6,6 @@ from display_init import get_display
 class ScreenApp:
     display: framebuf.FrameBuffer
     screens = []
-    display: None
     screen_width: int = 0
     screen_height: int = 0
 

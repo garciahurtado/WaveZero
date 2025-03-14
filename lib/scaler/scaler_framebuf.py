@@ -4,6 +4,8 @@ from screens.screen import PixelBounds
 from ssd1331_pio import SSD1331PIO
 from uctypes import addressof
 from scaler.const import DEBUG
+from utils import aligned_buffer
+
 
 class ScalerFramebuf():
     """
@@ -26,7 +28,8 @@ class ScalerFramebuf():
     frame_width = 0
     frame_height = 0
     scratch_size = max_width * max_height * 2
-    scratch_bytes = bytearray(scratch_size)  # scratch framebuf, declared early on when more memory is available
+    aligned_b = aligned_buffer(scratch_size)
+    scratch_bytes = aligned_b  # scratch framebuf, claiming a large chunk of memory early
     scratch_addr = addressof(scratch_bytes)
     scratch_buffer = None
     write_addrs_all = {}

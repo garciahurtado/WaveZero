@@ -1,5 +1,7 @@
-import random
+from _rp2 import DMA
 
+from bus_monitor import BusMonitor, BusProfiler
+from scaler.const import BUS_CTRL_BASE, BUS_PRIORITY, DEBUG_BUS_MONITOR
 from scaler.sprite_scaler import SpriteScaler
 from perspective_camera import PerspectiveCamera
 from sprites2.sprite_manager_2d import SpriteManager2D
@@ -7,7 +9,6 @@ from sprites2.test_heart import TestHeart
 from ui_elements import ui_screen
 
 from images.image_loader import ImageLoader
-from sprites.player_sprite import PlayerSprite
 from road_grid import RoadGrid
 
 from screens.screen import Screen
@@ -40,6 +41,8 @@ class GameScreenTest(Screen):
     ui = None
     total_elapsed = 0
     fps_enabled = True
+    is_first = True # so that we only use the scaler on frame 2+
+    bus_prof:BusProfiler = None
 
     def __init__(self, display, *args, **kwargs):
         super().__init__(display, *args, **kwargs)
@@ -56,33 +59,39 @@ class GameScreenTest(Screen):
 
         self.preload_images()
         self.ui = ui_screen(display, self.num_lives)
-        self.player = PlayerSprite(camera=self.camera)
         self.grid = RoadGrid(self.camera, display, lane_width=self.lane_width)
 
         self.display.fps = self.fps
 
+
     def preload_images(self):
         images = [
-            {"name": "bike_sprite.bmp", "width": 32, "height": 22, "color_depth": 4},
             {"name": "life.bmp", "width": 12, "height": 8},
         ]
 
         ImageLoader.load_images(images, self.display)
 
     def run(self):
+        if DEBUG_BUS_MONITOR:
+            self.bus_prof = BusProfiler()
+            self.bus_prof.perf.list_presets()
+            self.bus_prof.perf.list_available_events()
+            self.bus_prof.perf.configure_preset("dma_impact")
+            self.bus_prof.start_profiling()
 
         loop = asyncio.get_event_loop()
         loop.create_task(self.start_display_loop())
-        self.scaler.dma.init_channels() # This ensures that we dont steal the first 2 DMA from the display driver
+        self.scaler.dma.init_channels()
 
         self.display.fill(0x9999)
         utime.sleep_ms(1000)
         self.display.fill(0x0)
 
-        self.player.visible = True
-
         if self.fps_enabled:
             self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
+
+        if DEBUG_BUS_MONITOR:
+            self.bus_prof_task = asyncio.create_task(self.start_bus_profiler())
 
         print("-- Starting update_loop...")
         asyncio.run(self.start_main_loop())
@@ -97,6 +106,9 @@ class GameScreenTest(Screen):
         # update loop - will run until task cancellation
         try:
             while True:
+                if DEBUG_BUS_MONITOR:
+                    self.bus_prof.sample_frame()
+
                 self.total_frames += 1
                 now = utime.ticks_ms()
                 elapsed = utime.ticks_diff(now, self.last_update_ms)
@@ -105,8 +117,7 @@ class GameScreenTest(Screen):
 
                 if not self.paused:
                     self.grid.update_horiz_lines(elapsed)
-
-                await asyncio.sleep_ms(5)
+                await asyncio.sleep_ms(1)
 
         except asyncio.CancelledError:
             return False
@@ -117,19 +128,27 @@ class GameScreenTest(Screen):
         self.phy.set_pos(self.inst, 53, 32)
 
         self.grid.show()
-        self.player.show(self.display)
         self.ui.show()
-        # self.scaler.draw_sprite(
-        #     self.sprite,
-        #     self.inst,
-        #     self.image,
-        #     h_scale=1,
-        #     v_scale=1)
+
+        self.scaler.draw_sprite(
+            self.sprite,
+            self.inst,
+            self.image,
+            h_scale=1,
+            v_scale=1)
 
         self.display.show()
-
         self.fps.tick()
 
+    async def start_bus_profiler(self):
+        while True:
+            bus_prof = self.bus_prof
+            if bus_prof is False: 
+                pass
+            else:
+                self.bus_prof.display_profile_stats()
+
+            await asyncio.sleep(1)
     def load_types(self):
         self.mgr.add_type(
             sprite_type=SPRITE_TEST_HEART,

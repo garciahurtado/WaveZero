@@ -5,6 +5,18 @@
 		},
 		{
 			"path": "../../MicroPython/micropython"
+		},
+		{
+			"name": "Mpy Remote Workspace",
+			"uri": "pico:"
 		}
-	]
+	],
+	"settings": {
+		"python.analysis.typeshedPaths": [
+			"~/.micropico-stubs/included"
+		],
+		"python.analysis.extraPaths": [
+			"~/.micropico-stubs/included"
+		]
+	}
 }

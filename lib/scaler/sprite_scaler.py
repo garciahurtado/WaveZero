@@ -1,7 +1,4 @@
 import gc
-
-import time
-
 import utime
 
 from scaler.scaler_framebuf import ScalerFramebuf
@@ -10,33 +7,33 @@ gc.collect()
 import math
 import sys
 import micropython
-from _rp2 import StateMachine
-from machine import mem32
+from _rp2 import StateMachine, DMA
+from machine import mem32, Pin
 from uctypes import addressof
 from colors import color_util as colors
-from scaler.const import DEBUG, DEBUG_SCALE_PATTERNS, DEBUG_DMA, DEBUG_INST, INTERP0_POP_FULL, INTERP1_POP_FULL, DEBUG_DMA_ADDR, \
+from scaler.const import DEBUG, DEBUG_SCALE_PATTERNS, DEBUG_DMA, DEBUG_INST, INTERP0_POP_FULL, INTERP1_POP_FULL, \
+    DEBUG_DMA_ADDR, \
     INTERP0_CTRL_LANE0, INTERP0_CTRL_LANE1, INTERP0_BASE0, INTERP1_CTRL_LANE0, INTERP1_BASE0, INTERP1_ACCUM0, \
     INTERP1_ACCUM1, INTERP1_BASE1, INTERP1_BASE2, DEBUG_INTERP, INTERP1_CTRL_LANE1, INTERP0_BASE1, INTERP0_ACCUM0, \
-    INTERP0_ACCUM1, DEBUG_DISPLAY
+    INTERP0_ACCUM1, DEBUG_DISPLAY, PIO0_CTRL, DEBUG_DMA_CH
 from sprites2.sprite_physics import SpritePhysics
 
 from images.indexed_image import Image
 from scaler.dma_chain import DMAChain
-from scaler.scaler_pio import read_palette
+from scaler.scaler_pio import read_palette, read_palette_init
 from scaler.scaler_debugger import ScalerDebugger
 
 from sprites2.sprite_types import SpriteType
 from ssd1331_pio import SSD1331PIO
 
 from profiler import Profiler as prof
-gc.collect()
 
 class SpriteScaler():
     def __init__(self, display):
         self.skip_rows = 0
         self.skip_cols = 0
 
-        if DEBUG:
+        if DEBUG or DEBUG_DMA:
             self.dbg = ScalerDebugger()
         else:
             self.dbg = None
@@ -53,26 +50,21 @@ class SpriteScaler():
 
         self.scaled_height = 0
         self.scaled_width = 0
-
+        
         self.base_read = 0
         self.read_stride_px = 0
         self.frac_bits = 0
 
         self.palette_addr = None
         self.last_palette_addr = None # For caching
-
-        """ There's a sweet spot for this frequency, related to the system clock. About 1/3 """
-        sm_freq = 7_000_000  # must be 50% or less of the system clock, to avoid visual glitches
-        # PIO0 - SM1
-        self.sm_read_palette = StateMachine(
-            1, read_palette,
-            freq=sm_freq,
-        )
+        self.pin_jmp = Pin(13, Pin.IN, value=0)
+        self.sm_read_palette = read_palette_init(self.pin_jmp, self) # Start PIO state machine
 
         self.init_interp()
 
         if DEBUG_SCALE_PATTERNS:
             self.dma.patterns.print_patterns()
+
 
     # @micropython.viper
     def fill_addrs(self, scaled_height: int, h_scale, v_scale):
@@ -120,11 +112,11 @@ class SpriteScaler():
         Draw a scaled sprite at the specified position.
         This method is synchronous (will not return until the whole sprite has been drawn)
         """
-
-        # while not self.dma.read_finished: # Why is this not working??
-        #     pass
-
         prof.start_profile('scaler.draw_sprite.init')
+
+        prof.start_profile('scaler.finish_sprite.reset')
+        self.reset()
+        prof.end_profile('scaler.finish_sprite.reset')
 
         self.alpha = sprite.alpha_color
         self.dma.read_finished = False
@@ -187,20 +179,15 @@ class SpriteScaler():
 
         prof.end_profile('scaler.init_interp_sprite')
 
+        prof.start_profile('scaler.init_pio')
         palette_addr = addressof(image.palette.palette)
-
-        if not (palette_addr == self.last_palette_addr):
-            prof.start_profile('scaler.init_pio')
-
-            self.init_pio(palette_addr)
-            self.palette_addr = self.last_palette_addr = palette_addr
-            prof.end_profile('scaler.init_pio')
+        self.init_pio(palette_addr)
+        self.palette_addr = self.last_palette_addr = palette_addr
+        prof.end_profile('scaler.init_pio')
 
         prof.start_profile('scaler.init_dma_sprite')
-        stride = sprite.width - self.skip_cols
-        # self.dma.init_sprite(stride, h_scale) # DEBUG
-
         self.dma.init_sprite(self.read_stride_px, h_scale)
+
         prof.end_profile('scaler.init_dma_sprite')
 
         prof.start_profile('scaler.fill_addrs')
@@ -213,7 +200,22 @@ class SpriteScaler():
         prof.end_profile('scaler.fill_addrs')
 
         self.start()
-        while not self.dma.read_finished:
+
+        if DEBUG_DMA_CH:
+            self.dma.debug_dma_channels()
+
+        while not (self.dma.h_scale_finished and self.dma.color_row_finished and self.dma.px_read_finished):
+            if DEBUG_DMA:
+                print("IRQ FLAGS:")
+                print("----------------")
+                print(f"   px_read:                 {self.dma.px_read_finished}")
+                print(f"   color_row:               {self.dma.color_row_finished}")
+                print(f"   h_scale:                 {self.dma.h_scale_finished}")
+                print()
+                print("--------------------------------------------------------------------")
+                print()
+
+            utime.sleep_ms(1)
             pass
 
         self.finish_sprite()
@@ -233,15 +235,14 @@ class SpriteScaler():
 
     def finish_sprite(self):
         self.dma.read_finished = False
+        self.dma.px_read_finished = False
+        self.dma.h_scale_finished = False
+
         prof.start_profile('scaler.finish_sprite')
         if DEBUG_DISPLAY:
             print(f"> BLITTING to {self.draw_x}, {self.draw_y} / alpha: {self.alpha}")
 
         self.framebuf.blit_with_alpha(int(self.draw_x), int(self.draw_y), self.alpha)
-        prof.start_profile('scaler.finish_sprite.reset')
-        self.reset()
-        prof.end_profile('scaler.finish_sprite.reset')
-
         prof.end_profile('scaler.finish_sprite')
 
     def init_interp(self):
@@ -315,7 +316,6 @@ class SpriteScaler():
             print(f"INTERP sprite_width: {sprite_width}")
             print(f"INTERP fixed_step: {int(fixed_step)}")
             print(f"INTERP base_read: {int(self.base_read):08X}")
-        #
 
         prof.end_profile('scaler.init_convert_fixed_point')
 
@@ -410,7 +410,7 @@ class SpriteScaler():
         mem32[INTERP1_CTRL_LANE1] = read_ctrl_lane1
 
         # For write addresses we want: BASE0 + ACCUM0
-        mem32[INTERP0_BASE1] = display_stride  # Row increment. Increasing beyond stride can be used to skew sprites.
+        mem32[INTERP0_BASE1] = display_stride  # Per Row increment. Increasing beyond stride can be used to skew sprites.
         mem32[INTERP0_ACCUM0] = write_base  # Starting address
 
     def reset(self):
@@ -421,20 +421,23 @@ class SpriteScaler():
         # Clear interpolator accumulators
         prof.start_profile('scaler.finish.reset_interp')
 
+        mem32[INTERP0_ACCUM0] = 0
         mem32[INTERP0_ACCUM1] = 0
         mem32[INTERP1_ACCUM0] = 0
         mem32[INTERP1_ACCUM1] = 0
+
+        mem32[INTERP0_BASE0] = 0
+        mem32[INTERP0_BASE1] = 0
+        mem32[INTERP1_BASE0] = 0
+        mem32[INTERP1_BASE1] = 0
+
         prof.end_profile('scaler.finish.reset_interp')
 
-
-        self.row_id = 0
-        self.scaled_width = 0
-        self.scaled_height = 0
         self.skip_rows = 0
         self.skip_cols = 0
 
     def init_pio(self, palette_addr):
-        # self.sm_read_palette.restart()
+        self.sm_read_palette.active(1)
         self.sm_read_palette.put(palette_addr)
 
     def center_sprite(self, sprite_width, sprite_height):
@@ -445,7 +448,6 @@ class SpriteScaler():
         x = (view_width/2) - (sprite_width/2)
         y = (view_height/2) - (sprite_height/2)
         return int(x), int(y)
-
 
     def draw_dot(self, x, y, type):
         self.draw_x = x
@@ -488,7 +490,3 @@ class SpriteScaler():
         display.pixel(0, 0 + 1, color)
         display.pixel(0 + 1, 0 + 1, color)
         self.finish_sprite()
-
-
-
-

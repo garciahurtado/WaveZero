@@ -4,6 +4,7 @@ from micropython import const
 """ Debugging Constants """
 DEBUG =                     const(0)
 DEBUG_DMA =                 const(0)
+DEBUG_DMA_CH =              const(0)
 DEBUG_DMA_ADDR =            const(0)
 DEBUG_DISPLAY =             const(0)
 DEBUG_PIO =                 const(0)
@@ -14,6 +15,7 @@ DEBUG_INST =                const(0)
 DEBUG_INTERP_LIST =         const(0)
 DEBUG_SCALE_PATTERNS =      const(0)
 DEBUG_POOL =                const(0)
+DEBUG_BUS_MONITOR =         const(0)
 
 """
 Part of the scaler.sprite_scaler package.
@@ -45,6 +47,9 @@ DMA_CTRL_TRIG = 0x00c
 DMA_AL1_CTRL = 0x010
 DMA_DBG_TCR = 0x804
 
+DMA_READ_ADDR_BASE = DMA_BASE_2
+DMA_WRITE_ADDR_BASE = DMA_BASE_3
+DMA_COLOR_ADDR_BASE = DMA_BASE_4
 DMA_PX_READ_BASE = DMA_BASE_5
 DMA_PX_WRITE_BASE = DMA_BASE_6
 DMA_HORIZ_SCALE_BASE = DMA_BASE_7
@@ -60,6 +65,10 @@ DMA_TIMER0 = 0x3b
 
 INPUT_SYNC_BYPASS = 0x038
 
+# BUS CONTROL
+BUS_CTRL_BASE = 0x40068000
+BUS_PRIORITY = BUS_CTRL_BASE + 0x00
+
 """ PIO """
 
 PIO0_BASE = 0x50200000
@@ -74,6 +83,8 @@ PIO0_RX1 = PIO0_BASE + 0x024
 
 PIO0_TX2 = PIO0_BASE + 0x018
 PIO0_RX2 = PIO0_BASE + 0x028
+
+PIO0_CTRL = PIO0_BASE
 
 # ---
 
@@ -119,6 +130,11 @@ DREQ_PIO1_RX2 = 14
 DREQ_TIMER_0 = 0x3B
 DREQ_TIMER_1 = 0x3C
 
+XOSC_BASE = 0x40048000
+XOSC_CTRL = 0x00
+XOSC_STATUS = 0x04
+XOSC_ENABLE = 0x00fff000
+
 TIMER0_OFFSET = 0x00000420
 TIMER0_BITS = 0x00000000
 
@@ -127,7 +143,7 @@ TIMER1_OFFSET = 0x00000424
 So in this case, its 0001/000F or 1/16 of the CPU freq (or 16 times slower) """
 TIMER1_BITS = 0x00010002
 
-mem32[DMA_BASE + TIMER1_OFFSET] = TIMER1_BITS
+# mem32[DMA_BASE + TIMER1_OFFSET] = TIMER1_BITS
 
 """ Pacing Timer Dividend bits
 [31:16] Specifies the X value for the (X/Y) fractional timer.
@@ -175,3 +191,4 @@ INTERP1_POP_LANE1 = SIO_BASE + 0x0d8
 INTERP1_POP_FULL = SIO_BASE + 0x0DC
 
 INTERP0_BASE_1AND0 = SIO_BASE + 0x0BC
+

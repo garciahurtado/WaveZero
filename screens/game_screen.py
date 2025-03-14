@@ -175,8 +175,8 @@ class GameScreen(Screen):
                 self.grid.speed_ms = self.ground_speed / 10
                 self.total_frames += 1
 
-                if not self.total_frames % self.fps_every_n_frames:
-                    print(f"FPS: {self.fps.fps():.02f}")
+                # if not self.total_frames % self.fps_every_n_frames:
+                #     print(f"FPS: {self.fps.fps():.02f}")
 
                 now = utime.ticks_ms()
                 elapsed = utime.ticks_diff(now, self.last_update_ms)
