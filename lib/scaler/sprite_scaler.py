@@ -19,7 +19,7 @@ from scaler.const import DEBUG, DEBUG_SCALE_PATTERNS, DEBUG_DMA, DEBUG_INST, INT
 from sprites2.sprite_physics import SpritePhysics
 
 from images.indexed_image import Image
-from scaler.dma_chain import DMAChain
+from scaler.dma_chain_test import DMAChain
 from scaler.scaler_pio import read_palette, read_palette_init
 from scaler.scaler_debugger import ScalerDebugger
 

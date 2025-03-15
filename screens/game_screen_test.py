@@ -1,5 +1,6 @@
 from _rp2 import DMA
 
+from colors import color_util as colors
 from bus_monitor import BusMonitor, BusProfiler
 from scaler.const import BUS_CTRL_BASE, BUS_PRIORITY, DEBUG_BUS_MONITOR
 from scaler.sprite_scaler import SpriteScaler
@@ -129,16 +130,32 @@ class GameScreenTest(Screen):
 
         self.grid.show()
         self.ui.show()
+        # self.draw_corners()
 
-        self.scaler.draw_sprite(
-            self.sprite,
-            self.inst,
-            self.image,
-            h_scale=1,
-            v_scale=1)
+        # self.scaler.draw_sprite(
+        #     self.sprite,
+        #     self.inst,
+        #     self.image,
+        #     h_scale=1,
+        #     v_scale=1)
 
         self.display.show()
         self.fps.tick()
+
+    def draw_corners(self):
+        green = colors.hex_to_565(0x00FF00)
+        width = self.total_width
+        height = self.total_height
+
+        # self.display.hline(0, 0, 8, green)
+        # self.display.hline(0, width-8, 8, green)
+        # self.display.hline(0, height, 8, green)
+        # self.display.hline(width, height, -8, green)
+
+        # self.display.line(0, 0, 0, 8, green)
+        # self.display.line(width, 0, width, 8, green)
+        # self.display.line(0, height, 0, height-8, green)
+        # self.display.line(width, height, width, height-8, green)
 
     async def start_bus_profiler(self):
         while True:

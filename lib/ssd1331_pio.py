@@ -157,8 +157,13 @@ class SSD1331PIO():
         return
 
     def swap_buffers(self):
-        while not (self.is_render_done and self.is_render_ctrl_done):
-            pass
+        if DEBUG_DISPLAY:
+            print(">> About to swap buffers <<")
+
+        # while not (self.is_render_ctrl_done and self.is_render_done):
+        #     utime.sleep_ms(1)
+        #     pass
+
         self.is_render_done = False
         self.is_render_ctrl_done = False
 
@@ -173,7 +178,11 @@ class SSD1331PIO():
         correct buffer (the one that just finished writing) in the next iteration """
 
         """ Assign DMA1. DMA1 will trigger DMA0 later, so this completes the loop """
+
+        self.dma1.active(0)
         mem32[DMA_BASE_1 + DMA_READ_ADDR] = uctypes.addressof(self.curr_read_buf)
+        self.dma1.active(1)
+        self.dma0.active(1)
 
         if DEBUG_DISPLAY:
             print("-- Display Buffers Swapped --")
@@ -216,7 +225,7 @@ class SSD1331PIO():
         self.pin_cs(1)
         self.pin_dc(self.DC_MODE_DATA)
 
-    def init_pio_spi(self, freq=95_000_000):
+    def init_pio_spi(self, freq=48_000_000):
         """"""
         """ Ideal freq for 1x1: 96_500_000 (no pio delays)"""
         """ Ideal freq for 2x2: 97_000_000 (no pio delays)"""
@@ -259,6 +268,7 @@ class SSD1331PIO():
         """
 
         pull(ifempty, block)         .side(1)     # Block with CSn high (minimum 2 cycles)
+        nop()                        .side(0)  # CSn front porch
         set(x, 31)                   .side(0)    # Push out 4 bytes per bitloop
 
         wrap_target()
@@ -273,8 +283,9 @@ class SSD1331PIO():
         set(x, 31)                  .side(1)
         set(pins, 1)                .side(1) # CS pin high (end transaction)
 
-        jmp(not_osre, "bitloop")    .side(0)  # If more data, do next block
+        jmp(not_osre, "bitloop")    .side(1)  # If more data, do next block
 
+        nop()                       .side(0)  # CSn back porch
 
     def sm_debug(self, sm):
         sm.irq(
@@ -293,6 +304,12 @@ class SSD1331PIO():
         PIO0_BASE = const(0x50200000)
         PIO0_BASE_TXF0 = const(PIO0_BASE + 0x10)
 
+        """
+        How many bytes to write for a whole framebuffer:
+         width * height = pixels
+         pixels * 2 = bytes (2 bytes per px)
+         bytes / 4 = total tx (at 4 bytes per tx, ie: 32bit)
+        """
         total_bytes = (self.width * self.height) * 2
         self.dma_tx_count = total_bytes // 4
 
@@ -309,6 +326,7 @@ class SSD1331PIO():
             irq_quiet=False,
             bswap=True,
             treq_sel=DREQ_PIO0_TX0,
+            # chain_to=self.dma1.channel
         )
         self.dma0.config(
             count=self.dma_tx_count,
@@ -324,6 +342,7 @@ class SSD1331PIO():
             inc_read=False,
             inc_write=False,
             irq_quiet=False,
+            # chain_to=self.dma0.channel
         )
 
         self.dma1.config(
@@ -338,14 +357,16 @@ class SSD1331PIO():
         self.dma0.active(1)
 
     def render_done(self, event):
-        # print("================= RENDER DONE ============")
+        if DEBUG_DISPLAY:
+            print("================= RENDER DONE ============")
         self.is_render_done = True
         pass
 
     def render_ctrl_done(self, event):
-        # print("<<<<<<<<<<<<<<<<< RENDER CTRL DONE >>>>>>>>>>>>>>>>>")
+        if DEBUG_DISPLAY:
+            print("<<<<<<<<<<<<<<<<< RENDER CTRL DONE >>>>>>>>>>>>>>>>>")
         self.is_render_ctrl_done = True
-        # utime.sleep_ms(10)
+        # self.dma1.active(0)
 
         pass
 

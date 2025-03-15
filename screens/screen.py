@@ -68,7 +68,7 @@ class Screen:
 
         while True:
             self.do_refresh()
-            await asyncio.sleep_ms(10)
+            await asyncio.sleep_ms(2)
 
     async def start_main_loop(self):
         print("<< UPDATE LOOP START (screen.py) >>")

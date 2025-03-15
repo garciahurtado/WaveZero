@@ -249,4 +249,4 @@ class DMAChain:
         print(f"    R/ ADDRS 1st:             0x{mem32[addressof(self.read_addrs)]:08X}")
         print(f"    W/ ADDRS ADDR:          0x{addressof(self.write_addrs):08X}")
         print(f"    W/ ADDRS 1st:             0x{mem32[addressof(self.write_addrs)]:08X}")
-        print()
+        print() 

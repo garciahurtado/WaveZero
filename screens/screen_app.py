@@ -1,4 +1,6 @@
 import framebuf
+import utime
+
 from display_init import get_display
 # from screens.screen import Screen
 
@@ -13,6 +15,7 @@ class ScreenApp:
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.display = get_display()
+        utime.sleep_ms(50)
 
     def load_screen(self, screen):
         screen.app = self
