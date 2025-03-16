@@ -29,7 +29,7 @@ def setup_display():
 
     utime.sleep_ms(100)
 
-    spi = SPI(0, baudrate=12_000_000, sck=pin_sck, mosi=pin_sda, miso=None)
+    spi = SPI(0, baudrate=16_000_000, sck=pin_sck, mosi=pin_sda, miso=None)
     display = DisplayDriver(
         spi,
         pin_cs,

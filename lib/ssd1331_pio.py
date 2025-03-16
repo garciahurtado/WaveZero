@@ -11,9 +11,11 @@ import rp2
 import uctypes
 import gc
 import colors.color_util as colors
+from dump_object import dump_object
+from scaler.irq_handler import IrqHandler
 from utils import aligned_buffer
 from scaler.const import DEBUG_DMA, DMA_BASE_1, DMA_READ_ADDR_TRIG, DMA_WRITE_ADDR_TRIG, DMA_READ_ADDR, PIO0_BASE, \
-    PIO1_BASE, INPUT_SYNC_BYPASS, PIO0_TX0, PIO0_CTRL, DMA_BASE, DEBUG_DISPLAY, DMA_TRANS_COUNT, DREQ_PIO0_TX0
+    PIO1_BASE, PIO0_TX0, PIO0_CTRL, DMA_BASE, DEBUG_DISPLAY, DMA_TRANS_COUNT, DREQ_PIO0_TX0
 
 
 class SSD1331PIO():
@@ -137,13 +139,17 @@ class SSD1331PIO():
         self.write_addr_buf = self.write_addr.to_bytes(4, "little")
 
         self.curr_read_buf = self.read_addr_buf
+        IrqHandler.display = self
 
 
     def start(self):
         self.init_display()
-        self.init_pio_spi()
-        utime.sleep_ms(100)
         self.init_dma()
+        self.init_pio_spi()
+        """ Kick it off! """
+        self.dma0.active(1)
+
+        utime.sleep_ms(10)
 
     def show(self):
         """
@@ -159,14 +165,21 @@ class SSD1331PIO():
     def swap_buffers(self):
         if DEBUG_DISPLAY:
             print(">> About to swap buffers <<")
+        #
+        # print(f"is_render_ctrl_done: {self.is_render_ctrl_done}")
+        # print(f"is_render_done: {self.is_render_done}")
 
         # while not (self.is_render_ctrl_done and self.is_render_done):
         #     utime.sleep_ms(1)
         #     pass
 
-        self.is_render_done = False
-        self.is_render_ctrl_done = False
+        if DEBUG_DISPLAY:
+            print(">> SWAP BUFFERS: render & ctrl done <<")
 
+        # self.is_render_done = False
+        # self.is_render_ctrl_done = False
+
+        self.read_addr_buf, self.write_addr_buf = self.write_addr_buf, self.read_addr_buf
         self.read_framebuf, self.write_framebuf = self.write_framebuf, self.read_framebuf
 
         if self.curr_read_buf == self.read_addr_buf:
@@ -179,10 +192,10 @@ class SSD1331PIO():
 
         """ Assign DMA1. DMA1 will trigger DMA0 later, so this completes the loop """
 
-        self.dma1.active(0)
-        mem32[DMA_BASE_1 + DMA_READ_ADDR] = uctypes.addressof(self.curr_read_buf)
-        self.dma1.active(1)
-        self.dma0.active(1)
+        # self.dma1.active(0)
+        mem32[DMA_BASE_1 + DMA_READ_ADDR_TRIG] = uctypes.addressof(self.read_addr_buf)
+        # self.dma1.active(1)
+        # self.dma0.active(1)
 
         if DEBUG_DISPLAY:
             print("-- Display Buffers Swapped --")
@@ -208,8 +221,6 @@ class SSD1331PIO():
         y0 = y1 = y
 
         start_line = b'\x21'
-        coords = bytes([int(x0), int(y0), int(x1), int(y1)])
-        color = b'\xFF\xFF'
 
         self.pin_cs(1)
         self.pin_dc(self.DC_MODE_CMD)
@@ -218,14 +229,18 @@ class SSD1331PIO():
         self.pin_cs(1)
         self.pin_dc(self.DC_MODE_DATA)
         self.pin_cs(0)
-        self.spi.write(coords)
-        self.spi.write(color)
+
+        # Testing SPI with some green dots
+        # coords = bytes([int(x0), int(y0), int(x1), int(y1)])
+        # color = b'\xFF\xFF'
+        # self.spi.write(coords)
+        # self.spi.write(color)
 
         # Return to data mode
         self.pin_cs(1)
         self.pin_dc(self.DC_MODE_DATA)
 
-    def init_pio_spi(self, freq=48_000_000):
+    def init_pio_spi(self, freq=16_000_000):
         """"""
         """ Ideal freq for 1x1: 96_500_000 (no pio delays)"""
         """ Ideal freq for 2x2: 97_000_000 (no pio delays)"""
@@ -323,9 +338,9 @@ class SSD1331PIO():
             size=2,
             inc_read=True,
             inc_write=False,
-            irq_quiet=False,
             bswap=True,
             treq_sel=DREQ_PIO0_TX0,
+            high_pri=True,
             # chain_to=self.dma1.channel
         )
         self.dma0.config(
@@ -334,39 +349,36 @@ class SSD1331PIO():
             write=PIO0_TX0,
             ctrl=ctrl0,
         )
-        self.dma0.irq(handler=self.render_done, hard=False)
+        self.dma0.irq(handler=IrqHandler.irq_handler, hard=False)
 
         """ Control Channel """
         ctrl1 = self.dma1.pack_ctrl(
             size=2,
             inc_read=False,
             inc_write=False,
-            irq_quiet=False,
-            # chain_to=self.dma0.channel
+            high_pri=True,
+            # chain_to=self.dma0.channel,
         )
 
         self.dma1.config(
             count=1,
             read=self.read_addr_buf,
-            write=self.DMA_BASE + DMA_READ_ADDR,
+            write=self.DMA_BASE + DMA_READ_ADDR_TRIG,
             ctrl=ctrl1,
         )
-        self.dma1.irq(handler=self.render_ctrl_done, hard=False)
+        self.dma1.irq(handler=IrqHandler.irq_handler, hard=False)
 
-        """ Kick it off! """
-        self.dma0.active(1)
 
-    def render_done(self, event):
+    def irq_render(self, ch):
         if DEBUG_DISPLAY:
             print("================= RENDER DONE ============")
         self.is_render_done = True
         pass
 
-    def render_ctrl_done(self, event):
+    def irq_render_ctrl(self, event):
         if DEBUG_DISPLAY:
             print("<<<<<<<<<<<<<<<<< RENDER CTRL DONE >>>>>>>>>>>>>>>>>")
         self.is_render_ctrl_done = True
-        # self.dma1.active(0)
 
         pass
 

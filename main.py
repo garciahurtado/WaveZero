@@ -53,20 +53,15 @@ def configure_peri_clock(source=0, divider=1):
 def main():
     micropython.opt_level(0)
 
-    # Enable XOSC clock
-    old_ctrl = mem32[XOSC_BASE + XOSC_CTRL]
-    new_ctrl = old_ctrl | XOSC_ENABLE
-    # mem32[XOSC_BASE + XOSC_CTRL] = new_ctrl
-
-    value1 = mem32[CLK_REF_SELECTED]
-    value2 = mem32[CLK_SYS_SELECTED]
-    value3 = mem32[CLK_PERI_SELECTED]
-
-    print("CLOCK SOURCES:")
-    print("---------------")
-    print(f"REF_SEL:  {value1:032b}")
-    print(f"SYS_SEL:  {value2:032b}")
-    print(f"PERI_SEL: {value3:032b}")
+    # value1 = mem32[CLK_REF_SELECTED]
+    # value2 = mem32[CLK_SYS_SELECTED]
+    # value3 = mem32[CLK_PERI_SELECTED]
+    #
+    # print("CLOCK SOURCES:")
+    # print("---------------")
+    # print(f"REF_SEL:  {value1:032b}")
+    # print(f"SYS_SEL:  {value2:032b}")
+    # print(f"PERI_SEL: {value3:032b}")
 
     utime.sleep_ms(50)
 

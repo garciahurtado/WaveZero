@@ -18,6 +18,7 @@ from scaler.const import DEBUG, DEBUG_SCALE_PATTERNS, DEBUG_DMA, DEBUG_INST, INT
     INTERP0_ACCUM1, DEBUG_DISPLAY, PIO0_CTRL, DEBUG_DMA_CH
 from sprites2.sprite_physics import SpritePhysics
 
+from scaler.irq_handler import IrqHandler
 from images.indexed_image import Image
 from scaler.dma_chain_test import DMAChain
 from scaler.scaler_pio import read_palette, read_palette_init
@@ -57,13 +58,14 @@ class SpriteScaler():
 
         self.palette_addr = None
         self.last_palette_addr = None # For caching
-        self.pin_jmp = Pin(13, Pin.IN, value=0)
-        self.sm_read_palette = read_palette_init(self.pin_jmp, self) # Start PIO state machine
+        self.sm_read_palette = read_palette_init() # Start PIO state machine
 
         self.init_interp()
 
         if DEBUG_SCALE_PATTERNS:
             self.dma.patterns.print_patterns()
+
+        IrqHandler.dma = self.dma
 
 
     # @micropython.viper
@@ -178,7 +180,6 @@ class SpriteScaler():
             print(f"\t Display Stride (fb): { self.framebuf.display_stride}")
 
         prof.end_profile('scaler.init_interp_sprite')
-
         prof.start_profile('scaler.init_pio')
         palette_addr = addressof(image.palette.palette)
         self.init_pio(palette_addr)
@@ -187,7 +188,6 @@ class SpriteScaler():
 
         prof.start_profile('scaler.init_dma_sprite')
         self.dma.init_sprite(self.read_stride_px, h_scale)
-
         prof.end_profile('scaler.init_dma_sprite')
 
         prof.start_profile('scaler.fill_addrs')
@@ -218,6 +218,7 @@ class SpriteScaler():
             utime.sleep_ms(1)
             pass
 
+        utime.sleep_ms(2)
         self.finish_sprite()
 
     def start(self):
@@ -243,6 +244,8 @@ class SpriteScaler():
             print(f"> BLITTING to {self.draw_x}, {self.draw_y} / alpha: {self.alpha}")
 
         self.framebuf.blit_with_alpha(int(self.draw_x), int(self.draw_y), self.alpha)
+        # self.dma.px_read.active(0)
+        self.reset()
         prof.end_profile('scaler.finish_sprite')
 
     def init_interp(self):
@@ -439,6 +442,7 @@ class SpriteScaler():
     def init_pio(self, palette_addr):
         self.sm_read_palette.active(1)
         self.sm_read_palette.put(palette_addr)
+        pass
 
     def center_sprite(self, sprite_width, sprite_height):
         """ Helper function that returns the coordinates of the viewport that the given Sprite bounds is to be drawn at,

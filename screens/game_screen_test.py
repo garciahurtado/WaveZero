@@ -130,7 +130,7 @@ class GameScreenTest(Screen):
 
         self.grid.show()
         self.ui.show()
-        # self.draw_corners()
+        self.draw_corners()
 
         # self.scaler.draw_sprite(
         #     self.sprite,
@@ -144,18 +144,19 @@ class GameScreenTest(Screen):
 
     def draw_corners(self):
         green = colors.hex_to_565(0x00FF00)
-        width = self.total_width
-        height = self.total_height
+        width = self.display.width-1
+        height = self.display.height-1
+        length = 16
 
-        # self.display.hline(0, 0, 8, green)
-        # self.display.hline(0, width-8, 8, green)
-        # self.display.hline(0, height, 8, green)
-        # self.display.hline(width, height, -8, green)
+        self.display.hline(0, 0,                    length, green)
+        self.display.hline(width-length, 0,         length, green)
+        self.display.hline(0, height,               length, green)
+        self.display.hline(width-length, height,    length, green)
 
-        # self.display.line(0, 0, 0, 8, green)
-        # self.display.line(width, 0, width, 8, green)
-        # self.display.line(0, height, 0, height-8, green)
-        # self.display.line(width, height, width, height-8, green)
+        self.display.line(0, 0, 0, length, green)
+        self.display.line(width, 0, width, length, green)
+        self.display.line(0, height, 0, height-length, green)
+        self.display.line(width, height, width, height-length, green)
 
     async def start_bus_profiler(self):
         while True:
