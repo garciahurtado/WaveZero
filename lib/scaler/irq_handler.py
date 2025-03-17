@@ -1,5 +1,5 @@
 from scaler.const import DEBUG_IRQ
-
+import micropython
 
 class IrqHandler():
     display: None
@@ -7,19 +7,27 @@ class IrqHandler():
     dma: None
 
     @staticmethod
+    # @micropython.viper
     def irq_handler(ch):
+        channel = int(ch.channel)
         if DEBUG_IRQ:
-            print(f"(((( IRQ RAISED BY CH {ch.channel} ))))")
+            print(f"(((( IRQ RAISED BY CH {channel} ))))")
+            print(":::IRQ:::")
+            print(ch)
 
-        if ch.channel == 0:
+        if channel == 0:
             return IrqHandler.display.irq_render(ch)
-        elif ch.channel == 1:
+        elif channel == 1:
             return IrqHandler.display.irq_render_ctrl(ch)
-        elif ch.channel == 2:
+        elif channel == 2:
             return IrqHandler.dma.irq_end_read_addr(ch)
-        elif ch.channel == 4:
+        elif channel == 4:
             return IrqHandler.dma.irq_end_row(ch)
-        elif ch.channel == 5:
+        elif channel == 5:
             return IrqHandler.dma.irq_px_read(ch)
-        elif ch.channel == 7:
+        elif channel == 7:
             return IrqHandler.dma.irq_h_scale(ch)
+        else:
+            return ch
+
+

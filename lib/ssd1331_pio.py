@@ -11,11 +11,9 @@ import rp2
 import uctypes
 import gc
 import colors.color_util as colors
-from dump_object import dump_object
 from scaler.irq_handler import IrqHandler
-from utils import aligned_buffer
 from scaler.const import DEBUG_DMA, DMA_BASE_1, DMA_READ_ADDR_TRIG, DMA_WRITE_ADDR_TRIG, DMA_READ_ADDR, PIO0_BASE, \
-    PIO1_BASE, PIO0_TX0, PIO0_CTRL, DMA_BASE, DEBUG_DISPLAY, DMA_TRANS_COUNT, DREQ_PIO0_TX0
+    PIO1_BASE, PIO0_TX0, PIO0_CTRL, DMA_BASE, DEBUG_DISPLAY, DMA_TRANS_COUNT, DREQ_PIO0_TX0, MULTI_CHAN_TRIGGER
 
 
 class SSD1331PIO():
@@ -165,19 +163,24 @@ class SSD1331PIO():
     def swap_buffers(self):
         if DEBUG_DISPLAY:
             print(">> About to swap buffers <<")
-        #
-        # print(f"is_render_ctrl_done: {self.is_render_ctrl_done}")
-        # print(f"is_render_done: {self.is_render_done}")
 
-        # while not (self.is_render_ctrl_done and self.is_render_done):
-        #     utime.sleep_ms(1)
-        #     pass
+            print(f" * render_done: {self.is_render_done}")
+            print(f" * render_ctrl_done: {self.is_render_ctrl_done}")
+
+        while not (self.is_render_done and self.is_render_ctrl_done):
+            utime.sleep_ms(1)
+            pass
+
+        self.is_render_done = False
+        self.is_render_ctrl_done = False
+
+        # # disable both dma0 and dma1 at once
+        # current = mem32[MULTI_CHAN_TRIGGER]
+        # en_bits = current & 0xFFFFFFFC  # only bits 0&1
+        # mem32[MULTI_CHAN_TRIGGER] = en_bits
 
         if DEBUG_DISPLAY:
             print(">> SWAP BUFFERS: render & ctrl done <<")
-
-        # self.is_render_done = False
-        # self.is_render_ctrl_done = False
 
         self.read_addr_buf, self.write_addr_buf = self.write_addr_buf, self.read_addr_buf
         self.read_framebuf, self.write_framebuf = self.write_framebuf, self.read_framebuf
@@ -192,10 +195,12 @@ class SSD1331PIO():
 
         """ Assign DMA1. DMA1 will trigger DMA0 later, so this completes the loop """
 
-        # self.dma1.active(0)
-        mem32[DMA_BASE_1 + DMA_READ_ADDR_TRIG] = uctypes.addressof(self.read_addr_buf)
-        # self.dma1.active(1)
-        # self.dma0.active(1)
+        mem32[DMA_BASE_1 + DMA_READ_ADDR] = uctypes.addressof(self.read_addr_buf)
+
+        # Reenable dma0 & dma1
+        # current = mem32[MULTI_CHAN_TRIGGER]
+        # en_bits = current | 0x000000003  # only bits 0&1
+        # mem32[MULTI_CHAN_TRIGGER] = en_bits
 
         if DEBUG_DISPLAY:
             print("-- Display Buffers Swapped --")
@@ -240,7 +245,7 @@ class SSD1331PIO():
         self.pin_cs(1)
         self.pin_dc(self.DC_MODE_DATA)
 
-    def init_pio_spi(self, freq=16_000_000):
+    def init_pio_spi(self, freq=32_000_000):
         """"""
         """ Ideal freq for 1x1: 96_500_000 (no pio delays)"""
         """ Ideal freq for 2x2: 97_000_000 (no pio delays)"""
@@ -282,7 +287,7 @@ class SSD1331PIO():
         .side() -> pin.sck
         """
 
-        pull(ifempty, block)         .side(1)     # Block with CSn high (minimum 2 cycles)
+        pull(ifempty, block)   [0]   .side(1)     # Block with CSn high (minimum 2 cycles)
         nop()                        .side(0)  # CSn front porch
         set(x, 31)                   .side(0)    # Push out 4 bytes per bitloop
 
@@ -300,7 +305,7 @@ class SSD1331PIO():
 
         jmp(not_osre, "bitloop")    .side(1)  # If more data, do next block
 
-        nop()                       .side(0)  # CSn back porch
+        nop()                    [0].side(0)  # CSn back porch
 
     def sm_debug(self, sm):
         sm.irq(
@@ -340,8 +345,8 @@ class SSD1331PIO():
             inc_write=False,
             bswap=True,
             treq_sel=DREQ_PIO0_TX0,
-            high_pri=True,
-            # chain_to=self.dma1.channel
+            chain_to=self.dma1.channel,
+            irq_quiet=False
         )
         self.dma0.config(
             count=self.dma_tx_count,
@@ -356,7 +361,7 @@ class SSD1331PIO():
             size=2,
             inc_read=False,
             inc_write=False,
-            high_pri=True,
+            irq_quiet=False
             # chain_to=self.dma0.channel,
         )
 
@@ -367,7 +372,6 @@ class SSD1331PIO():
             ctrl=ctrl1,
         )
         self.dma1.irq(handler=IrqHandler.irq_handler, hard=False)
-
 
     def irq_render(self, ch):
         if DEBUG_DISPLAY:

@@ -70,8 +70,6 @@ class DMAChain:
         self.init_px_write()
         self.init_h_scale()
 
-
-
     def init_read_addr(self):
         """ CH:2 Sprite read address DMA """
         read_addr_ctrl = self.read_addr.pack_ctrl(
@@ -79,6 +77,7 @@ class DMAChain:
             inc_read=True,      # Reads from RAM
             inc_write=False,    # Fixed write target
             chain_to=self.color_lookup.channel,
+            irq_quiet=False
         )
 
         self.read_addr.config(
@@ -134,7 +133,7 @@ class DMAChain:
             treq_sel=DREQ_PIO0_TX1,
             bswap=True,
             irq_quiet=False,
-            chain_to=self.h_scale.channel
+            chain_to=self.h_scale.channel,
         )
 
         self.px_read.config(
@@ -208,7 +207,7 @@ class DMAChain:
         # Reset counts
         self.read_count = 0
         self.addr_idx = 0
-
+        #
         while (self.write_addr.active() or self.read_addr.active()):
             pass
 

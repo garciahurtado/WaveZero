@@ -22,33 +22,8 @@ from machine import mem32
 # from screens.title_screen import TitleScreen
 
 print(f" = EXEC ON CORE {_thread.get_ident()} (main)")
-bus_ctrl = mem32[BUS_PRIORITY]
-# bus_ctrl = bus_ctrl | (1 << 12)   # DMA_W
-# bus_ctrl = bus_ctrl | (1 << 8)      # DMA_R
-# bus_ctrl = bus_ctrl | (1 << 4)      # PROC_1
-# bus_ctrl = bus_ctrl | (1 << 0)      # PROC_0
-# mem32[BUS_PRIORITY] = bus_ctrl
-
-print(f" = BUS CTRL BITS (0-12): ........ ........ ..{bus_ctrl:>013b}")
-# mem32[0x40060008] = 0x01
-
-DMA_ACC_ADDR = 0x40060000 + 0x44
-current = mem32[DMA_ACC_ADDR]
-# mem32[DMA_ACC_ADDR] = current # DMA ACCESS
-print(f"Current: {current:08X}")
 
 # Define clock control registers
-CLOCKS_BASE = 0x40010000
-CLK_REF_SELECTED = CLOCKS_BASE + 0x38
-CLK_SYS_SELECTED = CLOCKS_BASE + 0x44
-CLK_PERI_SELECTED = CLOCKS_BASE + 0x50
-
-# Configure peripheral clock (used by DMA and PIO)
-def configure_peri_clock(source=0, divider=1):
-    # source: 0=clk_sys, 1=clk_usb, 2=clk_adc, 3=clk_rtc
-    ctrl = (source << 5) | (1 << 11)  # Enable the clock with selected source
-    # mem32[CLK_PERI_CTRL] = ctrl
-    # If using a divider, you'd set it separately
 
 def main():
     micropython.opt_level(0)

@@ -7,13 +7,12 @@ def read_palette_init():
     # pin_led2 = Pin(7, Pin.OUT, value=1)
 
     """ There's a sweet spot for this frequency, related to the system clock. About 1/3 """
-    sm_freq = 24_000_000
+    sm_freq = 15_000_000
 
     # PIO0 / SM1 = ID #1
     sm_read_palette = StateMachine(
         1, read_palette,
         freq=sm_freq,
-        # sideset_base=pin_led1,  # + pin_led2
     )
     return sm_read_palette
 
@@ -22,7 +21,6 @@ def read_palette_init():
 @asm_pio(
     in_shiftdir=PIO.SHIFT_RIGHT,
     out_shiftdir=PIO.SHIFT_LEFT,
-    sideset_init=PIO.OUT_LOW, # LED1
     autopull=True,
     pull_thresh=8,
 )
@@ -67,6 +65,8 @@ def read_palette():
 
     mov(isr, y)  # restore the ISR with the base addr
                  # Push to RX FIFO
+
+
 
 
 

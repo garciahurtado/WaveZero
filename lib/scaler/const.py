@@ -6,10 +6,10 @@ DEBUG =                     const(0)
 DEBUG_DMA =                 const(0)
 DEBUG_DMA_CH =              const(0)
 DEBUG_DMA_ADDR =            const(0)
-DEBUG_DISPLAY =             const(0)
+DEBUG_DISPLAY =             const(1)
 DEBUG_PIO =                 const(0)
 DEBUG_PHYSICS =             const(0)
-DEBUG_IRQ =                 const(0)
+DEBUG_IRQ =                 const(1)
 DEBUG_INTERP =              const(0)
 DEBUG_INST =                const(0)
 DEBUG_INTERP_LIST =         const(0)
@@ -53,6 +53,8 @@ DMA_COLOR_ADDR_BASE = DMA_BASE_4
 DMA_PX_READ_BASE = DMA_BASE_5
 DMA_PX_WRITE_BASE = DMA_BASE_6
 DMA_HORIZ_SCALE_BASE = DMA_BASE_7
+
+MULTI_CHAN_TRIGGER = DMA_BASE + 0x450
 
 # DMA sniffing registers
 SNIFF_CTRL = 0x50000434
@@ -129,6 +131,13 @@ DREQ_PIO1_RX2 = 14
 
 DREQ_TIMER_0 = 0x3B
 DREQ_TIMER_1 = 0x3C
+
+# CLOCKS
+
+CLOCKS_BASE = 0x40010000
+CLK_REF_SELECTED = CLOCKS_BASE + 0x38
+CLK_SYS_SELECTED = CLOCKS_BASE + 0x44
+CLK_PERI_SELECTED = CLOCKS_BASE + 0x50
 
 XOSC_BASE = 0x40048000
 XOSC_CTRL = 0x00

@@ -208,6 +208,7 @@ class SpriteScaler():
             if DEBUG_DMA:
                 print("IRQ FLAGS:")
                 print("----------------")
+                print(f"   read_finished:           {self.dma.read_finished}")
                 print(f"   px_read:                 {self.dma.px_read_finished}")
                 print(f"   color_row:               {self.dma.color_row_finished}")
                 print(f"   h_scale:                 {self.dma.h_scale_finished}")
@@ -218,7 +219,7 @@ class SpriteScaler():
             utime.sleep_ms(1)
             pass
 
-        utime.sleep_ms(2)
+        utime.sleep_ms(20)
         self.finish_sprite()
 
     def start(self):
@@ -227,25 +228,21 @@ class SpriteScaler():
         if DEBUG:
             print("* STARTING DMA / PIO... *")
 
-        self.dma.start()
         self.sm_read_palette.active(1)
+        self.dma.start()
 
         if DEBUG:
             print("* ...AFTER DMA / PIO START *")
         prof.end_profile('scaler.dma_pio')
 
     def finish_sprite(self):
-        self.dma.read_finished = False
-        self.dma.px_read_finished = False
-        self.dma.h_scale_finished = False
-
         prof.start_profile('scaler.finish_sprite')
         if DEBUG_DISPLAY:
             print(f"> BLITTING to {self.draw_x}, {self.draw_y} / alpha: {self.alpha}")
 
         self.framebuf.blit_with_alpha(int(self.draw_x), int(self.draw_y), self.alpha)
-        # self.dma.px_read.active(0)
-        self.reset()
+        self.dma.px_read.active(0)
+        # self.reset()
         prof.end_profile('scaler.finish_sprite')
 
     def init_interp(self):
