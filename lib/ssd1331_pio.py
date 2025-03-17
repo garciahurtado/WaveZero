@@ -43,7 +43,7 @@ class SSD1331PIO():
     dma0: DMA = None
     dma1: DMA = None
 
-    sm = StateMachine(0)
+    sm = None
 
     """ The name of these 3 variables is not important, they are only here because there's a sligth FPS improvement
     when they are declared at the class level and right before the draw buffers. I have no idea why that is the case."""
@@ -245,7 +245,7 @@ class SSD1331PIO():
         self.pin_cs(1)
         self.pin_dc(self.DC_MODE_DATA)
 
-    def init_pio_spi(self, freq=32_000_000):
+    def init_pio_spi(self, freq=96_500_000):
         """"""
         """ Ideal freq for 1x1: 96_500_000 (no pio delays)"""
         """ Ideal freq for 2x2: 97_000_000 (no pio delays)"""
@@ -256,12 +256,12 @@ class SSD1331PIO():
         pin_dc = self.pin_dc
         pin_cs = self.pin_cs
 
-        # Set up the PIO state machine
-        sm = self.sm
 
         pin_cs.value(0) # Pull down to enable CS
         pin_dc.value(1) # D/C = 'data'
 
+        # Set up the PIO state machine
+        sm = StateMachine(0)
         sm.init(
             self.pixels_to_spi,
             freq=freq,
@@ -269,7 +269,6 @@ class SSD1331PIO():
             set_base=pin_cs,
             sideset_base=pin_sck,
         )
-        # self.sm_debug(sm)
         sm.active(1)
 
     @rp2.asm_pio(
@@ -305,7 +304,7 @@ class SSD1331PIO():
 
         jmp(not_osre, "bitloop")    .side(1)  # If more data, do next block
 
-        nop()                    [0].side(0)  # CSn back porch
+        nop()                    [2].side(0)  # CSn back porch
 
     def sm_debug(self, sm):
         sm.irq(
@@ -361,14 +360,14 @@ class SSD1331PIO():
             size=2,
             inc_read=False,
             inc_write=False,
-            irq_quiet=False
-            # chain_to=self.dma0.channel,
+            irq_quiet=False,
+            chain_to=self.dma0.channel,
         )
 
         self.dma1.config(
             count=1,
             read=self.read_addr_buf,
-            write=self.DMA_BASE + DMA_READ_ADDR_TRIG,
+            write=self.DMA_BASE + DMA_READ_ADDR,
             ctrl=ctrl1,
         )
         self.dma1.irq(handler=IrqHandler.irq_handler, hard=False)

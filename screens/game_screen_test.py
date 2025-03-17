@@ -51,7 +51,7 @@ class GameScreenTest(Screen):
         display.fill(0x0000)
         self.init_camera()
 
-        self.scaler = SpriteScaler(display)
+        # self.scaler = SpriteScaler(display)
         self.mgr = SpriteManager2D(self.display, 1)
         self.load_types()
         self.load_sprite(SPRITE_TEST_HEART)
@@ -82,7 +82,7 @@ class GameScreenTest(Screen):
 
         loop = asyncio.get_event_loop()
         loop.create_task(self.start_display_loop())
-        self.scaler.dma.init_channels()
+        # self.scaler.dma.init_channels()
 
         self.display.fill(0x9999)
         utime.sleep_ms(1000)
