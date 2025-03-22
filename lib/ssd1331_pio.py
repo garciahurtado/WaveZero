@@ -9,11 +9,12 @@ from micropython import const
 from rp2 import PIO, DMA, StateMachine
 import rp2
 import uctypes
+from uctypes import addressof
 import gc
 import colors.color_util as colors
-from scaler.irq_handler import IrqHandler
 from scaler.const import DEBUG_DMA, DMA_BASE_1, DMA_READ_ADDR_TRIG, DMA_WRITE_ADDR_TRIG, DMA_READ_ADDR, PIO0_BASE, \
-    PIO1_BASE, PIO0_TX0, PIO0_CTRL, DMA_BASE, DEBUG_DISPLAY, DMA_TRANS_COUNT, DREQ_PIO0_TX0, MULTI_CHAN_TRIGGER
+    PIO1_BASE, PIO0_TX0, PIO0_CTRL, DMA_BASE, DEBUG_DISPLAY, DMA_TRANS_COUNT, DREQ_PIO0_TX0, MULTI_CHAN_TRIGGER, \
+    SM0_SHIFTCTRL, DEBUG_PIO
 
 
 class SSD1331PIO():
@@ -44,12 +45,8 @@ class SSD1331PIO():
     dma1: DMA = None
 
     sm = None
-
-    """ The name of these 3 variables is not important, they are only here because there's a sligth FPS improvement
-    when they are declared at the class level and right before the draw buffers. I have no idea why that is the case."""
-    _temp1 = False
-    _temp2 = True
-    _temp3 = True
+    flip = True
+    flop = False
 
     buffer0 = bytearray(HEIGHT * WIDTH * 2)  # RGB565 is 2 bytes
     buffer1 = bytearray(HEIGHT * WIDTH * 2)  # RGB565 is 2 bytes
@@ -118,32 +115,39 @@ class SSD1331PIO():
         self.framebuf0 = framebuf.FrameBuffer(self.buffer0, self.width, self.height, mode)
         self.framebuf0.fill(0x0)
 
-        # Buffer #1: the one we read from, is the one that gets sent to the display
+        # Buffer #2: the one we read from, is the one that gets sent to the display
         # DMA copies the write buffer to this one when the writing finishes
         self.framebuf1 = framebuf.FrameBuffer(self.buffer1, self.width, self.height, mode)
         self.framebuf1.fill(colors.hex_to_565(0x111111))
 
         # Set starting alias to each buffer, so that we can easily flip them
+        # framebuf0 -> buffer0
+        # framebuf1 -> buffer1
+
         self.write_buffer = self.buffer0
         self.read_buffer = self.buffer1
+
+        if DEBUG_PIO:
+            print(f" * BUFFER 0 @: 0x{addressof(self.buffer0):08X}")
+            print(f" * BUFFER 1 @: 0x{addressof(self.buffer1):08X}")
 
         self.write_framebuf = self.framebuf0
         self.read_framebuf = self.framebuf1
 
-        self.read_addr = uctypes.addressof(self.read_buffer)
-        self.read_addr_buf = self.read_addr.to_bytes(4, "little")
-
-        self.write_addr = uctypes.addressof(self.write_buffer)
+        self.write_addr = int(uctypes.addressof(self.buffer0))
         self.write_addr_buf = self.write_addr.to_bytes(4, "little")
 
-        self.curr_read_buf = self.read_addr_buf
-        IrqHandler.display = self
+        self.read_addr = int(uctypes.addressof(self.buffer1))
+        self.read_addr_buf = self.read_addr.to_bytes(4, "little")
+        self.curr_read_buf = self.read_addr.to_bytes(4, "little")
+        mem32[addressof(self.curr_read_buf)] = mem32[addressof(self.read_addr_buf)]
 
 
     def start(self):
         self.init_display()
         self.init_dma()
         self.init_pio_spi()
+
         """ Kick it off! """
         self.dma0.active(1)
 
@@ -164,46 +168,33 @@ class SSD1331PIO():
         if DEBUG_DISPLAY:
             print(">> About to swap buffers <<")
 
-            print(f" * render_done: {self.is_render_done}")
-            print(f" * render_ctrl_done: {self.is_render_ctrl_done}")
-
-        while not (self.is_render_done and self.is_render_ctrl_done):
-            utime.sleep_ms(1)
-            pass
-
-        self.is_render_done = False
-        self.is_render_ctrl_done = False
-
-        # # disable both dma0 and dma1 at once
-        # current = mem32[MULTI_CHAN_TRIGGER]
-        # en_bits = current & 0xFFFFFFFC  # only bits 0&1
-        # mem32[MULTI_CHAN_TRIGGER] = en_bits
-
-        if DEBUG_DISPLAY:
-            print(">> SWAP BUFFERS: render & ctrl done <<")
-
-        self.read_addr_buf, self.write_addr_buf = self.write_addr_buf, self.read_addr_buf
         self.read_framebuf, self.write_framebuf = self.write_framebuf, self.read_framebuf
+        # self.read_addr_buf, self.write_addr_buf = self.write_addr_buf, self.read_addr_buf
 
-        if self.curr_read_buf == self.read_addr_buf:
-            self.curr_read_buf = self.write_addr_buf
+        if self.flip:
+            # print("! FLIP !")
+            new_read_addr = mem32[addressof(self.write_addr_buf)]
+
+            self.flip = False
+            self.flop = True
         else:
-            self.curr_read_buf = self.read_addr_buf
+            # print("! FLOP !")
+            new_read_addr = mem32[addressof(self.read_addr_buf)]
 
-        """ Now that we've flipped the buffers, reprogram the DMA so that it will start reading from the 
+            self.flip = True
+            self.flop = False
+
+        mem32[addressof(self.curr_read_buf)] = new_read_addr
+
+        """ Now that we've flipped the buffers, reprogram the read DMA so that it will start reading from the 
         correct buffer (the one that just finished writing) in the next iteration """
-
-        """ Assign DMA1. DMA1 will trigger DMA0 later, so this completes the loop """
-
-        mem32[DMA_BASE_1 + DMA_READ_ADDR] = uctypes.addressof(self.read_addr_buf)
-
-        # Reenable dma0 & dma1
-        # current = mem32[MULTI_CHAN_TRIGGER]
-        # en_bits = current | 0x000000003  # only bits 0&1
-        # mem32[MULTI_CHAN_TRIGGER] = en_bits
+        # mem32[DMA_BASE_1 + DMA_READ_ADDR] = addressof(self.curr_read_buf)
 
         if DEBUG_DISPLAY:
-            print("-- Display Buffers Swapped --")
+            print("--------------- BUFFERS SWAPPED ---------------------")
+            # print(f"--- New read address @ 0x{new_read_addr:08X}")
+            print(f"--- Display Buffers Swapped ---")
+            # print(f"    New read addr @       0x{self.curr_read_buf:08X}---")
 
     def init_display(self):
         self.pin_rs(0)  # Pulse the reset line
@@ -245,7 +236,7 @@ class SSD1331PIO():
         self.pin_cs(1)
         self.pin_dc(self.DC_MODE_DATA)
 
-    def init_pio_spi(self, freq=96_500_000):
+    def init_pio_spi(self, freq=72_250_000):
         """"""
         """ Ideal freq for 1x1: 96_500_000 (no pio delays)"""
         """ Ideal freq for 2x2: 97_000_000 (no pio delays)"""
@@ -255,7 +246,6 @@ class SSD1331PIO():
         pin_sda = self.pin_sda
         pin_dc = self.pin_dc
         pin_cs = self.pin_cs
-
 
         pin_cs.value(0) # Pull down to enable CS
         pin_dc.value(1) # D/C = 'data'
@@ -270,6 +260,7 @@ class SSD1331PIO():
             sideset_base=pin_sck,
         )
         sm.active(1)
+        self.sm = sm
 
     @rp2.asm_pio(
         out_shiftdir=PIO.SHIFT_LEFT,
@@ -285,10 +276,9 @@ class SSD1331PIO():
         set()   -> pin.cs
         .side() -> pin.sck
         """
-
-        pull(ifempty, block)   [0]   .side(1)     # Block with CSn high (minimum 2 cycles)
-        nop()                        .side(0)  # CSn front porch
-        set(x, 31)                   .side(0)    # Push out 4 bytes per bitloop
+        pull(ifempty, block)             [2] .side(1)     # Block with CSn high (minimum 2 cycles)
+        nop()                               .side(0)      # CSn front porch
+        set(x, 31)                          .side(0)     # Push out 4 bytes per bitloop
 
         wrap_target()
 
@@ -302,9 +292,10 @@ class SSD1331PIO():
         set(x, 31)                  .side(1)
         set(pins, 1)                .side(1) # CS pin high (end transaction)
 
-        jmp(not_osre, "bitloop")    .side(1)  # If more data, do next block
+        jmp(not_osre, "bitloop")    .side(0)  # If more data, do next block
 
         nop()                    [2].side(0)  # CSn back porch
+
 
     def sm_debug(self, sm):
         sm.irq(
@@ -317,11 +308,6 @@ class SSD1331PIO():
             spi0_base = 0x4003c000
             spi0_tx = spi0_base + 0x008
         """
-        pio_num = 0 # PIO program number
-        sm_num = 0 # State Machine number
-        DATA_REQUEST_INDEX = (pio_num << 3) + sm_num
-        PIO0_BASE = const(0x50200000)
-        PIO0_BASE_TXF0 = const(PIO0_BASE + 0x10)
 
         """
         How many bytes to write for a whole framebuffer:
@@ -333,7 +319,7 @@ class SSD1331PIO():
         self.dma_tx_count = total_bytes // 4
 
         if DEBUG_DMA:
-            print(f" Start Read Addr: {self.read_addr:032X}")
+            print(f" Start Read Addr: {self.read_addr:08X}")
             print(f" No. TX: {self.dma_tx_count}")
             print(" ........................................")
 
@@ -345,7 +331,6 @@ class SSD1331PIO():
             bswap=True,
             treq_sel=DREQ_PIO0_TX0,
             chain_to=self.dma1.channel,
-            irq_quiet=False
         )
         self.dma0.config(
             count=self.dma_tx_count,
@@ -353,40 +338,53 @@ class SSD1331PIO():
             write=PIO0_TX0,
             ctrl=ctrl0,
         )
-        self.dma0.irq(handler=IrqHandler.irq_handler, hard=False)
 
         """ Control Channel """
         ctrl1 = self.dma1.pack_ctrl(
             size=2,
             inc_read=False,
             inc_write=False,
-            irq_quiet=False,
             chain_to=self.dma0.channel,
         )
 
         self.dma1.config(
             count=1,
-            read=self.read_addr_buf,
+            read=self.curr_read_buf,
             write=self.DMA_BASE + DMA_READ_ADDR,
             ctrl=ctrl1,
         )
-        self.dma1.irq(handler=IrqHandler.irq_handler, hard=False)
 
-    def irq_render(self, ch):
-        if DEBUG_DISPLAY:
-            print("================= RENDER DONE ============")
-        self.is_render_done = True
+    def self_trigger(self):
         pass
+        # Make DMA0 self triggering
+        # current_val = mem32[DMA_TRANS_COUNT]
+        # new_val = current_val | (0b0001 << 28)
+        # mem32[DMA_TRANS_COUNT] = new_val
+
+        # print(f"REG: {new_val:032b}")
+        # print("     |......|", end='')
+        # print(".......|", end='')
+        # print(".......|", end='')
+        # print(".......|")
+
+        # Double the TX FIFO for this SM
+        # current_val = mem32[SM0_SHIFTCTRL]
+        # new_val = current_val | (1 << 30)
+        # mem32[SM0_SHIFTCTRL] = new_val
+
+    def irq_render(self, event):
+        if DEBUG_DISPLAY:
+            print(f"===== RENDER DONE (count: {self.dma0.count})=====")
+        self.is_render_done = True
 
     def irq_render_ctrl(self, event):
         if DEBUG_DISPLAY:
-            print("<<<<<<<<<<<<<<<<< RENDER CTRL DONE >>>>>>>>>>>>>>>>>")
+            new_addr = int(self.dma1.read)
+            addr = mem32[new_addr]
+            # addr_value = mem32[int(addr)]
+            addr_value = 0
+            print(f"<<<<< RENDER CTRL DONE (next addr: 0x{new_addr:08X})>>>>>")
         self.is_render_ctrl_done = True
-
-        pass
-
-    def can_write(self):
-        return not self.dma1.active()
 
     """ DRAWING FUNCTIONS """
     def pixel(self, x, y, color=None):

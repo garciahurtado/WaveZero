@@ -11,18 +11,26 @@ from ssd1331_pio import SSD1331PIO
 from scaler.scaler_debugger import ScalerDebugger
 from typing import Optional
 
+COLOR_LOOKUP_DMA_BASE = DMA_BASE_4
+READ_DMA_BASE = DMA_BASE_5
+WRITE_DMA_BASE = DMA_BASE_6
+HSCALE_DMA_BASE = DMA_BASE_7
 PX_READ_BYTE_SIZE = 4 # Bytes per word in the pixel reader
 class DMAChain:
-    read_addr = None
     px_read_finished = False
     color_row_finished = False
     read_addr_finished = False
     h_scale_finished = False
+    addr_list_finished = False
+
+    read_addr = None
     write_addr = None
     color_lookup = None
     px_read = None
     px_write = None
     h_scale = None
+    addr_loader = None
+
     dbg: Optional[ScalerDebugger] = None
 
     def __init__(self, scaler, display:SSD1331PIO, extra_write_addrs=0):
@@ -30,15 +38,10 @@ class DMAChain:
         self.dbg = None
         self.scaler = scaler
         self.px_per_tx = PX_READ_BYTE_SIZE * 2
-        self.read_count = 0
-        self.addr_idx = 0
         self.max_sprite_height = 32
         self.max_write_addrs = self.max_read_addrs = display.HEIGHT + extra_write_addrs
 
         self.patterns = ScalePatterns()
-
-        # read_buf = bytearray(self.max_sprite_height+1 * 4) # why does this need to be x2?
-        # write_buf = bytearray((display.height+1) * 4)
 
         """ Create array with maximum possible number of read and write addresses """
         self.read_addrs = array('L', [0] * (self.max_read_addrs+1))
@@ -56,7 +59,9 @@ class DMAChain:
         self.px_read = DMA()        #5. Sprite data
         self.px_write = DMA()       #6. Display output
         self.h_scale = DMA()        #7. Horizontal scale pattern
+        self.addr_loader = DMA()    #8. r/w address loader from RAM. This allows us to use trigger registers
 
+        self.init_addr_loader()
         self.init_read_addr()
         self.init_write_addr()
         self.init_color_lookup()
@@ -64,6 +69,20 @@ class DMAChain:
         self.init_px_write()
         self.init_h_scale()
 
+    def init_addr_loader(self):
+        """ CH:8. Addr loader DMA --------------------------- """
+        addr_loader_ctrl = self.addr_loader.pack_ctrl(
+            size=2,
+            inc_read=True,
+            inc_write=False,
+        )
+
+        self.addr_loader.config(
+            count=1,
+            read=addressof(self.write_addrs),
+            write=DMA_WRITE_ADDR_BASE + DMA_READ_ADDR_TRIG,
+            ctrl=addr_loader_ctrl
+        )
 
     def init_read_addr(self):
         """ CH:2 Sprite read address DMA """
@@ -88,6 +107,7 @@ class DMAChain:
             inc_read=True,      # Step through write addrs
             inc_write=False,    # always write to DMA2 WRITE
             chain_to=self.read_addr.channel,
+            irq_quiet=True
         )
 
         self.write_addr.config(
@@ -96,6 +116,7 @@ class DMAChain:
             write=DMA_PX_WRITE_BASE + DMA_WRITE_ADDR,
             ctrl=write_addr_ctrl,
         )
+        self.write_addr.irq(handler=self.irq_write_addr)
 
     def init_color_lookup(self):
         """ CH:4 Color lookup DMA """
@@ -103,18 +124,19 @@ class DMAChain:
             size=2,  # 16bit colors in the palette, but 32 bit addresses
             inc_read=False,
             inc_write=False,  # always writes to DMA WRITE
-            treq_sel=DREQ_PIO0_RX1,
+            treq_sel=DREQ_PIO1_RX0,
             chain_to=self.write_addr.channel,
             irq_quiet=False
         )
 
         self.color_lookup.config(
             count=1,  # TBD
-            read=PIO0_RX1,
+            read=PIO1_RX0,
             write=DMA_PX_WRITE_BASE + DMA_READ_ADDR,
+            # write=self.dbg.get_debug_bytes(),
             ctrl=color_lookup_ctrl,
         )
-        self.color_lookup.irq(handler=self.irq_end_row, hard=True)
+        self.color_lookup.irq(handler=self.irq_end_row)
 
     def init_px_read(self):
         """ CH:5. Pixel reading DMA --------------------------- """
@@ -122,19 +144,19 @@ class DMAChain:
             size=0,
             inc_read=True,      # Through sprite data
             inc_write=False,    # debug_bytes: True / PIO: False
-            treq_sel=DREQ_PIO0_TX1,
+            treq_sel=DREQ_PIO1_TX0,
             bswap=True,
-            irq_quiet=False,
+            irq_quiet=True,
             chain_to=self.h_scale.channel
         )
 
         self.px_read.config(
-            count=1,
+            count=16,
             read=0,  # To be Set per row
-            write=PIO0_TX1,
+            write=PIO1_TX0,
             ctrl=px_read_ctrl
         )
-        self.px_read.irq(handler=self.irq_px_read_end, hard=False)
+        self.px_read.irq(handler=self.irq_px_read_end)
 
     def init_px_write(self):
         """ CH:6. Display write DMA --------------------------- """
@@ -157,7 +179,7 @@ class DMAChain:
             size=2,
             inc_read=True,
             inc_write=False,
-            treq_sel=DREQ_PIO0_RX1,
+            treq_sel=DREQ_PIO1_RX0,
             ring_sel=False,  # ring on read
             ring_size=4,  # n bytes = 2^n
             irq_quiet=False,
@@ -169,14 +191,20 @@ class DMAChain:
             write=DMA_PX_WRITE_BASE + DMA_TRANS_COUNT_TRIG,
             ctrl=h_scale_ctrl
         )
-        self.h_scale.irq(handler=self.irq_h_scale_finished, hard=True)
+        self.h_scale.irq(handler=self.irq_h_scale)
 
     def init_sprite(self, read_stride_px, h_scale):
         """Configure Sprite specific DMA parameters."""
+
+        px_read_count = int(read_stride_px / 2) # 2px per byte
         self.color_lookup.count = read_stride_px
-        self.px_read.count = int(read_stride_px / 2)
+        self.px_read.count = px_read_count
         self.h_scale.count = read_stride_px
         self.h_scale.read = self.patterns.get_pattern(h_scale)
+
+        if DEBUG_DMA:
+            print(f">> COLOR LooKUP & HSCALE (read sride) SET:    {read_stride_px}")
+            print(f">> PX READ COUNT SET (1/2) read stride:       {px_read_count}")
 
     def start(self):
         """Activate DMA channels in correct sequence."""
@@ -185,45 +213,49 @@ class DMAChain:
         self.color_row_finished = False
         self.read_addr_finished = False
         self.h_scale_finished = False
+        self.addr_list_finished = False
 
         self.write_addr.active(1)
 
     def reset(self):
         """Reset all DMA channels."""
-        self.read_addr.active(0)
-        self.write_addr.active(0)
-        self.px_read.active(0)
         self.color_lookup.active(0)
-        self.h_scale.active(0)
-
-        # Reset counts
-        self.read_count = 0
-        self.addr_idx = 0
-
-        while (self.write_addr.active() or self.read_addr.active()):
-            pass
 
         # Reset address list pointers
         self.write_addr.read = addressof(self.write_addrs)
         self.read_addr.read = addressof(self.read_addrs)
-
+        # self.addr_loader.read = addressof(self.write_addrs)
 
     def irq_px_read_end(self, ch):
         """IRQ Handler for end of ALL pixels read"""
-        # print("* IRQ PX ROW READ END *")
+        if DEBUG_IRQ:
+            print(" * IRQ PX ROW READ END *")
         self.px_read_finished = True
 
     def irq_end_row(self, ch):
-        # print("-x- IRQ COLOR ROW END  -x-")
+        if DEBUG_IRQ:
+            print("-x- IRQ COLOR ROW END  -x-")
         self.color_row_finished = True
 
     def irq_end_read_addr(self, ch):
-        # print("_-_ IRQ END READ ADDRs _-_")
+        if DEBUG_IRQ:
+            print("_-_ IRQ END READ ADDRs _-_")
         self.read_addr_finished = True
 
-    def irq_h_scale_finished(self, ch):
-        # print("=== IRQ END HORIZ SCALE ===")
+    def irq_h_scale(self, ch):
+        if DEBUG_IRQ:
+            print("=== IRQ END HORIZ SCALE ===")
         self.h_scale_finished = True
+
+    def irq_addr_loader(self, ch):
+        if DEBUG_IRQ:
+            print("-v^v END R/W ADDRESSES v^v-")
+
+    def irq_write_addr(self, ch):
+        if DEBUG_IRQ:
+            print("      A                                                           A")
+            print("...-~/^\~-... - END ALL WRITE ADDRESSES = SPRITE FINISHED - ...-~/^\~-...")
+        self.addr_list_finished = True
 
     def debug_dma_channels(self):
         self.dbg.debug_dma(self.disp_addr, "display driver address", "disp_addr", 0)

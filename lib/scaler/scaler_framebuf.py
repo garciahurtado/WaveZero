@@ -3,7 +3,7 @@ from profiler import Profiler as prof
 from screens.screen import PixelBounds
 from ssd1331_pio import SSD1331PIO
 from uctypes import addressof
-from scaler.const import DEBUG
+from scaler.const import DEBUG, DEBUG_DISPLAY
 from utils import aligned_buffer
 
 
@@ -32,10 +32,10 @@ class ScalerFramebuf():
     scratch_bytes = aligned_b  # scratch framebuf, claiming a large chunk of memory early
     scratch_addr = addressof(scratch_bytes)
     scratch_buffer = None
-    write_addrs_all = {}
     display_stride = 0
 
-    def __init__(self, display: SSD1331PIO, mode=framebuf.RGB565):
+    def __init__(self, scaler, display: SSD1331PIO, mode=framebuf.RGB565):
+        self.scaler = scaler
         self.display = display
         bounds_left = -(self.extra_width // 2)
         bounds_right = int(display.width) + (self.extra_width / 2)
@@ -143,19 +143,26 @@ class ScalerFramebuf():
         self.frame_bytes = self.display_stride * self.frame_height
 
         prof.end_profile('scaler.select_buffer')
-
-        if DEBUG:
-            print(f"   INSIDE 'SELECT_BUFFER', WITH len(write_addrs_all): {len(self.write_addrs_all)} ")
-            print(f"    FOR w/h: {scaled_width}, {scaled_height} selected frame w/h: {self.frame_width}x{self.frame_height}")
-            print(f"    SELECTED FB STRIDE: 0x{self.display_stride:08X}")
-            print(f"    FRAME BYTES:        {self.frame_bytes}")
+        dma = self.scaler.dma
+        if DEBUG_DISPLAY:
+            print(f"............................................")
+            print(f":  In scaler_framebuf.select_buffer        :")
+            print(f"............................................")
+            print(f"    WRITE ADDRs @ ADDR: 0x{addressof(dma.write_addrs):08x}")
+            print(f"    WRITE ADDRs 1st:    0x{dma.write_addrs[0]:08x}")
+            print(f"    WRITE ADDRs last:   0x{dma.write_addrs[-1]:08x}")
+            print(f"    WRITE ADDR COUNT:   {len(dma.write_addrs)} ")
+            print(f"    SOURCE IMG w/h:     {scaled_width}, {scaled_height}")
+            print(f"    FRAMEB w/h:         {self.frame_width}x{self.frame_height}")
+            print(f"    SELECTED FB STRIDE: {self.display_stride} bytes")
+            print(f"    FRAME TOTAL BYTES:  {self.frame_bytes} bytes")
 
     def blit_with_alpha(self, x, y, alpha):
         """ Copy the sprite from the "scratch" framebuffer to the final one in the display.
          This is needed to implement transparency """
 
         if DEBUG:
-            print(f"> BLITTING TO X/Y: {x},{y}")
+            print(f"--> BLITTING TO X/Y: {x},{y} <--")
 
         """ Negative x and y have already been taking into account in interp config"""
         if alpha is None:

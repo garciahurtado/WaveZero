@@ -51,7 +51,7 @@ class GameScreenTest(Screen):
         display.fill(0x0000)
         self.init_camera()
 
-        # self.scaler = SpriteScaler(display)
+        self.scaler = SpriteScaler(display)
         self.mgr = SpriteManager2D(self.display, 1)
         self.load_types()
         self.load_sprite(SPRITE_TEST_HEART)
@@ -63,7 +63,6 @@ class GameScreenTest(Screen):
         self.grid = RoadGrid(self.camera, display, lane_width=self.lane_width)
 
         self.display.fps = self.fps
-
 
     def preload_images(self):
         images = [
@@ -132,12 +131,9 @@ class GameScreenTest(Screen):
         self.ui.show()
         self.draw_corners()
 
-        # self.scaler.draw_sprite(
-        #     self.sprite,
-        #     self.inst,
-        #     self.image,
-        #     h_scale=1,
-        #     v_scale=1)
+        self.scaler.draw_sprite(
+                self.sprite, self.inst, self.image,
+                h_scale=1, v_scale=1)
 
         self.display.show()
         self.fps.tick()

@@ -8,7 +8,6 @@ from uctypes import addressof
 from scaler.const import *
 from scaler.scale_patterns import ScalePatterns
 from ssd1331_pio import SSD1331PIO
-from scaler.irq_handler import IrqHandler
 
 COLOR_LOOKUP_DMA_BASE = DMA_BASE_4
 READ_DMA_BASE = DMA_BASE_5
@@ -29,7 +28,6 @@ class DMAChain:
     px_read = None
     px_write = None
     h_scale = None
-    display = None
 
     def __init__(self, scaler, display:SSD1331PIO, extra_write_addrs=0):
         """ extra_read_addrs: additional rows in the margin of the full screen buffer"""
@@ -40,7 +38,6 @@ class DMAChain:
         self.addr_idx = 0
         self.max_sprite_height = 32
         self.max_write_addrs = self.max_read_addrs = display.HEIGHT + extra_write_addrs
-        self.display = display
 
         self.patterns = ScalePatterns()
 
@@ -48,13 +45,8 @@ class DMAChain:
         self.read_addrs = array('L', [0] * (self.max_read_addrs+1))
         self.write_addrs = array('L', [0] * (self.max_write_addrs+1))
 
-        self.disp_addr = display.dma0
-        self.disp_ctrl = display.dma1
-
     def init_channels(self):
         """Initialize the complete DMA chain for sprite scaling."""
-        IrqHandler.scaler = self.scaler
-
         """ Acquire hardware DMA channels """
         self.read_addr = DMA()      #2. Vertical / row control (read and write)
         self.write_addr = DMA()     #3. Uses ring buffer to tell read_addr where to write its address to
@@ -70,6 +62,7 @@ class DMAChain:
         self.init_px_write()
         self.init_h_scale()
 
+
     def init_read_addr(self):
         """ CH:2 Sprite read address DMA """
         read_addr_ctrl = self.read_addr.pack_ctrl(
@@ -77,7 +70,6 @@ class DMAChain:
             inc_read=True,      # Reads from RAM
             inc_write=False,    # Fixed write target
             chain_to=self.color_lookup.channel,
-            irq_quiet=False
         )
 
         self.read_addr.config(
@@ -86,7 +78,7 @@ class DMAChain:
             write=DMA_PX_READ_BASE + DMA_READ_ADDR_TRIG,
             ctrl=read_addr_ctrl
         )
-        self.read_addr.irq(handler=IrqHandler.irq_handler, hard=False)
+        # self.read_addr.irq(handler=self.irq_end_read_addr)
 
     def init_write_addr(self):
         """ CH:3 Display write address DMA """
@@ -121,7 +113,7 @@ class DMAChain:
             write=DMA_PX_WRITE_BASE + DMA_READ_ADDR,
             ctrl=color_lookup_ctrl,
         )
-        self.color_lookup.irq(handler=IrqHandler.irq_handler, hard=False)
+        self.color_lookup.irq(handler=self.irq_end_row)
 
 
     def init_px_read(self):
@@ -133,7 +125,7 @@ class DMAChain:
             treq_sel=DREQ_PIO0_TX1,
             bswap=True,
             irq_quiet=False,
-            chain_to=self.h_scale.channel,
+            chain_to=self.h_scale.channel
         )
 
         self.px_read.config(
@@ -142,7 +134,7 @@ class DMAChain:
             write=PIO0_TX1,
             ctrl=px_read_ctrl
         )
-        self.px_read.irq(handler=IrqHandler.irq_handler, hard=False)
+        self.px_read.irq(handler=self.irq_px_read)
 
     def init_px_write(self):
         """ CH:6. Display write DMA --------------------------- """
@@ -174,10 +166,10 @@ class DMAChain:
         self.h_scale.config(
             count=1,
             # read=xxx,  # Current horizontal pattern (to be set later)
-            write=DMA_PX_WRITE_BASE + DMA_TRANS_COUNT,
+            write=DMA_PX_WRITE_BASE + DMA_TRANS_COUNT_TRIG,
             ctrl=h_scale_ctrl
         )
-        self.h_scale.irq(handler=IrqHandler.irq_handler, hard=False)
+        self.h_scale.irq(handler=self.irq_h_scale)
 
     def init_sprite(self, read_stride_px, h_scale):
         """Configure Sprite specific DMA parameters."""
@@ -208,6 +200,7 @@ class DMAChain:
         self.read_count = 0
         self.addr_idx = 0
         #
+
         while (self.write_addr.active() or self.read_addr.active()):
             pass
 
@@ -218,24 +211,34 @@ class DMAChain:
 
     def irq_px_read(self, ch):
         """IRQ Handler for end of ALL pixels read"""
-        if DEBUG_DMA:
+        if DEBUG_IRQ:
             print("* IRQ PX ROW READ END *")
         self.px_read_finished = True
 
     def irq_end_row(self, ch):
-        if DEBUG_DMA:
+        if DEBUG_IRQ:
             print("-x- IRQ COLOR ROW END  -x-")
         self.color_row_finished = True
 
     def irq_end_read_addr(self, ch):
-        if DEBUG_DMA:
+        if DEBUG_IRQ:
             print("_-_ IRQ END READ ADDRs _-_")
         self.read_addr_finished = True
 
     def irq_h_scale(self, ch):
-        if DEBUG_DMA:
+        if DEBUG_IRQ:
             print("=== IRQ END HORIZ SCALE ===")
         self.h_scale_finished = True
+
+    def is_finished(self):
+        # if (self.read_addr_finished and
+        if (self.px_read_finished and
+            self.color_row_finished and
+            self.h_scale_finished
+        ):
+            return True
+        else:
+            return False
 
     def debug_dma_channels(self):
         # self.dbg.debug_dma(self.disp_addr, "display driver address", "disp_addr", 0)

@@ -47,6 +47,7 @@ def main():
     # max_freq = 80_000_000
     # max_freq = 40_000_000
     # max_freq = 52_000_000
+    # max_freq = 48_000_000
 
     # machine.freq(max_freq)
 

@@ -3,13 +3,13 @@ from micropython import const
 
 """ Debugging Constants """
 DEBUG =                     const(0)
-DEBUG_DMA =                 const(0)
+DEBUG_DMA =                 const(1)
 DEBUG_DMA_CH =              const(0)
 DEBUG_DMA_ADDR =            const(0)
 DEBUG_DISPLAY =             const(0)
 DEBUG_PIO =                 const(0)
 DEBUG_PHYSICS =             const(0)
-DEBUG_IRQ =                 const(0)
+DEBUG_IRQ =                 const(1)
 DEBUG_INTERP =              const(0)
 DEBUG_INST =                const(0)
 DEBUG_INTERP_LIST =         const(0)
@@ -87,6 +87,8 @@ PIO0_TX2 = PIO0_BASE + 0x018
 PIO0_RX2 = PIO0_BASE + 0x028
 
 PIO0_CTRL = PIO0_BASE
+
+SM0_SHIFTCTRL = PIO0_BASE + 0x0d0
 
 # ---
 

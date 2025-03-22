@@ -113,7 +113,7 @@ class ScalerDebugger():
             else:
                 debug_bytes = array("L", [0] * count)  # 32-bit words
 
-            init_value = 0x12345678
+            init_value = 0x12345678 # much more obvious than zeros
         else:
             debug_bytes = array("B", [0] * count)  # bytes
             init_value = 0x78  # Just lowest byte
@@ -188,13 +188,13 @@ class ScalerDebugger():
         self.debug_fifos()
 
     def debug_addresses(self, display, image, x=0, y=0):
-        write_addr_base = display.write_addr
+        # write_addr_base = display.write_addr
         write_offset = (((y * display.width) + x) * 2) - 8  # since the display is 16 bit, we multiply x 2
-        write_addr = write_addr_base + write_offset
+        # write_addr = write_addr_base + write_offset
 
         print("============================================")
 
-        print(f"DISPLAY START ADDR: 0x{write_addr_base:08X}")
+        # print(f"DISPLAY START ADDR: 0x{write_addr_base:08X}")
         print(f"READING {len(image.pixel_bytes)} BYTES FROM SPRITE ADDR: 0x{addressof(image.pixel_bytes):08X}")
         print(f"X: {x} Y: {y}")
 
@@ -203,7 +203,7 @@ class ScalerDebugger():
         print(f"\twidth: {display.width}px")
         print(f"\theight: {display.height}px")
         print(f"\tdisplay_out_start (offset): 0x{display.write_addr:08X} + 0x{display.write_addr:08X}")
-        print(f"\tsprite_out_addr + offset: 0x{write_addr:08X}")
+        # print(f"\tsprite_out_addr + offset: 0x{write_addr:08X}")
         print(f"\timg_read_addr: 0x{image.pixel_bytes_addr:08X}")
         print(f"\tcolor_addr: 0x{addressof(image.palette_bytes):08X}")
 
