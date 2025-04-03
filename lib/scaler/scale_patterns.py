@@ -106,7 +106,7 @@ class ScalePatterns:
 
     def pattern_to_array(self, list):
         """
-        Create bytebuffer to store 1 scaling pattern of 8 elements
+        Create bytebuffer to store 1 scaling pattern of 8 elements, 1 word wide ('L')
         """
         arr_buff = bytearray(8 * 4)
         final_array = array('L', arr_buff)

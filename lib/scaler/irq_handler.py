@@ -1,10 +1,3 @@
-from machine import mem32
-
-from dump_object import dump_object
-from scaler.const import DEBUG_IRQ, DMA_BASE
-import micropython
-from rp2 import DMA
-
 class IrqHandler():
     display: None
     scaler: None
@@ -22,9 +15,9 @@ class IrqHandler():
             print("IRQ:")
             print('\t\t' + str(ch))
         if ch_number == 2:
-            return IrqHandler.dma.irq_end_read_addr(ch)
+            return IrqHandler.dma.irq_read_addr(ch)
         elif ch_number == 4:
-            return IrqHandler.dma.irq_end_row(ch)
+            return IrqHandler.dma.irq_end_color_row(ch)
         elif ch_number == 5:
             return IrqHandler.dma.irq_px_read(ch)
         elif ch_number == 7:

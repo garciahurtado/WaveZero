@@ -1,4 +1,5 @@
 from rp2 import PIO
+from machine import mem32
 from uarray import array
 from uctypes import addressof
 
@@ -47,46 +48,53 @@ class ScalerDebugger():
         print("=====================================================")
         print()
 
-    def debug_pio_status(self, sm0=False, sm1=False, sm2=False, all_code=True):
+    def debug_pio_status(self, pio=0, sm=0):
+        print(f"-- STATE MACHINE STATUS (PIO {pio}, SM {sm})")
+
+        if pio == 0:
+            pio_base = PIO0_BASE
+        elif pio == 1:
+            pio_base = PIO1_BASE
+
+        if sm == 0:
+            reg_line = SM0_ADDR
+            reg_inst = SM0_INST_DEBUG
+        elif sm == 1:
+            reg_line = SM1_ADDR
+            reg_inst = SM1_INST_DEBUG
+
+        line_num = mem32[pio_base + reg_line] & 0x1F  # Mask bits 4:0
+        line_num_rev = 31 - line_num
+        inst_code = mem32[pio_base + reg_inst] & 0xFFFF  # Keep 16 LSBs
+        print("----------------------")
+        print(f"-- INST: (line {line_num_rev} / {line_num}) -- (from zero / from 32)")
+        self.read_pio_opcode(inst_code)
+        print("----------------------")
+        self.debug_pio_regs(pio, sm)
         print()
 
-        if sm0:
-            line_num = mem32[PIO0_BASE + SM0_ADDR]
-            inst_code = mem32[PIO0_BASE + SM0_INST_DEBUG]
-            print(f"-- SM0 (line {line_num}) ----------------------------")
-            self.read_pio_opcode(inst_code)
+    def debug_pio_regs(self, pio=0, sm=0):
+        if pio == 0:
+            pio_base = PIO0_BASE
+        elif pio == 1:
+            pio_base = PIO1_BASE
 
-        if sm1:
-            line_num = mem32[PIO0_BASE + SM1_ADDR]
-            inst_code = mem32[PIO0_BASE + SM1_INST_DEBUG]
-            print(f"-- SM1 (line {line_num}) -----------------------------")
-            self.read_pio_opcode(inst_code)
+        debug_addr = pio_base + 0x008
 
-        if sm2:
-            line_num = mem32[PIO0_BASE + SM2_ADDR]
-            inst_code = mem32[PIO0_BASE + SM2_INST_DEBUG]
-            print(f"-- SM2 (line {line_num}) -----------------------------")
-            self.read_pio_opcode(inst_code)
-
-        print()
-
-    def debug_register(self):
-        deb1 = mem32[FDEBUG] >> 24
-        deb2 = (mem32[FDEBUG] >> 16) & 0xFF
-        deb3 = (mem32[FDEBUG] >> 8) & 0xFF
-        deb4 = mem32[FDEBUG] & 0xFF
+        txstall = (mem32[debug_addr] >> 24) & 0xF
+        txover = (mem32[debug_addr] >> 16) & 0xF
+        rxunder = (mem32[debug_addr] >> 8) & 0xF
+        rxstall = (mem32[debug_addr]) & 0xF
         print("              TXSTALL    TXOVER     RXUNDER    RXSTALL")
-        print(f"DEBUG REG >>> {deb1:08b} - {deb2:08b} - {deb3:08b} - {deb4:08b} <<<")
+        print(f"DEBUG REG >>> {txstall:08b} - {txover:08b} - {rxunder:08b} - {rxstall:08b} <<<")
 
     def debug_dma(self, dma, alias, label, index):
         ctrl = dma.unpack_ctrl(dma.registers[3])
         DMA_NAME = f"DMA_BASE_{index}"
 
-        # tcr = mem32[DMA_ADDR + DMA_DBG_TCR]
-
         active_txt = 'ACTIVE' if dma.active() else 'INACTIVE'
         print()
-        print(f"CH '{alias}' (#{dma.channel}) | ({active_txt}) | ({label}):")
+        print(f"CH '{alias}' (DMA{dma.channel}) | ({active_txt}) | ({label}):")
         print("---------------------------------------------------")
         print(f". ........ {dma.registers[0]:08X} R \t........ {dma.registers[9]:08X} TX (current)")
         print(f". ........ {dma.registers[1]:08X} W \t........ {0:08X} TCR (next)")
@@ -184,7 +192,7 @@ class ScalerDebugger():
         self.debug_dma(ch, ch_alias, section, idx)
         self.debug_pio_status()
         print("- - - - - - - - - - - - - - - - - - - - - ")
-        self.debug_register()
+        self.debug_pio_regs()
         self.debug_fifos()
 
     def debug_addresses(self, display, image, x=0, y=0):
@@ -202,7 +210,7 @@ class ScalerDebugger():
         print("------------------------")
         print(f"\twidth: {display.width}px")
         print(f"\theight: {display.height}px")
-        print(f"\tdisplay_out_start (offset): 0x{display.write_addr:08X} + 0x{display.write_addr:08X}")
+        print(f"\tdisplay_out_start (offset): 0x{display.buf0_addr:08X} + 0x{display.buf0_addr:08X}")
         # print(f"\tsprite_out_addr + offset: 0x{write_addr:08X}")
         print(f"\timg_read_addr: 0x{image.pixel_bytes_addr:08X}")
         print(f"\tcolor_addr: 0x{addressof(image.palette_bytes):08X}")

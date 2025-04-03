@@ -4,11 +4,12 @@
 			"path": "."
 		},
 		{
-			"path": "../../MicroPython/micropython"
-		},
-		{
 			"name": "Mpy Remote Workspace",
 			"uri": "pico:"
+		},
+		{
+			"name": "WaveZero",
+			"path": "../../../Documents/PlatformIO/Projects/WaveZero"
 		}
 	],
 	"settings": {

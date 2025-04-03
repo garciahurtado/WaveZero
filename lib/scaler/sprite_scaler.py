@@ -1,5 +1,7 @@
 import asyncio
 import gc
+
+import rp2
 import utime
 
 from scaler.scaler_framebuf import ScalerFramebuf
@@ -16,7 +18,8 @@ from scaler.const import DEBUG, DEBUG_SCALE_PATTERNS, DEBUG_DMA, DEBUG_INST, INT
     DEBUG_DMA_ADDR, \
     INTERP0_CTRL_LANE0, INTERP0_CTRL_LANE1, INTERP0_BASE0, INTERP1_CTRL_LANE0, INTERP1_BASE0, INTERP1_ACCUM0, \
     INTERP1_ACCUM1, INTERP1_BASE1, INTERP1_BASE2, DEBUG_INTERP, INTERP1_CTRL_LANE1, INTERP0_BASE1, INTERP0_ACCUM0, \
-    INTERP0_ACCUM1, DEBUG_DISPLAY, PIO0_CTRL, DEBUG_DMA_CH, DEBUG_IRQ
+    INTERP0_ACCUM1, DEBUG_DISPLAY, PIO0_CTRL, DEBUG_DMA_CH, DEBUG_IRQ, DEBUG_PIO, PIO1_BASE, SM0_ADDR, DEBUG_TICKS, \
+    DEBUG_LED
 from sprites2.sprite_physics import SpritePhysics
 
 from images.indexed_image import Image
@@ -39,12 +42,9 @@ class SpriteScaler():
 
         self.dma = DMAChain(self, display, extra_write_addrs=self.framebuf.extra_subpx_top)
 
-        if DEBUG or DEBUG_DMA:
-            self.dbg = ScalerDebugger()
-            self.debug_bytes = self.dbg.get_debug_bytes()
-            self.dma.dbg = self.dbg
-        else:
-            self.dbg = None
+        self.dbg = ScalerDebugger()
+        self.debug_bytes = self.dbg.get_debug_bytes()
+        self.dma.dbg = self.dbg
         self.dma.init_channels()
 
         self.draw_x = 0
@@ -53,35 +53,46 @@ class SpriteScaler():
 
         self.scaled_height = 0
         self.scaled_width = 0
-        
+
         self.base_read = 0
         self.read_stride_px = 0
         self.frac_bits = 0
-
+        self.sm_ticks_new_addr = 0
+        self.sm_finished = False
         self.palette_addr = None
         self.last_palette_addr = None # For caching
-        self.pin_jmp = Pin(10, Pin.OUT, value=0)        # used to reload the palette address in the SM
-        self.sm_read_palette = read_palette_init(self.pin_jmp)
+
+        # Status LEDs
+        self.pin_led1 = Pin(10, Pin.OUT, value=0)
+        self.pin_led2 = Pin(11, Pin.OUT, value=0)
+        self.pin_led3 = Pin(12, Pin.OUT, value=0)
+        self.pin_led4 = Pin(13, Pin.OUT, value=0)
+
+        self.pin_jmp = Pin(14, Pin.OUT, value=0)        # free "pin" used to reload the palette address in the SM
+
+        self.sm_read_palette = read_palette_init(self.pin_led1)
+        self.sm_read_palette.irq(handler=self.irq_sm_read_palette)
+
+        self.sm_finished = False
         self.sm_read_palette.active(1)
 
         self.init_interp()
 
+        # DEBUG
+        self.display.scaler = self
+        self.display.start()
+
         if DEBUG_SCALE_PATTERNS:
             self.dma.patterns.print_patterns()
 
+    def irq_sm_read_palette(self, ch):
+        if DEBUG_IRQ:
+            print('<"""""""" - PIO1 SM IRQ ASSERTED  """""""">')
+
+        self.sm_finished = True
 
     # @micropython.viper
     def fill_addrs(self, scaled_height: int, h_scale, v_scale):
-        # Calculate visible rows after vertical clipping
-        visible_rows = scaled_height - int(self.skip_rows * v_scale)
-        max_write_addrs = min(self.framebuf.max_height, visible_rows)
-        max_read_addrs = min(visible_rows, max_write_addrs)
-
-        if DEBUG_DMA:
-            print(f" + VISIBLE ROWS:    {visible_rows}")
-            print(f" + scaled_height:   {scaled_height}")
-            print(f" + max_write_addrs: {max_write_addrs}")
-            print(f" + max_read_addrs:  {max_read_addrs}")
 
         # Get array pointers
         read_addrs: [int] = self.dma.read_addrs  # destination
@@ -89,10 +100,11 @@ class SpriteScaler():
 
         """ Populate DMA with read addresses """
         row_id = 0
-
-        while row_id < int(max_read_addrs):
-            self.dma.read_addrs[row_id] = mem32[INTERP1_POP_FULL]
-            self.dma.write_addrs[row_id] = mem32[INTERP0_POP_FULL]
+        while row_id < int(self.max_read_addrs):
+            new_read = mem32[INTERP1_POP_FULL]
+            new_write = mem32[INTERP0_POP_FULL]
+            self.dma.read_addrs[row_id] = new_read
+            self.dma.write_addrs[row_id] = new_write
 
             if DEBUG_DMA_ADDR:
                 print(f">>> [{row_id:02.}] R: 0x{self.dma.read_addrs[row_id]:08X}")
@@ -102,14 +114,14 @@ class SpriteScaler():
             row_id += 1
 
         self.dma.read_addrs[row_id] = 0x00000000 # finish it with a NULL trigger
-        self.dma.write_addrs[row_id] = 0x00000000 # finish it with a NULL trigger
+        self.dma.write_addrs[row_id] = 0x00000000# finish it with the last value seen
 
         if DEBUG_DMA_ADDR:
             print(f">>> [{row_id:02.}] R: 0x{self.dma.read_addrs[row_id]:08X}")
             print(f">>> [{row_id:02.}] W: 0x{self.dma.write_addrs[row_id]:08X}")
             print("-------------------------")
         if DEBUG_DMA:
-            print(f" - TOTAL # READ ADDRS: {max_read_addrs+1}")
+            print(f" - TOTAL # READ ADDRS (incl NULL): {self.max_read_addrs+1}")
 
     def draw_sprite(self, sprite:SpriteType, inst, image:Image, h_scale=1.0, v_scale=1.0):
         """
@@ -151,9 +163,9 @@ class SpriteScaler():
             print(f"ABOUT TO DRAW a Sprite on x,y: {self.draw_x},{self.draw_y} @ H: {h_scale}x / V: {v_scale}x")
 
         prof.start_profile('scaler.select_buffer')
-        self.framebuf.select_buffer(scaled_width, scaled_height)
         self.scaled_height = scaled_height
         self.scaled_width = scaled_width
+        self.framebuf.select_buffer(scaled_width, scaled_height)
         prof.end_profile('scaler.select_buffer')
 
         """ Config interpolator """
@@ -163,7 +175,7 @@ class SpriteScaler():
         prof.end_profile('scaler.interp_cfg')
 
         prof.start_profile('scaler.init_interp_sprite')
-        self.init_interp_sprite(int(sprite.width), h_scale, v_scale)
+        self.init_interp_sprite(sprite.width, h_scale, v_scale)
 
         if DEBUG_INST:
             coords = SpritePhysics.get_pos(inst)
@@ -182,46 +194,68 @@ class SpriteScaler():
         prof.end_profile('scaler.init_interp_sprite')
         prof.start_profile('scaler.init_pio')
         palette_addr = addressof(image.palette.palette)
+        self.palette_addr = palette_addr
         self.init_pio(palette_addr)
-        self.palette_addr = self.last_palette_addr = palette_addr
         prof.end_profile('scaler.init_pio')
 
         prof.start_profile('scaler.init_dma_sprite')
-        self.dma.init_sprite(self.read_stride_px, h_scale)
+        self.dma.reset_dma_counts(self.read_stride_px, h_scale)
         prof.end_profile('scaler.init_dma_sprite')
 
         prof.start_profile('scaler.fill_addrs')
-        visible_rows = scaled_height - math.ceil(self.skip_rows * v_scale)
-        self.fill_addrs(scaled_height, visible_rows, DEBUG_DMA)
-
-        if DEBUG_DMA:
-            self.dma.debug_dma_addr()
-
+        self.fill_addrs(scaled_height, h_scale, v_scale)
         prof.end_profile('scaler.fill_addrs')
 
-        self.start()
+        if DEBUG_DMA_CH:
+            print("<<< CHANNEL STATUS BEFORE START >>>")
+            self.dma.debug_dma_channels()
+        prof.end_profile('scaler.fill_addrs')
 
-        if DEBUG_DMA:
-            print("IRQ FLAGS:")
-            print("----------------")
-            print(f"   px_read:         {self.dma.px_read_finished}")
-            print(f"   color_row:       {self.dma.color_row_finished}")
-            print(f"   h_scale:         {self.dma.h_scale_finished}")
-            print(f"   addr_list:       {self.dma.addr_list_finished}")
-            print(f"   read_addr:       {self.dma.read_addr_finished}")
-            print("--------------------------------------------------------------------")
-            print()
+        self.start(h_scale)
 
-        while not (self.dma.h_scale_finished and self.dma.color_row_finished):
+        # ---*--- marker for bookmark ---*---
 
-            utime.sleep_ms(2)
-            pass
+        while False and not (self.sm_finished and self.dma.color_row_finished and
+                    self.dma.h_scale and self.dma.px_read_finished):
+            utime.sleep_ms(1)
 
-        utime.sleep_ms(2)
+        if DEBUG_TICKS:
+            self.ticks_debug()
+
+        if DEBUG_IRQ:
+            self.debug_irq()
+
+        if DEBUG_PIO:
+            print("~~~ About to Finish ~~~")
+            self.dma_pio_status()
+
+        if DEBUG_DMA_CH:
+            print("))) CHANNEL STATUS BEFORE FINISH (((")
+            self.dma.debug_dma_channels()
+
         self.finish_sprite()
 
-    def start(self):
-        """ Start DMA chains and State Machines """
+    def dma_pio_status(self):
+        print()
+        print(f"PX_READ COUNT:      {self.dma.px_read.count}")
+        print(f"PX READ ACTIVE:     {self.dma.px_read.active()}")
+        print(f"PX READ READ ADDR:  0x{self.dma.px_read.read:08X}")
+        print(f"H_SCALE COUNT:      {self.dma.h_scale.count}")
+        print(f"H_SCALE ACTIVE:     {self.dma.h_scale.active()}")
+        print(f"COLOR ROW COUNT:    {self.dma.color_lookup.count}")
+        print(f"COLOR ROW ACTIVE:   {self.dma.color_lookup.active()}")
+        print(f"PX READ FINISHED:   {self.dma.px_read_finished}")
+        print(f"COLOR R FINISHED:   {self.dma.color_row_finished}")
+        print(f"HSCALE FINISHED:    {self.dma.h_scale_finished}")
+        print("~~~~~~~~~~~~~~~~~~~~~~~~")
+        print()
+        print()
+
+        print("STATE MACHINE STATUS:")
+        self.dbg.debug_pio_status(pio=1, sm=0)
+
+    def start(self, h_scale):
+        """ Start DMA chains and State Machines (every frame) """
         prof.start_profile('scaler.dma_pio')
         if DEBUG:
             print("* STARTING DMA / PIO... *")
@@ -238,7 +272,29 @@ class SpriteScaler():
             print(f"==> BLITTING to {self.draw_x}, {self.draw_y} / alpha: {self.alpha}")
 
         self.framebuf.blit_with_alpha(int(self.draw_x), int(self.draw_y), self.alpha)
+
         prof.end_profile('scaler.finish_sprite')
+
+    def ticks_debug(self):
+        if DEBUG_TICKS:
+            print()
+            print("  ~~~   TOTAL TICKS   ~~~")
+            print()
+            print(f" .write_addrs:  {self.dma.ticks_write_addr}")
+            print(f" .read_addrs:   {self.dma.ticks_read_addr}")
+            print(f" .px_read:      {self.dma.ticks_px_read} NULL")
+            print(f" .color_row:    {self.dma.ticks_color_row} px")
+            print(f" .h_scale:      {self.dma.ticks_h_scale} px")
+            print(f" ---")
+            print(f" sm_finished    {self.sm_finished}")
+            print("  ~~~~~~~~~~~~~~~~~~~~~~~~")
+
+    def blink_led(self, num):
+        leds = [0, self.pin_led1, self.pin_led2, self.pin_led3 ,self.pin_led4]
+        my_led = leds[num]
+        my_led.value(1)
+        utime.sleep_ms(20)
+        my_led.value(0)
 
     def init_interp(self):
         """ One time INTERPOLATOR configuration """
@@ -268,7 +324,7 @@ class SpriteScaler():
         mem32[INTERP1_ACCUM0] = 0
         mem32[INTERP1_ACCUM1] = 0
 
-    def init_interp_sprite(self, sprite_width:int, scale_x_one = 1.0, scale_y_one = 1.0):
+    def init_interp_sprite(self, sprite_width:int, x_scale = 1.0, v_scale= 1.0):
         prof.start_profile('scaler.init_interp_sprite.cfg')
         scaled_width = self.scaled_width
         scaled_height = self.scaled_height
@@ -285,7 +341,7 @@ class SpriteScaler():
         """ HANDLE BOUNDS CHECK / CROPPING ------------------------  """
 
         prof.start_profile('scaler.init_interp_sprite.clip')
-        self.interp_clip(sprite_width, scale_x_one, scale_y_one)
+        self.interp_clip(sprite_width, x_scale, v_scale)
         prof.end_profile('scaler.init_interp_sprite.clip')
 
         """ Lane 1 config - handles integer extraction - must be reconfigured because it depends on self.frac_bits """
@@ -299,7 +355,7 @@ class SpriteScaler():
         # read_step = sprite_width / scale_x_one
         # read_step = math.ceil(read_step / 2)  # Because of 2px per byte
 
-        fixed_step = self.init_convert_fixed_point(sprite_width, scale_x_one)
+        fixed_step = self.init_convert_fixed_point(sprite_width, x_scale)
         mem32[INTERP1_BASE1] = int(fixed_step)
         mem32[INTERP1_BASE2] = self.base_read  # Base sprite read address
 
@@ -314,7 +370,7 @@ class SpriteScaler():
 
         prof.end_profile('scaler.init_convert_fixed_point')
 
-    def interp_clip(self, sprite_width, scale_x_one, scale_y_one):
+    def interp_clip(self, sprite_width, x_scale, y_scale):
         """ Handles the clipping of very large sprites so that they can be rendered.
         Overflow in the Y coordinate will lead to skipping rows, and overflow in the X coordinate will lead to
         increased start addr of each row (1 byte/2px at a time) """
@@ -323,18 +379,17 @@ class SpriteScaler():
         frame_height = framebuf.frame_height
         scaled_width = self.scaled_width
         scaled_height = self.scaled_height
-        self.read_stride_px = sprite_width
 
         """ Avoid division by zero """
-        if not scale_x_one:
-            scale_x_one = 0.0001
+        if not x_scale:
+            x_scale = 0.0001
 
-        if not scale_y_one:
-            scale_y_one = 0.0001
+        if not y_scale:
+            y_scale = 0.0001
 
         if (self.draw_y < 0):
-            self.skip_rows = skip_rows = int(abs(self.draw_y) / scale_y_one)
-            self.draw_y += (skip_rows * scale_y_one)
+            self.skip_rows = skip_rows = int(abs(self.draw_y) / y_scale)
+            self.draw_y += (skip_rows * y_scale)
 
             """ We need to offset base_read in order to clip vertically when generating addresses """
             skip_bytes_y = (skip_rows * sprite_width) // 2  # Integer division
@@ -354,7 +409,7 @@ class SpriteScaler():
             skip_px_total = abs(self.draw_x)
 
             # 1. Convert screen skip to source pixels (original sprite resolution)
-            source_pixels_needed = int(skip_px_total / scale_x_one)
+            source_pixels_needed = int(skip_px_total / x_scale)
             source_pixels_skipped = min(source_pixels_needed, sprite_width)
 
             # 2. Align to 2px boundaries (since 2px/byte in source)
@@ -367,7 +422,6 @@ class SpriteScaler():
             # 4. Update memory pointers (source is 2px/byte)
             # self.base_read += math.ceil(source_pixels_skipped / 2)
             # self.read_stride_px = sprite_width - source_pixels_skipped  # In pixels
-            self.read_stride_px = sprite_width
 
             if DEBUG_INTERP:
                 print(f"CLIPPING: (-X)")
@@ -377,6 +431,19 @@ class SpriteScaler():
                 print(f"\tsource_pixels_skipped:    {source_pixels_skipped}")
                 print(f"\tskip_read_bytes:          {skip_read_bytes}")
                 print(f"\tbase_read after:          0x{self.base_read:08X}")
+
+        # Calculate visible rows after vertical clipping
+        visible_rows = scaled_height - int(self.skip_rows * y_scale)
+        self.max_write_addrs = min(self.framebuf.max_height, visible_rows)
+        self.max_read_addrs = min(visible_rows, self.max_write_addrs)
+
+        self.read_stride_px = sprite_width
+
+        if DEBUG_DMA:
+            print(f" + VISIBLE ROWS:    {visible_rows}")
+            print(f" + scaled_height:   {scaled_height} @{y_scale}x")
+            print(f" + max_write_addrs: {self.max_write_addrs}")
+            print(f" + max_read_addrs:  {self.max_read_addrs}")
 
     # @micropython.viper
     def init_convert_fixed_point(self, sprite_width, scale_x_one):
@@ -410,6 +477,8 @@ class SpriteScaler():
 
     def reset(self):
         """Clean up resources before a new run"""
+        self.sm_ticks_new_addr = 0
+        self.sm_finished = False
         self.dma.reset()
 
         # Clear interpolator accumulators
@@ -431,11 +500,21 @@ class SpriteScaler():
         self.skip_cols = 0
 
     def init_pio(self, palette_addr):
+        self.sm_finished = False
         # self.sm_read_palette.active(0)
-        # self.sm_read_palette.active(1)
+        # self.sm_read_palette.restart()
+        self.sm_read_palette.active(1)
         self.sm_read_palette.put(palette_addr)
 
-        self.pin_jmp.value(0)
+        # line_num = 31
+        # pc_num_addr = PIO1_BASE + SM0_ADDR
+        # line_num = mem32[pc_num_addr]
+
+        # self.sm_read_palette.exec('jmp("new_addr")') -> inst #1
+        #
+        # self.sm_read_palette.active(1)
+        # inst_hex = 0b0000000000000001
+        # self.sm_read_palette.exec(inst_hex)
 
         pass
 
@@ -489,3 +568,13 @@ class SpriteScaler():
         display.pixel(0, 0 + 1, color)
         display.pixel(0 + 1, 0 + 1, color)
         self.finish_sprite()
+
+    def debug_irq(self):
+        print("IRQ FLAGS:")
+        print("----------------")
+        print(f"   sm_finished:     {self.sm_finished}")
+        print(f"   px_read:         {self.dma.px_read_finished}")
+        print(f"   color_row:       {self.dma.color_row_finished}")
+        print(f"   h_scale:         {self.dma.h_scale_finished}")
+        print("---------------------------------------------------")
+        print()

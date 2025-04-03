@@ -64,6 +64,8 @@ class GameScreenTest(Screen):
 
         self.display.fps = self.fps
 
+
+
     def preload_images(self):
         images = [
             {"name": "life.bmp", "width": 12, "height": 8},
@@ -81,7 +83,6 @@ class GameScreenTest(Screen):
 
         loop = asyncio.get_event_loop()
         loop.create_task(self.start_display_loop())
-        # self.scaler.dma.init_channels()
 
         self.display.fill(0x9999)
         utime.sleep_ms(1000)
@@ -125,21 +126,24 @@ class GameScreenTest(Screen):
     def do_refresh(self):
         """ Overrides parent method """
         self.display.fill(0x0000)
-        self.phy.set_pos(self.inst, 53, 32)
+        self.phy.set_pos(self.inst, 50, 46)
 
         self.grid.show()
         self.ui.show()
         self.draw_corners()
 
-        self.scaler.draw_sprite(
-                self.sprite, self.inst, self.image,
-                h_scale=1, v_scale=1)
+        # self.scaler.draw_sprite(
+        #         self.sprite, self.inst, self.image,
+        #         h_scale=1, v_scale=1)
 
         self.display.show()
         self.fps.tick()
 
     def draw_corners(self):
         green = colors.hex_to_565(0x00FF00)
+        red = colors.hex_to_565(0x0000FF)
+        blue = colors.hex_to_565(0xFF0000)
+        yellow = colors.hex_to_565(0x00FFFF)
         width = self.display.width-1
         height = self.display.height-1
         length = 16
@@ -153,6 +157,8 @@ class GameScreenTest(Screen):
         self.display.line(width, 0, width, length, green)
         self.display.line(0, height, 0, height-length, green)
         self.display.line(width, height, width, height-length, green)
+
+        self.display.hline(0, 0, 3, red)
 
     async def start_bus_profiler(self):
         while True:

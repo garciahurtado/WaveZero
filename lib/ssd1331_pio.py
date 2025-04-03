@@ -1,8 +1,12 @@
 import _thread
+import struct
 
 import framebuf
 import math
+
+import time
 import utime
+from array import array
 from machine import mem32
 from micropython import const
 
@@ -14,7 +18,7 @@ import gc
 import colors.color_util as colors
 from scaler.const import DEBUG_DMA, DMA_BASE_1, DMA_READ_ADDR_TRIG, DMA_WRITE_ADDR_TRIG, DMA_READ_ADDR, PIO0_BASE, \
     PIO1_BASE, PIO0_TX0, PIO0_CTRL, DMA_BASE, DEBUG_DISPLAY, DMA_TRANS_COUNT, DREQ_PIO0_TX0, MULTI_CHAN_TRIGGER, \
-    SM0_SHIFTCTRL, DEBUG_PIO
+    PIO0_SM0_SHIFTCTRL, DEBUG_PIO, DMA_WRITE_ADDR, DEBUG_IRQ, DMA_BASE_8, DMA_BASE_7, DEBUG_LED, DMA_BASE_0
 
 
 class SSD1331PIO():
@@ -37,7 +41,6 @@ class SSD1331PIO():
     """
     HEIGHT: int = const(64)
     WIDTH: int = const(96)
-    DMA_BASE = const(0x50000000)
     DC_MODE_CMD = 0x00
     DC_MODE_DATA = 0x01
 
@@ -60,6 +63,8 @@ class SSD1331PIO():
     xA0 x72 -> RGB
     xA0 x76 -> BGR
     """
+
+    scaler = None
 
     INIT_BYTES = (
         b'\xAE'  # Set Display Off (turn off display during initialization)
@@ -85,9 +90,6 @@ class SSD1331PIO():
     )
 
     def __init__(self, spi, pin_cs, pin_dc, pin_rs, pin_sck, pin_sda, height=HEIGHT, width=WIDTH):
-        # mem32[PIO0_BASE+INPUT_SYNC_BYPASS] = 0xFFFFFFFF
-        # mem32[PIO1_BASE+INPUT_SYNC_BYPASS] = 0xFFFFFFFF
-
         self.spi = spi
         self.pin_cs = pin_cs
         self.pin_dc = pin_dc
@@ -101,9 +103,13 @@ class SSD1331PIO():
         self.dma0 = DMA()
         self.dma1 = DMA()
 
-        print(" - SSD1331 PIO Driver. Acquired DMA channels:")
-        print(f"   * DMA0 (CH:{self.dma0.channel})")
-        print(f"   * DMA1 (CH:{self.dma1.channel})")
+        self.flip = False
+
+        if DEBUG_DMA:
+            addr0 = addressof(self.buffer0)
+            addr1 = addressof(self.buffer1)
+            print(f" > BUFFER 0 ADDR: 0x{addr0:08X}")
+            print(f" > BUFFER 1 ADDR: 0x{addr1:08X}")
 
         self.is_render_done = False
         self.is_render_ctrl_done = False
@@ -134,10 +140,10 @@ class SSD1331PIO():
         self.write_framebuf = self.framebuf0
         self.read_framebuf = self.framebuf1
 
-        self.write_addr = int(uctypes.addressof(self.buffer0))
+        self.write_addr = int(addressof(self.buffer0))
         self.write_addr_buf = self.write_addr.to_bytes(4, "little")
 
-        self.read_addr = int(uctypes.addressof(self.buffer1))
+        self.read_addr = int(addressof(self.buffer1))
         self.read_addr_buf = self.read_addr.to_bytes(4, "little")
         self.curr_read_buf = self.read_addr.to_bytes(4, "little")
         mem32[addressof(self.curr_read_buf)] = mem32[addressof(self.read_addr_buf)]
@@ -165,36 +171,39 @@ class SSD1331PIO():
         return
 
     def swap_buffers(self):
+        while not self.is_render_done:
+            utime.sleep_ms(1)
+
+        self.is_render_done = False
+
         if DEBUG_DISPLAY:
-            print(">> About to swap buffers <<")
+            print(">> 1. About to swap buffers <<")
 
         self.read_framebuf, self.write_framebuf = self.write_framebuf, self.read_framebuf
-        # self.read_addr_buf, self.write_addr_buf = self.write_addr_buf, self.read_addr_buf
 
+        dma1_read = DMA_BASE_1 + DMA_READ_ADDR
+
+        """ Reconfigure the control channel read to point to the other buffer """
         if self.flip:
-            # print("! FLIP !")
-            new_read_addr = mem32[addressof(self.write_addr_buf)]
-
+            self.dma1.read = addressof(self.read_addr_buf)
             self.flip = False
-            self.flop = True
         else:
-            # print("! FLOP !")
-            new_read_addr = mem32[addressof(self.read_addr_buf)]
-
+            self.dma1.read = addressof(self.write_addr_buf)
             self.flip = True
-            self.flop = False
 
-        mem32[addressof(self.curr_read_buf)] = new_read_addr
+        self.dma1.active(1)
+        # self.dma0.active(1)
+
+        if DEBUG_DISPLAY:
+            print(">> 2. Active render is done <<")
 
         """ Now that we've flipped the buffers, reprogram the read DMA so that it will start reading from the 
         correct buffer (the one that just finished writing) in the next iteration """
-        # mem32[DMA_BASE_1 + DMA_READ_ADDR] = addressof(self.curr_read_buf)
 
         if DEBUG_DISPLAY:
-            print("--------------- BUFFERS SWAPPED ---------------------")
-            # print(f"--- New read address @ 0x{new_read_addr:08X}")
-            print(f"--- Display Buffers Swapped ---")
-            # print(f"    New read addr @       0x{self.curr_read_buf:08X}---")
+            print(">> ------ BUFFERS SWAPPED ------ <<")
+            print(f"--- DMA0 READ: 0x{self.dma0.read:08X}")
+            print(f"--- DMA1 READ: 0x{self.dma1.read:08X}")
 
     def init_display(self):
         self.pin_rs(0)  # Pulse the reset line
@@ -236,7 +245,8 @@ class SSD1331PIO():
         self.pin_cs(1)
         self.pin_dc(self.DC_MODE_DATA)
 
-    def init_pio_spi(self, freq=72_250_000):
+    # def init_pio_spi(self, freq=72_250_000):
+    def init_pio_spi(self, freq=20_000_000):
         """"""
         """ Ideal freq for 1x1: 96_500_000 (no pio delays)"""
         """ Ideal freq for 2x2: 97_000_000 (no pio delays)"""
@@ -259,6 +269,12 @@ class SSD1331PIO():
             set_base=pin_cs,
             sideset_base=pin_sck,
         )
+        # merge both FIFOS
+        # addr = PIO0_SM0_SHIFTCTRL
+        # current = mem32[addr]
+        # current = current | (1<<30)
+        # mem32[addr] = current
+
         sm.active(1)
         self.sm = sm
 
@@ -266,7 +282,8 @@ class SSD1331PIO():
         out_shiftdir=PIO.SHIFT_LEFT,
         set_init=PIO.OUT_LOW,
         sideset_init=PIO.OUT_HIGH,
-        out_init=PIO.OUT_LOW
+        out_init=PIO.OUT_LOW,
+        pull_thresh=32
         )
 
     def pixels_to_spi():
@@ -276,38 +293,38 @@ class SSD1331PIO():
         set()   -> pin.cs
         .side() -> pin.sck
         """
-        pull(ifempty, block)             [2] .side(1)     # Block with CSn high (minimum 2 cycles)
+        set(pins, 1)
+        pull(block)             [2].side(1)     # Block with CSn high (minimum 2 cycles)
         nop()                               .side(0)      # CSn front porch
-        set(x, 31)                          .side(0)     # Push out 4 bytes per bitloop
+        set(x, 32)                          .side(1)     # Push out 4 bytes per bitloop
 
         wrap_target()
 
-        pull(ifempty, block)        .side(1)
-        set(pins, 0)                .side(0)  # pull down CS, SCK low
+        pull(block)                 .side(0)
+        set(pins, 0)                .side(1)  # pull down CS, SCK low
 
         label("bitloop")
         out(pins, 1)                .side(0)
         jmp(x_dec, "bitloop")       .side(1)
 
-        set(x, 31)                  .side(1)
+        set(x, 31)                  .side(0) # 1 bit was already transmited
         set(pins, 1)                .side(1) # CS pin high (end transaction)
 
         jmp(not_osre, "bitloop")    .side(0)  # If more data, do next block
-
+        nop()                       .side(1)
         nop()                    [2].side(0)  # CSn back porch
 
-
-    def sm_debug(self, sm):
-        sm.irq(
-            lambda pio:
-            print(f"IRQ: {pio.irq().flags():08b} - TX fifo size: {sm.tx_fifo()}"))
+        # Chill / return to start
 
     def init_dma(self):
         """
         Initialize DMA
-            spi0_base = 0x4003c000
-            spi0_tx = spi0_base + 0x008
         """
+
+        if DEBUG_DMA:
+            print(" - SSD1331 PIO Driver. Acquired DMA channels:")
+            print(f"   * DMA0 (CH:{self.dma0.channel})")
+            print(f"   * DMA1 (CH:{self.dma1.channel})")
 
         """
         How many bytes to write for a whole framebuffer:
@@ -319,8 +336,8 @@ class SSD1331PIO():
         self.dma_tx_count = total_bytes // 4
 
         if DEBUG_DMA:
-            print(f" Start Read Addr: {self.read_addr:08X}")
-            print(f" No. TX: {self.dma_tx_count}")
+            print(f" Start Read Addr: {addressof(self.buffer0):08X}")
+            print(f" No. DMA0 TX:     {self.dma_tx_count}")
             print(" ........................................")
 
         """ Data Channel """
@@ -330,7 +347,8 @@ class SSD1331PIO():
             inc_write=False,
             bswap=True,
             treq_sel=DREQ_PIO0_TX0,
-            chain_to=self.dma1.channel,
+            irq_quiet=False,
+            # chain_to=self.dma1.channel,
         )
         self.dma0.config(
             count=self.dma_tx_count,
@@ -338,53 +356,47 @@ class SSD1331PIO():
             write=PIO0_TX0,
             ctrl=ctrl0,
         )
+        self.dma0.irq(handler=self.irq_render)
 
         """ Control Channel """
         ctrl1 = self.dma1.pack_ctrl(
             size=2,
             inc_read=False,
             inc_write=False,
-            chain_to=self.dma0.channel,
+            irq_quiet=False,
+            # chain_to=self.dma0.channel,
         )
 
         self.dma1.config(
             count=1,
             read=self.curr_read_buf,
-            write=self.DMA_BASE + DMA_READ_ADDR,
+            write=DMA_BASE + DMA_READ_ADDR,
             ctrl=ctrl1,
         )
+        self.dma1.irq(handler=self.irq_render_ctrl)
 
-    def self_trigger(self):
-        pass
-        # Make DMA0 self triggering
-        # current_val = mem32[DMA_TRANS_COUNT]
-        # new_val = current_val | (0b0001 << 28)
-        # mem32[DMA_TRANS_COUNT] = new_val
-
-        # print(f"REG: {new_val:032b}")
-        # print("     |......|", end='')
-        # print(".......|", end='')
-        # print(".......|", end='')
-        # print(".......|")
-
-        # Double the TX FIFO for this SM
-        # current_val = mem32[SM0_SHIFTCTRL]
-        # new_val = current_val | (1 << 30)
-        # mem32[SM0_SHIFTCTRL] = new_val
-
-    def irq_render(self, event):
-        if DEBUG_DISPLAY:
-            print(f"===== RENDER DONE (count: {self.dma0.count})=====")
+    def irq_render(self, dma):
         self.is_render_done = True
 
-    def irq_render_ctrl(self, event):
-        if DEBUG_DISPLAY:
-            new_addr = int(self.dma1.read)
-            addr = mem32[new_addr]
-            # addr_value = mem32[int(addr)]
-            addr_value = 0
-            print(f"<<<<< RENDER CTRL DONE (next addr: 0x{new_addr:08X})>>>>>")
+        if DEBUG_LED and self.scaler:
+            self.scaler.blink_led(4)
+
+        if DEBUG_IRQ:
+            print(f"===== RENDER DONE (count: {self.dma0.count})=====")
+
+    def irq_render_ctrl(self, ch):
         self.is_render_ctrl_done = True
+
+        if DEBUG_LED and self.scaler:
+            self.scaler.blink_led(3)
+
+        if DEBUG_IRQ:
+            new_addr_ref = int(self.dma1.read)
+            new_addr = mem32[new_addr_ref]
+
+            print(f"<<<<< RENDER CTRL DONE >>>>>")
+            # print(f" DMA0 - new addr: 0x{new_addr:08X} >>>>")
+            # print(f" DMA1 - new addr: 0x{new_addr_ref:08X} >>>>>")
 
     """ DRAWING FUNCTIONS """
     def pixel(self, x, y, color=None):

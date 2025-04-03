@@ -1,5 +1,6 @@
 import framebuf
 from profiler import Profiler as prof
+from scaler.dma_chain import DMAChain
 from screens.screen import PixelBounds
 from ssd1331_pio import SSD1331PIO
 from uctypes import addressof
@@ -59,7 +60,7 @@ class ScalerFramebuf():
             [64, 64],
             [self.max_height, self.max_width]
         ]
-        self.fill_color = 0x000000
+        self.fill_color = 0x0
         self.min_write_addr = addressof(self.scratch_bytes)
 
         self.init_buffers(mode)
@@ -70,31 +71,24 @@ class ScalerFramebuf():
 
         # 4x4
         self.scratch_buffer_4 = self.make_buffer(4, 4, mode)
-        # self.scratch_buffer_4.fill(self.fill_color)
 
         # 8x8
         self.scratch_buffer_8 = self.make_buffer(8, 8, mode)
-        # self.scratch_buffer_8.fill(self.fill_color)
 
         # 16x16
         self.scratch_buffer_16 = self.make_buffer(16, 16, mode)
-        # self.scratch_buffer_16.fill(self.fill_color)
 
         # 32x32
         self.scratch_buffer_32 = self.make_buffer(32, 32, mode)
-        # self.scratch_buffer_32.fill(self.fill_color)
 
         # 48x48
         self.scratch_buffer_48 = self.make_buffer(48, 48, mode)
-        # self.scratch_buffer_48.fill(self.fill_color)
 
         # 64x64
         self.scratch_buffer_64 = self.make_buffer(64, 64, mode)
-        # self.scratch_buffer_64.fill(self.fill_color)
 
         # fullscreen - extra 32 px on the width to accommodate really large sprites with -x (or -y)
         self.scratch_buffer_full = self.make_buffer(self.max_width, self.max_height, mode)
-        self.scratch_buffer_full.fill(self.fill_color)
 
     def make_buffer(self, width, height, mode):
         new_buff = framebuf.FrameBuffer(self.scratch_bytes, width, height, mode)
@@ -138,12 +132,12 @@ class ScalerFramebuf():
             self.frame_width = self.max_width
             self.frame_height = self.max_height
 
-        self.scratch_buffer.fill(self.fill_color)
+        # self.scratch_buffer.fill(self.fill_color)
         self.display_stride = self.frame_width * 2
         self.frame_bytes = self.display_stride * self.frame_height
 
         prof.end_profile('scaler.select_buffer')
-        dma = self.scaler.dma
+        dma:DMAChain = self.scaler.dma
         if DEBUG_DISPLAY:
             print(f"............................................")
             print(f":  In scaler_framebuf.select_buffer        :")
@@ -151,7 +145,8 @@ class ScalerFramebuf():
             print(f"    WRITE ADDRs @ ADDR: 0x{addressof(dma.write_addrs):08x}")
             print(f"    WRITE ADDRs 1st:    0x{dma.write_addrs[0]:08x}")
             print(f"    WRITE ADDRs last:   0x{dma.write_addrs[-1]:08x}")
-            print(f"    WRITE ADDR COUNT:   {len(dma.write_addrs)} ")
+            print(f"    WRITE ADDR COUNT:   {dma.max_write_addrs} ")
+            print(f"    READ ADDR COUNT:    {dma.max_read_addrs} ")
             print(f"    SOURCE IMG w/h:     {scaled_width}, {scaled_height}")
             print(f"    FRAMEB w/h:         {self.frame_width}x{self.frame_height}")
             print(f"    SELECTED FB STRIDE: {self.display_stride} bytes")
