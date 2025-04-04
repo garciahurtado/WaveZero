@@ -2,6 +2,8 @@ import _thread
 import gc
 import sys
 
+from mpdb.mpdb import Mpdb
+
 import utime
 from utime import sleep
 
@@ -10,11 +12,11 @@ from scaler.const import BUS_CTRL_BASE, BUS_PRIORITY, XOSC_CTRL, XOSC_BASE, XOSC
 from screens.game_screen_test import GameScreenTest
 # import frozen_img # Created with freezefs: https://github.com/bixb922/freezeFS
 from screens.screen_app import ScreenApp
-from screens.test_screen import TestScreen
-from screens.game_screen import GameScreen
-from screens.title_screen import TitleScreen
 # from screens.test_screen import TestScreen
-from screens.test_screen_starfield import TestScreenStarfield
+# from screens.game_screen import GameScreen
+# from screens.title_screen import TitleScreen
+# from screens.test_screen import TestScreen
+# from screens.test_screen_starfield import TestScreenStarfield
 
 import micropython
 import machine
@@ -24,9 +26,15 @@ from machine import mem32
 
 print(f" = EXEC ON CORE {_thread.get_ident()} (main)")
 
-# Define clock control registers
+# debugger = Mpdb()
 
 def main():
+    # global debugger
+    # debugger.set_trace()
+    # debugger.set_break('/lib/scaler/sprite_scaler.py', 133)
+    # debugger.set_break('/lib/scaler/sprite_scaler.py', 209)
+    # debugger.set_break('/lib/scaler/sprite_scaler.py', 213)
+
     micropython.opt_level(0)
     utime.sleep_ms(50)
 
@@ -50,20 +58,6 @@ def main():
 
     app = ScreenApp(96, 64)
 
-    # mem32[ACCESS_CTRL_PIO0] = 0xFFFFFFFF # All permissions open for PIO0
-    # mem32[ACCESS_CTRL_PIO1] = 0xFFFFFFFF # All permissions open for PIO1
-    #
-    # value0 = mem32[ACCESS_CTRL_DMA]
-    # value1 = mem32[ACCESS_CTRL_PIO0]
-    # value2 = mem32[ACCESS_CTRL_PIO1]
-
-    # mem32[ACCESS_CTRL_DMA_ATOM] = 0b00000000000000000000000000000001
-    # mem32[ACCESS_CTRL_PIO0] = value1 | 0x00000000 # All permissions open for DMA
-    # mem32[ACCESS_CTRL_PIO1] = value2 | 0x00000000 # All permissions open for DMA
-    #
-    # print(f"BUS_PERMS (DMA)  {value0:>032b}")
-    # print(f"BUS_PERMS (PIO0) {value1:>032b}")
-    # print(f"BUS_PERMS (PIO1) {value2:>032b}")
 
     # app.load_screen(TitleScreen(app.display))
     app.load_screen(GameScreenTest(app.display))

@@ -40,5 +40,5 @@ def setup_display():
         pin_sck=pin_sck,
         pin_sda=pin_sda)
 
-    # display.start()
+    display.start()
     return display

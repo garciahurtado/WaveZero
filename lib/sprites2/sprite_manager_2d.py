@@ -2,6 +2,7 @@ from images.image_loader import ImageLoader
 from profiler import Profiler
 from scaler.const import DEBUG_INST, DEBUG_PHYSICS
 from sprites2.sprite_manager import SpriteManager
+from sprites2.sprite_manager import SpriteManager
 from sprites2.sprite_types import SpriteType as types, FLAG_PHYSICS, FLAG_ACTIVE
 
 prof = Profiler()

@@ -6,7 +6,7 @@ from scaler.const import PIO1_BASE, PIO1_SM0_SHIFTCTRL, PIO1_SM0_EXECCTRL
 
 def read_palette_init(pin_led1):
 
-    sm_freq = 2_000_000
+    sm_freq = 24_000_000
 
     # PIO1 / SM0 = ID #4
     read_palette_sm = StateMachine(4)
@@ -26,7 +26,7 @@ def read_palette_init(pin_led1):
     new_status_n = 0b000001  # STATUS_N value (less than 1)
     new_value = cleared | new_status_n
 
-    # mem32[ctrl_addr] = new_value
+    mem32[ctrl_addr] = new_value
 
     return read_palette_sm
 
@@ -54,26 +54,18 @@ def read_palette():
     pull()                               [2] #.side(0)   # First word in is the palette base address
     out(isr, 32)                             #.side(0)   # Keep it in the ISR for later
 
-    # set(pins, 0x2)
-    # set(pins, 0x0)
 
     # set(pins, 0b0001)  # We have 8 pixels per word (outer loop must run twice to total 16 px, THEN pull, since the
     # check is post-decrement, the value ends up being 1 if we want it to run twice )
 
     # START WORD LOOP ----------------------------------------------
     label("new_pull")
-
-    # set(pins, 0x4)
-    # set(pins, 0x0)
-
+    nop()[15]
     pull()
 
     # START PIXEL LOOP ----------------------------------------------
     label("wrap_target")
     wrap_target()
-
-    # set(pins, 0x8)
-    # set(pins, 0x0)
 
     """ Index lookup logic (reverse addition) """
     mov(x, invert(isr))             # ISR has the palette addr, save it in x
@@ -108,8 +100,9 @@ def read_palette():
 
     # -- Check if FIFO empty
     mov(y, status)                   # status will be all 1s when FIFO TX level = 0 (n < 1), and 0s otherwise
-    jmp(invert(not_y), "new_pull")   # Its NOT empty, which means we can do another pull
-    irq(0)                           # It is empty, so mark the end of the whole SM operation for one sprite
+    jmp(invert(not_y), "new_pull")   # Its NOT empty, which means we can do another pull, lets jump
+
+    irq(0)                           # If we didnt jump, it is empty, so mark the end of the whole SM operation for one sprite
 
     jmp("new_sprite")
 

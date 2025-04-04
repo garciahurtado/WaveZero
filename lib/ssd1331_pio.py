@@ -16,6 +16,7 @@ import uctypes
 from uctypes import addressof
 import gc
 import colors.color_util as colors
+from scaler.status_leds import get_status_led_obj
 from scaler.const import DEBUG_DMA, DMA_BASE_1, DMA_READ_ADDR_TRIG, DMA_WRITE_ADDR_TRIG, DMA_READ_ADDR, PIO0_BASE, \
     PIO1_BASE, PIO0_TX0, PIO0_CTRL, DMA_BASE, DEBUG_DISPLAY, DMA_TRANS_COUNT, DREQ_PIO0_TX0, MULTI_CHAN_TRIGGER, \
     PIO0_SM0_SHIFTCTRL, DEBUG_PIO, DMA_WRITE_ADDR, DEBUG_IRQ, DMA_BASE_8, DMA_BASE_7, DEBUG_LED, DMA_BASE_0
@@ -64,7 +65,7 @@ class SSD1331PIO():
     xA0 x76 -> BGR
     """
 
-    scaler = None
+    status_led = None
 
     INIT_BYTES = (
         b'\xAE'  # Set Display Off (turn off display during initialization)
@@ -98,6 +99,8 @@ class SSD1331PIO():
         self.pin_sda = pin_sda
         self.height = height
         self.width = width
+
+        self.status_led = get_status_led_obj()
 
         # Initialize DMA channels
         self.dma0 = DMA()
@@ -133,10 +136,6 @@ class SSD1331PIO():
         self.write_buffer = self.buffer0
         self.read_buffer = self.buffer1
 
-        if DEBUG_PIO:
-            print(f" * BUFFER 0 @: 0x{addressof(self.buffer0):08X}")
-            print(f" * BUFFER 1 @: 0x{addressof(self.buffer1):08X}")
-
         self.write_framebuf = self.framebuf0
         self.read_framebuf = self.framebuf1
 
@@ -171,16 +170,17 @@ class SSD1331PIO():
         return
 
     def swap_buffers(self):
+        if DEBUG_DISPLAY:
+            print(">> 1. About to swap buffers <<")
+
         while not self.is_render_done:
             utime.sleep_ms(1)
 
         self.is_render_done = False
 
-        if DEBUG_DISPLAY:
-            print(">> 1. About to swap buffers <<")
-
         self.read_framebuf, self.write_framebuf = self.write_framebuf, self.read_framebuf
 
+        # We use the normal register because we dont want to trigger it, just load the address
         dma1_read = DMA_BASE_1 + DMA_READ_ADDR
 
         """ Reconfigure the control channel read to point to the other buffer """
@@ -192,7 +192,7 @@ class SSD1331PIO():
             self.flip = True
 
         self.dma1.active(1)
-        # self.dma0.active(1)
+        self.dma0.active(1)
 
         if DEBUG_DISPLAY:
             print(">> 2. Active render is done <<")
@@ -246,7 +246,7 @@ class SSD1331PIO():
         self.pin_dc(self.DC_MODE_DATA)
 
     # def init_pio_spi(self, freq=72_250_000):
-    def init_pio_spi(self, freq=20_000_000):
+    def init_pio_spi(self, freq=64_000_000):
         """"""
         """ Ideal freq for 1x1: 96_500_000 (no pio delays)"""
         """ Ideal freq for 2x2: 97_000_000 (no pio delays)"""
@@ -332,8 +332,8 @@ class SSD1331PIO():
          pixels * 2 = bytes (2 bytes per px)
          bytes / 4 = total tx (at 4 bytes per tx, ie: 32bit)
         """
-        total_bytes = (self.width * self.height) * 2
-        self.dma_tx_count = total_bytes // 4
+        self.total_bytes = (self.width * self.height) * 2
+        self.dma_tx_count = self.total_bytes // 4
 
         if DEBUG_DMA:
             print(f" Start Read Addr: {addressof(self.buffer0):08X}")
@@ -378,25 +378,25 @@ class SSD1331PIO():
     def irq_render(self, dma):
         self.is_render_done = True
 
-        if DEBUG_LED and self.scaler:
-            self.scaler.blink_led(4)
+        if DEBUG_LED and self.status_led:
+            self.status_led.blink_led(1)
 
         if DEBUG_IRQ:
-            print(f"===== RENDER DONE (count: {self.dma0.count})=====")
+            print(f"===== RENDER DONE (TX count: {self.dma0.count} - \tch:{dma.channel})=====")
 
-    def irq_render_ctrl(self, ch):
+    def irq_render_ctrl(self, dma):
         self.is_render_ctrl_done = True
 
-        if DEBUG_LED and self.scaler:
-            self.scaler.blink_led(3)
+        if DEBUG_LED and self.status_led:
+            self.status_led.blink_led(2)
 
         if DEBUG_IRQ:
             new_addr_ref = int(self.dma1.read)
             new_addr = mem32[new_addr_ref]
 
-            print(f"<<<<< RENDER CTRL DONE >>>>>")
-            # print(f" DMA0 - new addr: 0x{new_addr:08X} >>>>")
-            # print(f" DMA1 - new addr: 0x{new_addr_ref:08X} >>>>>")
+            print(f"<<<<< RENDER CTRL DONE - ch:{dma.channel} >>>>>")
+            print(f" DMA0 - new addr: 0x{new_addr:08X} >>>>")
+            print(f" DMA1 - new addr: 0x{new_addr_ref:08X} >>>>>")
 
     """ DRAWING FUNCTIONS """
     def pixel(self, x, y, color=None):

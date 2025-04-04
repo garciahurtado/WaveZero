@@ -132,9 +132,9 @@ class GameScreenTest(Screen):
         self.ui.show()
         self.draw_corners()
 
-        # self.scaler.draw_sprite(
-        #         self.sprite, self.inst, self.image,
-        #         h_scale=1, v_scale=1)
+        self.scaler.draw_sprite(
+                self.sprite, self.inst, self.image,
+                h_scale=1, v_scale=1)
 
         self.display.show()
         self.fps.tick()

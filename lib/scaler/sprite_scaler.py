@@ -5,6 +5,8 @@ import rp2
 import utime
 
 from scaler.scaler_framebuf import ScalerFramebuf
+from scaler.status_leds import get_status_led_obj
+
 gc.collect()
 
 import math
@@ -34,13 +36,14 @@ from profiler import Profiler as prof
 
 class SpriteScaler():
     def __init__(self, display):
+        self.leds = get_status_led_obj()
         self.skip_rows = 0
         self.skip_cols = 0
 
         self.display: SSD1331PIO = display
         self.framebuf: ScalerFramebuf = ScalerFramebuf(self, display)
 
-        self.dma = DMAChain(self, display, extra_write_addrs=self.framebuf.extra_subpx_top)
+        self.dma = DMAChain(display, extra_write_addrs=self.framebuf.extra_subpx_top)
 
         self.dbg = ScalerDebugger()
         self.debug_bytes = self.dbg.get_debug_bytes()
@@ -62,30 +65,22 @@ class SpriteScaler():
         self.palette_addr = None
         self.last_palette_addr = None # For caching
 
-        # Status LEDs
-        self.pin_led1 = Pin(10, Pin.OUT, value=0)
-        self.pin_led2 = Pin(11, Pin.OUT, value=0)
-        self.pin_led3 = Pin(12, Pin.OUT, value=0)
-        self.pin_led4 = Pin(13, Pin.OUT, value=0)
-
         self.pin_jmp = Pin(14, Pin.OUT, value=0)        # free "pin" used to reload the palette address in the SM
 
-        self.sm_read_palette = read_palette_init(self.pin_led1)
-        self.sm_read_palette.irq(handler=self.irq_sm_read_palette)
+        self.sm_read_palette = read_palette_init(self.leds.pin_led1)
+        self.sm_read_palette.irq(handler=self.irq_sm_read_palette, hard=True)
 
         self.sm_finished = False
         self.sm_read_palette.active(1)
 
         self.init_interp()
 
-        # DEBUG
-        self.display.scaler = self
-        self.display.start()
-
         if DEBUG_SCALE_PATTERNS:
             self.dma.patterns.print_patterns()
 
     def irq_sm_read_palette(self, ch):
+        # self.sm_read_palette.active(0)
+
         if DEBUG_IRQ:
             print('<"""""""" - PIO1 SM IRQ ASSERTED  """""""">')
 
@@ -194,12 +189,12 @@ class SpriteScaler():
         prof.end_profile('scaler.init_interp_sprite')
         prof.start_profile('scaler.init_pio')
         palette_addr = addressof(image.palette.palette)
-        self.palette_addr = palette_addr
         self.init_pio(palette_addr)
+        self.palette_addr = palette_addr
         prof.end_profile('scaler.init_pio')
 
         prof.start_profile('scaler.init_dma_sprite')
-        self.dma.reset_dma_counts(self.read_stride_px, h_scale)
+        self.dma.init_dma_counts(self.read_stride_px, h_scale)
         prof.end_profile('scaler.init_dma_sprite')
 
         prof.start_profile('scaler.fill_addrs')
@@ -207,17 +202,27 @@ class SpriteScaler():
         prof.end_profile('scaler.fill_addrs')
 
         if DEBUG_DMA_CH:
-            print("<<< CHANNEL STATUS BEFORE START >>>")
+            print("<<< CH STATUS BEFORE START / WHILE WAIT -- draw_sprite() >>>")
             self.dma.debug_dma_channels()
         prof.end_profile('scaler.fill_addrs')
 
         self.start(h_scale)
 
-        # ---*--- marker for bookmark ---*---
+        if DEBUG_TICKS:
+            self.ticks_debug()
 
-        while False and not (self.sm_finished and self.dma.color_row_finished and
-                    self.dma.h_scale and self.dma.px_read_finished):
-            utime.sleep_ms(1)
+        utime.sleep_ms(20)
+        # ---*--- marker for bookmark - do not delete or move ---*---
+
+        # while not (self.sm_finished and self.dma.color_row_finished and
+        #             self.dma.h_scale and self.dma.px_read_finished):
+        #             utime.sleep_ms(2)
+
+        while not (self.sm_finished and self.dma.color_row_finished and
+                   self.dma.h_scale):
+            utime.sleep_ms(2)
+
+        utime.sleep_ms(20)
 
         if DEBUG_TICKS:
             self.ticks_debug()
@@ -272,6 +277,7 @@ class SpriteScaler():
             print(f"==> BLITTING to {self.draw_x}, {self.draw_y} / alpha: {self.alpha}")
 
         self.framebuf.blit_with_alpha(int(self.draw_x), int(self.draw_y), self.alpha)
+        self.reset()
 
         prof.end_profile('scaler.finish_sprite')
 
@@ -288,13 +294,6 @@ class SpriteScaler():
             print(f" ---")
             print(f" sm_finished    {self.sm_finished}")
             print("  ~~~~~~~~~~~~~~~~~~~~~~~~")
-
-    def blink_led(self, num):
-        leds = [0, self.pin_led1, self.pin_led2, self.pin_led3 ,self.pin_led4]
-        my_led = leds[num]
-        my_led.value(1)
-        utime.sleep_ms(20)
-        my_led.value(0)
 
     def init_interp(self):
         """ One time INTERPOLATOR configuration """
@@ -501,20 +500,9 @@ class SpriteScaler():
 
     def init_pio(self, palette_addr):
         self.sm_finished = False
-        # self.sm_read_palette.active(0)
-        # self.sm_read_palette.restart()
+        self.sm_read_palette.restart()
         self.sm_read_palette.active(1)
         self.sm_read_palette.put(palette_addr)
-
-        # line_num = 31
-        # pc_num_addr = PIO1_BASE + SM0_ADDR
-        # line_num = mem32[pc_num_addr]
-
-        # self.sm_read_palette.exec('jmp("new_addr")') -> inst #1
-        #
-        # self.sm_read_palette.active(1)
-        # inst_hex = 0b0000000000000001
-        # self.sm_read_palette.exec(inst_hex)
 
         pass
 
