@@ -48,6 +48,7 @@ class SpriteScaler():
         self.dbg = ScalerDebugger()
         self.debug_bytes = self.dbg.get_debug_bytes()
         self.dma.dbg = self.dbg
+        self.dma.scaler = self
         self.dma.init_channels()
 
         self.draw_x = 0
@@ -68,7 +69,7 @@ class SpriteScaler():
         self.pin_jmp = Pin(14, Pin.OUT, value=0)        # free "pin" used to reload the palette address in the SM
 
         self.sm_read_palette = read_palette_init(self.leds.pin_led1)
-        self.sm_read_palette.irq(handler=self.irq_sm_read_palette, hard=True)
+        self.sm_read_palette.irq(handler=self.irq_sm_read_palette, trigger=1)
 
         self.sm_finished = False
         self.sm_read_palette.active(1)
@@ -79,8 +80,6 @@ class SpriteScaler():
             self.dma.patterns.print_patterns()
 
     def irq_sm_read_palette(self, ch):
-        # self.sm_read_palette.active(0)
-
         if DEBUG_IRQ:
             print('<"""""""" - PIO1 SM IRQ ASSERTED  """""""">')
 
@@ -208,21 +207,19 @@ class SpriteScaler():
 
         self.start(h_scale)
 
+        utime.sleep_ms(2)
+
         if DEBUG_TICKS:
             self.ticks_debug()
 
-        utime.sleep_ms(20)
         # ---*--- marker for bookmark - do not delete or move ---*---
 
         # while not (self.sm_finished and self.dma.color_row_finished and
         #             self.dma.h_scale and self.dma.px_read_finished):
         #             utime.sleep_ms(2)
 
-        while not (self.sm_finished and self.dma.color_row_finished and
-                   self.dma.h_scale):
-            utime.sleep_ms(2)
-
-        utime.sleep_ms(20)
+        while not (self.sm_finished):
+            utime.sleep_ms(1)
 
         if DEBUG_TICKS:
             self.ticks_debug()
@@ -277,7 +274,7 @@ class SpriteScaler():
             print(f"==> BLITTING to {self.draw_x}, {self.draw_y} / alpha: {self.alpha}")
 
         self.framebuf.blit_with_alpha(int(self.draw_x), int(self.draw_y), self.alpha)
-        self.reset()
+        # self.reset()
 
         prof.end_profile('scaler.finish_sprite')
 
@@ -500,8 +497,8 @@ class SpriteScaler():
 
     def init_pio(self, palette_addr):
         self.sm_finished = False
-        self.sm_read_palette.restart()
-        self.sm_read_palette.active(1)
+        # self.sm_read_palette.restart()
+        # self.sm_read_palette.active(1)
         self.sm_read_palette.put(palette_addr)
 
         pass

@@ -101,8 +101,9 @@ class ScalerDebugger():
         print(f". ........ {dma.registers[3]:08X} CTRL")
         print(f"*. CTRL UNPACKED |")
         print(f"                 v")
+
+        keys = list(ctrl.keys())
         for idx1, idx2 in zip(range(0, len(ctrl), 2), range(1, len(ctrl), 2)):
-            keys = list(ctrl.keys())
             key1 = keys[idx1]
             key2 = keys[idx2]
             value1 = ctrl[key1]

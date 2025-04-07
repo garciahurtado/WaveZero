@@ -2,15 +2,15 @@ from micropython import const
 
 """ Debugging Constants """
 DEBUG =                     const(0)
-DEBUG_LED =                 const(1)
-DEBUG_TICKS =               const(1)
-DEBUG_DMA =                 const(1)
-DEBUG_DMA_CH =              const(1)
+DEBUG_LED =                 const(0)
+DEBUG_TICKS =               const(0)
+DEBUG_DMA =                 const(0)
+DEBUG_DMA_CH =              const(0)
 DEBUG_DMA_ADDR =            const(0)
-DEBUG_DISPLAY =             const(1)
-DEBUG_PIO =                 const(1)
+DEBUG_DISPLAY =             const(0)
+DEBUG_PIO =                 const(0)
 DEBUG_PHYSICS =             const(0)
-DEBUG_IRQ =                 const(1)
+DEBUG_IRQ =                 const(0)
 DEBUG_INTERP =              const(0)
 DEBUG_INST =                const(0)
 DEBUG_INTERP_LIST =         const(0)
@@ -43,12 +43,9 @@ DMA_READ_ADDR = 0x000
 DMA_READ_ADDR_TRIG = 0x03C
 DMA_WRITE_ADDR = 0x004
 DMA_WRITE_ADDR_TRIG = 0x02C
-DMA_TRANS_COUNT = 0x08
-DMA_TRANS_COUNT_TRIG = 0x016
-# DMA_TRANS_COUNT_TRIG = 0x01c
-# DMA_WRITE_ADDR_TRIG = 0x026
+DMA_TRANS_COUNT = 0x008
+DMA_TRANS_COUNT_TRIG = 0x01c
 DMA_CTRL_TRIG = 0x00c
-DMA_AL1_CTRL = 0x010
 DMA_DBG_TCR = 0x804
 
 DMA_READ_ADDR_BASE = DMA_BASE_2

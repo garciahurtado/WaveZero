@@ -1,6 +1,8 @@
 import math
 
 import time
+
+import rp2
 import utime
 from _rp2 import DMA
 from uarray import array
@@ -40,6 +42,7 @@ class DMAChain:
     h_scale = None
     addr_loader = None
     leds = None
+    scaler = None
 
     dbg: Optional[ScalerDebugger] = None
 
@@ -80,7 +83,8 @@ class DMAChain:
         write_addr_ctrl = self.write_addr.pack_ctrl(
             size=2,             # 32-bit control blocks
             inc_read=True,      # Step through write addrs
-            inc_write=False,    # always write to DMA2 WRITE
+            inc_write=False,    # always write to PX WRITE DMA
+            irq_quiet=True,
             chain_to=self.read_addr.channel,
         )
 
@@ -98,6 +102,7 @@ class DMAChain:
             size=2,             # 32-bit control blocks
             inc_read=True,      # Reads from RAM
             inc_write=False,    # Fixed write target
+            irq_quiet=True,
             chain_to = self.color_lookup.channel,
         )
 
@@ -118,6 +123,7 @@ class DMAChain:
             treq_sel=DREQ_PIO1_TX0,
             bswap=True,
             irq_quiet=True,
+            chain_to=self.px_read.channel
         )
 
         self.px_read.config(
@@ -126,7 +132,7 @@ class DMAChain:
             write=PIO1_TX0,
             ctrl=px_read_ctrl
         )
-        self.px_read.irq(handler=self.irq_px_read_end, hard=True)
+        self.px_read.irq(handler=self.irq_px_read_end)
 
     def init_color_lookup(self):
         """ CH:5 Color lookup DMA """
@@ -135,17 +141,17 @@ class DMAChain:
             inc_read=False,
             inc_write=False,  # always writes to DMA6 READ
             treq_sel=DREQ_PIO1_RX0,
+            irq_quiet=True,
             chain_to=self.write_addr.channel,
-            irq_quiet=False
         )
 
         self.color_lookup.config(
             count=1,  # TBD
             read=PIO1_RX0,
-            write=DMA_PX_WRITE_BASE + DMA_READ_ADDR,
+            write=DMA_PX_WRITE_BASE + DMA_READ_ADDR_TRIG,
             ctrl=color_lookup_ctrl,
         )
-        self.color_lookup.irq(handler=self.irq_end_color_row)
+        # self.color_lookup.irq(handler=self.irq_end_color_row)
 
 
     def init_px_write(self):
@@ -154,6 +160,7 @@ class DMAChain:
             size=1,  # 16 bit pixels
             inc_read=False,  # from PIO
             inc_write=True,  # Through display
+            irq_quiet=True,
             chain_to=self.h_scale.channel,
         )
 
@@ -170,19 +177,20 @@ class DMAChain:
             size=2,
             inc_read=True,
             inc_write=False,
-            treq_sel=DREQ_PIO1_RX0,
+            # treq_sel=DREQ_PIO1_RX0,
             ring_sel=False,  # ring on read
             ring_size=4,  # n bytes = 2^n
-            irq_quiet=False,
+            irq_quiet=True,
+            chain_to=self.h_scale.channel
         )
 
         self.h_scale.config(
             count=1,
             # read=xxx,  # Current horizontal pattern (to be set later)
-            write=DMA_PX_WRITE_BASE + DMA_TRANS_COUNT_TRIG,
+            write=DMA_PX_WRITE_BASE + DMA_TRANS_COUNT,
             ctrl=h_scale_ctrl
         )
-        self.h_scale.irq(handler=self.irq_h_scale)
+        # self.h_scale.irq(handler=self.irq_h_scale)
 
     def init_dma_counts(self, read_stride_px, h_scale):
         """Configure Sprite specific DMA parameters."""
@@ -190,7 +198,7 @@ class DMAChain:
         px_read_tx_count = int(read_stride_px / 8) # 2px per byte * 4 bytes per word = 8px per word
         self.color_lookup.count = read_stride_px
         self.px_read.count = px_read_tx_count
-        # self.h_scale.count = read_stride_px
+        self.h_scale.count = 1
         self.h_scale.read = self.patterns.get_pattern(h_scale)
 
         if DEBUG_DMA:
@@ -200,7 +208,8 @@ class DMAChain:
 
     def start(self):
         """Activate DMA channels in correct sequence."""
-        # self.h_scale.active(1)
+        self.h_scale.active(1)
+        self.color_lookup.active(1)
         self.write_addr.active(1)
         pass
 
@@ -261,12 +270,12 @@ class DMAChain:
             self.read_addr_finished = True
 
     def debug_dma_channels(self):
-        # self.dbg.debug_dma(self.disp_addr, "display driver address", "disp_addr", 0)
-        # self.dbg.debug_dma(self.disp_ctrl, "display driver ctrl", "disp_ctrl", 1)
-        self.dbg.debug_dma(self.write_addr, "write address", "write_addr", 3)
+        self.dbg.debug_dma(self.scaler.display.dma0, "display render", "disp_addr", 0)
+        self.dbg.debug_dma(self.scaler.display.dma1, "display ctrl", "disp_ctrl", 1)
         self.dbg.debug_dma(self.read_addr, "read address", "read_addr", 2)
+        self.dbg.debug_dma(self.write_addr, "write address", "write_addr", 3)
         self.dbg.debug_dma(self.px_read, "pixel read", "pixel_read", 4)
-        self.dbg.debug_dma(self.color_lookup, "color_lookup", "color_lookup", 4)
+        self.dbg.debug_dma(self.color_lookup, "color_lookup", "color_lookup", 5)
         self.dbg.debug_dma(self.px_write, "pixel write", "pixel_write", 6)
         self.dbg.debug_dma(self.h_scale, "horiz_scale", "horiz_scale", 7)
 

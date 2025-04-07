@@ -52,19 +52,21 @@ class GameScreenTest(Screen):
         self.init_camera()
 
         self.scaler = SpriteScaler(display)
-        self.mgr = SpriteManager2D(self.display, 1)
+        self.mgr = SpriteManager2D(self.display, 2)
         self.load_types()
         self.load_sprite(SPRITE_TEST_HEART)
-        self.inst, idx = self.mgr.pool.get(self.sprite_type, self.sprite)
         self.phy = self.mgr.phy
+
+        self.inst1, idx = self.mgr.pool.get(self.sprite_type, self.sprite)
+        self.inst2, idx = self.mgr.pool.get(self.sprite_type, self.sprite)
+        self.phy.set_pos(self.inst1, 50, 24)
+        self.phy.set_pos(self.inst2, 50, 50)
 
         self.preload_images()
         self.ui = ui_screen(display, self.num_lives)
         self.grid = RoadGrid(self.camera, display, lane_width=self.lane_width)
 
         self.display.fps = self.fps
-
-
 
     def preload_images(self):
         images = [
@@ -126,15 +128,18 @@ class GameScreenTest(Screen):
     def do_refresh(self):
         """ Overrides parent method """
         self.display.fill(0x0000)
-        self.phy.set_pos(self.inst, 50, 46)
 
         self.grid.show()
         self.ui.show()
         self.draw_corners()
 
         self.scaler.draw_sprite(
-                self.sprite, self.inst, self.image,
-                h_scale=1, v_scale=1)
+                self.sprite, self.inst1, self.image,
+                h_scale=2, v_scale=2)
+
+        self.scaler.draw_sprite(
+            self.sprite, self.inst2, self.image,
+            h_scale=2, v_scale=2)
 
         self.display.show()
         self.fps.tick()
@@ -158,7 +163,8 @@ class GameScreenTest(Screen):
         self.display.line(0, height, 0, height-length, green)
         self.display.line(width, height, width, height-length, green)
 
-        self.display.hline(0, 0, 3, red)
+        self.display.hline(0, 0, 8, red)
+        self.display.hline(0, 0, 4, blue)
 
     async def start_bus_profiler(self):
         while True:

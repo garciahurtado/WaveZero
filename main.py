@@ -19,6 +19,7 @@ from screens.screen_app import ScreenApp
 # from screens.test_screen_starfield import TestScreenStarfield
 
 import micropython
+micropython.alloc_emergency_exception_buf(100)
 import machine
 from machine import mem32
 
@@ -31,9 +32,15 @@ print(f" = EXEC ON CORE {_thread.get_ident()} (main)")
 def main():
     # global debugger
     # debugger.set_trace()
-    # debugger.set_break('/lib/scaler/sprite_scaler.py', 133)
+    # debugger.set_break('/lib/ssd1331_pio.py', 133)
+    # debugger.set_break('/lib/ssd1331_pio.py', 183)
+    # debugger.set_break('/lib/ssd1331_pio.py', 190)
+
     # debugger.set_break('/lib/scaler/sprite_scaler.py', 209)
     # debugger.set_break('/lib/scaler/sprite_scaler.py', 213)
+    # debugger.set_break('/lib/scaler/sprite_scaler.py', 275)
+    # break /lib/ssd1331_pio.py:183
+    # break /lib/scaler/sprite_scaler.py:275
 
     micropython.opt_level(0)
     utime.sleep_ms(50)
@@ -42,7 +49,8 @@ def main():
     # max_freq = 150_000_000
     # max_freq = 133_000_000
     # max_freq = 125_000_000
-    # max_freq = 80_000_000
+    # max_freq = 92_000_000
+    # max_freq = 64_000_000
     # max_freq = 52_000_000
     # max_freq = 48_000_000
     # max_freq = 24_000_000
@@ -57,7 +65,6 @@ def main():
     sleep(2)
 
     app = ScreenApp(96, 64)
-
 
     # app.load_screen(TitleScreen(app.display))
     app.load_screen(GameScreenTest(app.display))

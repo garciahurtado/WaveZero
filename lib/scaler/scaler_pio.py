@@ -6,7 +6,7 @@ from scaler.const import PIO1_BASE, PIO1_SM0_SHIFTCTRL, PIO1_SM0_EXECCTRL
 
 def read_palette_init(pin_led1):
 
-    sm_freq = 24_000_000
+    sm_freq = 12_000_000
 
     # PIO1 / SM0 = ID #4
     read_palette_sm = StateMachine(4)
@@ -50,17 +50,15 @@ def read_palette():
     label("new_sprite")
     # wait(1,irq,0)
 
-
     pull()                               [2] #.side(0)   # First word in is the palette base address
     out(isr, 32)                             #.side(0)   # Keep it in the ISR for later
-
 
     # set(pins, 0b0001)  # We have 8 pixels per word (outer loop must run twice to total 16 px, THEN pull, since the
     # check is post-decrement, the value ends up being 1 if we want it to run twice )
 
     # START WORD LOOP ----------------------------------------------
     label("new_pull")
-    nop()[15]
+    # nop()[15]
     pull()
 
     # START PIXEL LOOP ----------------------------------------------
