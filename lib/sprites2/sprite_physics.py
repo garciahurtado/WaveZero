@@ -1,3 +1,6 @@
+import math
+from ucollections import namedtuple
+
 from scaler.const import *
 
 """
@@ -39,6 +42,14 @@ FP_SCALE = int(1.5 * FP_ONE)  # = 24 (1.5 in fixed point)
 FP_SHIFT_RAD = 11
 FP_ONE_RAD = (1 << FP_SHIFT_RAD)  # = 2048 (1.0 in fixed point)
 FP_SCALE_RAD = int(1.5 * FP_ONE_RAD)  # = 3072 (1.5 in fixed point)
+
+class CircleAnimation:
+    # Global configuration (class-level)
+    RADIUS = 20            # pixels
+    SPEED = 2            # radians/second
+    CENTER_X = 50          # Default center X
+    CENTER_Y = 30          # Default center Y
+
 class SpritePhysics:
     debug = True
 
@@ -104,6 +115,18 @@ class SpritePhysics:
 
         return int(draw_x), int(draw_y)
 
+    @staticmethod
+    def update_circ_pos(inst, total_elapsed_ms):
+        """
+        Update position using global circle animation and born_ms-based phase
+        total_elapsed_ms: Current game time in milliseconds
+        """
+        # Calculate phase (automatically unique per sprite via born_ms)
+        phase = ((total_elapsed_ms - inst.born_ms) * CircleAnimation.SPEED / 1000) % (2 * math.pi)
 
+        # Calculate new position using global config
+        new_x = CircleAnimation.CENTER_X + CircleAnimation.RADIUS * math.cos(phase)
+        new_y = CircleAnimation.CENTER_Y + CircleAnimation.RADIUS * math.sin(phase)
 
-
+        # Update using existing physics system
+        SpritePhysics.set_pos(inst, new_x, new_y)

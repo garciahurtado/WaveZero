@@ -2,6 +2,7 @@ import asyncio
 import gc
 
 import rp2
+import time
 import utime
 
 from scaler.scaler_framebuf import ScalerFramebuf
@@ -207,8 +208,6 @@ class SpriteScaler():
 
         self.start(h_scale)
 
-        utime.sleep_ms(2)
-
         if DEBUG_TICKS:
             self.ticks_debug()
 
@@ -273,8 +272,10 @@ class SpriteScaler():
         if DEBUG_DISPLAY:
             print(f"==> BLITTING to {self.draw_x}, {self.draw_y} / alpha: {self.alpha}")
 
+        while self.display.dma1.active():
+            utime.sleep_ms(1)
+
         self.framebuf.blit_with_alpha(int(self.draw_x), int(self.draw_y), self.alpha)
-        # self.reset()
 
         prof.end_profile('scaler.finish_sprite')
 

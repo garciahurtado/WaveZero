@@ -6,7 +6,7 @@ from scaler.const import PIO1_BASE, PIO1_SM0_SHIFTCTRL, PIO1_SM0_EXECCTRL
 
 def read_palette_init(pin_led1):
 
-    sm_freq = 12_000_000
+    sm_freq = 64_000_000
 
     # PIO1 / SM0 = ID #4
     read_palette_sm = StateMachine(4)

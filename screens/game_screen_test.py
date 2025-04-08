@@ -1,11 +1,10 @@
 from _rp2 import DMA
 
 from colors import color_util as colors
-from bus_monitor import BusMonitor, BusProfiler
-from scaler.const import BUS_CTRL_BASE, BUS_PRIORITY, DEBUG_BUS_MONITOR
 from scaler.sprite_scaler import SpriteScaler
 from perspective_camera import PerspectiveCamera
 from sprites2.sprite_manager_2d import SpriteManager2D
+from sprites2.sprite_physics import CircleAnimation
 from sprites2.test_heart import TestHeart
 from ui_elements import ui_screen
 
@@ -43,7 +42,6 @@ class GameScreenTest(Screen):
     total_elapsed = 0
     fps_enabled = True
     is_first = True # so that we only use the scaler on frame 2+
-    bus_prof:BusProfiler = None
 
     def __init__(self, display, *args, **kwargs):
         super().__init__(display, *args, **kwargs)
@@ -51,16 +49,35 @@ class GameScreenTest(Screen):
         display.fill(0x0000)
         self.init_camera()
 
+
         self.scaler = SpriteScaler(display)
-        self.mgr = SpriteManager2D(self.display, 2)
+        self.mgr = SpriteManager2D(self.display, 11)
         self.load_types()
         self.load_sprite(SPRITE_TEST_HEART)
         self.phy = self.mgr.phy
 
-        self.inst1, idx = self.mgr.pool.get(self.sprite_type, self.sprite)
-        self.inst2, idx = self.mgr.pool.get(self.sprite_type, self.sprite)
-        self.phy.set_pos(self.inst1, 50, 24)
-        self.phy.set_pos(self.inst2, 50, 50)
+        patterns = self.scaler.dma.patterns.horiz_patterns
+        pattern_keys = list(patterns.keys())
+        pattern_keys.sort()
+        short_keys = pattern_keys[9:15]
+        self.scale_list = short_keys
+
+        print("__ SCALES: __")
+        print(self.scale_list)
+
+        str_out = ''
+        for scale in pattern_keys:
+            pattern = patterns[scale]
+
+        self.inst_group = []
+        running_ms = 0
+
+        for i in range(5):
+            new_inst, idx = self.mgr.pool.get(self.sprite_type, self.sprite)
+            new_inst.born_ms += running_ms
+            self.phy.set_pos(new_inst, 50, 24)
+            self.inst_group.append(new_inst)
+            running_ms += 200
 
         self.preload_images()
         self.ui = ui_screen(display, self.num_lives)
@@ -76,25 +93,13 @@ class GameScreenTest(Screen):
         ImageLoader.load_images(images, self.display)
 
     def run(self):
-        if DEBUG_BUS_MONITOR:
-            self.bus_prof = BusProfiler()
-            self.bus_prof.perf.list_presets()
-            self.bus_prof.perf.list_available_events()
-            self.bus_prof.perf.configure_preset("dma_impact")
-            self.bus_prof.start_profiling()
-
         loop = asyncio.get_event_loop()
         loop.create_task(self.start_display_loop())
 
-        self.display.fill(0x9999)
-        utime.sleep_ms(1000)
         self.display.fill(0x0)
 
         if self.fps_enabled:
             self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
-
-        if DEBUG_BUS_MONITOR:
-            self.bus_prof_task = asyncio.create_task(self.start_bus_profiler())
 
         print("-- Starting update_loop...")
         asyncio.run(self.start_main_loop())
@@ -109,17 +114,20 @@ class GameScreenTest(Screen):
         # update loop - will run until task cancellation
         try:
             while True:
-                if DEBUG_BUS_MONITOR:
-                    self.bus_prof.sample_frame()
-
                 self.total_frames += 1
                 now = utime.ticks_ms()
                 elapsed = utime.ticks_diff(now, self.last_update_ms)
                 elapsed = elapsed / 1000 # @TODO change to MS?
+                total_elapsed = utime.ticks_diff(now, start_time_ms)
                 self.last_update_ms = now
 
                 if not self.paused:
                     self.grid.update_horiz_lines(elapsed)
+
+                    # Update sprites circular motion
+                    # for sprite in self.inst_group:
+                    #     self.phy.update_circ_pos(sprite, total_elapsed)
+
                 await asyncio.sleep_ms(1)
 
         except asyncio.CancelledError:
@@ -127,22 +135,27 @@ class GameScreenTest(Screen):
 
     def do_refresh(self):
         """ Overrides parent method """
-        self.display.fill(0x0000)
+        self.display.fill(0x0)
 
         self.grid.show()
         self.ui.show()
-        self.draw_corners()
+        # self.draw_corners()
+        # self.draw_sprite_circle()
 
-        self.scaler.draw_sprite(
-                self.sprite, self.inst1, self.image,
-                h_scale=2, v_scale=2)
-
-        self.scaler.draw_sprite(
-            self.sprite, self.inst2, self.image,
-            h_scale=2, v_scale=2)
+        # inst = self.inst_group[0]
+        # self.scaler.draw_sprite(self.sprite, inst, self.image)
 
         self.display.show()
         self.fps.tick()
+
+    def draw_sprite_circle(self):
+        scale_idx = 0
+        for inst in self.inst_group:
+            curr_scale = self.scale_list[scale_idx]
+            self.scaler.draw_sprite(
+                self.sprite, inst, self.image,
+                h_scale=curr_scale, v_scale=curr_scale)
+            scale_idx += 1
 
     def draw_corners(self):
         green = colors.hex_to_565(0x00FF00)

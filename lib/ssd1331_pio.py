@@ -55,7 +55,7 @@ class SSD1331PIO():
     buffer0 = aligned_buffer(HEIGHT * WIDTH * 2)  # RGB565 is 2 bytes per px
     buffer1 = aligned_buffer(HEIGHT * WIDTH * 2)
 
-    dma_tx_count = 256
+    dma_tx_count = 0
 
     fps = None
     paused = True
@@ -114,8 +114,9 @@ class SSD1331PIO():
             print(f" > BUFFER 0 ADDR: 0x{addr0:08X}")
             print(f" > BUFFER 1 ADDR: 0x{addr1:08X}")
 
-        self.is_render_done = False
-        self.is_render_ctrl_done = False
+        self.is_render_done = True
+        self.is_render_ctrl_done = True
+        self.is_spi_done = True
 
         mode = framebuf.RGB565
         gc.collect()
@@ -136,10 +137,10 @@ class SSD1331PIO():
         self.write_framebuf = self.framebuf0
         self.read_framebuf = self.framebuf1
 
-        self.buffer0_addr = int(addressof(self.buffer0))
+        self.buffer0_addr = int(addressof(self.buffer0)) + 2
         self.buffer0_addr_buf = self.buffer0_addr.to_bytes(4, "little")
 
-        self.buffer1_addr = int(addressof(self.buffer1))
+        self.buffer1_addr = int(addressof(self.buffer1)) + 2
         self.buffer1_addr_buf = self.buffer1_addr.to_bytes(4, "little")
 
 
@@ -149,7 +150,7 @@ class SSD1331PIO():
         self.init_pio_spi()
 
         """ Kick it off! """
-        self.dma1.active(1)
+        # self.dma1.active(1)
 
     def show(self):
         """
@@ -167,44 +168,45 @@ class SSD1331PIO():
             print()
             print(">> 1. About to swap buffers <<")
 
-        while not ((not self.dma0.active()) and (not self.dma1.active())):
+        while not self.is_render_done:
             utime.sleep_ms(1)
-
         self.is_render_done = False
 
-        # We use the normal register because we dont want to trigger it, just load the address
+        while False and not self.is_spi_done:
+            utime.sleep_ms(1)
+        self.is_spi_done = False
+
+        # Use the trigger register so we dont have to kick off the dma1 afterwards
         dma1_read = DMA_BASE_1 + DMA_READ_ADDR_TRIG
 
         """ Reconfigure the control channel read to point to the other buffer """
         if self.flip:
             self.read_framebuf = self.framebuf1
-            self.write_framebuf =  self.framebuf0
-            mem32[dma1_read] = addressof(self.buffer0_addr_buf)
-
+            self.write_framebuf = self.framebuf0
+            which_addr = addressof(self.buffer1_addr_buf)
             self.flip = False
         else:
             self.read_framebuf = self.framebuf0
             self.write_framebuf = self.framebuf1
-            mem32[dma1_read] = addressof(self.buffer1_addr_buf)
+            which_addr = addressof(self.buffer0_addr_buf)
             self.flip = True
 
-        # self.dma1.active(1)
-        # self.dma0.active(1)
-
-        self.read_framebuf, self.write_framebuf = self.write_framebuf, self.read_framebuf
+        mem32[dma1_read] = which_addr
 
         if DEBUG_DISPLAY:
             print(">> 2. Active render is done <<")
 
-        """ Now that we've flipped the buffers, reprogram the read DMA so that it will start reading from the 
-        correct buffer (the one that just finished writing) in the next iteration """
-
-        dma1_read_addr = self.dma1.read
-        dma0_read = mem32[dma1_read_addr]
         if DEBUG_DISPLAY:
+            dma1_read_addr = self.dma1.read
+            dma0_read = mem32[dma1_read_addr]
+
             print(">> ------ BUFFERS SWAPPED ------ <<")
             print(f"--- DMA0 READ: 0x{dma0_read:08X}")
             print(f"--- DMA1 READ: 0x{dma1_read_addr:08X}")
+
+    def irq_spi_done(self):
+        print("                 *** IRQ-SPI ***")
+        self.is_spi_done = True
 
     def init_display(self):
         self.pin_rs(0)  # Pulse the reset line
@@ -246,13 +248,9 @@ class SSD1331PIO():
         self.pin_cs(1)
         self.pin_dc(self.DC_MODE_DATA)
 
-    # def init_pio_spi(self, freq=72_250_000):
-    def init_pio_spi(self, freq=64_000_000):
+    def init_pio_spi(self, freq=96_000_000):
         """"""
-        """ Ideal freq for 1x1: 96_500_000 (no pio delays)"""
-        """ Ideal freq for 2x2: 97_000_000 (no pio delays)"""
-
-        # Define the pins
+        # Define the SPI pins
         pin_sck = self.pin_sck
         pin_sda = self.pin_sda
         pin_dc = self.pin_dc
@@ -270,12 +268,14 @@ class SSD1331PIO():
             set_base=pin_cs,
             sideset_base=pin_sck,
         )
-        # merge both FIFOS
-        # addr = PIO0_SM0_SHIFTCTRL
-        # current = mem32[addr]
-        # current = current | (1<<30)
-        # mem32[addr] = current
 
+        # merge both FIFOS
+        addr = PIO0_SM0_SHIFTCTRL
+        current = mem32[addr]
+        current = current | (1<<30)
+        mem32[addr] = current
+
+        self.is_spi_done = False
         sm.active(1)
         self.sm = sm
 
@@ -294,28 +294,33 @@ class SSD1331PIO():
         set()   -> pin.cs
         .side() -> pin.sck
         """
+        label("start")
         set(pins, 1)
-        pull(block)             [2].side(1)     # Block with CSn high (minimum 2 cycles)
+        nop()             [1].side(1)     # Block with CSn high (minimum 2 cycles)
         nop()                               .side(0)      # CSn front porch
-        set(x, 32)                          .side(1)     # Push out 4 bytes per bitloop
+        nop()                         .side(0)     # Push out 4 bytes per bitloop
 
+        label("wrap_target")
         wrap_target()
+        set(x, 31)
 
-        pull(block)                 .side(0)
+        pull(block)                 .side(1)
         set(pins, 0)                .side(1)  # pull down CS, SCK low
 
         label("bitloop")
-        out(pins, 1)                .side(0)
-        jmp(x_dec, "bitloop")       .side(1)
+        out(pins, 1)              [1]  .side(0)
+        jmp(x_dec, "bitloop")     [1]  .side(1)
 
-        set(x, 31)                  .side(0) # 1 bit was already transmited
-        set(pins, 1)                .side(1) # CS pin high (end transaction)
+        nop()                .side(0) # 1 bit was already transmited
+        set(pins, 1)                .side(0) # CS pin high (end transaction)
 
-        jmp(not_osre, "bitloop")    .side(0)  # If more data, do next block
-        nop()                       .side(1)
-        nop()                    [2].side(0)  # CSn back porch
+        jmp(not_osre, "bitloop") [1] .side(1)  # If more data, do next block
+        nop()                    [1] .side(0)  # CSn back porch
 
-        # Chill / return to start
+        # -- Check if FIFO empty
+        mov(y, status)  # status will be all 1s when FIFO TX level = 0 (n < 1), and 0s otherwise
+        jmp(invert(not_y), "wrap_target")  # Its NOT empty, which means we can do another pull, lets jump
+        jmp("start")
 
     def init_dma(self):
         """
@@ -348,36 +353,30 @@ class SSD1331PIO():
             inc_write=False,
             bswap=True,
             treq_sel=DREQ_PIO0_TX0,
-            irq_quiet=True,
+            irq_quiet=False,
             chain_to=self.dma0.channel # No chain
         )
         self.dma0.config(
             count=self.dma_tx_count,
-            read=self.buffer0_addr,
+            read=0,
             write=PIO0_TX0,
             ctrl=ctrl0,
         )
-        # self.dma0.irq(handler=self.irq_render)
+        self.dma0.irq(handler=self.irq_render)
 
         """ Control Channel """
         ctrl1 = self.dma1.pack_ctrl(
             size=2,
-            # ring_sel=False,
-            # ring_size=3,
-            # inc_read=True,
             inc_read=False,
             inc_write=False,
-            irq_quiet=True,
-            chain_to=self.dma0.channel
         )
 
         self.dma1.config(
             count=1,
-            read=self.buffer1_addr_buf,
-            write=DMA_BASE + DMA_READ_ADDR,
+            read=0,
+            write=DMA_BASE + DMA_READ_ADDR_TRIG,
             ctrl=ctrl1,
         )
-        # self.dma1.irq(handler=self.irq_render_ctrl)
 
     def irq_render(self, dma):
         self.is_render_done = True

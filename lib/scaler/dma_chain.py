@@ -123,16 +123,16 @@ class DMAChain:
             treq_sel=DREQ_PIO1_TX0,
             bswap=True,
             irq_quiet=True,
-            chain_to=self.px_read.channel
+            chain_to=self.px_read.channel,
         )
 
         self.px_read.config(
-            count=1,
+            count=0,
             read=0,  # To be Set per row
             write=PIO1_TX0,
             ctrl=px_read_ctrl
         )
-        self.px_read.irq(handler=self.irq_px_read_end)
+        # self.px_read.irq(handler=self.irq_px_read_end)
 
     def init_color_lookup(self):
         """ CH:5 Color lookup DMA """
@@ -207,16 +207,11 @@ class DMAChain:
             print(f">> PX READ COUNT SET (1/2) read stride:       {px_read_tx_count}")
 
     def start(self):
-        """Activate DMA channels in correct sequence."""
-        self.h_scale.active(1)
-        self.color_lookup.active(1)
+        """ write_addr kicks off the whole sequence """
         self.write_addr.active(1)
         pass
 
     def reset(self):
-        """Reset all DMA channels."""
-        # self.color_lookup.active(0)
-
         self.px_read_finished = False
         self.color_row_finished = False
         self.read_addr_finished = False

@@ -27,9 +27,9 @@ def setup_display():
     pin_dc = Pin(5, Pin.OUT, value=0)
     pin_cs = Pin(6, Pin.OUT)
 
-    utime.sleep_ms(50)
+    utime.sleep_ms(20)
 
-    spi = SPI(0, baudrate=16_000_000, sck=pin_sck, mosi=pin_sda, miso=None)
+    spi = SPI(0, baudrate=64_000_000, sck=pin_sck, mosi=pin_sda, miso=None)
     display = DisplayDriver(
         spi,
         pin_cs,
