@@ -6,6 +6,22 @@ from uctypes import addressof
 from scaler.const import *
 from utils import aligned_buffer
 
+
+def printb(message):
+    """ Print a string and then print a series of backspaces equal to its length, to implement statically positioned
+     text in the terminal """
+    num_back = len(message)
+    eraser = '\b' * num_back
+    print(message, end='')
+    print(eraser, end='')
+
+def printc(message, color=INK_RED, newline=True):
+    if newline:
+        print(color, message, INK_END)
+    else:
+        print(color, message, INK_END, end="")
+
+
 class ScalerDebugger():
     sm_indices = None
     sm_row_start = None
@@ -64,38 +80,50 @@ class ScalerDebugger():
             reg_inst = SM1_INST_DEBUG
 
         line_num = mem32[pio_base + reg_line] & 0x1F  # Mask bits 4:0
-        line_num_rev = 31 - line_num
         inst_code = mem32[pio_base + reg_inst] & 0xFFFF  # Keep 16 LSBs
+
+        # This one is tricky: we have to count the instructions from the bottom of the program, starting at zero,
+        #  but if we haven't added wrap() at the bottom, it will be added silently, so if the line number is off
+        # by one, that is why
         print("----------------------")
-        print(f"-- INST: (line {line_num_rev} / {line_num}) -- (from zero / from 32)")
+        print(f"-- INST#: {line_num} (backwards)")
         self.read_pio_opcode(inst_code)
         print("----------------------")
-        self.debug_pio_regs(pio, sm)
+
+        self.debug_pio_regs(0)
+        self.debug_pio_regs(1)
         print()
 
-    def debug_pio_regs(self, pio=0, sm=0):
+    def debug_pio_regs(self, pio=0):
         if pio == 0:
             pio_base = PIO0_BASE
         elif pio == 1:
             pio_base = PIO1_BASE
 
         debug_addr = pio_base + 0x008
-
         txstall = (mem32[debug_addr] >> 24) & 0xF
         txover = (mem32[debug_addr] >> 16) & 0xF
         rxunder = (mem32[debug_addr] >> 8) & 0xF
         rxstall = (mem32[debug_addr]) & 0xF
-        print("              TXSTALL    TXOVER     RXUNDER    RXSTALL")
-        print(f"DEBUG REG >>> {txstall:08b} - {txover:08b} - {rxunder:08b} - {rxstall:08b} <<<")
+        print(f"PIO{pio} (0x{debug_addr:08X})     TXSTALL    TXOVER     RXUNDER    RXSTALL")
+        print(f"  FIFO STATUS     >>> {txstall:08b} - {txover:08b} - {rxunder:08b} - {rxstall:08b} <<<")
 
-    def debug_dma(self, dma, alias, label, index):
+    def debug_dma(self, dma, alias, full=False):
+        # full = False
         ctrl = dma.unpack_ctrl(dma.registers[3])
+        count = dma.count
+        index = dma.channel
+
         DMA_NAME = f"DMA_BASE_{index}"
 
-        active_txt = 'ACTIVE' if dma.active() else 'INACTIVE'
-        print()
-        print(f"CH '{alias}' (DMA{dma.channel}) | ({active_txt}) | ({label}):")
+        active_txt = '(** ON **)' if dma.active() else '    off   '
         print("---------------------------------------------------")
+        ch_name = f"CH {alias} "
+        print(f"{ch_name:<17} - DMA-{dma.channel} | {active_txt} | count: {count:05.}")
+        print("---------------------------------------------------")
+        if not full:
+            return
+
         print(f". ........ {dma.registers[0]:08X} R \t........ {dma.registers[9]:08X} TX (current)")
         print(f". ........ {dma.registers[1]:08X} W \t........ {0:08X} TCR (next)")
         print(f". ........ {dma.registers[3]:08X} CTRL")
@@ -110,7 +138,7 @@ class ScalerDebugger():
             value2 = ctrl[key2]
             print(f".{key1:_<12} {value1:02X} \t\t .{key2:_<12} {value2:02X}")
 
-    def get_debug_bytes(self, count=32, byte_size=2, aligned=False):
+    def get_debug_bytes(self, count=256, byte_size=2, aligned=False):
         """
         count: number of elements
         byte_size: 0 or 1 for bytes, 2 for words
@@ -133,7 +161,7 @@ class ScalerDebugger():
 
         return debug_bytes
 
-    def print_debug_bytes(self, data_bytes, format='hex', num_cols=4):
+    def print_debug_bytes(self, data_bytes, format='hex', num_cols=16):
         print(
             f"Debug Buffer Contents ({len(data_bytes)} {'bytes' if isinstance(data_bytes[0], int) and data_bytes[0] < 256 else 'words'})")
         print()
@@ -143,6 +171,7 @@ class ScalerDebugger():
         rows = (total_items + num_cols - 1) // num_cols
 
         for row in range(rows):
+            print(f"{row:02.}. ", end="")
             for col in range(num_cols):
                 idx = row * num_cols + col
                 if idx >= total_items:
@@ -152,7 +181,8 @@ class ScalerDebugger():
                 if format == 'bin':
                     out_str = f"{val:08b}-"
                 else:
-                    out_str = f"{val:08X}-"
+                    hex_str = str(hex(val))[-2:]
+                    out_str = f"..{hex_str}"
                 print(out_str, end='')
             print()
 
@@ -190,7 +220,7 @@ class ScalerDebugger():
         ch = self.channels[idx]
         ch_alias = self.channel_names[idx]
         ch_alias = ch_alias.upper()
-        self.debug_dma(ch, ch_alias, section, idx)
+        self.debug_dma(ch, ch_alias)
         self.debug_pio_status()
         print("- - - - - - - - - - - - - - - - - - - - - ")
         self.debug_pio_regs()
@@ -277,3 +307,231 @@ class ScalerDebugger():
         print(f"  BASE2: 0x{mem32[INTERP1_BASE2]:08x}")
         print(f"  ACCU0: 0x{mem32[INTERP1_ACCUM0]:08x}")
         print(f"  ACCU1: 0x{mem32[INTERP1_ACCUM1]:08x}")
+
+    def debug_irq_priorities(self, ipr_values):
+        print("IRQ PRIORITIES:")
+        print("--------------------")
+        print("         | INT 4n+3      | INT 4n+2      | INT 4n+1      | INT 4n+0      |")
+        print("Register | [31:28]       | [23:20]       | [15:12]       | [7:4]         |")
+        print("---------+---------------+---------------+---------------+---------------+")
+
+        for n, reg_value in enumerate(ipr_values):
+            # Extract only the significant 4 bits from each 8-bit field
+            pri_n3 = (reg_value >> 28) & 0xF  # Top 4 bits of byte at [31:24]
+            pri_n2 = (reg_value >> 20) & 0xF  # Top 4 bits of byte at [23:16]
+            pri_n1 = (reg_value >> 12) & 0xF  # Top 4 bits of byte at [15:8]
+            pri_n0 = (reg_value >> 4) & 0xF  # Top 4 bits of byte at [7:0]
+
+            # Calculate actual interrupt numbers
+            int_n3 = 4 * n + 3
+            int_n2 = 4 * n + 2
+            int_n1 = 4 * n + 1
+            int_n0 = 4 * n
+
+            # Format row with both binary and hex representations
+            print(
+                f"IPR{n:<6} | {pri_n3:04b} (0x{pri_n3:X}) {int_n3:<2} | {pri_n2:04b} (0x{pri_n2:X}) {int_n2:<2} | {pri_n1:04b} (0x{pri_n1:X}) {int_n1:<2} | {pri_n0:04b} (0x{pri_n0:X}) {int_n0:<2} |")
+
+    def debug_irq_dma_enabled(self, iser_addr):
+        """ ISER: Interrupt Set-Enable Register
+        32 bit register where each bit is an enable for an IRQ number
+        This is left as a parameter so that you can check INTE, INTF and INTS
+        """
+        n = 0
+
+        print("DMA IRQ ENABLE STATUS:")
+        print("-----------------------")
+        print("               | Enabled Interrupts")
+        print("Register       | (1 = enabled, 0 = disabled)")
+        print("---------------+----------------------------------------------")
+
+        dma_irqs = [10, 11, 12, 13]
+        iser_val = mem32[iser_addr]
+        print(f"ISER_REG: {n:<5}| {iser_val:032b}")
+        print("---------------+----------------------------------------------")
+
+        # Check each bit in the register
+        for i, irq_id in enumerate(dma_irqs):
+            if (iser_val & (1 << irq_id)) != 0:
+                print(f"IRQ_DMA_{i:<7}| ENABLED")
+            else:
+                print(f"IRQ_DMA_{i:<7}| disabled")
+
+        print("---------------+----------------------------------------------")
+
+    def debug_irq_pio_enabled(self, iser_addr):
+        """ ISER: Interrupt Set-Enable Register
+        32 bit register where each bit is an enable for an IRQ number
+        This is left as a parameter so that you can check INTE, INTF and INTS
+        """
+        n = 0
+
+        print("PIO IRQ ENABLE STATUS:")
+        print("-----------------------")
+        print("               | Enabled Interrupts")
+        print("Register       | (1 = enabled, 0 = disabled)")
+        print("---------------+----------------------------------------------")
+
+        pio_irqs = [8, 9, 10, 11, 12, 13, 14, 15] # All 8 SMs for this PIO
+        iser_val = mem32[iser_addr]
+
+        print(f"ISER_REG: {n:<5}| {iser_val:032b}")
+        print("---------------+----------------------------------------------")
+
+        # Check each bit in the register
+        for i, irq_id in enumerate(pio_irqs):
+            if (iser_val & (1 << irq_id)) != 0:
+                print(f"SM_{i:<7}| ENABLED")
+            else:
+                print(f"SM_{i:<7}| disabled")
+
+        print("---------------+----------------------------------------------")
+
+    def debug_irq_pending(self, ispr_values):
+        print("IRQ PENDING STATUS:")
+        print("------------------------")
+        print("         | Pending Interrupts")
+        print("Register | (1 = pending, 0 = not pending)")
+        print("---------+----------------------------------------------------")
+
+        for n, reg_value in enumerate(ispr_values):
+            pending_irqs = []
+
+            # Check each bit in the register
+            for bit in range(32):
+                if (reg_value & (1 << bit)) != 0:
+                    # This interrupt is pending - calculate its IRQ number
+                    irq_num = n * 32 + bit
+                    pending_irqs.append(f"{irq_num}")
+
+            # Format the output showing the pending IRQs
+            if pending_irqs:
+                pending_list = ", ".join(pending_irqs)
+                print(f"ISPR{n:<5}| {reg_value:032b}")
+                print(f"         | Pending IRQs: {pending_list}")
+            else:
+                print(f"ISPR{n:<5}| {reg_value:032b}")
+                print(f"         | No pending IRQs")
+
+            print("---------+----------------------------------------------------")
+
+    def debug_sprite(self, mem_addr, width=16, height=16):
+        """
+        Render a 4-bit indexed image from a memory address in a table layout.
+
+        Args:
+            memory_address (int): The starting memory address of the image data.
+            width (int): The width of the table (number of pixels per row).
+            height (int): The height of the table (number of rows).
+        """
+        import uctypes
+
+        # Access the memory as a byte array
+        image_data = uctypes.bytearray_at(mem_addr, (width * height + 1) // 2)
+
+        # Iterate over rows
+        for y in range(height):
+            row = []
+            for x in range(width):
+                # Calculate the byte and nibble index
+                byte_index = (y * width + x) // 2
+                is_high_nibble = (x % 2 == 0)
+
+                # Extract the nibble (4 bits)
+                if is_high_nibble:
+                    pixel = (image_data[byte_index] >> 4) & 0xF
+                else:
+                    pixel = image_data[byte_index] & 0xF
+
+                # Map the pixel value to a single-digit color (1-9)
+                color = pixel if 1 <= pixel <= 9 else "." # 0 maps to '.'
+                row.append(str(color))
+
+            # Print the row as a table
+            print(" ".join(row))
+
+    def debug_sprite_rgb565(self, mem_addr, width=16, height=16):
+        """
+        Render an RGB565 image from a memory address in a table layout.
+        Each pixel is mapped to an index (0-9) based on a predefined palette.
+
+        Args:
+            mem_addr (int): The starting memory address of the image data.
+            width (int): The width of the table (number of pixels per row).
+            height (int): The height of the table (number of rows).
+        """
+        import uctypes
+
+        # Define a simple palette mapping brightness to indices (0-9)
+        # 0 = black, 9 = white, intermediate values are mapped linearly
+        def map_to_index(rgb565):
+            # Extract RGB components from RGB565
+            red = (rgb565 >> 11) & 0x1F  # 5 bits for red
+            green = (rgb565 >> 5) & 0x3F  # 6 bits for green
+            blue = rgb565 & 0x1F  # 5 bits for blue
+
+            # Normalize RGB values to 0-255 range
+            red = (red * 255) // 31
+            green = (green * 255) // 63
+            blue = (blue * 255) // 31
+
+            # Calculate brightness (0-255)
+            brightness = (red + green + blue) // 3
+
+            # Map brightness to an index (0-9)
+            return min(brightness // 28, 9)  # 255 / 9 ≈ 28
+
+        # Access the memory as a byte array
+        image_data = uctypes.bytearray_at(mem_addr, width * height * 2)  # 2 bytes per pixel (RGB565)
+
+        print(f"** IMAGE AT 0x{mem_addr:08X} **")
+        # Iterate over rows
+        for y in range(height):
+            row = []
+            for x in range(width):
+                # Calculate the byte index for the current pixel
+                byte_index = (y * width + x) * 2
+
+                # Read the two bytes for the RGB565 pixel
+                pixel_low = image_data[byte_index]  # Lower byte
+                pixel_high = image_data[byte_index + 1]  # Higher byte
+
+                # Combine the two bytes into a 16-bit RGB565 value
+                rgb565 = (pixel_high << 8) | pixel_low
+
+                # Map the pixel to an index (0-9)
+                index = map_to_index(rgb565)
+                if index == 0:
+                    index = '.'
+                row.append(str(index))
+
+            # Print the row as a table
+            print(" ".join(row))
+
+    def debug_pio_fifo(self, pio, sm):
+        if pio == 0:
+            base_addr = PIO0_BASE
+        elif pio == 1:
+            base_addr = PIO1_BASE
+        else:
+            base_addr = PIO2_BASE
+
+        addr = base_addr + FIFO_LEVELS
+        value = mem32[addr]
+        bin_str = str(f"{value:032b}")
+
+        strTX3 = bin_str[0:4]
+        strTX2 = bin_str[8:12]
+        strTX1 = bin_str[16:20]
+        strTX0 = bin_str[24:28]
+
+        strRX3 = bin_str[4:8]
+        strRX2 = bin_str[12:16]
+        strRX1 = bin_str[20:24]
+        strRX0 = bin_str[28:32]
+
+        print(f"SM       :    0.   1.   2.   3.")
+        print(f"-------------------------------")
+        print(f"TX LEVELS: {strTX0}-{strTX1}-{strTX2}-{strTX3}")
+        print(f"RX LEVELS: {strRX0}-{strRX1}-{strRX2}-{strRX3}")
+

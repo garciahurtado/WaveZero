@@ -2,21 +2,22 @@ from micropython import const
 
 """ Debugging Constants """
 DEBUG =                     const(0)
+DEBUG_BUS_MONITOR =         const(0)
 DEBUG_LED =                 const(0)
-DEBUG_TICKS =               const(0)
+DEBUG_DISPLAY =             const(0)
 DEBUG_DMA =                 const(0)
 DEBUG_DMA_CH =              const(0)
 DEBUG_DMA_ADDR =            const(0)
-DEBUG_DISPLAY =             const(0)
-DEBUG_PIO =                 const(0)
-DEBUG_PHYSICS =             const(0)
 DEBUG_IRQ =                 const(0)
-DEBUG_INTERP =              const(0)
 DEBUG_INST =                const(0)
+DEBUG_INTERP =              const(0)
 DEBUG_INTERP_LIST =         const(0)
-DEBUG_SCALE_PATTERNS =      const(0)
+DEBUG_PHYSICS =             const(0)
+DEBUG_PIO =                 const(0)
+DEBUG_PIXELS =              const(0)
 DEBUG_POOL =                const(0)
-DEBUG_BUS_MONITOR =         const(0)
+DEBUG_SCALE_PATTERNS =      const(0)
+DEBUG_TICKS =               const(0)
 
 """
 Part of the scaler.sprite_scaler package.
@@ -47,6 +48,21 @@ DMA_TRANS_COUNT = 0x008
 DMA_TRANS_COUNT_TRIG = 0x01c
 DMA_CTRL_TRIG = 0x00c
 DMA_DBG_TCR = 0x804
+DMA_SNIFF_CTRL = 0x454
+DMA_SNIFF_DATA = 0x458
+
+# DMA IRQ Source IDs (datashet pg. 82)
+
+DMA_IRQ0_ID = 10
+DMA_IRQ1_ID = 11
+DMA_IRQ2_ID = 12
+DMA_IRQ3_ID = 13
+
+DMA_IRQ0_ENABLED = DMA_BASE + 0x404
+DMA_IRQ1_ENABLED = DMA_BASE + 0x414
+DMA_IRQ2_ENABLED = DMA_BASE + 0x424
+DMA_IRQ3_ENABLED = DMA_BASE + 0x434
+
 
 DMA_READ_ADDR_BASE = DMA_BASE_2
 DMA_WRITE_ADDR_BASE = DMA_BASE_3
@@ -56,6 +72,7 @@ DMA_PX_WRITE_BASE = DMA_BASE_6
 DMA_HORIZ_SCALE_BASE = DMA_BASE_7
 
 MULTI_CHAN_TRIGGER = DMA_BASE + 0x450
+CHAN_ABORT = DMA_BASE + 0x464
 
 DMA_FRAC_TIMER = DMA_BASE + 0x420
 DMA_TIMER0 = 0x3b
@@ -78,9 +95,11 @@ ACCESS_CTRL_PIO1 = ACCESS_CTRL_BASE + 0x50
 
 PIO0_BASE = 0x50200000
 PIO1_BASE = 0x50300000
+PIO2_BASE = 0x50400000
 
 
 PIO0_CTRL = PIO0_BASE
+PIO1_CTRL = PIO1_BASE
 
 PIO0_SM0_SHIFTCTRL = PIO0_BASE + 0x0d0
 PIO1_SM0_SHIFTCTRL = PIO1_BASE + 0x0d0
@@ -110,6 +129,19 @@ PIO1_RX1 = PIO1_BASE + 0x024
 PIO1_TX2 = PIO1_BASE + 0x018
 PIO1_RX2 = PIO1_BASE + 0x028
 
+PIO1_IRQ_CLEAR = PIO1_BASE + 0x030 # write a 1 to bit n to clear IRQ n
+PIO1_IRQ_FLAGS = PIO1_BASE + 0x030
+
+FIFO_LEVELS = 0x00c
+
+IRQ0_INTE= 0x170
+IRQ1_INTE = 0x17c
+
+IRQ0_INTF = 0x174
+
+IRQ0_INTS = 0x178
+IRQ1_INTS = 0x10c
+
 # ---
 
 SM0_ADDR = 0x0d4
@@ -118,8 +150,8 @@ FDEBUG = PIO1_BASE + 0x008
 FLEVEL = PIO1_BASE + 0x00c
 
 """ IRQs """
-PIO0_IRQ = PIO0_BASE + 0x128
-PIO1_IRQ = PIO1_BASE + 0x128
+PIO0_IRQ0 = PIO0_BASE + 0x128
+PIO1_IRQ0 = PIO1_BASE + 0x128
 
 
 """ DREQ signals """
@@ -135,7 +167,7 @@ DREQ_PIO0_RX2 = 6
 # ---
 
 DREQ_PIO1_TX0 = 8
-DREQ_PIO1_RX0 = 12
+DREQ_PIO1_RX0 = 12 # <- 0x0C
 
 DREQ_PIO1_TX1 = 9
 DREQ_PIO1_RX1 = 13
@@ -145,6 +177,7 @@ DREQ_PIO1_RX2 = 14
 
 DREQ_TIMER_0 = 0x3B
 DREQ_TIMER_1 = 0x3C
+
 
 # CLOCKS
 
@@ -207,11 +240,65 @@ INTERP1_ACCUM1_ADD = SIO_BASE + 0x0f8
 INTERP1_BASE0 = SIO_BASE + 0x0C8
 INTERP1_BASE1 = SIO_BASE + 0x0CC
 INTERP1_BASE2 = SIO_BASE + 0x0D0
+INTERP0_BASE_1AND0 = SIO_BASE + 0x0BC
 INTERP1_CTRL_LANE0 = SIO_BASE + 0x0EC
 INTERP1_CTRL_LANE1 = SIO_BASE + 0x0F0
 INTERP1_POP_LANE0 = SIO_BASE + 0x0d4
 INTERP1_POP_LANE1 = SIO_BASE + 0x0d8
 INTERP1_POP_FULL = SIO_BASE + 0x0DC
 
-INTERP0_BASE_1AND0 = SIO_BASE + 0x0BC
+# GPIO
+GPIO_SET = SIO_BASE + 0x018
+GPIO_CLR = SIO_BASE + 0x020
 
+""" ARM Cortex M33 registers """
+M33_BASE = 0xe0000000
+
+# IRQ enabled state
+NVIC_ISER0 = M33_BASE + 0xe100
+NVIC_ISER1 = M33_BASE + 0xe104
+NVIC_ISER2 = M33_BASE + 0xe108
+NVIC_ISER3 = M33_BASE + 0xe10C
+
+# IRQ pending state
+NVIC_ISPR0 = M33_BASE + 0x0e200
+NVIC_ISPR1 = M33_BASE + 0x0e204
+NVIC_ISPR2 = M33_BASE + 0x0e208
+NVIC_ISPR3 = M33_BASE + 0x0e20C
+
+# IRQ priorities
+NVIC_IPR0 = M33_BASE + 0x0e400
+NVIC_IPR1 = M33_BASE + 0x0e404
+NVIC_IPR2 = M33_BASE + 0x0e408
+NVIC_IPR3 = M33_BASE + 0x0e40C
+
+
+# ANSI colors
+
+# Standard Colors
+INK_BLACK = "\033[30m"          # Black (standard)
+INK_RED = "\033[31m"            # Red (standard)
+INK_GREEN = "\033[32m"          # Green (standard)
+INK_YELLOW = "\033[33m"         # Yellow (standard)
+INK_BLUE = "\033[34m"           # Blue (standard)
+INK_MAGENTA = "\033[35m"        # Magenta (standard)
+INK_CYAN = "\033[36m"           # Cyan (standard)
+INK_WHITE = "\033[37m"          # White (standard)
+
+# Bright/Bold Colors
+INK_GRAY = "\033[90m"           # Bright Black (Gray)
+INK_BRIGHT_RED = "\033[91m"     # Bright Red
+INK_BRIGHT_GREEN = "\033[92m"   # Bright Green
+INK_BRIGHT_YELLOW = "\033[93m"  # Bright Yellow
+INK_BRIGHT_BLUE = "\033[94m"    # Bright Blue
+INK_BRIGHT_MAGENTA = "\033[95m" # Bright Magenta (often used as HEADER)
+INK_BRIGHT_CYAN = "\033[96m"    # Bright Cyan
+INK_BRIGHT_WHITE = "\033[97m"   # Bright White
+
+# Special Formatting
+INK_BOLD = "\033[1m"            # Bold text
+INK_UNDERLINE = "\033[4m"       # Underlined text
+INK_REVERSE = "\033[7m"         # Reversed (background/foreground swap)
+
+# Reset
+INK_END = "\033[0m"             # Reset all styles (simpler than "\033[0;0m")

@@ -1,6 +1,4 @@
-import _thread
 import gc
-import time
 
 import utime
 import uasyncio as asyncio

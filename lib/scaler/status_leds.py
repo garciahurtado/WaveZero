@@ -19,7 +19,6 @@ class StatusLEDs:
         utime.sleep_ms(20)
         my_led.value(0)
 
-
 def get_status_led_obj():
     global single
     if not single:

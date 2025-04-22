@@ -1,0 +1,734 @@
+
+STATE MACHINE STATUS:
+-- STATE MACHINE STATUS (PIO 1, SM 0)
+----------------------
+-- INST: (line 12 / 19) -- (from zero / from 32)
+PULL
+(blocking)
+----------------------
+PIO0 (0x50200008)     TXSTALL    TXOVER     RXUNDER    RXSTALL
+  FIFO STATUS     >>> 00000001 - 00000000 - 00000000 - 00000000 <<<
+PIO1 (0x50300008)     TXSTALL    TXOVER     RXUNDER    RXSTALL
+  FIFO STATUS     >>> 00000001 - 00000000 - 00000000 - 00000000 <<<
+
+==> BLITTING to 42, 16 / alpha: 0
+--> BLITTING TO X/Y: 42,16 <--
+** SPRITE SCRATCH BUFF CONTENTS RIGHT AFTER BLIT **
+. . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . .
+. . . 3 3 3 . . . 3 3 3 . . . .
+. . 3 9 9 9 3 . 3 9 9 3 1 . . .
+. 3 9 9 3 3 3 1 9 3 3 3 3 1 . .
+. 3 9 3 3 3 3 1 1 3 3 3 3 1 . .
+. 3 3 3 3 3 3 3 1 3 3 3 1 1 . .
+. . 3 3 3 3 3 3 3 3 3 3 1 . . .
+. . 3 3 3 3 3 3 3 3 3 1 1 . . .
+. . . 3 3 3 3 3 3 3 3 1 . . . .
+. . . 3 3 3 3 3 3 3 1 1 . . . .
+. . . . 3 3 3 3 3 1 1 . . . . .
+. . . . . 3 3 3 1 1 . . . . . .
+. . . . . . 1 1 1 . . . . . . .
+. . . . . . . 1 . . . . . . . .
+. . . . . . . . . . . . . . . .
+
+>> 1. About to swap buffers <<
+>> 2. Active render is done <<
+>> ------ BUFFERS SWAPPED ------ <<
+--- DMA0 READ: 0x20036B82
+--- DMA1 READ: 0x2000A3C0
+__________________________
+- END OF FRAME n. 0 -
+__________________________
+<< UPDATE LOOP START (screen.py) >>
+--------------------------
+- START OF FRAME n. 1 -
+--------------------------
+ABOUT TO DRAW a Sprite on x,y: 42,16 @ H: 1x / V: 1x
+ + VISIBLE ROWS:    16
+ + scaled_height:   16 @1x
+ + max_write_addrs: 16
+ + max_read_addrs:  16
+>> -- COUNTS --
+>> Total PX:               256
+>> readstride PX:          16
+>> px_read.count (tx):     2
+* STARTING DMA / PIO... *
+* ...AFTER DMA / PIO START *
+XXX IRQ BEFORE DMA/SM FINISHED:
+IRQ FLAGS:
+----------------
+   sm_finished:     False
+   px_read:         False
+   color_row:       False
+   h_scale:         False
+---------------------------------------------------
+
+(-x-) IRQ COLOR ROW END  (-x-)
+IRQ FLAGS:
+----------------
+   sm_finished:     False
+   px_read:         False
+   color_row:       True
+   h_scale:         False
+---------------------------------------------------
+
+~~~ About to Finish ~~~
+
+PX_READ COUNT:      0
+PX READ ACTIVE:     False
+PX READ READ ADDR:  0x20013B60
+H_SCALE COUNT:      4
+H_SCALE ACTIVE:     True
+COLOR ROW COUNT:    0
+COLOR ROW ACTIVE:   False
+PX READ FINISHED:   False
+COLOR R FINISHED:   True
+HSCALE FINISHED:    False
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+STATE MACHINE STATUS:
+-- STATE MACHINE STATUS (PIO 1, SM 0)
+----------------------
+-- INST: (line 3 / 28) -- (from zero / from 32)
+PUSH
+(blocking)
+----------------------
+PIO0 (0x50200008)     TXSTALL    TXOVER     RXUNDER    RXSTALL
+  FIFO STATUS     >>> 00000001 - 00000000 - 00000000 - 00000000 <<<
+PIO1 (0x50300008)     TXSTALL    TXOVER     RXUNDER    RXSTALL
+  FIFO STATUS     >>> 00000001 - 00000000 - 00000000 - 00000001 <<<
+
+==> BLITTING to 42, 16 / alpha: 0
+--> BLITTING TO X/Y: 42,16 <--
+** SPRITE SCRATCH BUFF CONTENTS RIGHT AFTER BLIT **
+. . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . .
+. . . 3 3 3 . . . 3 3 3 . . . .
+. . 3 9 9 9 3 . 3 9 9 3 1 . . .
+. 3 9 9 3 3 3 1 9 3 3 3 3 1 . .
+. 3 9 3 3 3 3 1 1 3 3 3 3 1 . .
+. 3 3 3 3 3 3 3 1 3 3 3 1 1 . .
+. . 3 3 3 3 3 3 3 3 3 3 1 . . .
+. . 3 3 3 3 3 3 3 3 3 1 1 . . .
+. . . 3 3 3 3 3 3 3 3 1 . . . .
+. . . 3 3 3 3 3 3 3 1 1 . . . .
+. . . . 3 3 3 3 3 1 1 . . . . .
+. . . . . 3 3 3 1 1 . . . . . .
+. . . . . . 1 1 1 . . . . . . .
+. . . . . . . 1 . . . . . . . .
+. . . . . . . . . . . . . . . .
+
+>> 1. About to swap buffers <<
+>> 2. Active render is done <<
+>> ------ BUFFERS SWAPPED ------ <<
+--- DMA0 READ: 0x20039B92
+--- DMA1 READ: 0x2000B7F0
+__________________________
+- END OF FRAME n. 1 -
+__________________________
+--- (game screen) Update loop Start time: 19128ms ---
+--------------------------
+- START OF FRAME n. 2 -
+--------------------------
+ABOUT TO DRAW a Sprite on x,y: 42,16 @ H: 1x / V: 1x
+ + VISIBLE ROWS:    16
+ + scaled_height:   16 @1x
+ + max_write_addrs: 16
+ + max_read_addrs:  16
+>> -- COUNTS --
+>> Total PX:               256
+>> readstride PX:          16
+>> px_read.count (tx):     2
+* STARTING DMA / PIO... *
+* ...AFTER DMA / PIO START *
+XXX IRQ BEFORE DMA/SM FINISHED:
+IRQ FLAGS:
+----------------
+   sm_finished:     False
+   px_read:         False
+   color_row:       False
+   h_scale:         False
+---------------------------------------------------
+
+///*\ IRQ PX ROW READ END 4/*\
+(-x-) IRQ COLOR ROW END  (-x-)
+IRQ FLAGS:
+----------------
+   sm_finished:     False
+   px_read:         True
+   color_row:       True
+   h_scale:         False
+---------------------------------------------------
+
+~~~ About to Finish ~~~
+
+PX_READ COUNT:      0
+PX READ ACTIVE:     False
+PX READ READ ADDR:  0x00000000
+H_SCALE COUNT:      0
+H_SCALE ACTIVE:     False
+COLOR ROW COUNT:    0
+COLOR ROW ACTIVE:   False
+PX READ FINISHED:   True
+COLOR R FINISHED:   True
+HSCALE FINISHED:    False
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+STATE MACHINE STATUS:
+-- STATE MACHINE STATUS (PIO 1, SM 0)
+----------------------
+-- INST: (line 3 / 28) -- (from zero / from 32)
+PUSH
+(blocking)
+----------------------
+PIO0 (0x50200008)     TXSTALL    TXOVER     RXUNDER    RXSTALL
+  FIFO STATUS     >>> 00000001 - 00000000 - 00000000 - 00000000 <<<
+PIO1 (0x50300008)     TXSTALL    TXOVER     RXUNDER    RXSTALL
+  FIFO STATUS     >>> 00000001 - 00000000 - 00000000 - 00000001 <<<
+
+==> BLITTING to 42, 16 / alpha: 0
+--> BLITTING TO X/Y: 42,16 <--
+** SPRITE SCRATCH BUFF CONTENTS RIGHT AFTER BLIT **
+. . . 1 . . . . . . . . . . . .
+. . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . .
+. . . . . . . . . . . 3 3 3 . .
+. 3 3 3 . . . . . . 3 9 9 9 3 .
+3 9 9 3 1 . . . . 3 9 9 3 3 3 1
+9 3 3 3 3 1 . . . 3 9 3 3 3 3 1
+1 3 3 3 3 1 . . . 3 3 3 3 3 3 3
+1 3 3 3 1 1 . . . . 3 3 3 3 3 3
+3 3 3 3 1 . . . . . 3 3 3 3 3 3
+3 3 3 1 1 . . . . . . 3 3 3 3 3
+3 3 3 1 . . . . . . . 3 3 3 3 3
+3 3 1 1 . . . . . . . . 3 3 3 3
+3 1 1 . . . . . . . . . . 3 3 3
+1 1 . . . . . . . . . . . . 1 1
+1 . . . . . . . . . . . . . . 1
+
+>> 1. About to swap buffers <<
+>> 2. Active render is done <<
+>> ------ BUFFERS SWAPPED ------ <<
+--- DMA0 READ: 0x20036B82
+--- DMA1 READ: 0x2000A3C0
+__________________________
+- END OF FRAME n. 2 -
+__________________________
+--------------------------
+- START OF FRAME n. 3 -
+--------------------------
+ABOUT TO DRAW a Sprite on x,y: 42,16 @ H: 1x / V: 1x
+ + VISIBLE ROWS:    16
+ + scaled_height:   16 @1x
+ + max_write_addrs: 16
+ + max_read_addrs:  16
+>> -- COUNTS --
+>> Total PX:               256
+>> readstride PX:          16
+>> px_read.count (tx):     2
+* STARTING DMA / PIO... *
+* ...AFTER DMA / PIO START *
+XXX IRQ BEFORE DMA/SM FINISHED:
+IRQ FLAGS:
+----------------
+   sm_finished:     False
+   px_read:         False
+   color_row:       False
+   h_scale:         False
+---------------------------------------------------
+
+(-x-) IRQ COLOR ROW END  (-x-)
+IRQ FLAGS:
+----------------
+   sm_finished:     False
+   px_read:         False
+   color_row:       True
+   h_scale:         False
+---------------------------------------------------
+
+~~~ About to Finish ~~~
+
+PX_READ COUNT:      0
+PX READ ACTIVE:     False
+PX READ READ ADDR:  0x20013B60
+H_SCALE COUNT:      10
+H_SCALE ACTIVE:     True
+COLOR ROW COUNT:    0
+COLOR ROW ACTIVE:   False
+PX READ FINISHED:   False
+COLOR R FINISHED:   True
+HSCALE FINISHED:    False
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+STATE MACHINE STATUS:
+-- STATE MACHINE STATUS (PIO 1, SM 0)
+----------------------
+-- INST: (line 3 / 28) -- (from zero / from 32)
+PUSH
+(blocking)
+----------------------
+PIO0 (0x50200008)     TXSTALL    TXOVER     RXUNDER    RXSTALL
+  FIFO STATUS     >>> 00000001 - 00000000 - 00000000 - 00000000 <<<
+PIO1 (0x50300008)     TXSTALL    TXOVER     RXUNDER    RXSTALL
+  FIFO STATUS     >>> 00000001 - 00000000 - 00000000 - 00000001 <<<
+
+==> BLITTING to 42, 16 / alpha: 0
+--> BLITTING TO X/Y: 42,16 <--
+** SPRITE SCRATCH BUFF CONTENTS RIGHT AFTER BLIT **
+. . 1 . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . 3 3 3
+. . . 3 3 3 . . . . . . 3 9 9 9
+3 . 3 9 9 3 1 . . . . 3 9 9 3 3
+3 1 9 3 3 3 3 1 . . . 3 9 3 3 3
+3 1 1 3 3 3 3 1 . . . 3 3 3 3 3
+3 3 1 3 3 3 1 1 . . . . 3 3 3 3
+3 3 3 3 3 3 1 . . . . . 3 3 3 3
+3 3 3 3 3 1 1 . . . . . . 3 3 3
+3 3 3 3 3 1 . . . . . . . 3 3 3
+3 3 3 3 1 1 . . . . . . . . 3 3
+3 3 3 1 1 . . . . . . . . . . 3
+3 3 1 1 . . . . . . . . . . . .
+1 1 1 . . . . . . . . . . . . .
+. 1 1 1 1 1 . . . . . . . . . 1
+
+>> 1. About to swap buffers <<
+>> 2. Active render is done <<
+>> ------ BUFFERS SWAPPED ------ <<
+--- DMA0 READ: 0x20039B92
+--- DMA1 READ: 0x2000B7F0
+__________________________
+- END OF FRAME n. 3 -
+__________________________
+--------------------------
+- START OF FRAME n. 4 -
+--------------------------
+ABOUT TO DRAW a Sprite on x,y: 42,16 @ H: 1x / V: 1x
+ + VISIBLE ROWS:    16
+ + scaled_height:   16 @1x
+ + max_write_addrs: 16
+ + max_read_addrs:  16
+>> -- COUNTS --
+>> Total PX:               256
+>> readstride PX:          16
+>> px_read.count (tx):     2
+* STARTING DMA / PIO... *
+* ...AFTER DMA / PIO START *
+XXX IRQ BEFORE DMA/SM FINISHED:
+IRQ FLAGS:
+----------------
+   sm_finished:     False
+   px_read:         False
+   color_row:       False
+   h_scale:         False
+---------------------------------------------------
+
+(-x-) IRQ COLOR ROW END  (-x-)
+IRQ FLAGS:
+----------------
+   sm_finished:     False
+   px_read:         False
+   color_row:       True
+   h_scale:         False
+---------------------------------------------------
+
+~~~ About to Finish ~~~
+
+PX_READ COUNT:      0
+PX READ ACTIVE:     False
+PX READ READ ADDR:  0x20013B60
+H_SCALE COUNT:      4
+H_SCALE ACTIVE:     True
+COLOR ROW COUNT:    0
+COLOR ROW ACTIVE:   False
+PX READ FINISHED:   False
+COLOR R FINISHED:   True
+HSCALE FINISHED:    False
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+STATE MACHINE STATUS:
+-- STATE MACHINE STATUS (PIO 1, SM 0)
+----------------------
+-- INST: (line 3 / 28) -- (from zero / from 32)
+PUSH
+(blocking)
+----------------------
+PIO0 (0x50200008)     TXSTALL    TXOVER     RXUNDER    RXSTALL
+  FIFO STATUS     >>> 00000001 - 00000000 - 00000000 - 00000000 <<<
+PIO1 (0x50300008)     TXSTALL    TXOVER     RXUNDER    RXSTALL
+  FIFO STATUS     >>> 00000001 - 00000000 - 00000000 - 00000001 <<<
+
+==> BLITTING to 42, 16 / alpha: 0
+--> BLITTING TO X/Y: 42,16 <--
+** SPRITE SCRATCH BUFF CONTENTS RIGHT AFTER BLIT **
+. . . . . . . . . . . . . . . .
+. . . . . . . . . . 1 . . . . .
+. . . . . . . . . . . . . . . .
+. . . . . . . . . . . 3 3 3 . .
+. 3 3 3 . . . . . . 3 9 9 9 3 .
+3 9 9 3 1 . . . . 3 9 9 3 3 3 1
+9 3 3 3 3 1 . . . 3 9 3 3 3 3 1
+1 3 3 3 3 1 . . . 3 3 3 3 3 3 3
+1 3 3 3 1 1 . . . . 3 3 3 3 3 3
+3 3 3 3 1 . . . . . 3 3 3 3 3 3
+3 3 3 1 1 . . . . . . 3 3 3 3 3
+3 3 3 1 . . . . . . . 3 3 3 3 3
+3 3 1 1 . . . . . . . . 3 3 3 3
+3 1 1 . . . . . . . . . . 3 3 3
+1 1 . . . . . . . . . . . . 1 1
+1 . . . . . . . . . . . . . . 1
+
+>> 1. About to swap buffers <<
+>> 2. Active render is done <<
+>> ------ BUFFERS SWAPPED ------ <<
+--- DMA0 READ: 0x20036B82
+--- DMA1 READ: 0x2000A3C0
+__________________________
+- END OF FRAME n. 4 -
+__________________________
+--------------------------
+- START OF FRAME n. 5 -
+--------------------------
+ABOUT TO DRAW a Sprite on x,y: 42,16 @ H: 1x / V: 1x
+ + VISIBLE ROWS:    16
+ + scaled_height:   16 @1x
+ + max_write_addrs: 16
+ + max_read_addrs:  16
+>> -- COUNTS --
+>> Total PX:               256
+>> readstride PX:          16
+>> px_read.count (tx):     2
+* STARTING DMA / PIO... *
+* ...AFTER DMA / PIO START *
+XXX IRQ BEFORE DMA/SM FINISHED:
+IRQ FLAGS:
+----------------
+   sm_finished:     False
+   px_read:         False
+   color_row:       False
+   h_scale:         False
+---------------------------------------------------
+
+///*\ IRQ PX ROW READ END 4/*\
+(-x-) IRQ COLOR ROW END  (-x-)
+IRQ FLAGS:
+----------------
+   sm_finished:     False
+   px_read:         True
+   color_row:       True
+   h_scale:         False
+---------------------------------------------------
+
+~~~ About to Finish ~~~
+
+PX_READ COUNT:      0
+PX READ ACTIVE:     False
+PX READ READ ADDR:  0x00000000
+H_SCALE COUNT:      0
+H_SCALE ACTIVE:     False
+COLOR ROW COUNT:    0
+COLOR ROW ACTIVE:   False
+PX READ FINISHED:   True
+COLOR R FINISHED:   True
+HSCALE FINISHED:    False
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+STATE MACHINE STATUS:
+-- STATE MACHINE STATUS (PIO 1, SM 0)
+----------------------
+-- INST: (line 3 / 28) -- (from zero / from 32)
+PUSH
+(blocking)
+----------------------
+PIO0 (0x50200008)     TXSTALL    TXOVER     RXUNDER    RXSTALL
+  FIFO STATUS     >>> 00000001 - 00000000 - 00000000 - 00000000 <<<
+PIO1 (0x50300008)     TXSTALL    TXOVER     RXUNDER    RXSTALL
+  FIFO STATUS     >>> 00000001 - 00000000 - 00000000 - 00000001 <<<
+
+==> BLITTING to 42, 16 / alpha: 0
+--> BLITTING TO X/Y: 42,16 <--
+** SPRITE SCRATCH BUFF CONTENTS RIGHT AFTER BLIT **
+. . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . .
+1 . . . . . . . . . . . . . . .
+. . . . . . . . . . . 3 3 3 . .
+. 3 3 3 . . . . . . 3 9 9 9 3 .
+3 9 9 3 1 . . . . 3 9 9 3 3 3 1
+9 3 3 3 3 1 . . . 3 9 3 3 3 3 1
+1 3 3 3 3 1 . . . 3 3 3 3 3 3 3
+1 3 3 3 1 1 . . . . 3 3 3 3 3 3
+3 3 3 3 1 . . . . . 3 3 3 3 3 3
+3 3 3 1 1 . . . . . . 3 3 3 3 3
+3 3 3 1 . . . . . . . 3 3 3 3 3
+3 3 1 1 . . . . . . . . 3 3 3 3
+3 1 1 . . . . . . . . . . 3 3 3
+1 1 . . . . . . . . . . . . 1 1
+1 . . . . . . . . . . . . . . 1
+
+>> 1. About to swap buffers <<
+>> 2. Active render is done <<
+>> ------ BUFFERS SWAPPED ------ <<
+--- DMA0 READ: 0x20039B92
+--- DMA1 READ: 0x2000B7F0
+__________________________
+- END OF FRAME n. 5 -
+__________________________
+--------------------------
+- START OF FRAME n. 6 -
+--------------------------
+ABOUT TO DRAW a Sprite on x,y: 42,16 @ H: 1x / V: 1x
+ + VISIBLE ROWS:    16
+ + scaled_height:   16 @1x
+ + max_write_addrs: 16
+ + max_read_addrs:  16
+>> -- COUNTS --
+>> Total PX:               256
+>> readstride PX:          16
+>> px_read.count (tx):     2
+* STARTING DMA / PIO... *
+* ...AFTER DMA / PIO START *
+XXX IRQ BEFORE DMA/SM FINISHED:
+IRQ FLAGS:
+----------------
+   sm_finished:     False
+   px_read:         False
+   color_row:       False
+   h_scale:         False
+---------------------------------------------------
+
+(-x-) IRQ COLOR ROW END  (-x-)
+IRQ FLAGS:
+----------------
+   sm_finished:     False
+   px_read:         False
+   color_row:       True
+   h_scale:         False
+---------------------------------------------------
+
+~~~ About to Finish ~~~
+
+PX_READ COUNT:      0
+PX READ ACTIVE:     False
+PX READ READ ADDR:  0x20013B60
+H_SCALE COUNT:      10
+H_SCALE ACTIVE:     True
+COLOR ROW COUNT:    0
+COLOR ROW ACTIVE:   False
+PX READ FINISHED:   False
+COLOR R FINISHED:   True
+HSCALE FINISHED:    False
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+STATE MACHINE STATUS:
+-- STATE MACHINE STATUS (PIO 1, SM 0)
+----------------------
+-- INST: (line 3 / 28) -- (from zero / from 32)
+PUSH
+(blocking)
+----------------------
+PIO0 (0x50200008)     TXSTALL    TXOVER     RXUNDER    RXSTALL
+  FIFO STATUS     >>> 00000001 - 00000000 - 00000000 - 00000000 <<<
+PIO1 (0x50300008)     TXSTALL    TXOVER     RXUNDER    RXSTALL
+  FIFO STATUS     >>> 00000001 - 00000000 - 00000000 - 00000001 <<<
+
+==> BLITTING to 42, 16 / alpha: 0
+--> BLITTING TO X/Y: 42,16 <--
+** SPRITE SCRATCH BUFF CONTENTS RIGHT AFTER BLIT **
+. . . . . . . . . . 1 . . . . .
+. . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . .
+. . . . . 3 3 3 . . . 3 3 3 . .
+. . . . 3 9 9 9 3 . 3 9 9 3 1 .
+. . . 3 9 9 3 3 3 1 9 3 3 3 3 1
+. . . 3 9 3 3 3 3 1 1 3 3 3 3 1
+. . . 3 3 3 3 3 3 3 1 3 3 3 1 1
+. . . . 3 3 3 3 3 3 3 3 3 3 1 .
+. . . . 3 3 3 3 3 3 3 3 3 1 1 .
+. . . . . 3 3 3 3 3 3 3 3 1 . .
+. . . . . 3 3 3 3 3 3 3 1 1 . .
+. . . . . . 3 3 3 3 3 1 1 . . .
+. . . . . . . 3 3 3 1 1 . . . .
+. . . . . . . . 1 1 1 . . . . .
+. . . . . . . . . . . . . . . 1
+
+>> 1. About to swap buffers <<
+>> 2. Active render is done <<
+>> ------ BUFFERS SWAPPED ------ <<
+--- DMA0 READ: 0x20036B82
+--- DMA1 READ: 0x2000A3C0
+__________________________
+- END OF FRAME n. 6 -
+__________________________
+--------------------------
+- START OF FRAME n. 7 -
+--------------------------
+ABOUT TO DRAW a Sprite on x,y: 42,16 @ H: 1x / V: 1x
+ + VISIBLE ROWS:    16
+ + scaled_height:   16 @1x
+ + max_write_addrs: 16
+ + max_read_addrs:  16
+>> -- COUNTS --
+>> Total PX:               256
+>> readstride PX:          16
+>> px_read.count (tx):     2
+* STARTING DMA / PIO... *
+* ...AFTER DMA / PIO START *
+XXX IRQ BEFORE DMA/SM FINISHED:
+IRQ FLAGS:
+----------------
+   sm_finished:     False
+   px_read:         False
+   color_row:       False
+   h_scale:         False
+---------------------------------------------------
+
+///*\ IRQ PX ROW READ END 4/*\
+(-x-) IRQ COLOR ROW END  (-x-)
+IRQ FLAGS:
+----------------
+   sm_finished:     False
+   px_read:         True
+   color_row:       True
+   h_scale:         False
+---------------------------------------------------
+
+~~~ About to Finish ~~~
+
+PX_READ COUNT:      0
+PX READ ACTIVE:     False
+PX READ READ ADDR:  0x00000000
+H_SCALE COUNT:      0
+H_SCALE ACTIVE:     False
+COLOR ROW COUNT:    0
+COLOR ROW ACTIVE:   False
+PX READ FINISHED:   True
+COLOR R FINISHED:   True
+HSCALE FINISHED:    False
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+STATE MACHINE STATUS:
+-- STATE MACHINE STATUS (PIO 1, SM 0)
+----------------------
+-- INST: (line 3 / 28) -- (from zero / from 32)
+PUSH
+(blocking)
+----------------------
+PIO0 (0x50200008)     TXSTALL    TXOVER     RXUNDER    RXSTALL
+  FIFO STATUS     >>> 00000001 - 00000000 - 00000000 - 00000000 <<<
+PIO1 (0x50300008)     TXSTALL    TXOVER     RXUNDER    RXSTALL
+  FIFO STATUS     >>> 00000001 - 00000000 - 00000000 - 00000001 <<<
+
+==> BLITTING to 42, 16 / alpha: 0
+--> BLITTING TO X/Y: 42,16 <--
+** SPRITE SCRATCH BUFF CONTENTS RIGHT AFTER BLIT **
+. . . . . . . . . . 1 . . . . .
+. . . . . . . . . . . . . . . .
+1 . . . . . . . . . . . . . . .
+. . . . . . . . . . . 3 3 3 . .
+. 3 3 3 . . . . . . 3 9 9 9 3 .
+3 9 9 3 1 . . . . 3 9 9 3 3 3 1
+9 3 3 3 3 1 . . . 3 9 3 3 3 3 1
+1 3 3 3 3 1 . . . 3 3 3 3 3 3 3
+1 3 3 3 1 1 . . . . 3 3 3 3 3 3
+3 3 3 3 1 . . . . . 3 3 3 3 3 3
+3 3 3 1 1 . . . . . . 3 3 3 3 3
+3 3 3 1 . . . . . . . 3 3 3 3 3
+3 3 1 1 . . . . . . . . 3 3 3 3
+3 1 1 . . . . . . . . . . 3 3 3
+1 1 . . . . . . . . . . . . 1 1
+1 . . . . . . . . . . . . . . 1
+
+>> 1. About to swap buffers <<
+>> 2. Active render is done <<
+>> ------ BUFFERS SWAPPED ------ <<
+--- DMA0 READ: 0x20039B92
+--- DMA1 READ: 0x2000B7F0
+__________________________
+- END OF FRAME n. 7 -
+__________________________
+FPS:   1.14
+--------------------------
+- START OF FRAME n. 8 -
+--------------------------
+ABOUT TO DRAW a Sprite on x,y: 42,16 @ H: 1x / V: 1x
+ + VISIBLE ROWS:    16
+ + scaled_height:   16 @1x
+ + max_write_addrs: 16
+ + max_read_addrs:  16
+>> -- COUNTS --
+>> Total PX:               256
+>> readstride PX:          16
+>> px_read.count (tx):     2
+* STARTING DMA / PIO... *
+* ...AFTER DMA / PIO START *
+XXX IRQ BEFORE DMA/SM FINISHED:
+IRQ FLAGS:
+----------------
+   sm_finished:     False
+   px_read:         False
+   color_row:       False
+   h_scale:         False
+---------------------------------------------------
+
+(-x-) IRQ COLOR ROW END  (-x-)
+IRQ FLAGS:
+----------------
+   sm_finished:     False
+   px_read:         False
+   color_row:       True
+   h_scale:         False
+---------------------------------------------------
+
+~~~ About to Finish ~~~
+
+PX_READ COUNT:      0
+PX READ ACTIVE:     False
+PX READ READ ADDR:  0x20013B60
+H_SCALE COUNT:      11
+H_SCALE ACTIVE:     True
+COLOR ROW COUNT:    0
+COLOR ROW ACTIVE:   False
+PX READ FINISHED:   False
+COLOR R FINISHED:   True
+HSCALE FINISHED:    False
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+STATE MACHINE STATUS:
+-- STATE MACHINE STATUS (PIO 1, SM 0)
+----------------------
+-- INST: (line 3 / 28) -- (from zero / from 32)
+PUSH
+(blocking)
+----------------------
+PIO0 (0x50200008)     TXSTALL    TXOVER     RXUNDER    RXSTALL
+  FIFO STATUS     >>> 00000001 - 00000000 - 00000000 - 00000000 <<<
+PIO1 (0x50300008)     TXSTALL    TXOVER     RXUNDER    RXSTALL
+  FIFO STATUS     >>> 00000001 - 00000000 - 00000000 - 00000001 <<<
+
+==> BLITTING to 42, 16 / alpha: 0
+--> BLITTING TO X/Y: 42,16 <--
+** SPRITE SCRATCH BUFF CONTENTS RIGHT AFTER BLIT **
+. . . . . . . . . 1 . . . . . .
+. . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . .
+. . . . 3 3 3 . . . 3 3 3 . . .
+. . . 3 9 9 9 3 . 3 9 9 3 1 . .
+. . 3 9 9 3 3 3 1 9 3 3 3 3 1 .
+. . 3 9 3 3 3 3 1 1 3 3 3 3 1 .
+. . 3 3 3 3 3 3 3 1 3 3 3 1 1 .
+. . . 3 3 3 3 3 3 3 3 3 3 1 . .
+. . . 3 3 3 3 3 3 3 3 3 1 1 . .
+. . . . 3 3 3 3 3 3 3 3 1 . . .
+. . . . 3 3 3 3 3 3 3 1 1 . . .
+. . . . . 3 3 3 3 3 1 1 . . . .
+. . . . . . 3 3 3 1 1 . . . . .
+. . . . . . . 1 1 1 . . . . . .
+. . . . . . . . . . . . . . . 1

@@ -1,11 +1,18 @@
-from _rp2 import DMA
+import random
+
+import sys
 
 from colors import color_util as colors
+from mpdb.mpdb import Mpdb
+from scaler.const import DEBUG
 from scaler.sprite_scaler import SpriteScaler
 from perspective_camera import PerspectiveCamera
 from sprites2.sprite_manager_2d import SpriteManager2D
 from sprites2.sprite_physics import CircleAnimation
+from sprites2.test_flat import TestFlat
 from sprites2.test_heart import TestHeart
+from sprites2.test_skull import TestSkull
+from sprites2.test_square import TestSquare
 from ui_elements import ui_screen
 
 from images.image_loader import ImageLoader
@@ -21,7 +28,7 @@ from sprites2.sprite_types import *
 from micropython import const
 
 class GameScreenTest(Screen):
-    max_ground_speed: int = const(-1000)
+    max_ground_speed: int = const(-700)
     ground_speed: 0
     grid: RoadGrid = None
     sun: Sprite = None
@@ -39,7 +46,7 @@ class GameScreenTest(Screen):
     last_perf_dump_ms = 0
     paused = False
     ui = None
-    total_elapsed = 0
+    frames_elapsed = 0
     fps_enabled = True
     is_first = True # so that we only use the scaler on frame 2+
 
@@ -51,9 +58,18 @@ class GameScreenTest(Screen):
 
 
         self.scaler = SpriteScaler(display)
+
+        """ Config Live debugger """
+        mp_dbg = Mpdb(pause_dma_pio=True)
+        # mp_dbg.add_break('/lib/scaler/sprite_scaler.py:238', _self=self.scaler, pause=True)
+        # mp_dbg.set_trace()
+
         self.mgr = SpriteManager2D(self.display, 11)
         self.load_types()
-        self.load_sprite(SPRITE_TEST_HEART)
+        # self.load_sprite(SPRITE_TEST_FLAT)
+        self.load_sprite(SPRITE_TEST_SKULL)
+        # self.load_sprite(SPRITE_TEST_HEART)
+        # self.load_sprite(SPRITE_TEST_SQUARE)
         self.phy = self.mgr.phy
 
         patterns = self.scaler.dma.patterns.horiz_patterns
@@ -125,8 +141,8 @@ class GameScreenTest(Screen):
                     self.grid.update_horiz_lines(elapsed)
 
                     # Update sprites circular motion
-                    # for sprite in self.inst_group:
-                    #     self.phy.update_circ_pos(sprite, total_elapsed)
+                    for sprite in self.inst_group:
+                        self.phy.update_circ_pos(sprite, total_elapsed)
 
                 await asyncio.sleep_ms(1)
 
@@ -135,18 +151,33 @@ class GameScreenTest(Screen):
 
     def do_refresh(self):
         """ Overrides parent method """
+        if DEBUG:
+            print(f"--------------------------")
+            print(f"- START OF FRAME n. {self.frames_elapsed} - ")
+            print(f"--------------------------")
+
         self.display.fill(0x0)
 
         self.grid.show()
+        self.ui.update_score(random.randint(0, 99999999))
+        self.ui.update_lives(random.randint(0, 4))
         self.ui.show()
         # self.draw_corners()
-        # self.draw_sprite_circle()
+        self.draw_sprite_circle()
 
         # inst = self.inst_group[0]
-        # self.scaler.draw_sprite(self.sprite, inst, self.image)
+        # scale = 2
+        # self.scaler.draw_sprite(self.sprite, inst, self.image, h_scale=scale, v_scale=scale)
 
         self.display.show()
         self.fps.tick()
+
+        if DEBUG:
+            print(f"__________________________")
+            print(f"- END OF FRAME n. {self.frames_elapsed} - ")
+            print(f"__________________________")
+
+        self.frames_elapsed += 1
 
     def draw_sprite_circle(self):
         scale_idx = 0
@@ -190,8 +221,16 @@ class GameScreenTest(Screen):
             await asyncio.sleep(1)
     def load_types(self):
         self.mgr.add_type(
+            sprite_type=SPRITE_TEST_SKULL,
+            sprite_class=TestSkull)
+
+        self.mgr.add_type(
             sprite_type=SPRITE_TEST_HEART,
             sprite_class=TestHeart)
+
+        self.mgr.add_type(
+            sprite_type=SPRITE_TEST_FLAT,
+            sprite_class=TestFlat)
 
     def load_sprite(self, sprite_type):
         """ Creates images if not exist, returns meta"""

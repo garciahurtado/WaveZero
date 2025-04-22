@@ -1,0 +1,270 @@
+--------------------
+GOOD (ref)
+--------------------
+
+   ~~~   TOTAL TICKS   ~~~
+
+ .write_addrs:  15
+ .read_addrs:   15
+ .px_read:      15
+ .color_row:    14
+ .px_write:     234
+ .h_scale:      0
+ ---
+ sm_finished    False
+  ~~~~~~~~~~~~~~~~~~~~~~~~
+>>> TICKS INSIDE INNER LOOP <<<
+
+   ~~~   TOTAL TICKS   ~~~
+
+ .write_addrs:  16
+ .read_addrs:   16
+ .px_read:      16
+ .color_row:    15
+ .px_write:     242
+ .h_scale:      0
+ ---
+ sm_finished    False
+  ~~~~~~~~~~~~~~~~~~~~~~~~
+>>> TICKS INSIDE INNER LOOP <<<
+
+   ~~~   TOTAL TICKS   ~~~
+
+ .write_addrs:  16
+ .read_addrs:   16
+ .px_read:      16
+ .color_row:    15
+ .px_write:     249
+ .h_scale:      0
+ ---
+ sm_finished    False
+  ~~~~~~~~~~~~~~~~~~~~~~~~
+>>> TICKS INSIDE INNER LOOP <<<
+
+   ~~~   TOTAL TICKS   ~~~
+
+ .write_addrs:  17
+ .read_addrs:   17
+ .px_read:      17
+ .color_row:    16
+ .px_write:     256
+ .h_scale:      0
+ ---
+ sm_finished    True
+  ~~~~~~~~~~~~~~~~~~~~~~~~
+>>> TICKS INSIDE INNER LOOP <<<
++++ TICKS AFTER INNER LOOP:
+
+   ~~~   TOTAL TICKS   ~~~
+
+ .write_addrs:  17
+ .read_addrs:   17
+ .px_read:      17
+ .color_row:    16
+ .px_write:     256
+ .h_scale:      0
+ ---
+ sm_finished    True
+  ~~~~~~~~~~~~~~~~~~~~~~~~
+ ** ... FINISHED DMA / PIO **
+
+ ----------------------------------
+STUCK
+-----------------------------------
+   ~~~   TOTAL TICKS   ~~~
+
+ .write_addrs:  3
+ .read_addrs:   5
+ .px_read:      2
+ .color_row:    1
+ .px_write:     256
+ .h_scale:      0
+ ---
+ sm_finished    False
+  ~~~~~~~~~~~~~~~~~~~~~~~~
+>>> TICKS INSIDE INNER LOOP <<<
+
+   ~~~   TOTAL TICKS   ~~~
+
+ .write_addrs:  3-2
+ .read_addrs:   5-8
+ .px_read:      2
+ .color_row:    1
+ .px_write:     256
+ .h_scale:      0
+ ---
+ sm_finished    False
+  ~~~~~~~~~~~~~~~~~~~~~~~~
+>>> TICKS INSIDE INNER LOOP <<<
+
+-------------------------------
+sm_freq = 1_000_000
+-------------------------------
+   ~~~   TOTAL TICKS   ~~~
+
+ .write_addrs:  4
+ .read_addrs:   8
+ .px_read:      2
+ .color_row:    1
+ .px_write:     256
+ .h_scale:      0
+ ---
+ sm_finished    False
+  ~~~~~~~~~~~~~~~~~~~~~~~~
+
+-------------------------------
+sm_freq = 500_000
+-------------------------------
+   ~~~   TOTAL TICKS   ~~~
+
+ .write_addrs:  4
+ .read_addrs:   6
+ .px_read:      3
+ .color_row:    2
+ .px_write:     256
+ .h_scale:      0
+ ---
+ sm_finished    False
+  ~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+-------------------------------
+sm_freq = 50_000
+-------------------------------
+     ~~~   TOTAL TICKS   ~~~
+
+ .write_addrs:  11
+ .read_addrs:   11
+ .px_read:      8
+ .color_row:    6
+ .px_write:     256
+ .h_scale:      0
+ ---
+ sm_finished    False
+  ~~~~~~~~~~~~~~~~~~~~~~~~
+>>> TICKS INSIDE INNER LOOP <<<
+00000256
+
+-------------------------------
+utime.sleep_ms(15)
+sm_freq = 50_000 - 
+-------------------------------
+   ~~~   TOTAL TICKS   ~~~
+
+ .write_addrs:  17
+ .read_addrs:   17
+ .px_read:      17
+ .color_row:    16
+ .px_write:     256
+ .h_scale:      0
+ ---
+ sm_finished    True
+  ~~~~~~~~~~~~~~~~~~~~~~~~
+
+-------------------------------
+utime.sleep_ms(15)
+sm_freq = 500_000 -  - STUCK
+-------------------------------
+
+  >>> TICKS INSIDE INNER LOOP <<<
+   ~~~   TOTAL TICKS   ~~~
+
+ .write_addrs:  17
+ .read_addrs:   17
+ .px_read:      16
+ .color_row:    9
+ .px_write:     256
+ .h_scale:      0
+ ---
+ sm_finished    False
+  ~~~~~~~~~~~~~~~~~~~~~~~~
+>>> TICKS INSIDE INNER LOOP <<<
+   ~~~   TOTAL TICKS   ~~~
+
+ .write_addrs:  17
+ .read_addrs:   17
+ .px_read:      16
+ .color_row:    9
+ .px_write:     256
+ .h_scale:      0
+ ---
+ sm_finished    False
+  ~~~~~~~~~~~~~~~~~~~~~~~~
+>>> TICKS INSIDE INNER LOOP <<<
+   ~~~   TOTAL TICKS   ~~~
+
+ .write_addrs:  17
+ .read_addrs:   17
+ .px_read:      16
+ .color_row:    9
+ .px_write:     256
+ .h_scale:      0
+ ---
+ sm_finished    False
+  ~~~~~~~~~~~~~~~~~~~~~~~~
+
+  -------------------------------
+utime.sleep_ms(15)
+sm_freq = 4_000_000 - STUCK
+-------------------------------
+
+>>> TICKS INSIDE INNER LOOP <<<
+
+   ~~~   TOTAL TICKS   ~~~
+
+ .write_addrs:  2
+ .read_addrs:   5
+ .px_read:      2
+ .color_row:    1
+ .px_write:     256
+ .h_scale:      0
+ ---
+ sm_finished    False
+  ~~~~~~~~~~~~~~~~~~~~~~~~
+>>> TICKS INSIDE INNER LOOP <<<
+
+   ~~~   TOTAL TICKS   ~~~
+
+ .write_addrs:  2
+ .read_addrs:   5
+ .px_read:      2
+ .color_row:    1
+ .px_write:     256
+ .h_scale:      0
+ ---
+ sm_finished    False
+  ~~~~~~~~~~~~~~~~~~~~~~~~
+>>> TICKS INSIDE INNER LOOP <<<
+
+   ~~~   TOTAL TICKS   ~~~
+
+ .write_addrs:  2
+ .read_addrs:   5
+ .px_read:      2
+ .color_row:    1
+ .px_write:     256
+ .h_scale:      0
+ ---
+ sm_finished    False
+  ~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+---------------
+@ 1_000_000
+----------------
+
+  ~~~~~~~~~~~~~~~~~~~~~~~~
+>>> TICKS INSIDE INNER LOOP <<<
+
+   ~~~   TOTAL TICKS   ~~~
+
+ .write_addrs:  14
+ .read_addrs:   17
+ .px_read:      2
+ .color_row:    1
+ .px_write:     256
+ .h_scale:      0
+ ---
+ sm_finished    False
+  ~~~~~~~~~~~~~~~~~~~~~~~~

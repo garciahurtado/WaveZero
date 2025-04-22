@@ -49,8 +49,8 @@ class SSD1331PIO():
     dma1: DMA = None
 
     sm = None
-    flip = True
-    flop = False
+    flip = False
+    flop = not flip
 
     buffer0 = aligned_buffer(HEIGHT * WIDTH * 2)  # RGB565 is 2 bytes per px
     buffer1 = aligned_buffer(HEIGHT * WIDTH * 2)
@@ -114,9 +114,8 @@ class SSD1331PIO():
             print(f" > BUFFER 0 ADDR: 0x{addr0:08X}")
             print(f" > BUFFER 1 ADDR: 0x{addr1:08X}")
 
-        self.is_render_done = True
-        self.is_render_ctrl_done = True
-        self.is_spi_done = True
+        self.is_render_done = False
+        self.is_render_ctrl_done = False
 
         mode = framebuf.RGB565
         gc.collect()
@@ -130,19 +129,18 @@ class SSD1331PIO():
         self.framebuf1 = framebuf.FrameBuffer(self.buffer1, self.WIDTH, self.HEIGHT, mode)
         self.framebuf1.fill(colors.hex_to_565(0x0B0B0B))
 
-        # Set starting alias to each buffer, so that we can easily flip them
+        # Set starting alias to each framebuffer, just to make it clear that they will swap places
         # framebuf0 -> buffer0
         # framebuf1 -> buffer1
 
         self.write_framebuf = self.framebuf0
         self.read_framebuf = self.framebuf1
 
-        self.buffer0_addr = int(addressof(self.buffer0)) + 2
+        self.buffer0_addr = int(addressof(self.buffer0))
         self.buffer0_addr_buf = self.buffer0_addr.to_bytes(4, "little")
 
-        self.buffer1_addr = int(addressof(self.buffer1)) + 2
+        self.buffer1_addr = int(addressof(self.buffer1))
         self.buffer1_addr_buf = self.buffer1_addr.to_bytes(4, "little")
-
 
     def start(self):
         self.init_display()
@@ -168,16 +166,13 @@ class SSD1331PIO():
             print()
             print(">> 1. About to swap buffers <<")
 
-        while not self.is_render_done:
+        while self.dma0.active():
             utime.sleep_ms(1)
+
         self.is_render_done = False
 
-        while False and not self.is_spi_done:
-            utime.sleep_ms(1)
-        self.is_spi_done = False
-
-        # Use the trigger register so we dont have to kick off the dma1 afterwards
-        dma1_read = DMA_BASE_1 + DMA_READ_ADDR_TRIG
+        # Use the trigger register so we dont have to kick off the DMA1 after reconfig
+        dma1_read_trigger = DMA_BASE_1 + DMA_READ_ADDR_TRIG
 
         """ Reconfigure the control channel read to point to the other buffer """
         if self.flip:
@@ -191,22 +186,21 @@ class SSD1331PIO():
             which_addr = addressof(self.buffer0_addr_buf)
             self.flip = True
 
-        mem32[dma1_read] = which_addr
+        sent_to_dma0 = mem32[which_addr]
+        mem32[dma1_read_trigger] = which_addr
 
         if DEBUG_DISPLAY:
             print(">> 2. Active render is done <<")
 
         if DEBUG_DISPLAY:
+            dma0_read = self.dma0.read
             dma1_read_addr = self.dma1.read
-            dma0_read = mem32[dma1_read_addr]
 
             print(">> ------ BUFFERS SWAPPED ------ <<")
-            print(f"--- DMA0 READ: 0x{dma0_read:08X}")
-            print(f"--- DMA1 READ: 0x{dma1_read_addr:08X}")
+            print(f"--- DMA0 READ: 0x{sent_to_dma0:08X} (in progress)")
+            print(f"--- DMA1 READ: 0x{dma1_read_addr:08X} (next)")
 
-    def irq_spi_done(self):
-        print("                 *** IRQ-SPI ***")
-        self.is_spi_done = True
+
 
     def init_display(self):
         self.pin_rs(0)  # Pulse the reset line
@@ -248,7 +242,7 @@ class SSD1331PIO():
         self.pin_cs(1)
         self.pin_dc(self.DC_MODE_DATA)
 
-    def init_pio_spi(self, freq=96_000_000):
+    def init_pio_spi(self, freq=64_000_000):
         """"""
         # Define the SPI pins
         pin_sck = self.pin_sck
@@ -353,7 +347,7 @@ class SSD1331PIO():
             inc_write=False,
             bswap=True,
             treq_sel=DREQ_PIO0_TX0,
-            irq_quiet=False,
+            irq_quiet=True,
             chain_to=self.dma0.channel # No chain
         )
         self.dma0.config(
@@ -362,7 +356,7 @@ class SSD1331PIO():
             write=PIO0_TX0,
             ctrl=ctrl0,
         )
-        self.dma0.irq(handler=self.irq_render)
+        # self.dma0.irq(handler=self.irq_render)
 
         """ Control Channel """
         ctrl1 = self.dma1.pack_ctrl(

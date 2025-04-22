@@ -1,13 +1,28 @@
 import sys
 import gc
 
+from machine import mem32
+from scaler.const import DMA_BASE, PIO1_CTRL, PIO0_CTRL, INK_BLUE, INK_CYAN, INK_MAGENTA, INK_GREEN, INK_RED, INK_END, \
+    INK_WHITE
+from scaler.scaler_debugger import printc
+
+"""
+from: https://github.com/bobveringa/mpdb
+
+Requires Micropython to be configured and compiled with settrace support
+"""
 
 class MpdbQuit(Exception):
     pass
 
 
 class Mbdb:
-    def __init__(self):
+    def __init__(self, pause_dma_pio=False):
+        self.pause_dma_pio = pause_dma_pio
+        self.pause_by_frame = {} # list of bools
+        self.dma_reenable = []
+        self.frame_self = {}
+        self.frame_pause = {}
         self.botframe = None
         self.breaks = {}
         self.quitting = False
@@ -15,6 +30,7 @@ class Mbdb:
         self.stopframe = None
         self.curframe = None
         self.stoplineno = -1
+
 
     def reset(self):
         self.botframe = None
@@ -32,19 +48,70 @@ class Mbdb:
             return self.dispatch_line(frame)
         if event == 'call':
             return self.dispatch_call(frame, arg)
+
         # if event == 'return':
         #     return self.dispatch_return(frame, arg)
         # if event == 'exception':
         #     return self.dispatch_exception(frame, arg)
         # print('bdb.Bdb.dispatch: unknown debugging event:', repr(event))
-        return self.trace_dispatch
+
+        return False
 
     def dispatch_line(self, frame):
         if self.stop_here(frame) or self.break_here(frame):
+            should_pause = False
+            key = self.make_key(frame)
+            if key in self.frame_pause and self.frame_pause[key] is True:
+                should_pause = True
+
+            if should_pause:
+                self.pause_dma()
+                self.pause_pio()
+                pass
+
             self.user_line(frame)
             if self.quitting:
                 raise MpdbQuit
         return self.trace_dispatch
+
+    def pause_dma(self):
+        self.dma_reenable = []
+
+        for ch in range(2,16):
+            ctrl_addr = DMA_BASE + (0x040 * ch) + 0xC # CTRL reg for CHANNEL n
+            ch_ctrl = mem32[ctrl_addr]
+            if ch_ctrl & 1 == 1: # It was already enabled, let's remember this
+                self.dma_reenable.append(ch)
+
+            ch_ctrl = ch_ctrl & (~1) # 1st bit for each CTRL reg is the EN flag (enable)
+            mem32[ctrl_addr] = ch_ctrl
+
+        dma_list = ",".join(str(x) for x in self.dma_reenable)
+        printc(f"* Paused DMA channels: {dma_list}", INK_CYAN)
+
+    def pause_pio(self):
+        ctrl_addrs = [PIO0_CTRL, PIO1_CTRL]
+
+        for addr in ctrl_addrs:
+            curr = mem32[addr]
+            new = curr & (~0b1111) # Set the lowest 4 bits to 0 (disable all state machines)
+            mem32[addr] = new
+
+    def resume_dma(self):
+        for ch in self.dma_reenable:
+            ctrl_addr = DMA_BASE + (0x040 * ch) + 0xC  # CTRL reg for CHANNEL n
+            ch_ctrl = mem32[ctrl_addr]
+            ch_ctrl = ch_ctrl | (1)
+            mem32[ctrl_addr] = ch_ctrl
+            print(f"ENABLED CHANNEL {ch}")
+
+    def resume_pio(self):
+        ctrl_addrs = [PIO0_CTRL, PIO1_CTRL]
+
+        for addr in ctrl_addrs:
+            curr = mem32[addr]
+            new = curr | 0b1111 # Set the lowest 4 bits to 1 (enable all state machines)
+            mem32[addr] = new
 
     def dispatch_call(self, frame, arg):
         if self.botframe is None:
@@ -77,6 +144,7 @@ class Mbdb:
         filename = frame.f_code.co_filename
         if filename not in self.breaks:
             return False
+
         lineno = frame.f_lineno
         if lineno not in self.breaks[filename]:
             # The line itself has no breakpoint, but maybe the line is the
@@ -94,6 +162,13 @@ class Mbdb:
             return True
         else:
             return False
+
+    def make_key(self, frame=None, filename=None, lineno=None):
+        if frame:
+            filename = frame.f_code.co_filename
+            lineno = frame.f_lineno
+
+        return f"{filename}:{lineno}"
 
     def do_clear(self, arg):
         raise NotImplementedError("Subclass of BDB must implement this functionality")
@@ -134,6 +209,12 @@ class Mbdb:
                 """
         # Don't stop except at breakpoints or when finished
         self._set_stopinfo(self.botframe, None, -1)
+
+        # Resume DMA / PIO
+        if self.dma_reenable:
+            self.resume_dma()
+            self.resume_pio()
+
         if not self.breaks:
             sys.settrace(None)
 
@@ -145,11 +226,21 @@ class Mbdb:
             lineno = frame.f_lineno + 1
         self._set_stopinfo(frame, frame, lineno)
 
-    def set_break(self, filename, lineno, temporary=False, cond=None):
+    def set_break(self, filename, lineno, cond=None, temporary=False, _self=None, pause=False):
         bp_list = self.breaks.setdefault(filename, [])
+
         if lineno not in bp_list:
             bp_list.append(lineno)
+
         bp = Breakpoint(filename, lineno, temporary, cond)
+        key = self.make_key(filename=filename, lineno=lineno)
+
+        # save the context
+        self.frame_self[key] = _self
+
+        # save the pause
+        self.frame_pause[key] = pause
+
         return None
 
     def set_quit(self):
@@ -397,7 +488,7 @@ class Breakpoint:
 # Adapted from: https://github.com/micropython/micropython-lib/blob/master/cmd/cmd.py
 class Cmd:
     IDENTCHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_'
-    PROMPT = '(Mpdb) '
+    PROMPT = INK_WHITE + '(Mpdb) ' + INK_END
     doc_leader = ""
     doc_header = "Documented commands (type help <topic>):"
     misc_header = "Miscellaneous help topics:"
@@ -467,7 +558,7 @@ class Cmd:
         If this method is not overridden, it prints an error message and
         returns.
         """
-        sys.stdout.write('*** Unknown syntax: %s\n' % line)
+        sys.stdout.write('*** Unknown command: %s\n' % line)
 
     def emptyline(self):
         """Called when an empty line is entered in response to the prompt.
@@ -543,7 +634,12 @@ def print_stacktrace(frame, level=0):
 
 
 class Mpdb(Mbdb, Cmd):
+    _locals = {}
+
     def do_break(self, arg, temporary=False):
+        return self.add_break(arg, temporary)
+
+    def add_break(self, arg, temporary=False, _self=None, pause=False):
         if not arg:
             if self.breaks:  # There's at least one
                 self.message("Num Type         Disp Enb   Where")
@@ -564,13 +660,14 @@ class Mpdb(Mbdb, Cmd):
         funcname = None
         if colon >= 0:
             filename = arg[:colon].rstrip()
-            print(filename)
             arg = arg[colon + 1:].lstrip()
-            try:
-                lineno = int(arg)
-            except ValueError:
-                return
-        self.set_break(filename, lineno, cond=cond, temporary=temporary)
+            lineno = int(arg)
+        else:
+            print("No line number provided.")
+            return False
+
+        self.set_break(filename, lineno, cond=cond, temporary=temporary, _self=_self, pause=pause)
+        print(f"Breakpoint added at {filename}:{lineno}")
 
     def do_clear(self, arg):
         """cl(ear) filename:lineno\ncl(ear) [bpnumber [bpnumber...]]
@@ -686,7 +783,7 @@ class Mpdb(Mbdb, Cmd):
     do_unt = do_until
 
     def do_tbreak(self, arg):
-        self.do_break(arg, True)
+        self.add_break(arg, True)
 
     def message(self, msg):
         print(msg)
@@ -715,17 +812,53 @@ class Mpdb(Mbdb, Cmd):
         print('Garbage Collected!', )
 
     def do_p(self, arg):
-        repr(self._getval(arg))
+        try:
+            if self._locals:
+                _locals = self._locals
+            else:
+                _locals = self.curframe.f_globals
 
-    def _getval(self, arg):
-        return eval(arg, self.curframe.f_globals, self.curframe.f_globals)
+            repr(self._getval(arg, _locals))
+        except Exception as e:
+            # Avoid crashing the repl
+            print(e)
+
+    def do_e(self, src):
+        """" Evaluate a valid micropython expression """
+        try:
+            if self._locals:
+                locals = self._locals
+            else:
+                locals = self.curframe.f_globals
+
+            return eval(src, locals, locals)
+        except Exception as e:
+            # Avoid crashing the repl
+            print(e)
+
+    def _getval(self, arg, _locals):
+        return eval(arg, _locals, _locals)
 
     def user_line(self, frame):
-        out_info = '{}:{}'.format(frame.f_code.co_filename, frame.f_lineno)
+        bp_key = '{}:{}'.format(frame.f_code.co_filename, frame.f_lineno)
         if self.currentbp is not 0:
-            out_info = 'BREAK ' + out_info
+            msg = 'BREAK ' + bp_key
             self.currentbp = 0
         else:
-            out_info = 'STOP ' + out_info
-        print(out_info)
+            msg = 'STOP ' + bp_key
+
+        printc(msg, INK_MAGENTA)
+
+        if not frame.f_globals:
+            frame.f_globals = {}
+
+        # Recover context
+        _self = None
+        if bp_key in self.frame_self.keys():
+            _self = self.frame_self[bp_key]
+
+        # add to frame globals
+        frame.f_globals['self'] = _self
+        # self.locals['_self'] = _self
+
         self.cmdloop()

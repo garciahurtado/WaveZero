@@ -4,7 +4,7 @@ from scaler.dma_chain import DMAChain
 from screens.screen import PixelBounds
 from ssd1331_pio import SSD1331PIO
 from uctypes import addressof
-from scaler.const import DEBUG, DEBUG_DISPLAY
+from scaler.const import DEBUG, DEBUG_DISPLAY, DEBUG_DMA_ADDR
 from utils import aligned_buffer
 
 
@@ -31,7 +31,7 @@ class ScalerFramebuf():
     scratch_size = max_width * max_height * 2
     aligned_b = aligned_buffer(scratch_size)
     scratch_bytes = aligned_b  # scratch framebuf, claiming a large chunk of memory early
-    scratch_addr = addressof(scratch_bytes)
+    scratch_addr = addressof(aligned_b)
     scratch_buffer = None
     display_stride = 0
 
@@ -138,17 +138,22 @@ class ScalerFramebuf():
 
         prof.end_profile('scaler.select_buffer')
         dma:DMAChain = self.scaler.dma
-        if DEBUG_DISPLAY:
+        if DEBUG_DMA_ADDR:
             print(f"............................................")
             print(f":  In scaler_framebuf.select_buffer        :")
             print(f"............................................")
-            print(f"    WRITE ADDRs @ ADDR: 0x{addressof(dma.write_addrs):08x}")
-            print(f"    WRITE ADDRs 1st:    0x{dma.write_addrs[0]:08x}")
-            print(f"    WRITE ADDRs last:   0x{dma.write_addrs[-1]:08x}")
+            print(f"    WRITE ADDRs ARRAY @:0x{addressof(dma.write_addrs):08x}")
+            print(f"    WRITE ADDR 1st:     0x{dma.write_addrs[0]:08x}")
+            print(f"    WRITE ADDR last:    0x{dma.write_addrs[-1]:08x}")
             print(f"    WRITE ADDR COUNT:   {dma.max_write_addrs} ")
-            print(f"    READ ADDR COUNT:    {dma.max_read_addrs} ")
-            print(f"    SOURCE IMG w/h:     {scaled_width}, {scaled_height}")
-            print(f"    FRAMEB w/h:         {self.frame_width}x{self.frame_height}")
+            print()
+            print(f"    READ ADDRs ARRAY @:0x{addressof(dma.read_addrs):08x} ")
+            print(f"    READ ADDR 1st:     0x{dma.read_addrs[0]:08x} ")
+            print(f"    READ ADDR last:    0x{dma.read_addrs[-1]:08x} ")
+            print(f"    READ ADDR COUNT:   {dma.max_read_addrs} ")
+            print()
+            print(f"    FINAL IMG w/h:      {scaled_width} x {scaled_height} ({scaled_width * scaled_height})")
+            print(f"    FRAMEB w/h:         {self.frame_width} x {self.frame_height}  ({self.frame_width * self.frame_height})")
             print(f"    SELECTED FB STRIDE: {self.display_stride} bytes")
             print(f"    FRAME TOTAL BYTES:  {self.frame_bytes} bytes")
 

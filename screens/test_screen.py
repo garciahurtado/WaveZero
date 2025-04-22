@@ -458,7 +458,7 @@ class TestScreen(TestScreenBase):
 
         prof.start_profile('scaler.display_show')
 
-        while not self.scaler.dma.read_finished:
+        while not self.scaler.dma.px_read_finished:
             pass
 
         self.display.show()

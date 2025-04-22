@@ -3,10 +3,8 @@ from mpdb import Mpdb
 
 debugger = Mpdb()
 
-# debugger.handle_user_command('Set breakpoints\n')
 # debugger.set_break('main.py', 28, cond='some_value == 1')
 debugger.set_trace()
-# debugger.set_break('main.py', 36)
 
 
 some_value = 0
