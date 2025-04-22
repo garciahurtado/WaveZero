@@ -60,11 +60,11 @@ class GameScreenTest(Screen):
         self.scaler = SpriteScaler(display)
 
         """ Config Live debugger """
-        mp_dbg = Mpdb(pause_dma_pio=True)
+        # mp_dbg = Mpdb(pause_dma_pio=True)
         # mp_dbg.add_break('/lib/scaler/sprite_scaler.py:238', _self=self.scaler, pause=True)
         # mp_dbg.set_trace()
 
-        self.mgr = SpriteManager2D(self.display, 11)
+        self.mgr = SpriteManager2D(self.display, 32) # max sprites
         self.load_types()
         # self.load_sprite(SPRITE_TEST_FLAT)
         self.load_sprite(SPRITE_TEST_SKULL)
@@ -75,8 +75,9 @@ class GameScreenTest(Screen):
         patterns = self.scaler.dma.patterns.horiz_patterns
         pattern_keys = list(patterns.keys())
         pattern_keys.sort()
-        short_keys = pattern_keys[9:15]
+        short_keys = pattern_keys[6:18]
         self.scale_list = short_keys
+        self.scale_list.reverse()
 
         print("__ SCALES: __")
         print(self.scale_list)
@@ -88,7 +89,7 @@ class GameScreenTest(Screen):
         self.inst_group = []
         running_ms = 0
 
-        for i in range(5):
+        for i in range(12):
             new_inst, idx = self.mgr.pool.get(self.sprite_type, self.sprite)
             new_inst.born_ms += running_ms
             self.phy.set_pos(new_inst, 50, 24)
@@ -156,12 +157,14 @@ class GameScreenTest(Screen):
             print(f"- START OF FRAME n. {self.frames_elapsed} - ")
             print(f"--------------------------")
 
+            self.check_mem()
+
         self.display.fill(0x0)
 
         self.grid.show()
         self.ui.update_score(random.randint(0, 99999999))
-        self.ui.update_lives(random.randint(0, 4))
         self.ui.show()
+
         # self.draw_corners()
         self.draw_sprite_circle()
 
@@ -256,4 +259,5 @@ class GameScreenTest(Screen):
             min_y=horiz_y+4,
             max_y=self.display.height + max_sprite_height,
             fov=90.0)
+
 

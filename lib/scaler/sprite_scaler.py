@@ -110,7 +110,7 @@ class SpriteScaler():
         if DEBUG_IRQ:
             print('<"""""""" - PIO1 SM IRQ ASSERTED  """""""">')
 
-    @micropython.viper
+    # @micropython.viper
     def fill_addrs(self, scaled_height: int, h_scale, v_scale):
 
         # Get array pointers
@@ -130,10 +130,6 @@ class SpriteScaler():
 
         self.dma.read_addrs[row_id] = self.null_trig_inv_addr  # This "reverse NULL trigger" will make the SM stop. This is the address where the value lives
         self.dma.write_addrs[row_id] = new_write            # this doesnt matter, but just in case, so that px_write doesnt write to the display
-
-        row_id += 1
-        self.dma.read_addrs[row_id] = 0x00000000 # finally, finish it with a NULL trigger that will stop px_read
-        self.dma.write_addrs[row_id] = 0x00000000
 
         if DEBUG_DMA_ADDR:
             for row_id in range(max_read_addrs + 2):
@@ -182,7 +178,7 @@ class SpriteScaler():
         self.draw_x = int(inst.draw_x)
         self.draw_y = int(inst.draw_y)
 
-        if DEBUG:
+        if DEBUG_DISPLAY:
             print(f"ABOUT TO DRAW a Sprite on x,y: {self.draw_x},{self.draw_y} @ H: {h_scale}x / V: {v_scale}x")
 
         """ Config interpolator """
@@ -264,7 +260,7 @@ class SpriteScaler():
     def start(self):
         """ Start DMA chains and State Machines (every frame) """
         prof.start_profile('scaler.dma_pio')
-        if DEBUG:
+        if DEBUG_DMA:
             printc("** STARTING DMA... **", INK_GREEN)
 
         self.dma.start()
@@ -272,6 +268,7 @@ class SpriteScaler():
 
     def finish_sprite(self, image):
         prof.start_profile('scaler.finish_sprite')
+
         if DEBUG_DISPLAY:
             print(f"==> BLITTING to {self.draw_x}, {self.draw_y} / alpha: {self.alpha}")
 

@@ -134,8 +134,9 @@ class Screen:
             self.last_gc = utime.ticks_ms()
 
     @staticmethod
-    def check_mem():
-        gc.collect()
+    def check_mem(collect=False):
+        if collect:
+            gc.collect()
         print(f"Free memory: {gc.mem_free():,} bytes")
         print(micropython.mem_info())
 

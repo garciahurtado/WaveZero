@@ -35,7 +35,7 @@ class SpritePool:
         new_sprite.visible = False
         new_sprite.active = False
         new_sprite.has_physics = False
-        new_sprite.pool = self
+        new_sprite.sprites = self
         self.reserve_sprites.append(new_sprite)
 
     def get_new(self):

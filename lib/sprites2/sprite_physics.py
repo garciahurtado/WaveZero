@@ -46,7 +46,7 @@ FP_SCALE_RAD = int(1.5 * FP_ONE_RAD)  # = 3072 (1.5 in fixed point)
 class CircleAnimation:
     # Global configuration (class-level)
     RADIUS = 20            # pixels
-    SPEED = 2            # radians/second
+    SPEED = -2            # radians/second
     CENTER_X = 50          # Default center X
     CENTER_Y = 30          # Default center Y
 
@@ -118,7 +118,9 @@ class SpritePhysics:
     @staticmethod
     def update_circ_pos(inst, total_elapsed_ms):
         """
-        Update position using global circle animation and born_ms-based phase
+        Update position using:
+         - global circle animation config
+         - born_ms-based phase
         total_elapsed_ms: Current game time in milliseconds
         """
         # Calculate phase (automatically unique per sprite via born_ms)

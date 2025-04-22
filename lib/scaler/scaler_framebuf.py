@@ -132,7 +132,7 @@ class ScalerFramebuf():
             self.frame_width = self.max_width
             self.frame_height = self.max_height
 
-        # self.scratch_buffer.fill(self.fill_color)
+        self.scratch_buffer.fill(self.fill_color)
         self.display_stride = self.frame_width * 2
         self.frame_bytes = self.display_stride * self.frame_height
 
@@ -161,7 +161,7 @@ class ScalerFramebuf():
         """ Copy the sprite from the "scratch" framebuffer to the final one in the display.
          This is needed to implement transparency """
 
-        if DEBUG:
+        if DEBUG_DISPLAY:
             print(f"--> BLITTING TO X/Y: {x},{y} <--")
 
         """ Negative x and y have already been taking into account in interp config"""

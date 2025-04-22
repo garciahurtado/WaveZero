@@ -194,7 +194,6 @@ class GameScreen(Screen):
 
                     self.collider.check_collisions(self.enemies.pool.active_sprites)
 
-                await self.show_perf()
                 await asyncio.sleep(1/160) # Tweaking this number can give FPS gains
 
         except asyncio.CancelledError:

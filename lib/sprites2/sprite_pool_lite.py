@@ -6,19 +6,31 @@ from uarray import array
 from dump_object import dump_object
 from sprites2.sprite_types import create_sprite, SPRITE_DATA_LAYOUT, SPRITE_DATA_SIZE, SpriteType, FLAG_PHYSICS
 from sprites2.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE
-import uctypes
+from uctypes import addressof, struct
 from profiler import Profiler as prof
 from scaler.const import DEBUG_POOL
 
 POOL_CHUNK_SIZE = 50
 
+class PoolNode:
+    """ Implements a linked list for easy iterating of the sprite pool """
+    __slots__ = ['sprite', 'index', 'prev', 'next']
+
+    def __init__(self, sprite, index, prev=None, next=None):
+        self.sprite = sprite
+        self.index = index
+        self.prev = prev
+        self.next = next
+
 class SpritePool:
+    pool_size: int
     all_indices = 0
     free_count = 0
     active_count = 0
     head = None
     tail = None
-    pool: List[uctypes.struct] = []
+    pool_nodes: List[PoolNode] = []
+    sprites: List[struct] = []
     sprite_memory: List[bytearray] = []
     mgr = None
 
@@ -33,19 +45,35 @@ class SpritePool:
         self.free_count = int(pool_size)
 
     def create_pool(self, pool_size):
+        """ Initialize sprite memory """
         self.sprite_memory = []
-        chunk_size = min(pool_size,
-                         POOL_CHUNK_SIZE)  # Size in number of objects. Adjust this value based on available memory
-        for i in range(0, pool_size, chunk_size):
-            chunk = bytearray(SPRITE_DATA_SIZE * min(chunk_size, pool_size - i))
-            self.sprite_memory.append(chunk)
+
+        """ "chunk" is an integer number of sprites in a single, contiguous, byte array"""
+        # chunk_size = min(pool_size, POOL_CHUNK_SIZE)
+        # for i in range(0, pool_size, chunk_size):
+        #     chunk = bytearray(SPRITE_DATA_SIZE * min(chunk_size, pool_size - i))
+        #     self.sprite_memory.append(chunk)
 
         # Create sprite structures
-        self.sprites = []
-        for i, chunk in enumerate(self.sprite_memory):
-            for j in range(len(chunk) // SPRITE_DATA_SIZE):
-                addr = uctypes.addressof(chunk) + j * SPRITE_DATA_SIZE
-                self.sprites.append(uctypes.struct(addr, SPRITE_DATA_LAYOUT))
+        # self.sprites = []
+        # # for i, chunk in enumerate(self.sprite_memory):
+        # #     for j in range(len(chunk) // SPRITE_DATA_SIZE):
+        #         addr = uctypes.addressof(chunk) + j * SPRITE_DATA_SIZE
+        #
+        #         self.sprites.append(new_sprite)
+        #         new_node = PoolNode(sprite=new_sprite)
+        #         self.pool_nodes.append(PoolNode)
+
+        for s in range(self.pool_size):
+            # Create the sprite in memory
+            addr = addressof(bytearray(SPRITE_DATA_SIZE))
+            new_sprite = struct(addr, SPRITE_DATA_LAYOUT)
+            self.sprites.append(new_sprite)
+
+            # Create the node to hold it in the pool
+            node = PoolNode(sprite=new_sprite, index=s)
+            self.pool_nodes.append(node)
+
 
     def get(self, sprite_type, meta):
         """ TODO: theres a problem here with the fact that we have two ways to determine a sprite is active:
@@ -61,15 +89,16 @@ class SpritePool:
         if self.free_count < 1:
             raise RuntimeError("Sprite pool is empty. Consider increasing pool size.")
 
+        """ We do this at the start to prevent possible race conditions """
         self.free_count = self.free_count - 1
 
         index = self.ready_indices[self.free_count]
-        sprite = self.sprites[index]
+        node = self.pool_nodes[index]
+        sprite = node.sprite
 
         if DEBUG_POOL:
             print(f".get() - {len(self.all_indices)} total indices / free_count={self.free_count} ")
             print(f".ready index will be {index} for sprite {sprite}")
-
 
         sprite.sprite_type = sprite_type # int
         sprite.current_frame = 0
@@ -80,17 +109,13 @@ class SpritePool:
         SpriteType.set_flag(sprite, FLAG_ACTIVE)
         SpriteType.set_flag(sprite, FLAG_VISIBLE)
 
-        prof.start_profile('pool.create_node')
-        new_node = PoolNode(sprite=sprite, index=index)
-        prof.end_profile('pool.create_node')
-
         # Only active sprites in this queue
         if not self.head:
-            self.head = self.tail = new_node
+            self.head = self.tail = node
         else:
-            new_node.next = self.head
-            self.head.prev = new_node
-            self.head = new_node
+            node.next = self.head
+            self.head.prev = node
+            self.head = node
 
         self.active_count += 1
 
@@ -192,11 +217,3 @@ class SpritePool:
         """Return the number of active sprites"""
         return int(self.active_count)
 
-class PoolNode:
-    __slots__ = ['sprite', 'index', 'prev', 'next']
-
-    def __init__(self, sprite, index, prev=None, next=None):
-        self.sprite = sprite
-        self.index = index
-        self.prev = prev
-        self.next = next

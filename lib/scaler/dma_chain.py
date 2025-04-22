@@ -51,7 +51,7 @@ class DMAChain:
     def __init__(self, display:SSD1331PIO, extra_write_addrs=0, jmp_pin:int=0):
         """ extra_read_addrs: additional rows in the margin of the full screen buffer"""
 
-        self.max_sprite_height = 32
+        self.max_sprite_height = 72
         self.max_write_addrs = self.max_read_addrs = display.HEIGHT + extra_write_addrs
 
         self.patterns = ScalePatterns()
