@@ -1,5 +1,8 @@
 from uarray import array
 
+from scaler.const import DEBUG_SCALE_PATTERNS
+
+
 class ScalePatterns:
     """
     Stores, creates and manages the scaling patters to use in upscale / downscaling (only horizontal)
@@ -9,7 +12,8 @@ class ScalePatterns:
 
     def __init__(self):
         self.create_horiz_patterns()
-        # self.print_patterns()
+        if DEBUG_SCALE_PATTERNS:
+            self.print_patterns()
 
     def get_pattern(self, scale):
         patterns = self.get_horiz_patterns()
@@ -95,7 +99,7 @@ class ScalePatterns:
         str_out = ''
         for scale in pattern_keys:
             pattern = patterns[scale]
-            if scale >= first and scale < last:
+            if first <= scale < last:
                 actual = sum(pattern) / self.scale_precision
                 str_out += "\n"
                 str_out += f"{scale} ({actual:.03f}):\n"
@@ -104,14 +108,15 @@ class ScalePatterns:
 
         print(str_out)
 
-    def pattern_to_array(self, list):
+    @staticmethod
+    def pattern_to_array(pattern):
         """
-        Create bytebuffer to store 1 scaling pattern of 8 elements, 1 word wide ('L')
+        Create bytebuffer to store 1 scaling pattern of 8 elements, 1 word total size
         """
         arr_buff = bytearray(8 * 4)
         final_array = array('L', arr_buff)
 
         for i in range(8):
-            final_array[i] = int(list[i])
+            final_array[i] = int(pattern[i])
 
         return final_array

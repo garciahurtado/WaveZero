@@ -28,14 +28,15 @@ from sprites2.sprite_types import *
 from micropython import const
 
 class GameScreenTest(Screen):
-    max_ground_speed: int = const(-700)
     ground_speed: 0
+    max_ground_speed: int = const(-700)
+    max_sprites: int = 32
+
     grid: RoadGrid = None
     sun: Sprite = None
     sun_start_x = None
     camera: PerspectiveCamera
     enemies: SpriteManager = None
-    max_sprites: int = 100
     saved_ground_speed = 0
     lane_width: int = const(24)
     num_lives: int = 4
@@ -49,6 +50,7 @@ class GameScreenTest(Screen):
     frames_elapsed = 0
     fps_enabled = True
     is_first = True # so that we only use the scaler on frame 2+
+    inst_group = []
 
     def __init__(self, display, *args, **kwargs):
         super().__init__(display, *args, **kwargs)
@@ -56,26 +58,26 @@ class GameScreenTest(Screen):
         display.fill(0x0000)
         self.init_camera()
 
-
         self.scaler = SpriteScaler(display)
 
         """ Config Live debugger """
         # mp_dbg = Mpdb(pause_dma_pio=True)
-        # mp_dbg.add_break('/lib/scaler/sprite_scaler.py:238', _self=self.scaler, pause=True)
+        # mp_dbg.add_break('/lib/scaler/sprite_scaler.py:230', _self=self.scaler, pause=True)
         # mp_dbg.set_trace()
 
-        self.mgr = SpriteManager2D(self.display, 32) # max sprites
+        self.mgr = SpriteManager2D(self.display, self.max_sprites) # max sprites
         self.load_types()
         # self.load_sprite(SPRITE_TEST_FLAT)
         self.load_sprite(SPRITE_TEST_SKULL)
         # self.load_sprite(SPRITE_TEST_HEART)
         # self.load_sprite(SPRITE_TEST_SQUARE)
+        self.preload_images()
         self.phy = self.mgr.phy
 
         patterns = self.scaler.dma.patterns.horiz_patterns
         pattern_keys = list(patterns.keys())
         pattern_keys.sort()
-        short_keys = pattern_keys[6:18]
+        short_keys = pattern_keys[0:16]
         self.scale_list = short_keys
         self.scale_list.reverse()
 
@@ -86,19 +88,7 @@ class GameScreenTest(Screen):
         for scale in pattern_keys:
             pattern = patterns[scale]
 
-        self.inst_group = []
-        running_ms = 0
-
-        for i in range(12):
-            new_inst, idx = self.mgr.pool.get(self.sprite_type, self.sprite)
-            new_inst.born_ms += running_ms
-            self.phy.set_pos(new_inst, 50, 24)
-            self.inst_group.append(new_inst)
-            running_ms += 200
-
-        self.preload_images()
-        self.ui = ui_screen(display, self.num_lives)
-        self.grid = RoadGrid(self.camera, display, lane_width=self.lane_width)
+        self.init_sprites(display)
 
         self.display.fps = self.fps
 
@@ -166,11 +156,12 @@ class GameScreenTest(Screen):
         self.ui.show()
 
         # self.draw_corners()
-        self.draw_sprite_circle()
+        # self.draw_sprite_circle()
 
-        # inst = self.inst_group[0]
-        # scale = 2
-        # self.scaler.draw_sprite(self.sprite, inst, self.image, h_scale=scale, v_scale=scale)
+        inst = self.inst_group[0]
+        h_scale = 0.750
+        v_scale = 0.750
+        self.scaler.draw_sprite(self.sprite, inst, self.image, h_scale=h_scale, v_scale=v_scale)
 
         self.display.show()
         self.fps.tick()
@@ -259,5 +250,21 @@ class GameScreenTest(Screen):
             min_y=horiz_y+4,
             max_y=self.display.height + max_sprite_height,
             fov=90.0)
+
+    def init_sprites(self, display):
+        running_ms = 0
+
+        # we should turn this 16 into a var
+        for i in range(16):
+            """ We give each sprite a slightly different 'birthday', so that the animation will place them in different
+            parts of the circle """
+            new_inst, idx = self.mgr.pool.get(self.sprite_type, self.sprite)
+            new_inst.born_ms += running_ms
+            self.phy.set_pos(new_inst, 50, 24)
+            self.inst_group.append(new_inst)
+            running_ms += 200
+
+        self.ui = ui_screen(display, self.num_lives)
+        self.grid = RoadGrid(self.camera, display, lane_width=self.lane_width)
 
 

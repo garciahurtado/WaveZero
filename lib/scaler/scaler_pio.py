@@ -9,7 +9,7 @@ from scaler.status_leds import get_status_led_obj
 def read_palette_init(pin_jmp:Pin):
     leds = get_status_led_obj()
 
-    sm_freq = 150_000_000
+    sm_freq = 16_000_000
     pin_led1 = leds.pin_led1
 
     # PIO1 / SM0 = ID #4
@@ -46,11 +46,11 @@ def read_palette():
     label("start")
 
     pull()                       # First word in is the palette base address
-    out(isr, 32)                  # Keep it in the ISR for later - Line # 10
+    out(isr, 32)                  # Keep it in the ISR for later -
 
     # START WORD LOOP ----------------------------------------------
     label("new_pull")
-    pull()                    #  .side(0b0010)   # line 12
+    pull()                    #  .side(0b0010)   # line 15
 
     # Check whether the OSR contains our NULL trigger for end of sprite (0xFFFFFFFF)
     mov(y, invert(osr))
@@ -60,10 +60,10 @@ def read_palette():
     label("pixel_loop")
 
     """ Index lookup logic (reverse addition) """
-    mov(x, invert(isr))          # Line # 15: ISR has the palette addr, save it in x as the first term in the addition (inverted)
+    mov(x, invert(isr))          # Line # 18: ISR has the palette addr, save it in x as the first term in the addition (inverted)
 
     out(y, 4)                    # shift in 4 bits from OSR (a color index), take that number and use it as a loop counter
-    jmp("test_inc1")             # Line # 17
+    jmp("test_inc1")             # Line # 20
 
     # START SUBSTRACTION LOOP ---------------------------------------
     label("x++")                 # this loop is equivalent to the following code:

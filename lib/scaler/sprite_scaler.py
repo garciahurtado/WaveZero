@@ -95,9 +95,6 @@ class SpriteScaler():
 
         self.init_interp()
 
-        if DEBUG_SCALE_PATTERNS:
-            self.dma.patterns.print_patterns()
-
     def irq_sm_read_palette(self, sm):
         if self.sm_finished:
             raise Exception(f"This should NOT have happened - Double IRQ (ch:{sm})")
@@ -114,8 +111,8 @@ class SpriteScaler():
     def fill_addrs(self, scaled_height: int, h_scale, v_scale):
 
         # Get array pointers
-        read_addrs: [int] = self.dma.read_addrs  # destination
-        write_addrs: [int] = self.dma.write_addrs  # destination
+        read_addrs: [int] = self.dma.read_addrs     # blank array we are about to fill
+        write_addrs: [int] = self.dma.write_addrs   # same
 
         """ Populate DMA with read addresses """
         row_id = 0
@@ -222,21 +219,27 @@ class SpriteScaler():
             print("<<< CH STATUS BEFORE START / WHILE WAIT -- draw_sprite() >>>")
             self.dma.debug_dma_channels()
 
-
         if DEBUG_TICKS:
-            print(">>> TICKS BEFORE DMA/SM FINISHED:")
+            print(">.. TICKS BEFORE START():")
             self.ticks_debug()
 
         # ---*--- marker for bookmark - do not delete or move ---*---
 
         self.start()
-        fifo_addr = PIO1_BASE + FIFO_LEVELS
+
+        if DEBUG_TICKS:
+            print(">>. TICKS AFER START() KICKOFF:")
+            self.ticks_debug()
 
         while not (self.sm_finished):
             utime.sleep_ms(1)
 
         while not (self.dma.color_lookup_finished):
             utime.sleep_ms(1)
+
+        if DEBUG_TICKS:
+            print(">>> TICKS BEFORE FINISH():")
+            self.ticks_debug()
 
         self.finish_sprite(image)
 
@@ -288,14 +291,14 @@ class SpriteScaler():
             print()
             printc("  ~~~   TOTAL TICKS   ~~~", INK_CYAN)
             print()
-            print(f" .write_addrs:  {self.dma.ticks_write_addr}")
-            print(f" .read_addrs:   {self.dma.ticks_read_addr}")
-            print(f" .px_read:      {self.dma.ticks_px_read}")
-            print(f" .color_row:    {self.dma.ticks_color_lookup}")
-            print(f" .px_write:     {px_count}")
-            print(f" .h_scale:      {self.dma.ticks_h_scale}")
+            print(f" .write_addrs:      {self.dma.ticks_write_addr}")
+            print(f" .read_addrs:       {self.dma.ticks_read_addr}")
+            print(f" .px_read:          {self.dma.ticks_px_read}")
+            print(f" .color_row:        {self.dma.ticks_color_lookup}")
+            print(f" .px_count (Sniff)  {px_count}")
+            print(f" .h_scale:          {self.dma.ticks_h_scale}")
             print(f" ---")
-            print(f" sm_finished    {self.sm_finished}")
+            print(f" sm_finished        {self.sm_finished}")
             print("  ~~~~~~~~~~~~~~~~~~~~~~~~")
 
     def init_interp(self):
@@ -326,8 +329,8 @@ class SpriteScaler():
         mem32[INTERP1_ACCUM0] = 0
         mem32[INTERP1_ACCUM1] = 0
 
-    def init_interp_sprite(self, sprite_width:int, x_scale = 1.0, v_scale= 1.0):
-        assert sprite_width > 0 and x_scale != 0 and v_scale != 0, "Invalid params to init_interp_sprite()!"
+    def init_interp_sprite(self, sprite_width:int, h_scale = 1.0, v_scale= 1.0):
+        assert sprite_width > 0 and h_scale != 0 and v_scale != 0, "Invalid params to init_interp_sprite()!"
 
         prof.start_profile('scaler.init_interp_sprite.cfg')
         frac_bits = self.frac_bits
@@ -343,7 +346,7 @@ class SpriteScaler():
         """ HANDLE BOUNDS CHECK / CROPPING ------------------------  """
 
         prof.start_profile('scaler.init_interp_sprite.clip')
-        self.interp_clip(sprite_width, x_scale, v_scale)
+        self.interp_clip(sprite_width, h_scale, v_scale)
         prof.end_profile('scaler.init_interp_sprite.clip')
 
         """ Lane 1 config - handles integer extraction - must be reconfigured because it depends on self.frac_bits """
@@ -354,7 +357,7 @@ class SpriteScaler():
         # Configure remaining variables
         prof.start_profile('scaler.init_convert_fixed_point')
 
-        fixed_step = self.init_convert_fixed_point(sprite_width, x_scale)
+        fixed_step = self.init_convert_fixed_point(sprite_width, v_scale)
         mem32[INTERP1_BASE1] = int(fixed_step)
         mem32[INTERP1_BASE2] = self.base_read  # Base sprite read address
 
@@ -378,6 +381,7 @@ class SpriteScaler():
         frame_height = framebuf.frame_height
         scaled_width = self.scaled_width
         scaled_height = self.scaled_height
+        self.read_stride_px = sprite_width
 
         """ Avoid division by zero """
         if not x_scale:
@@ -421,6 +425,7 @@ class SpriteScaler():
             # 4. Update memory pointers (source is 2px/byte)
             # self.base_read += math.ceil(source_pixels_skipped / 2)
             # self.read_stride_px = sprite_width - source_pixels_skipped  # In pixels
+            self.read_stride_px = sprite_width
 
             if DEBUG_INTERP:
                 print(f"CLIPPING: (-X)")
@@ -446,19 +451,31 @@ class SpriteScaler():
             print(f" _  PIXEL_BYTES BASE_READ: 0x{self.base_read:08X}")
 
     # @micropython.viper
-    def init_convert_fixed_point(self, sprite_width, scale_x_one):
+    def init_convert_fixed_point(self, sprite_width, scale_of_one):
         # Precompute constants if possible
         # Assuming sprite_width, scale_x_one, and frac_bits are constants or precomputed
         # read_step = sprite_width / scale_x_one
         # read_step = read_step / 2 # Because of 2px per byte
         # Ensure step is even
         # read_step = read_step if (read_step % 2 == 0) else read_step - 1
-        fixed_step = int((sprite_width << self.frac_bits) / (scale_x_one * 2))  # Convert to fixed point directly
+        fixed_step = int((sprite_width << self.frac_bits) / (scale_of_one * 2))  # Convert to fixed point directly
 
         # fixed_step = int((1 << frac_bits) * read_step) # Convert step to fixed point
         fixed_step = fixed_step if (fixed_step % 2 == 0) else fixed_step - 1
         return fixed_step
 
+    # def init_convert_fixed_point(self, sprite_width, scale_x_one):
+    #     # Precompute constants if possible
+    #     # Assuming sprite_width, scale_x_one, and frac_bits are constants or precomputed
+    #     # read_step = sprite_width / scale_x_one
+    #     # read_step = read_step / 2 # Because of 2px per byte
+    #     # Ensure step is even
+    #     # read_step = read_step if (read_step % 2 == 0) else read_step - 1
+    #     fixed_step = int((sprite_width << self.frac_bits) / (scale_x_one * 2))  # Convert to fixed point directly
+    #
+    #     # fixed_step = int((1 << frac_bits) * read_step) # Convert step to fixed point
+    #     fixed_step = fixed_step if (fixed_step % 2 == 0) else fixed_step - 1
+    #     return fixed_step
 
     @micropython.viper
     def init_interp_lanes(self, frac_bits:int, int_bits:int, display_stride:int, write_base:int):
