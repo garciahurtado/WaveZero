@@ -104,9 +104,6 @@ class SpriteScaler():
         # Allow the state machine to exit the wait loop and continue back to the start
         self.pin_jmp.value(1)
 
-        if DEBUG_IRQ:
-            print('<"""""""" - PIO1 SM IRQ ASSERTED  """""""">')
-
     # @micropython.viper
     def fill_addrs(self, scaled_height: int, h_scale, v_scale):
 
@@ -158,9 +155,13 @@ class SpriteScaler():
         self.int_bits = 32 - self.frac_bits
 
         prof.start_profile('scaler.draw_sprite.scaled_dims')
-        scaled_height = math.ceil(sprite.height * v_scale)
-        scaled_width = math.ceil(sprite.width * h_scale)
+        scaled_height = int(sprite.height * v_scale)
+        scaled_width = int(sprite.width * h_scale)
         prof.end_profile('scaler.draw_sprite.scaled_dims')
+
+        if DEBUG:
+            print( "------** SCALED DIMS **------")
+            print(f"  {scaled_width}px x {scaled_height}px (w/h)")
 
         prof.start_profile('scaler.select_buffer')
         self.scaled_height = scaled_height
@@ -219,23 +220,25 @@ class SpriteScaler():
             print("<<< CH STATUS BEFORE START / WHILE WAIT -- draw_sprite() >>>")
             self.dma.debug_dma_channels()
 
-        if DEBUG_TICKS:
-            print(">.. TICKS BEFORE START():")
-            self.ticks_debug()
-
         # ---*--- marker for bookmark - do not delete or move ---*---
+        total_px = self.scaled_width * self.scaled_height
+        output_px = 0
 
         self.start()
-
         if DEBUG_TICKS:
-            print(">>. TICKS AFER START() KICKOFF:")
+            print(">>> TICKS RIGHT AFTER START():")
             self.ticks_debug()
 
         while not (self.sm_finished):
             utime.sleep_ms(1)
 
-        while not (self.dma.color_lookup_finished):
+
+        while not (self.dma.h_scale_finished):
             utime.sleep_ms(1)
+
+        # while (output_px < (total_px - 1)):
+        #     output_px = self.dma.get_sniff_data()
+        #     print(f"OUT PX: {output_px}")
 
         if DEBUG_TICKS:
             print(">>> TICKS BEFORE FINISH():")
@@ -281,6 +284,7 @@ class SpriteScaler():
             print("** SPRITE SCRATCH BUFF CONTENTS RIGHT AFTER BLIT **")
             addr = self.framebuf.scratch_addr
             self.dbg.debug_sprite_rgb565(addr)
+        self.reset()
 
         prof.end_profile('scaler.finish_sprite')
 
@@ -295,7 +299,7 @@ class SpriteScaler():
             print(f" .read_addrs:       {self.dma.ticks_read_addr}")
             print(f" .px_read:          {self.dma.ticks_px_read}")
             print(f" .color_row:        {self.dma.ticks_color_lookup}")
-            print(f" .px_count (Sniff)  {px_count}")
+            print(f" .px_count (sniff)  {px_count}")
             print(f" .h_scale:          {self.dma.ticks_h_scale}")
             print(f" ---")
             print(f" sm_finished        {self.sm_finished}")

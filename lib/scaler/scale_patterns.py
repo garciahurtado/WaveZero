@@ -1,6 +1,7 @@
 from uarray import array
 
-from scaler.const import DEBUG_SCALE_PATTERNS
+from scaler.const import DEBUG_SCALE_PATTERNS, INK_RED
+from scaler.scaler_debugger import printc
 
 
 class ScalePatterns:
@@ -17,7 +18,13 @@ class ScalePatterns:
 
     def get_pattern(self, scale):
         patterns = self.get_horiz_patterns()
-        return patterns[scale]
+        the_pattern = patterns[scale]
+
+        if DEBUG_SCALE_PATTERNS:
+            printc("RETURNING PATTERN:", INK_RED)
+            printc(the_pattern, INK_RED)
+
+        return the_pattern
 
     def get_horiz_patterns(self):
         """ Return exisiting, or create if it doesn't exist """
@@ -35,8 +42,8 @@ class ScalePatterns:
         patterns1 = self.create_patterns(0, 1, step=0.125) # 8 steps
         patterns2 = self.create_patterns(1, 2, step=0.250) # 8 steps
         patterns3 = self.create_patterns(2, 6, step=0.500) # 8 steps
-        patterns4 = self.create_patterns(6, 14, step=1)
-        patterns5 = self.create_patterns(14, 18, step=1)
+        patterns4 = self.create_patterns(6, 14, step=1)    # 8 steps
+        patterns5 = self.create_patterns(14, 18, step=1)   # 4 steps
 
         patterns_all |= patterns1
         patterns_all |= patterns2
@@ -111,7 +118,7 @@ class ScalePatterns:
     @staticmethod
     def pattern_to_array(pattern):
         """
-        Create bytebuffer to store 1 scaling pattern of 8 elements, 1 word total size
+        Create bytebuffer to store 1 scaling pattern of 8 elements, each 32bits (4 bytes)
         """
         arr_buff = bytearray(8 * 4)
         final_array = array('L', arr_buff)

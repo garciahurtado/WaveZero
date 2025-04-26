@@ -242,7 +242,7 @@ class SSD1331PIO():
         self.pin_cs(1)
         self.pin_dc(self.DC_MODE_DATA)
 
-    def init_pio_spi(self, freq=48_000_000):
+    def init_pio_spi(self, freq=50_000_000):
         """"""
         # Define the SPI pins
         pin_sck = self.pin_sck

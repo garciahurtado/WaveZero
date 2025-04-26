@@ -108,7 +108,7 @@ class ScalerDebugger():
         print(f"PIO{pio} (0x{debug_addr:08X})     TXSTALL    TXOVER     RXUNDER    RXSTALL")
         print(f"  FIFO STATUS     >>> {txstall:08b} - {txover:08b} - {rxunder:08b} - {rxstall:08b} <<<")
 
-    def debug_dma(self, dma, alias, full=False):
+    def debug_dma(self, dma, alias, full=True):
         # full = False
         ctrl = dma.unpack_ctrl(dma.registers[3])
         count = dma.count

@@ -156,12 +156,12 @@ class GameScreenTest(Screen):
         self.ui.show()
 
         # self.draw_corners()
-        # self.draw_sprite_circle()
-
-        inst = self.inst_group[0]
-        h_scale = 0.750
-        v_scale = 0.750
-        self.scaler.draw_sprite(self.sprite, inst, self.image, h_scale=h_scale, v_scale=v_scale)
+        self.draw_sprite_circle()
+        #
+        # inst = self.inst_group[0]
+        # h_scale = 2
+        # v_scale = 2
+        # self.scaler.draw_sprite(self.sprite, inst, self.image, h_scale=h_scale, v_scale=v_scale)
 
         self.display.show()
         self.fps.tick()

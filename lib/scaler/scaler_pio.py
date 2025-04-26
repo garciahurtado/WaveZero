@@ -9,7 +9,7 @@ from scaler.status_leds import get_status_led_obj
 def read_palette_init(pin_jmp:Pin):
     leds = get_status_led_obj()
 
-    sm_freq = 16_000_000
+    sm_freq = 32_000_000
     pin_led1 = leds.pin_led1
 
     # PIO1 / SM0 = ID #4
@@ -18,6 +18,7 @@ def read_palette_init(pin_jmp:Pin):
         read_palette,
         freq=sm_freq,
         jmp_pin=pin_jmp,
+        set_base=pin_jmp,
         sideset_base=pin_led1,
     )
 
@@ -29,6 +30,7 @@ def read_palette_init(pin_jmp:Pin):
 @asm_pio(
     in_shiftdir=PIO.SHIFT_RIGHT,
     out_shiftdir=PIO.SHIFT_LEFT,
+    set_init=PIO.OUT_LOW,
     sideset_init=(PIO.OUT_LOW,PIO.OUT_LOW,PIO.OUT_LOW,PIO.OUT_LOW),
     pull_thresh=32,
 )
@@ -44,7 +46,7 @@ def read_palette():
     These addresses are then sent to DMA to pull the final RGB565 colors from the palette, which are sent to the display
     """
     label("start")
-
+    set(pin, 0)
     pull()                       # First word in is the palette base address
     out(isr, 32)                  # Keep it in the ISR for later -
 
@@ -93,7 +95,7 @@ def read_palette():
     jmp("new_pull")
 
     label("end")
-    irq(block, 0)
-    jmp(pin, "start") # last line is always line 31, and the rest are counted backwards
+    irq(block, 0)       # Signal that we are done, wait until ack
+    jmp(pin, "start")   # last line is always line number 31, and the rest are counted down from there
 
     # end of program will automatically jump to start, since there is no wrap_target
