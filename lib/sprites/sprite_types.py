@@ -1,7 +1,6 @@
 import asyncio
 import uctypes
-
-from sprites.sprite import Sprite
+from micropython import const
 
 POS_TYPE_FAR = 0
 POS_TYPE_NEAR = 1
@@ -144,6 +143,9 @@ class SpriteType:
     FLAG_PALETTE_ROTATE = 1 << 4    # 16
     FLAG_PHYSICS = 1 << 5           # 32
 
+    POS_TYPE_FAR = const(0)
+    POS_TYPE_NEAR = const(1)
+
     image_path = None
     speed: int = 0
     width: int = 0
@@ -169,7 +171,7 @@ class SpriteType:
     stretch_width: int = 0
     stretch_height: int = 0
     animations = []
-    pos_type = Sprite.POS_TYPE_FAR
+    pos_type = POS_TYPE_FAR
     flag_physics = False
 
     def __init__(self, **kwargs):

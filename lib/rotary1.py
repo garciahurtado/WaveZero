@@ -67,6 +67,7 @@ def _bound(value, incr, lower_bound, upper_bound):
 
 def _trigger(rotary_instance):
     for listener in rotary_instance._listener:
+        """ Check whether it is a class based listener (tuple with method and self reference)"""
         if type(listener) is tuple:
             meth = listener[0]
             my_self = listener[1]
@@ -75,7 +76,6 @@ def _trigger(rotary_instance):
             func(my_self)
         else:
             listener()
-
 
 class Rotary(object):
     RANGE_UNBOUNDED = const(1)

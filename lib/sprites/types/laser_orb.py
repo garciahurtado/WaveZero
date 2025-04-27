@@ -1,4 +1,4 @@
-from sprites2.sprite_types import SpriteType, SPRITE_LASER_ORB
+from sprites.sprite_types import SpriteType, SPRITE_LASER_ORB
 
 
 class LaserOrb(SpriteType):

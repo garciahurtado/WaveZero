@@ -3,7 +3,7 @@ import math
 
 import utime
 from profiler import Profiler as prof
-from sprites2.sprite_manager import SpriteManager
+from sprites.sprite_manager import SpriteManager
 
 
 class Event:
@@ -91,7 +91,7 @@ class EventChain(Event):
 
     def add_many(self, all_events):
         for event in all_events:
-            self.add(event)
+            self.add_sprite(event)
 
     async def update(self):
         if not super().update():
@@ -279,19 +279,19 @@ class SpawnEnemyEvent(OneShotEvent):
         self.lane = lane
 
     def do_thing(self):
-        prof.start_profile('spawn.do_thing')
+
         type = self.sprite_type
 
-        prof.start_profile('spawn.create')
-        sprite, _ = self.sprite_mgr.spawn(type, x=self.x, y=self.y, z=self.z)
-        prof.end_profile('spawn.create')
 
-        prof.start_profile('spawn.set_lane')
+        sprite, _ = self.sprite_mgr.spawn(type, x=self.x, y=self.y, z=self.z)
+
+
+
         self.sprite_mgr.set_lane(sprite, self.lane)
-        prof.end_profile('spawn.set_lane')
+
 
         self.finish()
-        prof.end_profile('spawn.do_thing')
+
 
         return sprite
 

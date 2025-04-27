@@ -1,4 +1,4 @@
-from sprites2.sprite_types import *
+from sprites.sprite_types import *
 
 class WarningWall(SpriteType):
     name = SPRITE_BARRIER_LEFT

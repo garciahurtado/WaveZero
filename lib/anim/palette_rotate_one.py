@@ -31,9 +31,9 @@ class PaletteRotateOne(Animation):
             self.current_idx = (self.current_idx + 1) % len(color_list)
             new_color = color_list.get_int(self.current_idx)
 
-            prof.start_profile('rot.run_loop')
+
             self.orig_palette.set_int(self.idx, new_color)
             self.last_change_ms = time.ticks_ms()
-            prof.end_profile('rot.run_loop')
+
 
         await asyncio.sleep_ms(self.interval_ms)

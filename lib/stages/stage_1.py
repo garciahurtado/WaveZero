@@ -1,18 +1,10 @@
-import asyncio
-
 from anim.palette_rotate_one import PaletteRotateOne
-from colors.color_util import BGR565, RGB565
-from dump_object import dump_object
-from sprites2.alien_fighter import AlienFighter
-from sprites2.laser_wall import LaserWall
-from sprites2.warning_wall import WarningWall
+from colors.color_util import BGR565
+from sprites.types.warning_wall import WarningWall
 from stages.events import Event
 from stages.stage import Stage
-from sprites2.sprite_types import *
-from sprites2.white_line import WhiteLine
-from colors.framebuffer_palette import FramebufferPalette as BufPalette
-from colors.palettes import PALETTE_UI_FLASH_TEXT, convert_hex_palette, PALETTE_SHIFT, PALETTE_FIRE
-from colors import color_util as colors
+from sprites.sprite_types import *
+from colors.palettes import convert_hex_palette, PALETTE_FIRE
 import micropython
 
 class Stage1(Stage):

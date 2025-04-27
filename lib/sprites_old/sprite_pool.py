@@ -21,7 +21,7 @@ class SpritePool:
 
         for i in range(size):
             new_sprite = base_sprite.clone()
-            self.add(new_sprite)
+            self.add_sprite(new_sprite)
 
     def __len__(self):
         return len(self.active_sprites)
@@ -70,7 +70,7 @@ class SpritePool:
             if not sprite.active:
                 sprite.kill()
                 self.active_sprites.remove(sprite)
-                self.add(sprite)
+                self.add_sprite(sprite)
 
             sprite.update(elapsed)
             sprite.update_frame()

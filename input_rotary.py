@@ -1,3 +1,4 @@
+from mpdb.mpdb import Mpdb
 from rotary_irq import RotaryIRQ
 from micropython import const
 
@@ -27,10 +28,8 @@ class InputRotary:
         )
         self.encoder.add_listener(("read_input", self))
 
-        print("--- Created Rotary input handler ---")
-
     def read_input(self, position):
-        """ This is the direct listener of the IRQ callback from the encoder, which triggers the actual callback functions """
+        """ This is the direct listener of the IRQ callback from the encoder, which triggers the secondary callback functions """
         position = int(self.encoder.value())
 
         if position != self.last_pos:
@@ -49,3 +48,10 @@ class InputRotary:
 
     def add_listener_left(self, listener):
         self.handler_left = listener
+
+def make_input_handler(bike):
+    input_handler = InputRotary(half_step=True)
+    input_handler.add_listener_right(bike.move_right)
+    input_handler.add_listener_left(bike.move_left)
+
+    return input_handler

@@ -13,28 +13,24 @@ from screens.screen import PixelBounds
 
 from scaler.sprite_scaler import SpriteScaler
 from screens.test_screen_base import TestScreenBase
-from sprites2.cherries_16 import Cherries16
-from sprites2.gameboy import GameboySprite
-from sprites2.test_pyramid import TestPyramid
+from sprites.types.cherries_16 import Cherries16
+from sprites.types.gameboy import GameboySprite
+from sprites.types.test_pyramid import TestPyramid
+from sprites.types.test_skull import TestSkull
 
-from sprites2.test_square import TestSquare
-from sprites2.test_heart import TestHeart
-from sprites2.test_grid import TestGrid
+from sprites.types.test_square import TestSquare
+from sprites.types.test_heart import TestHeart
+from sprites.types.test_grid import TestGrid
 gc.collect()
 
-from sprites2.sprite_manager_2d import SpriteManager2D
-
-from sprites2.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART, SPRITE_TEST_GRID, SPRITE_TEST_GRID_SPEED, \
-    SpriteType, SPRITE_TEST_PYRAMID, SPRITE_GAMEBOY, SPRITE_CHERRIES
-
+from sprites.sprite_manager_2d import SpriteManager2D
+from sprites.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART, SPRITE_TEST_GRID, SpriteType, SPRITE_TEST_PYRAMID, SPRITE_GAMEBOY, SPRITE_CHERRIES, SPRITE_TEST_SKULL
 from profiler import Profiler as prof
 
 from colors.color_util import hex_to_565
 from colors.color_util import GREY
 from colors.color_util import WHITE
 from micropython import const
-
-
 
 class TestScreen(TestScreenBase):
     debug = True
@@ -184,7 +180,7 @@ class TestScreen(TestScreenBase):
         self.init_common()
         self.load_types()
 
-        test = 'grid2'
+        test = 'zoom_heart'
         self.check_mem()
         method = None
 
@@ -213,10 +209,8 @@ class TestScreen(TestScreenBase):
             self.init_grid()
             method = self.do_refresh_grid
         elif test == 'grid3':
-            self.load_sprite(SPRITE_TEST_SQUARE)
+            self.load_sprite(SPRITE_TEST_SKULL)
             self.init_grid()
-            self.grid_beat = False
-            self.fallout = True
             method = self.do_refresh_grid
         elif test == 'clipping':
             self.load_sprite(SPRITE_CHERRIES)
@@ -334,7 +328,7 @@ class TestScreen(TestScreenBase):
     async def start_display_loop(self):
         while True:
             self.refresh_method()
-            await asyncio.sleep_ms(0)
+            await asyncio.sleep_ms(1)
 
     def init_beating_heart(self):
         # self.sprite = self.mgr.get_meta(self.sprite)
@@ -419,13 +413,10 @@ class TestScreen(TestScreenBase):
         row_sep = self.sprite.width
         col_sep = self.sprite.width
 
-        prof.start_profile('scaler.draw_loop_fill')
         self.display.fill(0x000000)
-        prof.end_profile('scaler.draw_loop_fill')
 
         for c in range(self.num_cols):
             for r in range(self.num_rows):
-                prof.start_profile('scaler.pre_draw')
 
                 self.phy.set_pos(inst,
                                  c * col_sep + 8,
@@ -439,8 +430,6 @@ class TestScreen(TestScreenBase):
 
                     self.scaled_width = self.sprite.height * self.h_scale
                     self.scaled_height = self.sprite.height * self.v_scale
-
-                prof.end_profile('scaler.pre_draw')
 
                 self.scaler.draw_sprite(
                     self.sprite,
@@ -456,13 +445,8 @@ class TestScreen(TestScreenBase):
             self.sprite_palette.set_hex(3, new_color)
             self.color_idx += 1
 
-        prof.start_profile('scaler.display_show')
-
-        while not self.scaler.dma.px_read_finished:
-            pass
 
         self.display.show()
-        prof.end_profile('scaler.display_show')
 
         self.show_prof()
         self.fps.tick()
@@ -507,7 +491,6 @@ class TestScreen(TestScreenBase):
         self.show_prof()
         self.display.show()
 
-        utime.sleep_ms(50)
         self.fps.tick()
 
     def do_refresh_scale_control(self):
@@ -708,6 +691,10 @@ class TestScreen(TestScreenBase):
         self.mgr.add_type(
             sprite_type=SPRITE_CHERRIES,
             sprite_class=Cherries16)
+
+        self.mgr.add_type(
+            sprite_type=SPRITE_TEST_SKULL,
+            sprite_class=TestSkull)
 
     def show_lines(self):
         for line in self.lines:

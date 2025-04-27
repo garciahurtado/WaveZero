@@ -132,7 +132,7 @@ class GameScreen(Screen):
         sun = Sprite("/img/sunset.bmp")
         sun.x = self.sun_x_start
         sun.y = 7
-        self.add(sun)
+        self.add_sprite(sun)
         self.sun = sun
         self.bike.visible = True
 
@@ -173,7 +173,7 @@ class GameScreen(Screen):
         print(f"Update loop Start time: {start_time_ms}")
         self.check_mem()
 
-        self.add(self.bike) # Add after the obstacles, to it appears on top
+        self.add_sprite(self.bike) # Add after the obstacles, to it appears on top
 
         self.restart_game()
         bike_y = self.bike.y
@@ -264,7 +264,7 @@ class GameScreen(Screen):
         group.grid = self.grid
         group.reset()
 
-        self.add(group)
+        self.add_sprite(group)
         self.enemies.append(group)
 
         return group
@@ -276,9 +276,9 @@ class GameScreen(Screen):
         if self.grid:
             self.grid.show()
 
-        prof.start_profile('draw_sprites()')
+
         self.draw_sprites()
-        prof.end_profile('draw_sprites()')
+
 
         self.display.show()
 

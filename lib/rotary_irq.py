@@ -14,7 +14,6 @@ from rotary1 import Rotary
 
 IRQ_RISING_FALLING = Pin.IRQ_RISING | Pin.IRQ_FALLING
 
-
 class RotaryIRQ(Rotary):
     def __init__(
         self,
@@ -41,10 +40,13 @@ class RotaryIRQ(Rotary):
         self._hal_enable_irq()
 
     def _enable_clk_irq(self):
-        self._pin_clk.irq(self._process_rotary_pins, IRQ_RISING_FALLING)
+        self._pin_clk.irq(self._process_rotary_pins)
+        pass
 
     def _enable_dt_irq(self):
-        self._pin_dt.irq(self._process_rotary_pins, IRQ_RISING_FALLING)
+        self._pin_dt.irq(self._process_rotary_pins)
+        pass
+
 
     def _disable_clk_irq(self):
         self._pin_clk.irq(None, 0)

@@ -5,7 +5,7 @@ import uasyncio as asyncio
 from ucollections import namedtuple
 
 from fps_counter import FpsCounter
-from sprites.sprite import Sprite
+from sprites_old.sprite import Sprite
 import micropython
 from ssd1331_pio import SSD1331PIO
 
@@ -66,7 +66,7 @@ class Screen:
 
         while True:
             self.do_refresh()
-            await asyncio.sleep_ms(2)
+            await asyncio.sleep_ms(1)
 
     async def start_main_loop(self):
         print("<< UPDATE LOOP START (screen.py) >>")
@@ -99,6 +99,10 @@ class Screen:
     def draw_sprites(self):
         for my_sprite in self.instances:
             my_sprite.show(self.display)
+
+    def add_sprite(self, sprite):
+        """ Adds a 'fat sprite' to the list of sprites to render """
+        self.instances.append(sprite)
 
     def is_sprite_in_bounds(self, sprite_bounds: PixelBounds, screen_bounds=None):
         if not screen_bounds:

@@ -1,33 +1,38 @@
 import random
 
-from scaler.scaler_framebuf import ScalerFramebuf
+import machine
+from machine import mem32
+
+from mpdb.mpdb import Mpdb
+from scaler.const import IRQSUMMARY_PROC0_NONSECURE0, IRQSUMMARY_PROC0_SECURE0
 from scaler.sprite_scaler import SpriteScaler
 from perspective_camera import PerspectiveCamera
 from death_anim import DeathAnim
-from sprites.sprite import Sprite
 from stages.stage_1 import Stage1
 from ui_elements import ui_screen
 
 from anim.anim_attr import AnimAttr
 from images.image_loader import ImageLoader
-from sprites.player_sprite import PlayerSprite
+from sprites_old.player_sprite import PlayerSprite
 from road_grid import RoadGrid
 
-from input import make_input_handler
+from input_rotary import make_input_handler
 from screens.screen import Screen
 import uasyncio as asyncio
 import utime
 
-from sprites2.sprite_manager import SpriteManager
+from sprites.sprite_manager import SpriteManager
 from collider import Collider
-from sprites2.sprite_types import *
+from sprites.sprite_types import *
+from sprites_old.sprite import Sprite
 
 from profiler import Profiler as prof
 from micropython import const
 
 class GameScreen(Screen):
+    fps_enabled = True
     ground_speed: int = 0
-    max_ground_speed: int = const(-1000)
+    max_ground_speed: int = const(-1500)
     grid: RoadGrid = None
     sun: Sprite = None
     sun_start_x = None
@@ -98,8 +103,8 @@ class GameScreen(Screen):
         sun = Sprite("/img/sunset.bmp")
         sun.x = self.sun_start_x = 39
         sun.y = 11
-        self.add(sun)
-        self.add(self.enemies)
+        self.add_sprite(sun)
+        self.add_sprite(self.enemies)
 
         self.sun = sun
 
@@ -127,23 +132,35 @@ class GameScreen(Screen):
 
         ImageLoader.load_images(images, self.display)
 
+    def _run(self):
+        print("-- Starting update_loop...")
+        asyncio.run(self.start_main_loop())
+
     def run(self):
+        # DEBUG
+        # mp_dbg = Mpdb()
+        # mp_dbg.add_break('/lib/input_rotary.py:25', _self=self)
+        # mp_dbg.set_trace()
+
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.start_display_loop())
+
         self.display.fill(0x9999)
-        utime.sleep_ms(1000)
+        utime.sleep_ms(100)
         self.display.fill(0x0)
 
         barrier_speed = self.max_ground_speed / 200
         print(f"Sprite speed: {barrier_speed}")
 
-        self.check_mem()
-        loop = asyncio.get_event_loop()
-        loop.create_task(self.start_display_loop())
-
         self.input = make_input_handler(self.player)
+
+        if self.fps_enabled:
+            self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
+
         self.update_score_task = loop.create_task(self.mock_update_score())
 
         # Start the road speed-up task
-        self.speed_anim = AnimAttr(self, 'ground_speed', self.max_ground_speed, 2000, easing=AnimAttr.ease_in_out_sine)
+        self.speed_anim = AnimAttr(self, 'ground_speed', self.max_ground_speed, 3000, easing=AnimAttr.ease_in_out_sine)
         loop.create_task(self.speed_anim.run(fps=60))
 
         self.player.has_physics = True
@@ -201,7 +218,6 @@ class GameScreen(Screen):
 
     def do_refresh(self):
         """ Overrides parent method """
-
         self.display.fill(0x0000)
         self.grid.show()
         self.show_all()

@@ -1,4 +1,4 @@
-from sprites2.sprite_types import SpriteType, SPRITE_TEST_HEART
+from sprites.sprite_types import SpriteType, SPRITE_TEST_HEART
 
 class TestSkull(SpriteType):
     name = SPRITE_TEST_HEART

@@ -3,11 +3,9 @@ from typing import List
 import utime
 from uarray import array
 
-from dump_object import dump_object
-from sprites2.sprite_types import create_sprite, SPRITE_DATA_LAYOUT, SPRITE_DATA_SIZE, SpriteType, FLAG_PHYSICS
-from sprites2.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE
+from sprites.sprite_types import SPRITE_DATA_LAYOUT, SPRITE_DATA_SIZE, SpriteType, FLAG_PHYSICS
+from sprites.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE
 from uctypes import addressof, struct
-from profiler import Profiler as prof
 from scaler.const import DEBUG_POOL
 
 POOL_CHUNK_SIZE = 50
@@ -119,7 +117,7 @@ class SpritePool:
 
         self.active_count += 1
 
-        prof.start_profile('pool.reset')
+
         # print(type(meta))
         # print(meta)
         # print(dir(meta))
@@ -129,7 +127,7 @@ class SpritePool:
 
         meta.reset(sprite)
 
-        prof.end_profile('pool.reset')
+
 
         return sprite, index
 

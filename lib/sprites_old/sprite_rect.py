@@ -1,4 +1,4 @@
-from sprites.sprite import Sprite
+from sprites_old.sprite import Sprite
 
 class SpriteRect(Sprite):
     """A Sprite that does not load a bitmap from disk, but serves as an empty canvas for eg. drawing solid backgrounds

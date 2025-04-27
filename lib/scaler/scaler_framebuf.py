@@ -97,7 +97,7 @@ class ScalerFramebuf():
         return new_buff
 
     def select_buffer(self, scaled_width, scaled_height):
-        prof.start_profile('scaler.select_buffer')
+
 
         """
         We implement transparency by first drawing the sprite on a scratch framebuffer.
@@ -136,7 +136,7 @@ class ScalerFramebuf():
         self.display_stride = self.frame_width * 2
         self.frame_bytes = self.display_stride * self.frame_height
 
-        prof.end_profile('scaler.select_buffer')
+
         dma:DMAChain = self.scaler.dma
         if DEBUG_DMA_ADDR:
             print(f"............................................")

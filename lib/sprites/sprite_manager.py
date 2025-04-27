@@ -6,16 +6,16 @@ import micropython
 
 from images.image_loader import ImageLoader
 from perspective_camera import PerspectiveCamera
-from sprites2.sprite_draw import SpriteDraw
-from sprites2.sprite_physics import SpritePhysics
-from sprites2.sprite_types import SpriteType
-from sprites2.sprite_types import SpriteType as types
-from sprites2.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE, FLAG_BLINK, FLAG_BLINK_FLIP, FLAG_PHYSICS
+from sprites.sprite_draw import SpriteDraw
+from sprites.sprite_physics import SpritePhysics
+from sprites.sprite_types import SpriteType
+from sprites.sprite_types import SpriteType as types
+from sprites.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE, FLAG_BLINK, FLAG_BLINK_FLIP
 import framebuf
 from colors.framebuffer_palette import FramebufferPalette
 import math
 from images.indexed_image import Image, create_image
-from sprites2.sprite_pool_lite import SpritePool
+from sprites.sprite_pool_lite import SpritePool
 from typing import Dict, List
 from profiler import Profiler
 import ssd1331_pio
@@ -140,22 +140,22 @@ class SpriteManager:
 
         meta = self.sprite_metadata[sprite_type]
 
-        prof.start_profile('mgr.pool_get')
+
         # new_sprite.x = new_sprite.y = new_sprite.z = 0
         new_sprite, idx = self.pool.get(sprite_type, meta)
-        prof.end_profile('mgr.pool_get')
+
 
         # self.sprite_inst[sprite_type].insert(0, idx) # insert in the beginning, so we have correct Z values
         self.sprite_inst[sprite_type].append(idx) # insert in the beginning, so we have correct Z values
 
         # Set user values passed to the create method
-        prof.start_profile('mgr.set_kwargs')
+
         #
         # for key in kwargs:
         #     value = kwargs[key]
         #     if value is not None:
         #         setattr(new_sprite, key, value)
-        prof.end_profile('mgr.set_kwargs')
+
 
         # Some properties belong to the meta class, so they must be set separately
 
@@ -167,15 +167,15 @@ class SpriteManager:
         """ Load image and create scaling frames """
         if sprite_type not in self.sprite_images:
             print(f"First Sprite of Type: {sprite_type} - creating scaled images")
-            prof.start_profile('mgr.create_images')
+
             new_img = self.load_img_and_scale(meta, sprite_type)
             self.sprite_images[sprite_type] = new_img
-            prof.end_profile('mgr.create_images')
 
-        prof.start_profile('mgr.set_flags')
+
+
         types.set_flag(new_sprite, FLAG_ACTIVE)
         types.set_flag(new_sprite, FLAG_VISIBLE)
-        prof.end_profile('mgr.set_flags')
+
 
         return new_sprite, idx
 
@@ -279,9 +279,9 @@ class SpriteManager:
             return False
 
         if sprite.speed:
-            prof.start_profile('mgr.update_z_speed')
+
             new_z = int(sprite.z + (sprite.speed * elapsed))
-            prof.end_profile('mgr.update_z_speed')
+
         else:
             new_z = sprite.z
 
@@ -310,14 +310,14 @@ class SpriteManager:
             return False
 
         """1. Get the Scale according to Z for a starting 2D Y"""
-        prof.start_profile('mgr.sprite_scale')
+
         sprite.floor_y, scale = cam.get_scale(sprite.z)
-        prof.end_profile('mgr.sprite_scale')
+
 
 
         """1. Add the scaled 3D Y (substract) + sprite height from the starting 2D Y. This way we scale both numbers 
         in one single operation"""
-        prof.start_profile('mgr.sprite_height_adjust')
+
         #
         if sprite.y or meta.height:
             """ Draw the sprite at Y - (sprite height) """
@@ -326,7 +326,7 @@ class SpriteManager:
         else:
             draw_y = sprite.floor_y
 
-        prof.end_profile('mgr.sprite_height_adjust')
+
 
         # @TODO
         # if draw_y < 0:
@@ -340,16 +340,16 @@ class SpriteManager:
         """ We have to adjust for the fact that 3D vertical axis and 2D vertical axis run in opposite directions,
         so we add the sprite height to Y in 3D space before translating to 2D"""
 
-        prof.start_profile('mgr.sprite_scale_post')
+
         draw_x = sprite.x * scale
         draw_x -= cam.vp_x * cam.max_vp_scale * scale * 1.2 # magic number
         draw_x += self.half_width
-        prof.end_profile('mgr.sprite_scale_post')
 
-        prof.start_profile('mgr.get_frame_idx')
+
+
 
         frame_idx = self.get_frame_idx(scale, sprite.num_frames)
-        prof.end_profile('mgr.get_frame_idx')
+
 
         sprite.draw_x = int(draw_x)
         sprite.draw_y = int(draw_y)
@@ -362,13 +362,14 @@ class SpriteManager:
         """
         ellapsed should be in milliseconds
         """
-        # print("OLD UPDATE")
+        # BEWARE, OLD UPDATE!!
+
         kinds = self.sprite_metadata
         current = self.pool.head
         while current:
-            prof.start_profile('mgr.update_one_sprite()')
+
             sprite = current.sprite
-            kind = kinds[sprite.sprite_id]
+            kind = sprite.sprite_type
 
             if self.update_sprite(sprite, kind, elapsed):
                 if kind.is_time_to_rotate(elapsed):
@@ -382,10 +383,9 @@ class SpriteManager:
             current = next_node
             current.sprite_id = current.sprite_type
 
-            prof.end_profile('mgr.update_one_sprite()')
 
         """ Check for and update actions for all sprite types"""
-        prof.start_profile('mgr.sprite_actions()')
+
         if self.sprite_actions:
 
             for sprite_type in self.sprite_actions.keys():
@@ -398,7 +398,7 @@ class SpriteManager:
 
                     # action(self.camera, sprite.draw_x, sprite.draw_y, sprite.x, sprite.y, sprite.z, sprite.frame_width)
 
-        prof.end_profile('mgr.sprite_actions()')
+
 
     def rotate_sprite_palette(self, sprite, meta):
         sprite.color_rot_idx = (sprite.color_rot_idx + 1) % len(meta.rotate_palette)
@@ -456,13 +456,13 @@ class SpriteManager:
     # @timed
     def to_2d(self, x, y, z, vp_scale=1):
         print(f"MGR calling 2D X/Y/Z: {x} {y} {z}")
-        prof.start_profile('mgr.to_2d')
+
 
         camera = self.camera
         if camera:
             x, y = self.camera.to_2d(x, y, z, vp_scale=vp_scale)
 
-        prof.end_profile('mgr.to_2d')
+
         return x, y
 
 
@@ -509,12 +509,12 @@ class SpriteManager:
         if num_frames <= 0:
             raise ArithmeticError(f"Invalid number of frames: {num_frames}. Are width and height set?")
 
-        prof.start_profile('mgr.get_frame_idx.mult')
+
         frame_idx = int(scale * num_frames)
-        prof.end_profile('mgr.get_frame_idx.mult')
-        prof.start_profile('mgr.get_frame_idx.min')
+
+
         ret = min(max(frame_idx, 0), num_frames - 1)
-        prof.end_profile('mgr.get_frame_idx.min')
+
 
         return ret
 

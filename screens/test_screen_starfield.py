@@ -3,22 +3,22 @@ import asyncio
 import math
 import random
 
-import utils
 from perspective_camera import PerspectiveCamera
 from scaler.sprite_scaler import SpriteScaler
 from screens.test_screen_base import TestScreenBase
-from sprites.sprite import Sprite
-from sprites2.gameboy import GameboySprite
-from sprites2.sprite_manager_2d import SpriteManager2D
-from sprites2.test_heart import TestHeart
-from sprites2.test_square import TestSquare
-from sprites2.cherries_16 import Cherries16
-from sprites2.sprite_types import SpriteType, SPRITE_TEST_HEART, SPRITE_TEST_SQUARE, SPRITE_GAMEBOY, SPRITE_CHERRIES
+from sprites_old.sprite import Sprite
+from sprites.types.gameboy import GameboySprite
+from sprites.sprite_manager_2d import SpriteManager2D
+from sprites.types.test_heart import TestHeart
+from sprites.types.test_skull import TestSkull
+from sprites.types.cherries_16 import Cherries16
+from sprites.sprite_types import SpriteType, SPRITE_TEST_HEART, SPRITE_GAMEBOY, SPRITE_CHERRIES, \
+    SPRITE_TEST_SKULL
 from utils import dist_between
 from profiler import Profiler as prof
 import utime
 class TestScreenStarfield(TestScreenBase):
-    max_sprites = num_sprites = 10
+    max_sprites = num_sprites = 16
     max_scale_id = 0
     max_scale_dot = 0
     max_dist = 0
@@ -33,8 +33,10 @@ class TestScreenStarfield(TestScreenBase):
 
     def __init__(self, display, margin_px = 16):
         super().__init__(display,  margin_px=16)
-        # self.init_camera()
-        self.sprite_type = SPRITE_TEST_HEART
+        self.init_camera()
+        # self.sprite_type = SPRITE_TEST_HEART
+        self.sprite_type = SPRITE_TEST_SKULL
+
         self.mgr = SpriteManager2D(display, self.max_sprites, self.camera)
         self.load_types()
         self.meta:SpriteType = self.load_sprite(self.sprite_type)
@@ -215,8 +217,8 @@ class TestScreenStarfield(TestScreenBase):
             sprite_class=TestHeart)
 
         self.mgr.add_type(
-            sprite_type=SPRITE_TEST_SQUARE,
-            sprite_class=TestSquare)
+            sprite_type=SPRITE_TEST_SKULL,
+            sprite_class=TestSkull)
 
         self.mgr.add_type(
             sprite_type=SPRITE_CHERRIES,

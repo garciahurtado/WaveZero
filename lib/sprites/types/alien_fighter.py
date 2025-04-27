@@ -1,4 +1,4 @@
-from sprites2.sprite_types import *
+from sprites.sprite_types import *
 
 class AlienFighter(SpriteType):
     name = SPRITE_ALIEN_FIGHTER

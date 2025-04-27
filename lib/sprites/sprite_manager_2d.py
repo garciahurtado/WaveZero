@@ -1,9 +1,8 @@
 from images.image_loader import ImageLoader
 from profiler import Profiler
-from scaler.const import DEBUG_INST, DEBUG_PHYSICS
-from sprites2.sprite_manager import SpriteManager
-from sprites2.sprite_manager import SpriteManager
-from sprites2.sprite_types import SpriteType as types, FLAG_PHYSICS, FLAG_ACTIVE
+from scaler.const import DEBUG_PHYSICS
+from sprites.sprite_manager import SpriteManager
+from sprites.sprite_types import SpriteType as types, FLAG_PHYSICS, FLAG_ACTIVE
 
 prof = Profiler()
 
@@ -21,7 +20,7 @@ class SpriteManager2D(SpriteManager):
         kinds = self.sprite_metadata
         current = self.pool.head
         while current:
-            prof.start_profile('mgr.update_one_sprite()')
+
             sprite = current.sprite
             kind = kinds[sprite.sprite_type]
 
@@ -31,7 +30,7 @@ class SpriteManager2D(SpriteManager):
                 self.pool.release(sprite, kind)
 
             current = current.next
-            prof.end_profile('mgr.update_one_sprite()')
+
 
 
     def update_sprite(self, sprite, meta, elapsed):
@@ -45,7 +44,7 @@ class SpriteManager2D(SpriteManager):
             print(f"Returning due to active:{active}")
             return False
 
-        prof.start_profile('mgr.update_sprite.physics')
+
         old_speed = sprite.speed
         # sprite.speed = sprite.speed * sprite.scale
 
@@ -54,7 +53,7 @@ class SpriteManager2D(SpriteManager):
 
         sprite.speed = old_speed
 
-        prof.end_profile('mgr.update_sprite.physics')
+
 
         scaled_width = meta.width * sprite.scale
         scaled_height = meta.height * sprite.scale

@@ -1,6 +1,5 @@
 from images.image_loader import ImageLoader
-from sprites.sprite import Sprite
-
+from sprites_old.sprite import Sprite
 
 class Spritesheet(Sprite):
 

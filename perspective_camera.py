@@ -114,26 +114,26 @@ class PerspectiveCamera():
         half_width = self.half_width
         focal_length = self.focal_length
 
-        prof.start_profile('cam.pos_assign')
+
         cam_x = self.cam_x
         cam_y = self.cam_y
         cam_z = self.cam_z
 
-        prof.end_profile('cam.pos_assign')
 
-        prof.start_profile('cam.vp_assign')
+
+
         vp_x = self.vp_x
-        prof.end_profile('cam.vp_assign')
+
 
         # Adjust for camera position
-        prof.start_profile('cam.pos_adjust')
+
         orig_y = y
         orig_z = z
         y = orig_y - cam_y
         z = orig_z - cam_z
-        prof.end_profile('cam.pos_adjust')
 
-        prof.start_profile('cam.apply_persp_proj')
+
+
         if z == 0:
             z = 0.0001
 
@@ -141,23 +141,23 @@ class PerspectiveCamera():
         screen_x = (x * focal_length) / z
         screen_y = (y * focal_length) / z
 
-        prof.end_profile('cam.apply_persp_proj')
 
-        prof.start_profile('cam.apply_asp_ratio')
+
+
         # Apply aspect ratio correction
         screen_x = screen_x * self.aspect_ratio
-        prof.end_profile('cam.apply_asp_ratio')
 
-        prof.start_profile('cam.convert_to_screen')
+
+
         # Convert to screen coordinates
         screen_x = screen_x + half_width
         screen_y = int(self.y_offset - screen_y)
-        prof.end_profile('cam.convert_to_screen')
 
-        prof.start_profile('cam.apply_vp')
+
+
         # Apply vanishing point adjustment
         screen_x = int(screen_x - (vp_x * vp_scale))
-        prof.end_profile('cam.apply_vp')
+
 
 
         return screen_x, screen_y
@@ -282,12 +282,12 @@ class PerspectiveCamera():
 
         z = z + abs(self.near) # moves the point of 1-scale further away from the camera
 
-        prof.start_profile('cam.get_scale.cache_search')
+
         # Find the closest z value in the cache
         idx = self._find_closest(self._scale_cache_z, z)
-        prof.end_profile('cam.get_scale.cache_search')
 
-        prof.start_profile('cam.get_scale.dict_lookup_and_sum')
+
+
 
         # Ensure idx is within bounds
         idx = max(0, min(idx, len(self._scale_cache_z)-1))
@@ -297,7 +297,7 @@ class PerspectiveCamera():
 
         scale = self._scale_cache[idx]
 
-        prof.end_profile('cam.get_scale.dict_lookup_and_sum')
+
 
         return y, scale
 
@@ -381,13 +381,13 @@ class PerspectiveCamera():
         # print("TO_2D PROJECTION")
         # print("----------------")
 
-        from sprites2.sprite_manager import SpriteManager as mgr
+        from sprites.sprite_manager import SpriteManager as mgr
         my_mgr = mgr(self.display, 1)
         # #
         # print("----- to_2d Method ----")
         # print("Z\t Y\t SCALE\t FR IDX:")
 
-        prof.start_profile('cam.to_2d_test.classic')
+
 
         for z in range(0, end_z + 1):
             screen_x, screen_y = self.to_2d(x, y, z)
@@ -395,12 +395,12 @@ class PerspectiveCamera():
             idx = my_mgr.get_frame_idx(scale, num_frames)
 
             print(f"{z}\t{screen_y}\t{scale:.04f}\t{idx}")
-        prof.end_profile('cam.to_2d_test.classic')
+
         #
         # print("----- CACHE Method ----")
         # print("Z\t Y\t SCALE\t FR IDX:")
 
-        prof.start_profile('cam.to_2d_test.cache')
+
 
         for z in range(0, end_z + 1):
             screen_y, scale = self.get_scale(z)
@@ -412,5 +412,5 @@ class PerspectiveCamera():
 
             # print(f"{z}\t{screen_y}\t{scale:.04f}\t{idx}")
 
-        prof.end_profile('cam.to_2d_test.cache')
+
 

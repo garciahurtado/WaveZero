@@ -1,4 +1,4 @@
-from sprites2.sprite_types import SpriteType, SPRITE_CHERRIES
+from sprites.sprite_types import SpriteType, SPRITE_CHERRIES
 
 class Cherries16(SpriteType):
     name = SPRITE_CHERRIES

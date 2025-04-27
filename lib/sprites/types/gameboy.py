@@ -1,4 +1,4 @@
-from sprites2.sprite_types import SpriteType, SPRITE_GAMEBOY
+from sprites.sprite_types import SpriteType, SPRITE_GAMEBOY
 
 class GameboySprite(SpriteType):
     name = SPRITE_GAMEBOY

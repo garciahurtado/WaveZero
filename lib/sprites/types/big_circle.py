@@ -1,4 +1,4 @@
-from sprites2.sprite_types import SpriteType, SPRITE_BIG_CIRCLE
+from sprites.sprite_types import SpriteType, SPRITE_BIG_CIRCLE
 
 class BigCircle(SpriteType):
     name = SPRITE_BIG_CIRCLE

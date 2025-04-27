@@ -5,8 +5,8 @@ import framebuf
 from anim.palette_rotate_one import PaletteRotateOne
 from font_writer_new import ColorWriter
 
-from sprites.sprite_rect import SpriteRect
-from sprites.sprite import Sprite
+from sprites_old.sprite_rect import SpriteRect
+from sprites_old.sprite import Sprite
 
 import uasyncio as asyncio
 from colors.framebuffer_palette import FramebufferPalette as fp, FramebufferPalette

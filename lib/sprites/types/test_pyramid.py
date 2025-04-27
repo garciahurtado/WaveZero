@@ -1,4 +1,4 @@
-from sprites2.sprite_types import SpriteType, SPRITE_TEST_PYRAMID
+from sprites.sprite_types import SpriteType, SPRITE_TEST_PYRAMID
 
 class TestPyramid(SpriteType):
     name = SPRITE_TEST_PYRAMID

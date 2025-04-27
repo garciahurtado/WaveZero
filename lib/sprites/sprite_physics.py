@@ -1,5 +1,4 @@
 import math
-from ucollections import namedtuple
 
 from scaler.const import *
 
@@ -31,7 +30,6 @@ Sign bit      Fraction
 x = 100 << FP_SHIFT  # Convert 100 to fixed point
 scaled_x = (x * FP_SCALE) >> FP_SHIFT  # Scale by 1.5
 """
-from sprites2.sprite_types import SpriteType
 
 """ For general fixed-point variables (-2048.0 to +2047.9375 range) """
 FP_SHIFT = 4

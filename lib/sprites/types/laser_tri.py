@@ -1,4 +1,4 @@
-from sprites2.sprite_types import SpriteType, SPRITE_LASER_TRI
+from sprites.sprite_types import SpriteType, SPRITE_LASER_TRI
 
 
 class LaserTri(SpriteType):

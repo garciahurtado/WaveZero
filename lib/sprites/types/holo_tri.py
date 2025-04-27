@@ -1,5 +1,4 @@
-from sprites2.sprite_types import SpriteType
-from sprites2.sprite_types import *
+from sprites.sprite_types import *
 
 class HoloTri(SpriteType):
     name = SPRITE_HOLO_TRI

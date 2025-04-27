@@ -7,7 +7,7 @@ from anim.anim_attr import AnimAttr
 from colors.framebuffer_palette import FramebufferPalette
 from colors import color_util as colors
 from screens.screen import Screen
-from sprites.sprite import Sprite
+from sprites_old.sprite import Sprite
 from collections import deque
 
 # from wav.wavePlayer import wavePlayer
@@ -79,8 +79,8 @@ class TitleScreen(Screen):
         zero_orig_palette = title_zero.palette.clone()
         zero_new_palette = title_zero.palette.clone()
 
-        self.add(title_wave)
-        self.add(title_zero)
+        self.add_sprite(title_wave)
+        self.add_sprite(title_zero)
 
         """ Start animation ---------------------- """
 

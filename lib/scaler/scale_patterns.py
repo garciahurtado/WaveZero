@@ -14,15 +14,11 @@ class ScalePatterns:
     def __init__(self):
         self.create_horiz_patterns()
         if DEBUG_SCALE_PATTERNS:
-            self.print_patterns()
+            self.print_patterns(0, len(self.horiz_patterns))
 
     def get_pattern(self, scale):
         patterns = self.get_horiz_patterns()
         the_pattern = patterns[scale]
-
-        if DEBUG_SCALE_PATTERNS:
-            printc("RETURNING PATTERN:", INK_RED)
-            printc(the_pattern, INK_RED)
 
         return the_pattern
 

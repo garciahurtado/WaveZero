@@ -1,18 +1,13 @@
 import random
 
-import sys
-
 from colors import color_util as colors
-from mpdb.mpdb import Mpdb
 from scaler.const import DEBUG
 from scaler.sprite_scaler import SpriteScaler
 from perspective_camera import PerspectiveCamera
-from sprites2.sprite_manager_2d import SpriteManager2D
-from sprites2.sprite_physics import CircleAnimation
-from sprites2.test_flat import TestFlat
-from sprites2.test_heart import TestHeart
-from sprites2.test_skull import TestSkull
-from sprites2.test_square import TestSquare
+from sprites.sprite_manager_2d import SpriteManager2D
+from sprites.types.test_flat import TestFlat
+from sprites.types.test_heart import TestHeart
+from sprites.types.test_skull import TestSkull
 from ui_elements import ui_screen
 
 from images.image_loader import ImageLoader
@@ -22,15 +17,16 @@ from screens.screen import Screen
 import uasyncio as asyncio
 import utime
 
-from sprites2.sprite_manager import SpriteManager
-from sprites2.sprite_types import *
+from sprites.sprite_manager import SpriteManager
+from sprites.sprite_types import *
 
 from micropython import const
 
 class GameScreenTest(Screen):
     ground_speed: 0
     max_ground_speed: int = const(-700)
-    max_sprites: int = 32
+    max_sprites: int = 32 # for the sprite pool
+    num_sprites: int = 16 # for the circle
 
     grid: RoadGrid = None
     sun: Sprite = None
@@ -59,11 +55,6 @@ class GameScreenTest(Screen):
         self.init_camera()
 
         self.scaler = SpriteScaler(display)
-
-        """ Config Live debugger """
-        # mp_dbg = Mpdb(pause_dma_pio=True)
-        # mp_dbg.add_break('/lib/scaler/sprite_scaler.py:230', _self=self.scaler, pause=True)
-        # mp_dbg.set_trace()
 
         self.mgr = SpriteManager2D(self.display, self.max_sprites) # max sprites
         self.load_types()
@@ -253,9 +244,9 @@ class GameScreenTest(Screen):
 
     def init_sprites(self, display):
         running_ms = 0
+        print(f"Creating a group of {self.num_sprites}")
 
-        # we should turn this 16 into a var
-        for i in range(16):
+        for i in range(self.num_sprites):
             """ We give each sprite a slightly different 'birthday', so that the animation will place them in different
             parts of the circle """
             new_inst, idx = self.mgr.pool.get(self.sprite_type, self.sprite)

@@ -1,4 +1,4 @@
-from sprites2.sprite_types import SpriteType, SPRITE_TEST_GRID
+from sprites.sprite_types import SpriteType, SPRITE_TEST_GRID
 
 class TestGrid(SpriteType):
     name = SPRITE_TEST_GRID

@@ -1,4 +1,4 @@
-from sprites2.sprite_types import SpriteType, SPRITE_TEST_SQUARE
+from sprites.sprite_types import SpriteType, SPRITE_TEST_SQUARE
 
 class TestSquare(SpriteType):
     name = SPRITE_TEST_SQUARE

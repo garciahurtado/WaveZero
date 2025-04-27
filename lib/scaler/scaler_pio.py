@@ -9,7 +9,7 @@ from scaler.status_leds import get_status_led_obj
 def read_palette_init(pin_jmp:Pin):
     leds = get_status_led_obj()
 
-    sm_freq = 32_000_000
+    sm_freq = 92_000_000
     pin_led1 = leds.pin_led1
 
     # PIO1 / SM0 = ID #4
@@ -46,7 +46,7 @@ def read_palette():
     These addresses are then sent to DMA to pull the final RGB565 colors from the palette, which are sent to the display
     """
     label("start")
-    set(pin, 0)
+    set(pin, 0)                 # reset the JMP pin
     pull()                       # First word in is the palette base address
     out(isr, 32)                  # Keep it in the ISR for later -
 

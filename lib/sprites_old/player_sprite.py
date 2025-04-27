@@ -1,5 +1,5 @@
 import uasyncio as asyncio
-from sprites.spritesheet import Spritesheet
+from sprites_old.spritesheet import Spritesheet
 
 class PlayerSprite(Spritesheet):
     target_lane = 2

@@ -8,14 +8,13 @@ import utime
 from utime import sleep
 
 # from mpdb.mpdb import Mpdb
-from screens.game_screen_test import GameScreenTest
 # import frozen_img # Created with freezefs: https://github.com/bixb922/freezeFS
 from screens.screen_app import ScreenApp
-# from screens.test_screen import TestScreen
-# from screens.game_screen import GameScreen
-# from screens.title_screen import TitleScreen
-# from screens.test_screen import TestScreen
-# from screens.test_screen_starfield import TestScreenStarfield
+from screens.game_screen import GameScreen
+from screens.game_screen_test import GameScreenTest
+from screens.title_screen import TitleScreen
+from screens.test_screen import TestScreen
+from screens.test_screen_starfield import TestScreenStarfield
 
 import machine
 micropython.alloc_emergency_exception_buf(100)
@@ -46,7 +45,8 @@ def main():
     app = ScreenApp(96, 64)
 
     # app.load_screen(TitleScreen(app.display))
-    app.load_screen(GameScreenTest(app.display))
+    app.load_screen(GameScreen(app.display))
+    # app.load_screen(GameScreenTest(app.display))
     # app.load_screen(TestScreen(app.display))
     # app.load_screen(TestScreenStarfield(app.display))
 

@@ -1,6 +1,6 @@
 from uarray import array
 
-from sprites2.sprite_types import SpriteType
+from sprites.sprite_types import SpriteType
 
 class MemoryManager():
     addr_cache: None
