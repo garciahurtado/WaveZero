@@ -62,6 +62,8 @@ class SpritePool:
         #         new_node = PoolNode(sprite=new_sprite)
         #         self.pool_nodes.append(PoolNode)
 
+        print(f"ABOUT to ALLOCATE POOL SPRITES for a size of {self.pool_size}")
+
         for s in range(self.pool_size):
             # Create the sprite in memory
             addr = addressof(bytearray(SPRITE_DATA_SIZE))
@@ -73,7 +75,7 @@ class SpritePool:
             self.pool_nodes.append(node)
 
 
-    def get(self, sprite_type, meta):
+    def get(self, sprite_type):
         """ TODO: theres a problem here with the fact that we have two ways to determine a sprite is active:
         - sprite.active = True
         - belongs to self.active_indices
@@ -117,17 +119,7 @@ class SpritePool:
 
         self.active_count += 1
 
-
-        # print(type(meta))
-        # print(meta)
-        # print(dir(meta))
-        #
-        # print(type(sprite))
-        # print(sprite)
-
-        meta.reset(sprite)
-
-
+        # meta.reset(sprite) // still have to figure out how to reset the sprite
 
         return sprite, index
 

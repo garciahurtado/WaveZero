@@ -21,6 +21,7 @@ class BMPReader():
         }
 
     frames = None
+    with_frames = False
 
     def __init__(self, basedir:str=None):
         self.basedir:str = basedir

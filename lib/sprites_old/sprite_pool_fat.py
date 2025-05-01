@@ -1,14 +1,9 @@
 from uarray import array
 
-from sprites.sprite import Sprite
+from sprites_old.sprite import Sprite
 
-from sprites.sprite_types import SpriteType
-
-
-class SpritePool:
-    """
-    This SpritePool should be completely deprecated in favor of SpritePoolLite
-    """
+class SpritePoolFat:
+    # DEPRECATE: I think this whole class needs to be deprecated
     reserve_sprites: [] = []
     active_sprites: [] = []
     camera = None
@@ -19,6 +14,7 @@ class SpritePool:
         self.reserve_sprites = []
         self.active_sprites = active_sprites
 
+        """ base_sprite is a FatSprite object which is preconfigured to serve as the default sprite in this pool """
         base_sprite.visible = False
         base_sprite.active = False
         base_sprite.set_camera(self.camera)
@@ -26,7 +22,7 @@ class SpritePool:
 
         for i in range(size):
             new_sprite = base_sprite.clone()
-            self.add(new_sprite)
+            self.add_sprite(new_sprite)
 
     def __len__(self):
         return len(self.active_sprites)
@@ -40,7 +36,7 @@ class SpritePool:
         new_sprite.visible = False
         new_sprite.active = False
         new_sprite.has_physics = False
-        new_sprite.pool = self
+        new_sprite.sprites = self
         self.reserve_sprites.append(new_sprite)
 
     def get_new(self):
@@ -57,7 +53,6 @@ class SpritePool:
         """ Given a Sprite, make it active and visible, reset it, remove it from the available pool,
         and add it to the active pool"""
         sprite.has_physics = True
-        sprite.active = True
 
         if sprite in self.reserve_sprites:
             self.reserve_sprites.remove(sprite)
@@ -76,7 +71,7 @@ class SpritePool:
             if not sprite.active:
                 sprite.kill()
                 self.active_sprites.remove(sprite)
-                self.add(sprite)
+                self.add_sprite(sprite)
 
             sprite.update(elapsed)
             sprite.update_frame()

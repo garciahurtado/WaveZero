@@ -31,6 +31,52 @@ def pformat(obj, indent=1, width=80, depth=None):
 def pprint(obj, stream=None, indent=1, width=80, depth=None):
     print(repr(obj), file=stream)
 
+def pprint_pure(data, indent=0):
+    """
+    Prints nested dictionaries, lists, and tuples with indentation using
+    basic Python features. Simulates basic pprint functionality.
+
+    Args:
+        data: The data structure to print.
+        indent (int): Current indentation level (spaces).
+    """
+    indent_space = ' ' * indent
+
+    # Handle Dictionaries
+    if isinstance(data, dict):
+        if not data:
+            print("{}")
+            return
+
+        print("{")
+        items = list(data.items()) # Get items to safely check length later
+        for i, (key, value) in enumerate(items):
+            print(f"{indent_space}  {repr(key)}: ", end="") # Print key (repr adds quotes to strings)
+            pprint_pure(value, indent + 2) # Recursively print value
+            # Add comma and newline unless it's the last item
+            print("," if i < len(items) - 1 else "")
+        print(f"{indent_space}}}")
+
+    # Handle Lists and Tuples
+    elif isinstance(data, (list, tuple)):
+        is_tuple = isinstance(data, tuple)
+        open_bracket, close_bracket = ('(', ')') if is_tuple else ('[', ']')
+
+        if not data:
+            print(f"{open_bracket}{close_bracket}")
+            return
+
+        print(f"{open_bracket}")
+        for i, item in enumerate(data):
+            print(f"{indent_space}  ", end="") # Indent item line
+            pprint_pure(item, indent + 2) # Recursively print item
+            # Add comma and newline unless it's the last item
+            print("," if i < len(data) - 1 else "")
+        print(f"{indent_space}{close_bracket}")
+
+    # Handle other simple types
+    else:
+        print(repr(data), end="") # Use repr for consistent representation
 
 """ These two methods originally in sprite_scaler.py """
 def draw_dot(self, x, y, type):

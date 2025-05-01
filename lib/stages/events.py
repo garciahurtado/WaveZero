@@ -2,9 +2,10 @@ import uasyncio as asyncio
 import math
 
 import utime
+
+from mpdb.mpdb import Mpdb
 from profiler import Profiler as prof
 from sprites.sprite_manager import SpriteManager
-
 
 class Event:
     started_ms: int
@@ -15,6 +16,10 @@ class Event:
     elapsed = 0
     last_tick = 0
     sprite_manager = None
+    extra_kwargs = None
+
+    def __init__(self, **kwargs):
+        self.extra_kwargs = kwargs
 
     def start(self):
         self.started_ms = utime.ticks_ms()
@@ -40,27 +45,43 @@ class Event:
         self.finished = True
         self.active = False
 
-    """ Event aliases """
+    """ Event aliases / Static methods """
 
-    def multi(self, events, repeat=1):
+    @staticmethod
+    def multi(events, repeat=1):
         """MultiEvent Factory"""
         this_event = MultiEvent(events, repeat=repeat)
         return this_event
 
-    def sequence(self, events, repeat=1):
+    @staticmethod
+    def sequence(events, repeat=1):
         """SequenceEvent Factory"""
         this_event = SequenceEvent(events, repeat=repeat)
         return this_event
 
-    def wait(self, delay_ms):
+    @staticmethod
+    def wait(delay_ms):
         """WaitEvent Factory"""
         this_event = WaitEvent(delay_ms)
         return this_event
 
-    def spawn(self, sprite_type, x=0, y=0, z=0, lane=0):
+    @staticmethod
+    def spawn(sprite_type, x=0, y=0, z=0, lane=0, **kwargs):
+
         """SpawnEvent Factory"""
-        this_event = SpawnEnemyEvent(sprite_type, x=x, y=y, z=z, lane=lane, sprite_mgr=Event.sprite_manager)
+        all_kwargs = {
+            'x': x,
+            'y': y,
+            'z': z,
+            'lane': lane
+        }
+
+        all_kwargs = all_kwargs | kwargs
+
+        # all_kwargs has all the entity properties that need to be set upon spawn
+        this_event = SpawnEnemyEvent(sprite_type, sprite_mgr=Event.sprite_manager, **all_kwargs)
         return this_event
+
 
 class EventChain(Event):
     """ A list of events that will be executed from first to last"""
@@ -113,6 +134,7 @@ class EventChain(Event):
         await asyncio.sleep_ms(10)
         return True
 
+
 class WaitEvent(Event):
     """ Will wait for a certain amount of time and then give way to the next event """
     delay_ms: int = 0
@@ -144,6 +166,7 @@ class MultiEvent(Event):
         `times` allows us to repeat the whole set of events more than once 
         (once the first set is finished)
     """
+
     def __init__(self, events, repeat=1):
         self.events = events
         self.repeat_max = repeat
@@ -183,6 +206,7 @@ class MultiEvent(Event):
         else:
             self.start()
 
+
 class SequenceEvent(Event):
     events = []
     repeat_max = 0
@@ -193,6 +217,7 @@ class SequenceEvent(Event):
         `repeat` allows us to repeat the whole sequence of events more than once 
         (once the first sequence is finished)
     """
+
     def __init__(self, events, repeat=1):
         self.events = events
         self.repeat_max = repeat
@@ -238,6 +263,7 @@ class SequenceEvent(Event):
         for event in self.events:
             event.reset()
 
+
 def sequence(self, events, repeat=1):
     """SequenceEvent Factory"""
     next_event = SequenceEvent(events, repeat=repeat)
@@ -246,9 +272,6 @@ def sequence(self, events, repeat=1):
 
 
 class OneShotEvent(Event):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def start(self):
         super().start()
         self.do_thing()
@@ -256,7 +279,7 @@ class OneShotEvent(Event):
 
     def do_thing(self):
         """ Override """
-        pass
+        raise NotImplementedError("You must implement event.do_thing()")
 
 
 class SpawnEnemyEvent(OneShotEvent):
@@ -267,8 +290,8 @@ class SpawnEnemyEvent(OneShotEvent):
     z: int
     lane: int
 
-    def __init__(self, sprite_type, x=0, y=0, z=0, lane=0, sprite_mgr=None):
-        super().__init__()
+    def __init__(self, sprite_type, x=0, y=0, z=0, lane=0, sprite_mgr=None, **kwargs):
+        super().__init__(**kwargs)
 
         self.sprite_mgr = sprite_mgr
 
@@ -279,21 +302,23 @@ class SpawnEnemyEvent(OneShotEvent):
         self.lane = lane
 
     def do_thing(self):
+        sprite_type = self.sprite_type
 
-        type = self.sprite_type
+        base_args = {
+            'x': self.x, 'y': self.y, 'z': self.z
+        }
+        if self.extra_kwargs:
+            all_args = base_args | self.extra_kwargs
+            sprite, _ = self.sprite_mgr.spawn(sprite_type, **all_args)
+        else:
+            sprite, _ = self.sprite_mgr.spawn(sprite_type, base_args)
 
-
-        sprite, _ = self.sprite_mgr.spawn(type, x=self.x, y=self.y, z=self.z)
-
-
-
-        self.sprite_mgr.set_lane(sprite, self.lane)
-
-
+        self.sprite_mgr.set_lane(sprite,
+                                 self.lane)  # ??? really?? the SpriteManager should do this within its own lifecycle,
+        # or lane should be passed as another extra kwarg from parent spawn()
         self.finish()
-
-
         return sprite
+
 
 class MoveCircle(Event):
     item: None
@@ -306,7 +331,7 @@ class MoveCircle(Event):
     orig_y: int = 0
 
     def __init__(self, item, center, radius, speed, count):
-        self.item = item # Sprite object with X and Y
+        self.item = item  # Sprite object with X and Y
         self.center = center
         self.radius = radius
         self.speed = speed
@@ -331,9 +356,3 @@ class MoveCircle(Event):
 
         if self.curr_count >= self.total_count:
             return False
-
-
-
-
-
-

@@ -72,9 +72,9 @@ class Stage:
         self.events.add(next_event)
         return self
 
-    def spawn(self, sprite_type, x=0, y=0, z=0, lane=0):
+    def spawn(self, sprite_type, x=0, y=0, z=0, lane=0, **kwargs):
         """SpawnEvent Factory"""
-        next_event = SpawnEnemyEvent(sprite_type, x=x, y=y, z=z, lane=lane, sprite_mgr=self.sprite_manager)
+        next_event = SpawnEnemyEvent(sprite_type, x=x, y=y, z=z, lane=lane, sprite_mgr=self.sprite_manager, **kwargs)
         self.events.add(next_event)
         return self
 

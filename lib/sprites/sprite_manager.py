@@ -6,6 +6,7 @@ import micropython
 
 from images.image_loader import ImageLoader
 from perspective_camera import PerspectiveCamera
+from scaler.const import DEBUG
 from sprites.sprite_draw import SpriteDraw
 from sprites.sprite_physics import SpritePhysics
 from sprites.sprite_types import SpriteType
@@ -19,9 +20,14 @@ from sprites.sprite_pool_lite import SpritePool
 from typing import Dict, List
 from profiler import Profiler
 import ssd1331_pio
+
 prof = Profiler()
 
 class SpriteManager:
+    """
+    Base SpriteManager, intented to be extended in display specific classes, like SpriteManager2D and SpriteManager3D.
+    This class will not work on its own, since it depends on specific implementations of certain methods.
+    """
 
     POS_TYPE_FAR = const(0)
     POS_TYPE_NEAR = const(1)
@@ -36,21 +42,24 @@ class SpriteManager:
     sprite_inst: Dict[str, list] = {}
     half_scale_one_dist = int(0)  # This should be set based on your camera setup
     add_frames = 0  # Number of upscaled frames to add (scale > 1)
-    pool = None
+    pools = []
     grid = None
     camera: PerspectiveCamera = None
     phy: SpritePhysics = SpritePhysics()
     draw: SpriteDraw = SpriteDraw()
 
-    def __init__(self, display: ssd1331_pio, max_sprites, camera=None, grid=None):
+    def __init__(self, display: ssd1331_pio, max_sprites=0, camera=None, grid=None):
         self.display = display
 
         self.max_sprites = max_sprites
         self.grid = grid
 
         self.check_mem()
-        self.pool = SpritePool(self.max_sprites)
-        self.pool.mgr = self # Remove 2-way dependency
+
+        pool = SpritePool(self.max_sprites)
+        pool.mgr = self # Remove 2-way dependency
+        self.pools.append(pool)
+        self.pool = pool # hack for now, until we refactor
 
         if camera:
             self.set_camera(camera)
@@ -60,7 +69,7 @@ class SpriteManager:
         # self.sprite_actions = Actions(display=display, camera=camera, mgr=self)
 
     def add_type(self, **kwargs):
-        """ New SpriteType factory / registry """
+        """ SpriteType registry """
         sprite_type = kwargs['sprite_type']
 
         """ Look for the actual Python class, or default to SpriteType """
@@ -105,6 +114,11 @@ class SpriteManager:
 
         # This will load the sprite image
         new_img = self.load_img_and_scale(type_obj, sprite_type)
+        first_img = new_img[0]
+
+        if DEBUG:
+            print(f"<:: [{len(new_img)}] NEW IMGs ADDED: w:{first_img.width}/h:{first_img.height} ::> ")
+
         self.sprite_images[sprite_type] = new_img
         self.sprite_metadata[sprite_type] = type_obj
         self.sprite_palettes[sprite_type] = new_img[0].palette
@@ -117,332 +131,13 @@ class SpriteManager:
 
         self.sprite_inst[sprite_type] = []
 
-    def get_class_properties(self, cls):
-        props = {}
-        names = [attr for attr in dir(cls)
-                if not callable(getattr(cls, attr))
-                and not attr.startswith("__")]
-
-        for name in names:
-            props[name] = getattr(cls, name)
-
-        return props
-
-    def spawn(self, sprite_type, *args, **kwargs):
-        """
-        "Spawn" a new sprite. In reality, we are just grabbing one from the pool of available sprites via get() and
-        activating it.
-        """
-        global prof
-
-        if sprite_type not in self.sprite_classes.keys():
-            raise IndexError(f"Unknown Sprite Type {sprite_type}")
-
-        meta = self.sprite_metadata[sprite_type]
-
-
-        # new_sprite.x = new_sprite.y = new_sprite.z = 0
-        new_sprite, idx = self.pool.get(sprite_type, meta)
-
-
-        # self.sprite_inst[sprite_type].insert(0, idx) # insert in the beginning, so we have correct Z values
-        self.sprite_inst[sprite_type].append(idx) # insert in the beginning, so we have correct Z values
-
-        # Set user values passed to the create method
-
-        #
-        # for key in kwargs:
-        #     value = kwargs[key]
-        #     if value is not None:
-        #         setattr(new_sprite, key, value)
-
-
-        # Some properties belong to the meta class, so they must be set separately
-
-        if ('width' in kwargs and 'height' in kwargs):
-            meta.num_frames = max(kwargs['width'], kwargs['height'])
-
-        new_sprite.sprite_type = sprite_type
-
-        """ Load image and create scaling frames """
-        if sprite_type not in self.sprite_images:
-            print(f"First Sprite of Type: {sprite_type} - creating scaled images")
-
-            new_img = self.load_img_and_scale(meta, sprite_type)
-            self.sprite_images[sprite_type] = new_img
-
-
-
-        types.set_flag(new_sprite, FLAG_ACTIVE)
-        types.set_flag(new_sprite, FLAG_VISIBLE)
-
-
-        return new_sprite, idx
-
-    def load_img_and_scale(self, meta, sprite_type):
-        orig_img = ImageLoader.load_image(meta.image_path, meta.width, meta.height)
-        if isinstance(orig_img, list):
-            orig_img = orig_img[0]
-
-        frames = []
-        num_frames = meta.num_frames
-
-        for f in range(1, num_frames):
-            scale = f / num_frames # Avoid division by zero
-
-            new_width = math.ceil(meta.width * scale)
-            new_height = math.ceil(meta.height * scale)
-
-            new_frame = self.scale_frame(orig_img, new_width, new_height, meta.color_depth)
-            frames.append(new_frame)
-
-        frames.append(orig_img)  # Add original image as the last frame
-
-        """Do we need to add upscale frames? (scale > 1)"""
-        if ((meta.stretch_width and meta.stretch_width > meta.width) or
-            (meta.stretch_height and meta.stretch_height > meta.height)):
-
-            width_gap = meta.stretch_width - meta.width
-            height_gap = meta.stretch_height - meta.height
-
-            add_width_frames = 0
-            add_height_frames = 0
-
-            if width_gap > height_gap:
-                add_width_frames = max(width_gap, height_gap)
-            else:
-                add_height_frames = max(width_gap, height_gap)
-
-            for f in range(0, add_width_frames):
-                pass
-
-            for f in range(0, add_height_frames):
-                pass
-
-        self.sprite_palettes[sprite_type] = orig_img.palette
-        meta.palette = orig_img.palette
-        self.set_alpha_color(meta)
-
-        return frames
-
-    def scale_frame(self, orig_img, new_width, new_height, color_depth) -> Image:
-        if color_depth not in [4, 8]:
-            raise ValueError(f"Unsupported color depth: {color_depth}")
-
-        if new_width % 2 and color_depth == 4:  # Width must be even for 4-bit images
-            new_width += 1
-
-        byte_size = (new_width * new_height) // (8 // color_depth)
-        new_bytes = bytearray(byte_size)
-        new_bytes_addr = uctypes.addressof(new_bytes)
-
-        if color_depth == 4:
-            buffer_format = framebuf.GS4_HMSB
-        else:  # 8-bit
-            buffer_format = framebuf.GS8
-
-        new_buffer = framebuf.FrameBuffer(new_bytes, new_width, new_height, buffer_format)
-
-        x_ratio = orig_img.width / new_width
-        y_ratio = orig_img.height / new_height
-
-        for y in range(new_height):
-            for x in range(0, new_width, 2 if color_depth == 4 else 1):
-                x_1 = min(int(x * x_ratio), orig_img.width - 1)
-                y_1 = min(int(y * y_ratio), orig_img.height - 1)
-
-                color1 = orig_img.pixels.pixel(x_1, y_1)
-                new_buffer.pixel(x, y, color1)
-
-                if color_depth == 4:
-                    x_2 = min(int((x + 1) * x_ratio), orig_img.width - 1)
-                    color2 = orig_img.pixels.pixel(x_2, y_1)
-                    new_buffer.pixel(x + 1, y, color2)
-
-        return create_image(new_width, new_height, new_buffer, new_bytes, new_bytes_addr,
-                            orig_img.palette, orig_img.palette_bytes, color_depth)
-
     def set_camera(self, camera):
         self.camera = camera
         scale_adj = 10  # Increase this value to see bigger sprites when closer to the screen
         self.half_scale_one_dist = int(abs(self.camera.cam_z - scale_adj) / 2)
 
-    # @timed
-    def update_sprite(self, sprite, meta, elapsed):
-        """ 3D Only. The update function only applies to a single sprite at a time, and it is responsible for
-         updating the x and y draw coordinates based on the 3D position and camera view
-        """
-        visible = types.get_flag(sprite, FLAG_VISIBLE)
-        active = types.get_flag(sprite, FLAG_ACTIVE)
-
-        if not active:
-            return False
-
-        if sprite.speed:
-
-            new_z = int(sprite.z + (sprite.speed * elapsed))
-
-        else:
-            new_z = sprite.z
-
-        if sprite.z == 0:
-            sprite.z = 1
-
-        cam = self.camera
-
-        if sprite.z < cam.far and not visible:
-            types.set_flag(sprite, FLAG_VISIBLE)
-        elif new_z == sprite.z and sprite.scale:
-            """ We check for sprite.scale to give static sprites that just spawned a change to calculate its render 
-            attributes once. """
-            """ Nothing more needs to change, since it hasn't moved"""
-            return False
-        else:
-            sprite.z = new_z
-
-        """ The rest of the calculations are only relevant for visible sprites within the frustrum"""
-        if not visible:
-            return True
-
-        if sprite.z < cam.near:
-            """Past the near clipping plane"""
-            self.pool.release(sprite, meta)
-            return False
-
-        """1. Get the Scale according to Z for a starting 2D Y"""
-
-        sprite.floor_y, scale = cam.get_scale(sprite.z)
-
-
-
-        """1. Add the scaled 3D Y (substract) + sprite height from the starting 2D Y. This way we scale both numbers 
-        in one single operation"""
-
-        #
-        if sprite.y or meta.height:
-            """ Draw the sprite at Y - (sprite height) """
-            scaled_height = int(scale * (sprite.y + meta.height))
-            draw_y = sprite.floor_y - scaled_height
-        else:
-            draw_y = sprite.floor_y
-
-
-
-        # @TODO
-        # if draw_y < 0:
-        #     print(f"NEGATIVE DRAW Y: {draw_y} / sc: {scale} / z: {sprite.z} / height: {meta.height} ")
-
-        sprite.scale = scale
-
-        # the scalars below are pretty much trial and error "magic" numbers
-        # vp_scale = ((cam.max_vp_scale) * sprite.scale)
-
-        """ We have to adjust for the fact that 3D vertical axis and 2D vertical axis run in opposite directions,
-        so we add the sprite height to Y in 3D space before translating to 2D"""
-
-
-        draw_x = sprite.x * scale
-        draw_x -= cam.vp_x * cam.max_vp_scale * scale * 1.2 # magic number
-        draw_x += self.half_width
-
-
-
-
-        frame_idx = self.get_frame_idx(scale, sprite.num_frames)
-
-
-        sprite.draw_x = int(draw_x)
-        sprite.draw_y = int(draw_y)
-
-        sprite.current_frame = frame_idx
-
-        return True
-
-    def update(self, elapsed):
-        """
-        ellapsed should be in milliseconds
-        """
-        # BEWARE, OLD UPDATE!!
-
-        kinds = self.sprite_metadata
-        current = self.pool.head
-        while current:
-
-            sprite = current.sprite
-            kind = sprite.sprite_type
-
-            if self.update_sprite(sprite, kind, elapsed):
-                if kind.is_time_to_rotate(elapsed):
-                    self.rotate_sprite_palette(sprite, kind)
-
-            next_node = current.next
-
-            if not types.get_flag(sprite, FLAG_ACTIVE):
-                self.pool.release(sprite, kind)
-
-            current = next_node
-            current.sprite_id = current.sprite_type
-
-
-        """ Check for and update actions for all sprite types"""
-
-        if self.sprite_actions:
-
-            for sprite_type in self.sprite_actions.keys():
-                inst = self.sprite_inst[sprite_type]
-                actions = self.sprite_actions.for_sprite(sprite_type)
-                for action in actions:
-                    func = getattr(self.sprite_actions, __name__)
-                    # func.__self__ =
-                    func(inst, elapsed)
-
-                    # action(self.camera, sprite.draw_x, sprite.draw_y, sprite.x, sprite.y, sprite.z, sprite.frame_width)
-
-
-
     def rotate_sprite_palette(self, sprite, meta):
         sprite.color_rot_idx = (sprite.color_rot_idx + 1) % len(meta.rotate_palette)
-
-    # @timed
-    def show_sprite(self, sprite, display: framebuf.FrameBuffer):
-        """Draw a single sprite on the display (or several, if multisprites)"""
-        sprite_type = sprite.sprite_id
-
-        if not types.get_flag(sprite, FLAG_VISIBLE):
-            return False
-
-        if types.get_flag(sprite, FLAG_BLINK):
-            blink_flip = types.get_flag(sprite, FLAG_BLINK_FLIP)
-            types.set_flag(sprite, FLAG_BLINK_FLIP, blink_flip * -1)
-
-        meta = self.sprite_metadata[sprite_type]
-
-        alpha = meta.alpha_color
-        palette:FramebufferPalette = self.sprite_palettes[sprite_type]
-
-        # if meta.rotate_palette:
-        #     color = meta.rotate_palette[sprite.color_rot_idx]
-        #     # Apply the rotated color to the sprite's palette
-        #     palette.set_int(0, color)
-
-        frame_id = sprite.current_frame # 255 sometimes ???
-        image = self.sprite_images[sprite_type][frame_id]
-
-        start_x = sprite.draw_x
-        start_y = sprite.draw_y
-
-        """ Drawing a single image or a row of them? repeats 0 and 1 mean the same thing (one image) """
-
-        if meta.repeats < 2:
-            self.do_blit(x=start_x, y=start_y, display=display, frame=image.pixels,
-                         palette=palette, alpha=alpha)
-        else:
-            """Draw horizontal clones of this sprite"""
-            for i in range(0, meta.repeats):
-                x = start_x + (meta.repeat_spacing * sprite.scale * i)
-                self.do_blit(x=round(x), y=start_y, display=display, frame=image.pixels,palette=palette, alpha=alpha)
-
-        return True
 
     # @timed
     def do_blit(self, x: int, y: int, display: framebuf.FrameBuffer, frame, palette, alpha=None):
@@ -455,38 +150,19 @@ class SpriteManager:
 
     # @timed
     def to_2d(self, x, y, z, vp_scale=1):
-        print(f"MGR calling 2D X/Y/Z: {x} {y} {z}")
-
-
         camera = self.camera
         if camera:
             x, y = self.camera.to_2d(x, y, z, vp_scale=vp_scale)
 
-
         return x, y
-
 
     def set_lane(self, sprite, lane_num):
         meta = self.get_meta(sprite)
-
         return self.grid.set_lane(sprite, lane_num, meta.repeats, meta.repeat_spacing)
 
     def get_meta(self, inst):
         meta = self.sprite_metadata[inst.sprite_type]
         return meta
-
-    def _get_sprite_type(self, sprite_type):
-        """ Returns the Sprite Type / Metadata """
-        sprite = self.sprite_metadata[sprite_type]
-        print(f"CALLING GET_SPRITE_TYPE-> sprite_type: {sprite_type} / meta: {sprite}")
-
-        if sprite_type not in self.sprite_images:
-            print(f"Sprite type: {sprite_type} - creating scaled images for 1st time")
-            new_img = self.load_img_and_scale(sprite, sprite_type)
-            self.sprite_images[sprite_type] = new_img
-            self.sprite_palettes[sprite_type] = new_img[0].palette
-
-        return sprite
 
     def get_palette(self, sprite_type):
         pal = self.sprite_palettes[sprite_type]
@@ -509,31 +185,12 @@ class SpriteManager:
         if num_frames <= 0:
             raise ArithmeticError(f"Invalid number of frames: {num_frames}. Are width and height set?")
 
-
         frame_idx = int(scale * num_frames)
-
-
         ret = min(max(frame_idx, 0), num_frames - 1)
-
-
         return ret
 
 
-    # @timed
-    def show(self, display: framebuf.FrameBuffer):
-        """ Display all the active sprites """
-        current = self.pool.head
 
-        while current:
-            sprite = current.sprite
-            #
-            # print(f"VISIBLE: {SpriteType.get_flag(sprite, SpriteType.FLAG_VISIBLE)}")
-            # print(f"ACTIVE:  {SpriteType.get_flag(sprite, SpriteType.FLAG_ACTIVE)}")
-
-            if types.get_flag(sprite, FLAG_VISIBLE):
-                sprite.sprite_id = sprite.sprite_type
-                self.show_sprite(sprite, display)
-            current = current.next
 
     def start_anims(self):
         """ Start the animations of all the registered sprite types"""
@@ -548,6 +205,39 @@ class SpriteManager:
         gc.collect()
         print(micropython.mem_info())
 
+    def update(self, elapsed):
+        """ Update ALL the sprites that this manager is responsible for """
+        if not elapsed:
+            return
+
+        kinds = self.sprite_metadata
+        current = self.pool.head
+        while current:
+            sprite = current.sprite
+            kind = kinds[sprite.sprite_type]
+
+            self.update_sprite(sprite, kind, elapsed)
+
+            if not types.get_flag(sprite, FLAG_ACTIVE):
+                self.pool.release(sprite, kind)
+
+            current = current.next
+
+    def update_sprite(self, sprite, meta, elapsed):
+        raise NotImplementedError("update_sprite() method must be overridden in child class.")
+
+    def show(self, display: framebuf.FrameBuffer):
+        """ Displays all the sprites in this manager on the screen """
+        raise NotImplementedError("show() method must be overridden in child class.")
+
+    def show_sprite(self, sprite, display: framebuf.FrameBuffer):
+        raise NotImplementedError("show_sprite() method must be overridden in child class.")
+
+    def add_pool(self, sprite_type, size):
+        raise NotImplementedError("add_pool() method must be overridden in child class.")
+
+    def spawn(self, sprite_type, *args, **kwargs):
+        raise NotImplementedError("spawn() method must be overridden in child class.")
 
 # Usage example
 def main():

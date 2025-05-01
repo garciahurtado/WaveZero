@@ -1,10 +1,7 @@
 import random
 
-import machine
-from machine import mem32
-
 from mpdb.mpdb import Mpdb
-from scaler.const import IRQSUMMARY_PROC0_NONSECURE0, IRQSUMMARY_PROC0_SECURE0
+from scaler.const import DEBUG_INST
 from scaler.sprite_scaler import SpriteScaler
 from perspective_camera import PerspectiveCamera
 from death_anim import DeathAnim
@@ -16,12 +13,12 @@ from images.image_loader import ImageLoader
 from sprites_old.player_sprite import PlayerSprite
 from road_grid import RoadGrid
 
-from input_rotary import make_input_handler
+from input.game_input import make_input_handler
 from screens.screen import Screen
 import uasyncio as asyncio
 import utime
 
-from sprites.sprite_manager import SpriteManager
+from sprites.sprite_manager_3d import SpriteManager3D
 from collider import Collider
 from sprites.sprite_types import *
 from sprites_old.sprite import Sprite
@@ -32,13 +29,13 @@ from micropython import const
 class GameScreen(Screen):
     fps_enabled = True
     ground_speed: int = 0
-    max_ground_speed: int = const(-1500)
+    max_ground_speed: int = const(-1000)
     grid: RoadGrid = None
     sun: Sprite = None
     sun_start_x = None
     camera: PerspectiveCamera
-    enemies: SpriteManager = None
-    max_sprites: int = 100
+    enemies: SpriteManager3D = None
+    max_sprites: int = 60
     saved_ground_speed = 0
     lane_width: int = const(24)
     num_lives: int = 4
@@ -61,6 +58,7 @@ class GameScreen(Screen):
 
     def __init__(self, display, *args, **kwargs):
         super().__init__(display, *args, **kwargs)
+
         display.fill(0x0000)
         display.show()
 
@@ -87,8 +85,21 @@ class GameScreen(Screen):
         self.grid = RoadGrid(self.camera, display, lane_width=self.lane_width)
 
         self.check_mem()
-        print("-- Creating Sprite Manager...")
-        self.enemies = SpriteManager(display, self.max_sprites, self.camera, grid=self.grid)
+        print("-- Creating Enemy Sprite Manager...")
+
+        self.enemies = SpriteManager3D(
+            display,
+            max_sprites=self.max_sprites,
+            camera=self.camera,
+            grid=self.grid
+        )
+
+        # DEBUG
+        mp_dbg = Mpdb()
+        # mp_dbg.add_break('/lib/stages/stage.py:77', _self=self)
+        # mp_dbg.add_break('/lib/sprites/sprite_manager_2d.py:77', _self=self)
+        # mp_dbg.add_break('/lib/sprites/sprite_manager_3d.py:258', _self=self)
+        # mp_dbg.set_trace()
 
         self.death_anim = DeathAnim(display)
         self.death_anim.callback = self.after_death
@@ -104,10 +115,9 @@ class GameScreen(Screen):
         sun.x = self.sun_start_x = 39
         sun.y = 11
         self.add_sprite(sun)
-        self.add_sprite(self.enemies)
+        self.add_sprite(self.enemies) # this is a sprite manager, but it knows how to render its own sprites
 
         self.sun = sun
-
 
     async def mock_update_score(self):
         while True:
@@ -127,7 +137,7 @@ class GameScreen(Screen):
             {"name": "debris_bits.bmp", "width": 4, "height": 4, "color_depth": 1},
             {"name": "debris_large.bmp", "width": 8, "height": 6, "color_depth": 1},
             # {"name": "test_white_line.bmp", "width": 24, "height": 2},
-            # {"name": "test_white_line_vert.bmp", "width": 2, "height": 24},
+            {"name": "test_white_line_vert.bmp", "width": 2, "height": 24},
         ]
 
         ImageLoader.load_images(images, self.display)
@@ -137,17 +147,15 @@ class GameScreen(Screen):
         asyncio.run(self.start_main_loop())
 
     def run(self):
-        # DEBUG
-        # mp_dbg = Mpdb()
-        # mp_dbg.add_break('/lib/input_rotary.py:25', _self=self)
-        # mp_dbg.set_trace()
-
         loop = asyncio.get_event_loop()
         loop.create_task(self.start_display_loop())
 
-        self.display.fill(0x9999)
-        utime.sleep_ms(100)
+        """ Quick flash of white"""
+        self.display.fill(0xBBBBBB)
+        self.display.show()
+        utime.sleep_ms(10)
         self.display.fill(0x0)
+        self.display.show()
 
         barrier_speed = self.max_ground_speed / 200
         print(f"Sprite speed: {barrier_speed}")
@@ -172,7 +180,6 @@ class GameScreen(Screen):
         print("-- Starting update_loop...")
         asyncio.run(self.start_main_loop())
 
-
     async def update_loop(self):
         start_time_ms = self.last_update_ms = utime.ticks_ms()
         self.last_perf_dump_ms = start_time_ms
@@ -192,17 +199,15 @@ class GameScreen(Screen):
                 self.grid.speed_ms = self.ground_speed / 10
                 self.total_frames += 1
 
-                # if not self.total_frames % self.fps_every_n_frames:
-                #     print(f"FPS: {self.fps.fps():.02f}")
-
                 now = utime.ticks_ms()
                 elapsed = utime.ticks_diff(now, self.last_update_ms)
                 elapsed = elapsed / 1000 # @TODO change to MS?
                 self.last_update_ms = now
 
                 if not self.paused:
-                    # self.stage.update(elapsed)
+                    self.stage.update(elapsed)
                     self.grid.update_horiz_lines(elapsed)
+                    self.enemies.update(elapsed)
                     self.player.update(elapsed)
                     self.sun.x = self.sun_start_x - round(self.player.turn_angle * 4)
 
@@ -211,7 +216,7 @@ class GameScreen(Screen):
 
                     self.collider.check_collisions(self.enemies.pool.active_sprites)
 
-                await asyncio.sleep(1/160) # Tweaking this number can give FPS gains
+                await asyncio.sleep(1/60)   # Tweaking this number can improve FPS
 
         except asyncio.CancelledError:
             return False
@@ -248,7 +253,7 @@ class GameScreen(Screen):
         self.grid.start()
 
         loop = asyncio.get_event_loop()
-        loop.create_task(self.player.stop_blink())
+        # loop.create_task(self.player.stop_blink())
 
     def do_crash(self):
         # self.display_task.cancel()

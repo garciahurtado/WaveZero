@@ -1,6 +1,9 @@
 from anim.palette_rotate_one import PaletteRotateOne
 from colors.color_util import BGR565
+from scaler.const import DEBUG
+from sprites.types.laser_wall import LaserWall
 from sprites.types.warning_wall import WarningWall
+from sprites.types.white_line import WhiteLine
 from stages.events import Event
 from stages.stage import Stage
 from sprites.sprite_types import *
@@ -8,19 +11,23 @@ from colors.palettes import convert_hex_palette, PALETTE_FIRE
 import micropython
 
 class Stage1(Stage):
-    base_speed = -50
+    base_speed = -200
     fire_palette = None
     shared_palette = None
-    
+
     def __init__(self, sprite_manager):
         super().__init__(sprite_manager)
 
-        # spawn_z = 1500
-        spawn_z = 20
+        spawn_z = 5000
+        # spawn_z = 20
         spawn_z_step = 40
+        line_height = 24
+
+        # Times in ms
         med_wait = 10000
         small_wait = 1000
         tiny_wait = 500
+
 
         Event.sprite_manager = sprite_manager
         evt = self.events
@@ -28,18 +35,17 @@ class Stage1(Stage):
         self.load_types()
         # self.init_palettes()
 
-        line_height = 24
+        # evt_list = []
+        # for i in range(0):
+        #     evt_list.append(evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z))
+        #     evt_list.append(evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z))
+        #     spawn_z += spawn_z_step
 
-        evt_list = []
-        for i in range(0):
-            evt_list.append(evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z))
-            evt_list.append(evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z))
-            spawn_z += spawn_z_step
-
+        self.wait(3000)
         self.sequence([
-            evt.multi(evt_list),
+            # evt.multi(evt_list),
             evt.multi([
-                evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z),
+                evt.spawn(SPRITE_BARRIER_LEFT, lane=0, z=spawn_z, speed=self.base_speed),
                 evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z),
                 evt.spawn(SPRITE_WHITE_LINE_VERT, lane=0, z=spawn_z),
                 evt.spawn(SPRITE_WHITE_LINE_VERT, lane=5, z=spawn_z),
@@ -49,19 +55,18 @@ class Stage1(Stage):
                 evt.spawn(SPRITE_WHITE_LINE_VERT_x3, lane=3, z=spawn_z),
 
                 evt.wait(tiny_wait)],
-                repeat=10),
-            evt.wait(med_wait),
-
-            evt.multi([
-                evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z),
-                evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z),
-                evt.wait(tiny_wait)],
                 repeat=16),
-            evt.wait(small_wait),
+            evt.wait(small_wait)],
+            repeat=2)
 
-        ], repeat=1)
-        self.wait(500)
+            # evt.multi([
+            #     evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z),
+            #     evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z),
+            #     evt.wait(tiny_wait)],
+            #     repeat=16),
+            # evt.wait(small_wait),
 
+        # self.wait(500)
         # asyncio.create_task(self.rotate_palette())
 
     def init_palettes(self):
@@ -109,82 +114,81 @@ class Stage1(Stage):
             sprite_type=SPRITE_BARRIER_RIGHT_x2,
             image_path="/img/road_barrier_yellow_inv.bmp",
             sprite_class=WarningWall,
-            # speed=self.base_speed,
-            speed=0,
+            speed=self.base_speed,
             repeats=2,
             repeat_spacing=24)
 
-        # mgr.add_type(
-        #     sprite_type=SPRITE_LASER_WALL,
-        #     sprite_class=LaserWall,
-        #     speed=self.base_speed)
-        #
-        # mgr.add_type(
-        #     sprite_type=SPRITE_LASER_WALL_x2,
-        #     sprite_class=LaserWall,
-        #     repeats=2,
-        #     repeat_spacing=24)
-        #
-        # mgr.add_type(
-        #     sprite_type=SPRITE_LASER_WALL_x5,
-        #     sprite_class=LaserWall,
-        #     repeats=5,
-        #     repeat_spacing=24)
+        mgr.add_type(
+            sprite_type=SPRITE_LASER_WALL,
+            sprite_class=LaserWall,
+            speed=self.base_speed)
 
-        # mgr.add_type(
-        #     sprite_type=SPRITE_WHITE_LINE,
-        #     sprite_class=WhiteLine,
-        #     image_path="/img/test_white_line.bmp",
-        #     width=24,
-        #     height=2,
-        #     speed=self.base_speed)
-        #
-        # mgr.add_type(
-        #     sprite_type=SPRITE_WHITE_LINE_x2,
-        #     sprite_class=WhiteLine,
-        #     image_path="/img/test_white_line.bmp",
-        #     width=24,
-        #     height=2,
-        #     repeats=2,
-        #     speed=self.base_speed)
-        #
-        # mgr.add_type(
-        #     sprite_type=SPRITE_WHITE_LINE_x5,
-        #     sprite_class=WhiteLine,
-        #     image_path="/img/test_white_line.bmp",
-        #     width=24,
-        #     height=2,
-        #     repeats=5,
-        #     repeat_spacing=24,
-        #     speed=self.base_speed)
-        #
-        # mgr.add_type(
-        #     sprite_type=SPRITE_WHITE_LINE_VERT,
-        #     sprite_class=WhiteLine,
-        #     image_path="/img/test_white_line_vert.bmp",
-        #     width=2,
-        #     height=24,
-        #     speed=self.base_speed)
-        #
-        # mgr.add_type(
-        #     sprite_type=SPRITE_WHITE_LINE_VERT_x3,
-        #     sprite_class=WhiteLine,
-        #     image_path="/img/test_white_line_vert.bmp",
-        #     width=2,
-        #     height=24,
-        #     repeats=3,
-        #     speed=self.base_speed)
-        #
-        # mgr.add_type(
-        #     sprite_type=SPRITE_WHITE_LINE_VERT_x6,
-        #     sprite_class=WhiteLine,
-        #     image_path="/img/test_white_line_vert.bmp",
-        #     width=2,
-        #     height=24,
-        #     repeats=6,
-        #     repeat_spacing=24,
-        #     speed=self.base_speed)
-        #
+        mgr.add_type(
+            sprite_type=SPRITE_LASER_WALL_x2,
+            sprite_class=LaserWall,
+            repeats=2,
+            repeat_spacing=24)
+
+        mgr.add_type(
+            sprite_type=SPRITE_LASER_WALL_x5,
+            sprite_class=LaserWall,
+            repeats=5,
+            repeat_spacing=24)
+
+        mgr.add_type(
+            sprite_type=SPRITE_WHITE_LINE,
+            sprite_class=WhiteLine,
+            image_path="/img/test_white_line.bmp",
+            width=24,
+            height=2,
+            speed=self.base_speed)
+
+        mgr.add_type(
+            sprite_type=SPRITE_WHITE_LINE_x2,
+            sprite_class=WhiteLine,
+            image_path="/img/test_white_line.bmp",
+            width=24,
+            height=2,
+            repeats=2,
+            speed=self.base_speed)
+
+        mgr.add_type(
+            sprite_type=SPRITE_WHITE_LINE_x5,
+            sprite_class=WhiteLine,
+            image_path="/img/test_white_line.bmp",
+            width=24,
+            height=2,
+            repeats=5,
+            repeat_spacing=24,
+            speed=self.base_speed)
+
+        mgr.add_type(
+            sprite_type=SPRITE_WHITE_LINE_VERT,
+            sprite_class=WhiteLine,
+            image_path="/img/test_white_line_vert.bmp",
+            width=2,
+            height=24,
+            speed=self.base_speed)
+
+        mgr.add_type(
+            sprite_type=SPRITE_WHITE_LINE_VERT_x3,
+            sprite_class=WhiteLine,
+            image_path="/img/test_white_line_vert.bmp",
+            width=2,
+            height=24,
+            repeats=3,
+            speed=self.base_speed)
+
+        mgr.add_type(
+            sprite_type=SPRITE_WHITE_LINE_VERT_x6,
+            sprite_class=WhiteLine,
+            image_path="/img/test_white_line_vert.bmp",
+            width=2,
+            height=24,
+            repeats=6,
+            repeat_spacing=24,
+            speed=self.base_speed)
+
         # mgr.add_type(
         #     sprite_type=SPRITE_ALIEN_FIGHTER,
         #     sprite_class=AlienFighter,

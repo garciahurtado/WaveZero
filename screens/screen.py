@@ -101,7 +101,8 @@ class Screen:
             my_sprite.show(self.display)
 
     def add_sprite(self, sprite):
-        """ Adds a 'fat sprite' to the list of sprites to render """
+        """ Adds a 'fat sprite' to the list of sprites to render at the screen level (background, player, score,
+        anything static or permanent """
         self.instances.append(sprite)
 
     def is_sprite_in_bounds(self, sprite_bounds: PixelBounds, screen_bounds=None):

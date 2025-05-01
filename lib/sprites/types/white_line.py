@@ -7,6 +7,7 @@ class WhiteLine(SpriteType):
     rotate_palette = PALETTE_CODE_BLUE
     rotate_pal_freq = 150 / 1000
     repeat_spacing = 24
+    alpha_color = 0
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

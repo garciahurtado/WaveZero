@@ -8,7 +8,7 @@ import gc
 import math
 import random
 
-import input_rotary
+from input import game_input
 from screens.screen import PixelBounds
 
 from scaler.sprite_scaler import SpriteScaler
@@ -366,7 +366,7 @@ class TestScreen(TestScreenBase):
         default = 1
         self.scale_id = self.h_scales.index(default)
 
-        self.input_handler = input_rotary.InputRotary(half_step=True)
+        self.input_handler = input_rotary.GameInput(half_step=True)
         self.input_handler.handler_right = self.scale_control_right
         self.input_handler.handler_left = self.scale_control_left
 
