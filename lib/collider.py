@@ -17,6 +17,8 @@ class Collider:
         :param collide_against: List of sprites to check for collisions.
         :return: True if a collision occurred, False otherwise.
         """
+        player = self.player
+
         if not self.player.visible or not self.player.active or not self.player.has_physics:
             return False
 

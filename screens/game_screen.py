@@ -171,11 +171,7 @@ class GameScreen(Screen):
         self.speed_anim = AnimAttr(self, 'ground_speed', self.max_ground_speed, 3000, easing=AnimAttr.ease_in_out_sine)
         loop.create_task(self.speed_anim.run(fps=60))
 
-        self.player.has_physics = True
-        self.player.visible = True
-
-        print("-- Starting stage...")
-        self.stage.start()
+        self.start()
 
         print("-- Starting update_loop...")
         asyncio.run(self.start_main_loop())
@@ -251,6 +247,9 @@ class GameScreen(Screen):
         self.player.visible = True
         self.player.start_blink()
         self.grid.start()
+
+        print("-- Starting stage...")
+        self.stage.start()
 
         loop = asyncio.get_event_loop()
         # loop.create_task(self.player.stop_blink())

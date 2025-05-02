@@ -7,7 +7,7 @@ class WarningWall(SpriteType):
     height = 15
     color_depth = 4
     alpha_color = None
-    num_frames = 1
+    num_frames = 10     # Should probably become automatic or global at some point
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

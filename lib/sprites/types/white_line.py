@@ -8,6 +8,7 @@ class WhiteLine(SpriteType):
     rotate_pal_freq = 150 / 1000
     repeat_spacing = 24
     alpha_color = 0
+    num_frames = 10
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

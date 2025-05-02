@@ -1,4 +1,10 @@
+# import functools # Not available in MP
+# import warnings # Not available in MP
+# from typing import TypeVar ParamSpec, Callable
+
 import math
+import colors
+
 
 def aligned_buffer(size, alignment=4):
     """ Create a buffer of 'size' bytes aligned to a memory address power of 'alignment'"""
@@ -120,3 +126,21 @@ def draw_fat_dot(self, x, y, type):
         display.pixel(0, 0 + 1, color)
         display.pixel(0 + 1, 0 + 1, color)
         self.finish_sprite()
+
+
+# rT = TypeVar('rT') # return type
+# pT = ParamSpec('pT') # parameters type
+def deprecated(func: Callable[pT, rT]) -> Callable[pT, rT]:
+    """ This isn't going to work until we figure out how to bring functools into micropython """
+    """Use this decorator to mark functions as deprecated.
+    Every time the decorated function runs, it will emit
+    a "deprecation" warning."""
+    @functools.wraps(func)
+    def new_func(*args: pT.args, **kwargs: pT.kwargs):
+        warnings.simplefilter('always', DeprecationWarning)  # turn off filter
+        warnings.warn(f"Call to a deprecated function {func.__name__}.",
+                      category=DeprecationWarning,
+                      stacklevel=2)
+        warnings.simplefilter('default', DeprecationWarning)  # reset filter
+        return func(*args, **kwargs)
+    return new_func

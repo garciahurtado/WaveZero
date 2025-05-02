@@ -8,7 +8,10 @@ from images.image_loader import ImageLoader
 from images.indexed_image import Image
 
 class Sprite:
-    """ Represents a sprite which is loaded from disk in BMP format, and stored in memory as an RGB565 framebuffer"""
+    """
+    Represents a sprite which is loaded from disk in BMP format, and stored in memory as an RGB565 framebuffer
+    This class of sprite is only being used for static elements that do not need resizing or constant updates (like the ui)
+    """
     filename: str
     image: Image = None
     palette: FramebufferPalette

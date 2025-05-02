@@ -180,17 +180,18 @@ class SpriteManager:
 
     # @micropython.viper
     def get_frame_idx(self, scale:float, num_frames:int):
-        return 0 # debugging / deprecate
+        """ Returns a frame index, which is nothing more than the id of the element in num_frames relative to scale,
+        which is very easy since scale 1 is 100%, so we can just multiply
 
+        scale = s, num_frames = n:
+        frame_idx = s * n
+        """
         if num_frames <= 0:
             raise ArithmeticError(f"Invalid number of frames: {num_frames}. Are width and height set?")
 
         frame_idx = int(scale * num_frames)
         ret = min(max(frame_idx, 0), num_frames - 1)
         return ret
-
-
-
 
     def start_anims(self):
         """ Start the animations of all the registered sprite types"""

@@ -58,7 +58,6 @@ class SpriteManager3D(SpriteManager):
 
         frames = []
         num_frames = meta.num_frames
-        num_frames = 10 # DEBUG!!
 
         for f in range(1, num_frames):
             scale = f / num_frames # Avoid division by zero
@@ -167,7 +166,6 @@ class SpriteManager3D(SpriteManager):
             return False
         else:
             sprite.z = new_z
-
 
         """ The rest of the calculations are only relevant for visible sprites within the frustrum"""
         if not visible:
@@ -365,17 +363,6 @@ class SpriteManager3D(SpriteManager):
             x, y = self.camera.to_2d(x, y, z, vp_scale=vp_scale)
 
         return x, y
-
-    # @micropython.viper
-    def get_frame_idx(self, scale:float, num_frames:int):
-        return 0 # debugging / deprecate
-
-        if num_frames <= 0:
-            raise ArithmeticError(f"Invalid number of frames: {num_frames}. Are width and height set?")
-
-        frame_idx = int(scale * num_frames)
-        ret = min(max(frame_idx, 0), num_frames - 1)
-        return ret
 
     def show(self, display: framebuf.FrameBuffer):
         """ Display all the active sprites """
