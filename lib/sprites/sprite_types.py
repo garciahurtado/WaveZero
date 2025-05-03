@@ -262,6 +262,42 @@ class SpriteType:
             return True
         return False
 
+# --- Helper dictionary and initialization ---
+
+# Create a dictionary mapping the integer value back to the constant's name
+# We build this dynamically once when the module is loaded.
+# NOTE: This relies on globals(). If constants are in another module 'foo',
+# you might need to import 'foo' and use vars(foo).items() instead.
+_SPRITE_ID_TO_NAME_MAP = {
+    value: name
+    for name, value in globals().items() # Use globals() if constants are in the same module
+    if name.startswith("SPRITE_") and isinstance(value, int)
+}
+
+# --- The lookup function ---
+
+# Make sure you have a type hint for your sprite structure if possible
+from uctypes import struct # Or your specific type
+
+def to_name(sprite: struct) -> str:
+    """
+    Gets the constant name string for a sprite object's type.
+
+    Args:
+        sprite: The sprite object, assumed to have a .sprite_type attribute
+                containing the integer ID.
+
+    Returns:
+        The string name of the constant (e.g., "SPRITE_CHERRIES") or
+        a default "UNKNOWN_SPRITE_ID_<id>" if not found.
+    """
+    if not hasattr(sprite, 'sprite_type') or (sprite.sprite_type == 0):
+         # Handle cases where the object might not be a valid sprite
+         raise TypeError("Invalid sprite object, no .sprite_type")
+
+    sprite_id = sprite.sprite_type
+    return _SPRITE_ID_TO_NAME_MAP.get(sprite_id, f"UNKNOWN_SPRITE_ID_{sprite_id}")
+
 """ So that we can easily export the flags """
 FLAG_ACTIVE = SpriteType.FLAG_ACTIVE
 FLAG_VISIBLE = SpriteType.FLAG_VISIBLE

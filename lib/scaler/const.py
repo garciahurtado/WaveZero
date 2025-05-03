@@ -1,7 +1,7 @@
 from micropython import const
 
 """ Debugging Constants """
-DEBUG =                     const(0)
+DEBUG =                     const(1)
 DEBUG_BUS_MONITOR =         const(0)
 DEBUG_LED =                 const(0)
 DEBUG_DISPLAY =             const(0)

@@ -52,6 +52,7 @@ class SpriteManager2D(SpriteManager):
     def load_sprite_image(self, meta, sprite_type):
         """ Overrides parent to get rid of preloaded scaled sprite frames from v1. Eventually should be refactored back
          into SpriteManagerBase"""
+        sprite_type = str(sprite_type)
         orig_img = ImageLoader.load_image(meta.image_path, meta.width, meta.height)
         if isinstance(orig_img, list):
             orig_img = orig_img[0]

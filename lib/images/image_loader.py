@@ -91,7 +91,7 @@ class ImageLoader():
         display.show()
 
     @staticmethod
-    def load_image(filename, frame_width=0, frame_height=0, color_depth=GS4_HMSB, progress_callback=None, with_downscales=False) -> Image:
+    def load_image(filename, frame_width=0, frame_height=0, color_depth=GS4_HMSB, progress_callback=None) -> Image:
         # First of all, check the cache
         if filename in ImageLoader.images.keys():
             image = ImageLoader.images[filename]
@@ -99,7 +99,6 @@ class ImageLoader():
 
         reader = ImageLoader.bmp_reader
         reader.color_depth = color_depth
-        reader.with_frames = with_downscales
         reader._init()
 
         if frame_width and frame_height:

@@ -302,7 +302,7 @@ class SpawnEnemyEvent(OneShotEvent):
         self.lane = lane
 
     def do_thing(self):
-        sprite_type = self.sprite_type
+        sprite_type = str(self.sprite_type) # When it's a Dict key, sprite_type is a string
 
         base_args = {
             'x': self.x, 'y': self.y, 'z': self.z

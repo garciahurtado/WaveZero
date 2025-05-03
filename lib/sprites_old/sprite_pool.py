@@ -73,7 +73,7 @@ class SpritePool:
         sprite.reset()
         return sprite
 
-    # @deprecated
+    # @deprecated in favor of sprite manager doing it
     def update(self, elapsed):
         for sprite in self.active_sprites:
             if not sprite.active:

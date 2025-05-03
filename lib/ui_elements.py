@@ -15,7 +15,8 @@ from colors import color_util as colors
 from colors.palettes import PALETTE_UI_FLASH_TEXT
 
 BLACK = 0x000000
-CYAN = 0x00FFFF
+# CYAN = 0x00FFFF
+CYAN = 0xFF0000 # screwing with this temporarily to make it red
 YELLOW = 0xFFFF00
 WHITE = 0xFFFFFF
 

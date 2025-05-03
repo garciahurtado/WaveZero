@@ -1,7 +1,8 @@
 import random
 
 from mpdb.mpdb import Mpdb
-from scaler.const import DEBUG_INST
+from scaler.const import DEBUG_INST, DEBUG, INK_MAGENTA, DEBUG_POOL
+from scaler.scaler_debugger import printc
 from scaler.sprite_scaler import SpriteScaler
 from perspective_camera import PerspectiveCamera
 from death_anim import DeathAnim
@@ -29,13 +30,13 @@ from micropython import const
 class GameScreen(Screen):
     fps_enabled = True
     ground_speed: int = 0
-    max_ground_speed: int = const(-1000)
+    max_ground_speed: int = const(-4000)
     grid: RoadGrid = None
     sun: Sprite = None
     sun_start_x = None
     camera: PerspectiveCamera
     enemies: SpriteManager3D = None
-    max_sprites: int = 60
+    max_sprites: int = 50
     saved_ground_speed = 0
     lane_width: int = const(24)
     num_lives: int = 4
@@ -227,7 +228,9 @@ class GameScreen(Screen):
         self.ui.show()
 
         self.display.show()
-
+        if DEBUG_POOL:
+            count = self.enemies.pool.active_count
+            printc(f"*** POOL ACTIVE COUNT: {count} ***", INK_MAGENTA)
         self.fps.tick()
 
     def show_all(self):

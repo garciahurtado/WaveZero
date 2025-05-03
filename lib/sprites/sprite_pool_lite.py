@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 import utime
 from uarray import array
@@ -47,35 +47,37 @@ class SpritePool:
         self.sprite_memory = []
 
         """ "chunk" is an integer number of sprites in a single, contiguous, byte array"""
-        # chunk_size = min(pool_size, POOL_CHUNK_SIZE)
-        # for i in range(0, pool_size, chunk_size):
-        #     chunk = bytearray(SPRITE_DATA_SIZE * min(chunk_size, pool_size - i))
-        #     self.sprite_memory.append(chunk)
-
-        # Create sprite structures
-        # self.sprites = []
-        # # for i, chunk in enumerate(self.sprite_memory):
-        # #     for j in range(len(chunk) // SPRITE_DATA_SIZE):
-        #         addr = uctypes.addressof(chunk) + j * SPRITE_DATA_SIZE
-        #
-        #         self.sprites.append(new_sprite)
-        #         new_node = PoolNode(sprite=new_sprite)
-        #         self.pool_nodes.append(PoolNode)
+        chunk_size = min(pool_size, POOL_CHUNK_SIZE)
+        for i in range(0, pool_size, chunk_size):
+            chunk = bytearray(SPRITE_DATA_SIZE * min(chunk_size, pool_size - i))
+            self.sprite_memory.append(chunk)
 
         print(f"ABOUT to ALLOCATE POOL SPRITES for a size of {self.pool_size}")
 
-        for s in range(self.pool_size):
-            # Create the sprite in memory
-            addr = addressof(bytearray(SPRITE_DATA_SIZE))
-            new_sprite = struct(addr, SPRITE_DATA_LAYOUT)
-            self.sprites.append(new_sprite)
+        # Create sprite structures
+        self.sprites = []
+        for i, chunk in enumerate(self.sprite_memory):
+            for j in range(len(chunk) // SPRITE_DATA_SIZE):
+                addr = addressof(chunk) + j * SPRITE_DATA_SIZE
+                new_sprite = struct(addr, SPRITE_DATA_LAYOUT)
+                self.sprites.append(new_sprite)
 
-            # Create the node to hold it in the pool
-            node = PoolNode(sprite=new_sprite, index=s)
-            self.pool_nodes.append(node)
+                new_node = PoolNode(sprite=new_sprite, index=i)
+                self.pool_nodes.append(new_node)
+
+        #
+        # for s in range(self.pool_size):
+        #     # Create the sprite in memory
+        #     addr = addressof(bytearray(SPRITE_DATA_SIZE))
+        #     new_sprite = struct(addr, SPRITE_DATA_LAYOUT)
+        #     self.sprites.append(new_sprite)
+        #
+        #     # Create the node to hold it in the pool
+        #     node = PoolNode(sprite=new_sprite, index=s)
+        #     self.pool_nodes.append(node)
 
 
-    def get(self, sprite_type):
+    def get(self, sprite_type) -> Tuple[struct, int]:
         """ TODO: theres a problem here with the fact that we have two ways to determine a sprite is active:
         - sprite.active = True
         - belongs to self.active_indices
@@ -100,7 +102,7 @@ class SpritePool:
             print(f".get() - {len(self.all_indices)} total indices / free_count={self.free_count} ")
             print(f".ready index will be {index} for sprite {sprite}")
 
-        sprite.sprite_type = sprite_type # int
+        sprite.sprite_type = int(sprite_type) # convert back to int
         sprite.current_frame = 0
 
         sprite.born_ms = int(utime.ticks_ms()) # reset creation timestamp

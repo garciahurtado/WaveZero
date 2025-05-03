@@ -10,6 +10,9 @@ class WhiteLine(SpriteType):
     alpha_color = 0
     num_frames = 10
 
+    width = 24
+    height = 2
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.rotate_palette = convert_hex_palette(self.rotate_palette, color_mode=RGB565)

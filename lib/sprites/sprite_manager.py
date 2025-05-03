@@ -6,7 +6,8 @@ import micropython
 
 from images.image_loader import ImageLoader
 from perspective_camera import PerspectiveCamera
-from scaler.const import DEBUG
+from scaler.const import DEBUG, INK_GREEN, INK_BLUE
+from scaler.scaler_debugger import printc
 from sprites.sprite_draw import SpriteDraw
 from sprites.sprite_physics import SpritePhysics
 from sprites.sprite_types import SpriteType
@@ -20,6 +21,7 @@ from sprites.sprite_pool_lite import SpritePool
 from typing import Dict, List
 from profiler import Profiler
 import ssd1331_pio
+from utils import pprint
 
 prof = Profiler()
 
@@ -37,11 +39,10 @@ class SpriteManager:
     sprite_images: Dict[str, List[Image]] = {}
     sprite_palettes: Dict[str, FramebufferPalette] = {}
     sprite_metadata: Dict[str, SpriteType] = {}
-    sprite_classes: Dict[int, callable] = {}
+    sprite_classes: Dict[str, callable] = {}
     sprite_actions = {}
     sprite_inst: Dict[str, list] = {}
     half_scale_one_dist = int(0)  # This should be set based on your camera setup
-    add_frames = 0  # Number of upscaled frames to add (scale > 1)
     pools = []
     grid = None
     camera: PerspectiveCamera = None
@@ -70,7 +71,10 @@ class SpriteManager:
 
     def add_type(self, **kwargs):
         """ SpriteType registry """
-        sprite_type = kwargs['sprite_type']
+        sprite_type = str(kwargs['sprite_type'])
+
+        if DEBUG:
+            printc(f"Adding new type {sprite_type}", INK_BLUE)
 
         """ Look for the actual Python class, or default to SpriteType """
         if 'sprite_class' in kwargs:
@@ -110,24 +114,31 @@ class SpriteManager:
         if 'sprite_class' in default_args.keys():
             del default_args['sprite_class']
 
-        type_obj = sprite_class(**default_args)
+        class_obj = sprite_class(**default_args)
 
-        # This will load the sprite image
-        new_img = self.load_img_and_scale(type_obj, sprite_type)
-        first_img = new_img[0]
+        # This will call the potentially overridden version (e.g., in SpriteManager3D)
+        loaded_frames = self.load_img_and_scale(class_obj, sprite_type)  # Rename variable
 
-        if DEBUG:
-            print(f"<:: [{len(new_img)}] NEW IMGs ADDED: w:{first_img.width}/h:{first_img.height} ::> ")
+        # Store the result (could be a list or single Image)
+        self.sprite_images[sprite_type] = loaded_frames  # Store the whole list/Image
 
-        self.sprite_images[sprite_type] = new_img
-        self.sprite_metadata[sprite_type] = type_obj
-        self.sprite_palettes[sprite_type] = new_img[0].palette
+        # Get palette from the appropriate place (e.g., the first frame if it's a list)
+        first_img = loaded_frames[0] if isinstance(loaded_frames, list) else loaded_frames
+        if first_img:  # Check if loading succeeded
+            self.sprite_palettes[sprite_type] = first_img.palette
+            class_obj.palette = first_img.palette  # Also update meta palette
+            self.set_alpha_color(class_obj)
+        else:
+            print(f"Warning: Failed to load image/frames for type {sprite_type}")
+            # Handle error appropriately
+
+        self.sprite_metadata[sprite_type] = class_obj
 
         """ set the default values that will be used when creating new instances (reset) """
         for key in default_args.keys():
             if key in dir(sprite_class):
                 value = default_args[key]
-                setattr(type_obj, key, value)
+                setattr(class_obj, key, value)
 
         self.sprite_inst[sprite_type] = []
 
@@ -161,10 +172,11 @@ class SpriteManager:
         return self.grid.set_lane(sprite, lane_num, meta.repeats, meta.repeat_spacing)
 
     def get_meta(self, inst):
-        meta = self.sprite_metadata[inst.sprite_type]
+        meta = self.sprite_metadata[str(inst.sprite_type)]
         return meta
 
     def get_palette(self, sprite_type):
+        sprite_type = str(sprite_type)
         pal = self.sprite_palettes[sprite_type]
         return pal
 
@@ -186,9 +198,6 @@ class SpriteManager:
         scale = s, num_frames = n:
         frame_idx = s * n
         """
-        if num_frames <= 0:
-            raise ArithmeticError(f"Invalid number of frames: {num_frames}. Are width and height set?")
-
         frame_idx = int(scale * num_frames)
         ret = min(max(frame_idx, 0), num_frames - 1)
         return ret
@@ -215,7 +224,7 @@ class SpriteManager:
         current = self.pool.head
         while current:
             sprite = current.sprite
-            kind = kinds[sprite.sprite_type]
+            kind = kinds[str(sprite.sprite_type)]
 
             self.update_sprite(sprite, kind, elapsed)
 

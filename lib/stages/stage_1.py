@@ -24,10 +24,9 @@ class Stage1(Stage):
         line_height = 24
 
         # Times in ms
-        med_wait = 10000
-        small_wait = 1000
+        med_wait = 4000
+        small_wait = 2000
         tiny_wait = 500
-
 
         Event.sprite_manager = sprite_manager
         evt = self.events
@@ -41,23 +40,23 @@ class Stage1(Stage):
         #     evt_list.append(evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z))
         #     spawn_z += spawn_z_step
 
-        self.wait(3000)
+        self.wait(small_wait//2)
         self.sequence([
             # evt.multi(evt_list),
             evt.multi([
                 evt.spawn(SPRITE_BARRIER_LEFT, lane=0, z=spawn_z, speed=self.base_speed),
-                evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z),
-                evt.spawn(SPRITE_WHITE_LINE_VERT, lane=0, z=spawn_z),
-                evt.spawn(SPRITE_WHITE_LINE_VERT, lane=5, z=spawn_z),
-                evt.spawn(SPRITE_WHITE_LINE_VERT, lane=0, z=spawn_z, y=line_height),
-                evt.spawn(SPRITE_WHITE_LINE_VERT, lane=5, z=spawn_z, y=line_height),
-                evt.spawn(SPRITE_WHITE_LINE_x5, lane=0, z=spawn_z, y=line_height*2),
-                evt.spawn(SPRITE_WHITE_LINE_VERT_x3, lane=3, z=spawn_z, y=line_height),
+                evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z, speed=self.base_speed),
+                # evt.spawn(SPRITE_WHITE_LINE_VERT, lane=0, z=spawn_z, speed=self.base_speed),
+                # evt.spawn(SPRITE_WHITE_LINE_VERT, lane=5, z=spawn_z, speed=self.base_speed),
+                # evt.spawn(SPRITE_WHITE_LINE_VERT, lane=0, z=spawn_z, y=line_height),
+                # evt.spawn(SPRITE_WHITE_LINE_VERT, lane=5, z=spawn_z, y=line_height),
+                # evt.spawn(SPRITE_WHITE_LINE_x5, lane=0, z=spawn_z, y=line_height*2),
+                # evt.spawn(SPRITE_WHITE_LINE_VERT_x3, lane=3, z=spawn_z, y=line_height),
 
-                evt.wait(tiny_wait)],
-                repeat=16),
-            evt.wait(small_wait)],
-            repeat=2)
+                evt.wait(med_wait)],
+                repeat=4),
+            evt.wait(med_wait)],
+            repeat=1)
 
             # evt.multi([
             #     evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z),

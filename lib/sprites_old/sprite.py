@@ -1,4 +1,3 @@
-
 import framebuf
 from micropython import const
 
@@ -6,6 +5,7 @@ from colors import color_util as colors
 from colors.framebuffer_palette import FramebufferPalette
 from images.image_loader import ImageLoader
 from images.indexed_image import Image
+
 
 class Sprite:
     """
@@ -20,8 +20,8 @@ class Sprite:
     width: int = 0
     height: int = 0
     ratio = 0
-    visible = False # Whether show() will render this Sprite
-    active = True # Whether update() will update this Sprite
+    visible = False  # Whether show() will render this Sprite
+    active = True  # Whether update() will update this Sprite
     blink = False
     blink_flip = 1
     has_physics: bool
@@ -38,8 +38,8 @@ class Sprite:
     min_y = const(-40)
     max_y = const(200)
     dot_color: int = 0
-    pool = None # The pool that spawned this sprite
-    pos_type = None # To help the stage place the sprite in order according to Z index
+    pool = None  # The pool that spawned this sprite
+    pos_type = None  # To help the stage place the sprite in order according to Z index
 
     POS_TYPE_FAR = const(0)
     POS_TYPE_NEAR = const(1)
@@ -73,26 +73,10 @@ class Sprite:
         if self.event_chain:
             self.event_chain.start()
 
-    def load_image_old(self, filename, width, height):
-        self.filename = filename
-        self.image = ImageLoader.load_image(filename, frame_width=width, frame_height=height)
-
-        meta = self.image
-
-        self.width = meta.width
-        self.height = meta.height
-        self.palette = meta.palette
-        self.num_colors = meta.palette.num_colors
-
-        self.visible = True
-
-        return meta
-
     def load_image(self, filename, frame_width, frame_height):
-        # color_depth = self.color_depth
-        # if not frame_height or not frame_height:
-        #     frame_width=self.width
-        #     frame_height=self.height
+        if not frame_height or not frame_height:
+            frame_width = self.width
+            frame_height = self.height
 
         image = ImageLoader.load_image(filename, frame_width=frame_width, frame_height=frame_height)
         self.frames = image.frames
@@ -104,15 +88,11 @@ class Sprite:
 
         print(f"Loaded {self.num_frames} frames")
 
-
-        # self.width = meta.width
-        # self.height = meta.height
         self.image = image.pixels
         self.palette = image.palette
         self.dot_color = self.palette.get_bytes(1)
         self.num_colors = image.palette.num_colors
         self.visible = True
-
 
     def set_alpha(self, alpha_index=0):
         """Sets the index of the color to be used as an alpha channel (transparent), when drawing the sprite
@@ -174,7 +154,7 @@ class Sprite:
         return True
 
     def update(self, elapsed=None):
-        """ Meant to be overridden in child class"""
+        """ Meant to be overridden in child class, but using the base method is fine too """
         if not self.active:
             return False
 
@@ -201,7 +181,3 @@ class Sprite:
         """ If this sprite came from a pool, return it to the pool"""
         if self.pool:
             self.pool.add(self)
-
-
-
-
