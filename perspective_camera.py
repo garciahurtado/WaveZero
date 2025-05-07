@@ -282,12 +282,8 @@ class PerspectiveCamera():
 
         z = z + abs(self.near) # moves the point of 1-scale further away from the camera
 
-
         # Find the closest z value in the cache
         idx = self._find_closest(self._scale_cache_z, z)
-
-
-
 
         # Ensure idx is within bounds
         idx = max(0, min(idx, len(self._scale_cache_z)-1))
@@ -296,8 +292,6 @@ class PerspectiveCamera():
         y = y + self.min_y # This is how we end up with the range "vp Y - screen height"
 
         scale = self._scale_cache[idx]
-
-
 
         return y, scale
 

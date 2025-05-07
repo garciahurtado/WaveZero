@@ -162,7 +162,6 @@ class SpriteScaler():
 
         self.fill_addrs(scaled_height, h_scale, v_scale)
 
-
         if DEBUG_INST:
             coords = SpritePhysics.get_pos(inst)
 
@@ -176,7 +175,6 @@ class SpriteScaler():
             print(f"\t Sprite Stride (px): {sprite.width}")
             print(f"\t Sprite Stride (bytes): {sprite.width//2}")
             print(f"\t Display Stride (fb): { self.framebuf.display_stride}")
-
 
 
         palette_addr = addressof(image.palette.palette)

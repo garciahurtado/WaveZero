@@ -74,10 +74,7 @@ class DeathAnim(Animation):
 
         debris_speed = self.speed * 0.0007
 
-        print("Before creating DEBRIS")
         gc.collect()
-        self.check_mem()
-
         prof.start_profile("death.debris_create")
 
         for idx in range(self.debris_count):

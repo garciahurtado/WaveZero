@@ -154,7 +154,6 @@ class RoadGrid():
         self.check_mem()
 
         self.create_horiz_lines(self.num_horiz_lines)
-        gc.collect()
 
         vert_y_offset = 0  # Manual adjustment for the start.y of the vertical lines
         self.start_y = self.horiz_y + vert_y_offset

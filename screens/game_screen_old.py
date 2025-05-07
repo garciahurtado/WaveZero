@@ -171,7 +171,7 @@ class GameScreen(Screen):
 
         start_time_ms = round(time.ticks_ms())
         print(f"Update loop Start time: {start_time_ms}")
-        self.check_mem()
+        self.check_gc_mem()
 
         self.add_sprite(self.bike) # Add after the obstacles, to it appears on top
 

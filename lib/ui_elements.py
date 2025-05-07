@@ -15,10 +15,17 @@ from colors import color_util as colors
 from colors.palettes import PALETTE_UI_FLASH_TEXT
 
 BLACK = 0x000000
-# CYAN = 0x00FFFF
-CYAN = 0xFF0000 # screwing with this temporarily to make it red
+CYAN = 0x00FFFF
+RED = 0xFF0000
 YELLOW = 0xFFFF00
 WHITE = 0xFFFFFF
+
+# COLOR_SCORE = YELLOW
+# COLOR_LIVES = CYAN
+
+# tmp colors to avoid burn-in
+COLOR_SCORE = CYAN
+COLOR_LIVES = RED
 
 class ui_screen():
     display = None
@@ -67,8 +74,8 @@ class ui_screen():
 
         inv = True if format == colors.RGB565 else False
         self.palette_all.set_rgb(0, colors.hex_to_rgb(BLACK, inv=inv))
-        self.palette_all.set_rgb(1, colors.hex_to_rgb(YELLOW, inv=inv))
-        self.palette_all.set_rgb(2, colors.hex_to_rgb(CYAN, inv=inv))
+        self.palette_all.set_rgb(1, colors.hex_to_rgb(COLOR_SCORE, inv=inv))
+        self.palette_all.set_rgb(2, colors.hex_to_rgb(COLOR_LIVES, inv=inv))
         self.palette_all.set_rgb(3, colors.hex_to_rgb(WHITE, inv=inv))
 
         self.init_lives(num_lives)

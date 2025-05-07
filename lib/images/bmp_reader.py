@@ -117,8 +117,10 @@ class BMPReader():
         color_depth, num_colors = header.color_depth, header.num_colors
         palette_bytes = bytearray(num_colors * 2)
 
+
         if color_depth <= 8:
             palette = BufPalette(num_colors)
+
             for color_idx in range(num_colors):
                 """ The colors are stored in RGB format, but we need to extract the bytes as little endian"""
 
@@ -128,8 +130,10 @@ class BMPReader():
 
                 # print(f"color bytes: 0x{color_bytes[0]:02x}{color_bytes[1]:02x}")
 
-                color = int.from_bytes(color_bytes[:2], "little")
-                palette.set_bytes(color_idx, color)
+                palette.set_bytes(
+                    color_idx,
+                    int.from_bytes(color_bytes[:2], "little")
+                )
 
             return palette, palette_bytes
         else:
@@ -174,7 +178,6 @@ class BMPReader():
 
             return frame_buffer, byte_data
 
-
     def _read_frame_data(self, file, frame_buffer: FrameBuffer, header, frame_height) -> None:
         """
         Read frame data from the file and populate the FrameBuffer.
@@ -207,7 +210,6 @@ class BMPReader():
                     b, g, r = data[offset:offset + 3]
                     color = (r << 16) | (g << 8) | b
                     frame_buffer.pixel(x, y, color)
-
     def _create_frame_buffer(self, width:int, height:int, color_format: int) -> tuple[FrameBuffer, bytearray]:
         """Create a frame buffer for storing pixel data of the image (or frame of a spritesheet)."""
         frame_size = width * height
@@ -230,7 +232,6 @@ class BMPReader():
             color_format
         )
         return fbuffer, byte_pixels
-
     def _extract_from_bytes(self, data: bytes, index: int, color_depth, ppb, pmask) -> int:
         """
         Extract color index from byte data for indexed color modes.
@@ -246,7 +247,6 @@ class BMPReader():
         shift = 8 - color_depth * (pos_in_byte + 1)
 
         return (data[byte_index] >> shift) & pmask
-
     def _as_image(self, meta, pixels, pixel_bytes, pixel_bytes_addr, palette, palette_bytes, color_depth, frames=None):
         new_image = create_image(
                 meta.width,
@@ -260,12 +260,7 @@ class BMPReader():
                 frames)
         return new_image
 
-
-    def _init(self):
-        # Compat method
-        pass
-
-class ImageMeta():
+class ImageMeta:
     height = None
     planes_num = None
     color_depth = None
@@ -281,7 +276,6 @@ class ImageMeta():
     is_top_down = False
     ppb = None              # Pixels per byte (8 / color depth)
     pixel_mask = None       # To help with decoding binary data
-
 
 class DynamicAttr(dict):
     def __getattr__(self, name):

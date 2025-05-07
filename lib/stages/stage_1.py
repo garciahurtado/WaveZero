@@ -4,6 +4,7 @@ from scaler.const import DEBUG
 from sprites.types.laser_wall import LaserWall
 from sprites.types.warning_wall import WarningWall
 from sprites.types.white_line import WhiteLine
+from sprites.types.white_line_vert import WhiteLineVert
 from stages.events import Event
 from stages.stage import Stage
 from sprites.sprite_types import *
@@ -18,12 +19,13 @@ class Stage1(Stage):
     def __init__(self, sprite_manager):
         super().__init__(sprite_manager)
 
-        spawn_z = 5000
+        spawn_z = 3000
         # spawn_z = 20
         spawn_z_step = 40
         line_height = 24
 
         # Times in ms
+        big_wait = 5000
         med_wait = 4000
         small_wait = 2000
         tiny_wait = 500
@@ -34,29 +36,36 @@ class Stage1(Stage):
         self.load_types()
         # self.init_palettes()
 
-        # evt_list = []
+        evt_list = []
         # for i in range(0):
-        #     evt_list.append(evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z))
-        #     evt_list.append(evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z))
-        #     spawn_z += spawn_z_step
+            # evt_list.append(evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z))
+            # evt_list.append(evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z))
+            # spawn_z += spawn_z_step
 
-        self.wait(small_wait//2)
         self.sequence([
             # evt.multi(evt_list),
             evt.multi([
-                evt.spawn(SPRITE_BARRIER_LEFT, lane=0, z=spawn_z, speed=self.base_speed),
+                evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z, speed=self.base_speed),
                 evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z, speed=self.base_speed),
-                # evt.spawn(SPRITE_WHITE_LINE_VERT, lane=0, z=spawn_z, speed=self.base_speed),
-                # evt.spawn(SPRITE_WHITE_LINE_VERT, lane=5, z=spawn_z, speed=self.base_speed),
-                # evt.spawn(SPRITE_WHITE_LINE_VERT, lane=0, z=spawn_z, y=line_height),
-                # evt.spawn(SPRITE_WHITE_LINE_VERT, lane=5, z=spawn_z, y=line_height),
-                # evt.spawn(SPRITE_WHITE_LINE_x5, lane=0, z=spawn_z, y=line_height*2),
-                # evt.spawn(SPRITE_WHITE_LINE_VERT_x3, lane=3, z=spawn_z, y=line_height),
 
-                evt.wait(med_wait)],
-                repeat=4),
-            evt.wait(med_wait)],
-            repeat=1)
+                evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, y=line_height-8, z=spawn_z, speed=self.base_speed),
+                evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, y=line_height-8, z=spawn_z, speed=self.base_speed),
+
+                # evt.spawn(SPRITE_WHITE_LINE_VERT, lane=0, z=spawn_z, speed=self.base_speed),
+                # evt.spawn(SPRITE_WHITE_LINE_VERT, lane=0, z=spawn_z, y=line_height, speed=self.base_speed),
+                # evt.spawn(SPRITE_WHITE_LINE_VERT, lane=5, z=spawn_z, speed=self.base_speed),
+                # evt.spawn(SPRITE_WHITE_LINE_VERT, lane=5, z=spawn_z, y=line_height, speed=self.base_speed),
+                #
+                # evt.spawn(SPRITE_WHITE_LINE_x5, lane=0, z=spawn_z, y=line_height*2, speed=self.base_speed),
+                #
+                # evt.wait(small_wait),
+                # # evt.spawn(SPRITE_LASER_WALL_x5, lane=0, z=spawn_z, y=0, speed=self.base_speed),
+                # evt.spawn(SPRITE_LASER_WALL_x5, lane=0, z=spawn_z, y=line_height, speed=self.base_speed),
+
+                evt.wait(small_wait // 4)],
+                repeat=20),
+            evt.wait(big_wait)],
+            repeat=2)
 
             # evt.multi([
             #     evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z),
@@ -98,19 +107,20 @@ class Stage1(Stage):
         mgr.add_type(
             sprite_type=SPRITE_BARRIER_LEFT_x2,
             sprite_class=WarningWall,
-            # speed=self.base_speed,
-            speed=0,
+            speed=self.base_speed,
             repeats=2,
             repeat_spacing=24)
 
         mgr.add_type(
             sprite_type=SPRITE_BARRIER_RIGHT,
             sprite_class=WarningWall,
+            # image_path="/img/road_barrier_yellow_inv_32.bmp",
             image_path="/img/road_barrier_yellow_inv.bmp",
             speed=self.base_speed)
 
         mgr.add_type(
             sprite_type=SPRITE_BARRIER_RIGHT_x2,
+            # image_path="/img/road_barrier_yellow_inv_32.bmp",
             image_path="/img/road_barrier_yellow_inv.bmp",
             sprite_class=WarningWall,
             speed=self.base_speed,
@@ -163,7 +173,7 @@ class Stage1(Stage):
 
         mgr.add_type(
             sprite_type=SPRITE_WHITE_LINE_VERT,
-            sprite_class=WhiteLine,
+            sprite_class=WhiteLineVert,
             image_path="/img/test_white_line_vert.bmp",
             width=2,
             height=24,
@@ -171,7 +181,7 @@ class Stage1(Stage):
 
         mgr.add_type(
             sprite_type=SPRITE_WHITE_LINE_VERT_x3,
-            sprite_class=WhiteLine,
+            sprite_class=WhiteLineVert,
             image_path="/img/test_white_line_vert.bmp",
             width=2,
             height=24,
@@ -180,7 +190,7 @@ class Stage1(Stage):
 
         mgr.add_type(
             sprite_type=SPRITE_WHITE_LINE_VERT_x6,
-            sprite_class=WhiteLine,
+            sprite_class=WhiteLineVert,
             image_path="/img/test_white_line_vert.bmp",
             width=2,
             height=24,

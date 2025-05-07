@@ -169,7 +169,7 @@ class TestScreen(TestScreenBase):
         ]
 
     def create_sprite_manager(self, num_sprites=0):
-        self.check_mem()
+        self.check_gc_mem()
         print("-- Creating Sprite Manager...")
         self.max_sprites = num_sprites
         self.mgr = SpriteManager2D(self.display, self.max_sprites)
@@ -181,7 +181,7 @@ class TestScreen(TestScreenBase):
         self.load_types()
 
         test = 'zoom_heart'
-        self.check_mem()
+        self.check_gc_mem()
         method = None
 
         # self.create_line_colors()
@@ -221,7 +221,7 @@ class TestScreen(TestScreenBase):
 
         self.refresh_method = getattr(self, method.__name__, None)
 
-        self.check_mem()
+        self.check_gc_mem()
 
         if self.fps_enabled:
             self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
@@ -230,7 +230,7 @@ class TestScreen(TestScreenBase):
 
     async def start_main_loop(self):
         print(f"-- ... MAIN LOOP STARTING ON THREAD #{_thread.get_ident()} ... --")
-        self.check_mem()
+        self.check_gc_mem()
 
         """ All top level tasks / threads go here. Once all of these finish, the program ends"""
         await asyncio.gather(

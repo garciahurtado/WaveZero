@@ -199,7 +199,7 @@ class TestScreenStarfield(TestScreenBase):
 
     def run(self):
         self.running = True
-        self.check_mem()
+        self.check_gc_mem()
 
         """ The display loop goes to the background (as do any input loops, other animations, etc..) """
 
@@ -275,7 +275,7 @@ class TestScreenStarfield(TestScreenBase):
 
     async def start_main_loop(self):
         print("-- ... MAIN LOOP STARTING ...")
-        self.check_mem()
+        self.check_gc_mem()
 
         """ All top level tasks / threads go here. Once all of these finish, the program ends"""
         await asyncio.gather(

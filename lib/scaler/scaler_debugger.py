@@ -1,11 +1,13 @@
 from rp2 import PIO
 from machine import mem32
+import sys
+
 from uarray import array
 from uctypes import addressof
+import sys
 
 from scaler.const import *
 from utils import aligned_buffer
-
 
 def printb(message):
     """ Print a string and then print a series of backspaces equal to its length, to implement statically positioned
@@ -535,3 +537,81 @@ class ScalerDebugger():
         print(f"TX LEVELS: {strTX0}-{strTX1}-{strTX2}-{strTX3}")
         print(f"RX LEVELS: {strRX0}-{strRX1}-{strRX2}-{strRX3}")
 
+# Define base types that don't need recursive sizing in MicroPython
+# (str, bytes, range, bytearray are handled by getsizeof directly)
+ZERO_DEPTH_BASES = (str, bytes, int, float, range, bytearray)
+
+def getsize(obj_0):
+    """
+    Recursively estimates the memory footprint of an object and its members
+    in MicroPython.
+
+    Note: Relies on sys.getsizeof which might reflect block allocation size
+    rather than precise content size on some MicroPython ports. The accuracy
+    of this function is therefore an ESTIMATE.
+    """
+    _seen_ids = set() # Keep track of objects already sized to prevent infinite loops
+
+    def inner(obj):
+        obj_id = id(obj)
+        if obj_id in _seen_ids:
+            return 0 # Already counted this object
+
+        _seen_ids.add(obj_id)
+
+        try:
+            # Get the base size reported by MicroPython
+            size = sys.getsizeof(obj)
+        except TypeError:
+             # Some objects might not work with getsizeof directly
+             print(f"Warning: sys.getsizeof failed for object of type {type(obj)}, using size 0.")
+             size = 0
+
+
+        # --- Check object type and recurse if necessary ---
+
+        if isinstance(obj, ZERO_DEPTH_BASES):
+            # For base types, sys.getsizeof is usually sufficient (or the best we can get)
+            pass # bypass remaining control flow and return current size
+
+        # --- Container Types ---
+        # Note: Removed 'deque' as it's not standard in MicroPython
+        elif isinstance(obj, (tuple, list, set)): # Check concrete types
+             # Add size of contained items
+             size += sum(inner(i) for i in obj)
+
+        elif isinstance(obj, dict): # Check concrete dict type
+             # Add size of keys and values
+             size += sum(inner(k) + inner(v) for k, v in obj.items())
+
+        # --- Custom Objects ---
+        # Check for attributes dictionary
+        if hasattr(obj, '__dict__'):
+             # Recursively size the dictionary holding instance attributes
+             # Note: vars(obj) returns the __dict__ itself
+             size += inner(obj.__dict__) # Pass the dict object to inner
+
+        # Check for slots (less common in MP but possible)
+        if hasattr(obj, '__slots__'):
+             # Recursively size attributes stored in slots
+             size += sum(inner(getattr(obj, s)) for s in obj.__slots__ if hasattr(obj, s))
+
+        return size
+
+    # Start the inner recursive function
+    return inner(obj_0)
+
+# --- Example Usage ---
+# my_list = [1, 2, {"a": 3, "b": [4, 5]}, (6, 7)]
+# total_size = getsize(my_list)
+# print(f"Estimated size: {total_size} bytes")
+
+# class MyClass:
+#     def __init__(self, x, y):
+#         self.a = x
+#         self.b = y
+#         self.c = [x * i for i in range(5)]
+
+# my_obj = MyClass(10, "hello")
+# total_size_obj = getsize(my_obj)
+# print(f"Estimated size of object: {total_size_obj} bytes")

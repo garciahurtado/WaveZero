@@ -3,10 +3,11 @@ from typing import List, Tuple
 import utime
 from uarray import array
 
+from scaler.scaler_debugger import printc
 from sprites.sprite_types import SPRITE_DATA_LAYOUT, SPRITE_DATA_SIZE, SpriteType, FLAG_PHYSICS
 from sprites.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE
 from uctypes import addressof, struct
-from scaler.const import DEBUG_POOL
+from scaler.const import DEBUG_POOL, INK_RED
 
 POOL_CHUNK_SIZE = 50
 
@@ -89,7 +90,8 @@ class SpritePool:
         """
 
         if self.free_count < 1:
-            raise RuntimeError("Sprite pool is empty. Consider increasing pool size.")
+            printc("!!! WARNING !!! SPRITE POOL EMPTY !!! INCREASE POOL SIZE !!!", INK_RED)
+            raise RuntimeError("!!! WARNING !!! SPRITE POOL EMPTY !!! INCREASE POOL SIZE !!!")
 
         """ We do this at the start to prevent possible race conditions """
         self.free_count = self.free_count - 1
@@ -99,8 +101,8 @@ class SpritePool:
         sprite = node.sprite
 
         if DEBUG_POOL:
-            print(f".get() - {len(self.all_indices)} total indices / free_count={self.free_count} ")
-            print(f".ready index will be {index} for sprite {sprite}")
+            print(f"pool.get() - {len(self.all_indices)} ALL indices / free_count={self.free_count} ")
+            print(f"next ready index will be {index} for sprite {sprite}")
 
         sprite.sprite_type = int(sprite_type) # convert back to int
         sprite.current_frame = 0
@@ -148,7 +150,10 @@ class SpritePool:
                 break
             current = current.next
 
-        self.active_count -= 1
+        if self.active_count != 0:
+            self.active_count -= 1
+        else:
+            return False # We should never get here, but we do
 
         # Add the index back to free_indices
         idx = self.sprites.index(sprite)

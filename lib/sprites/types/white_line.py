@@ -8,7 +8,7 @@ class WhiteLine(SpriteType):
     rotate_pal_freq = 150 / 1000
     repeat_spacing = 24
     alpha_color = 0
-    num_frames = 10
+    num_frames = 24
 
     width = 24
     height = 2

@@ -139,7 +139,7 @@ class Screen:
             self.last_gc = utime.ticks_ms()
 
     @staticmethod
-    def check_mem(collect=False):
+    def check_gc_mem(collect=False):
         if collect:
             gc.collect()
         print(f"Free memory: {gc.mem_free():,} bytes")

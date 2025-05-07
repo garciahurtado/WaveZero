@@ -44,22 +44,27 @@ class SpriteManager3D(SpriteManager):
     phy: SpritePhysics = SpritePhysics()
     draw: SpriteDraw = SpriteDraw()
 
-    def load_img_and_scale(self, meta, sprite_type):
+    def load_img_and_scale(self, meta, sprite_type, prescale=True):
         sprite_type = str(sprite_type)
 
         orig_img = ImageLoader.load_image(
             filename=meta.image_path,
             frame_width=meta.width,
-            frame_height=meta.height
+            frame_height=meta.height,
+            prescale=prescale
         )
-
-        if isinstance(orig_img, list):
-            orig_img = orig_img[0]
 
         frames = []
         num_frames = meta.num_frames
 
+        if not prescale:
+            num_frames = 1
+
+        if DEBUG:
+            print(f"Creating {num_frames} prescaled frames")
+
         for f in range(1, num_frames):
+            """ Create prescaled frames from small(0.01%) to biggest (100%) """
             scale = f / num_frames # Avoid division by zero
 
             new_width = math.ceil(meta.width * scale)
@@ -142,8 +147,7 @@ class SpriteManager3D(SpriteManager):
         active = types.get_flag(sprite, FLAG_ACTIVE)
 
         if not active:
-            if DEBUG_INST:
-                print(" -- Sprite not active! --")
+            self.pool.release(sprite, meta)
             return False
 
         """ Apply motion (FIX) """
@@ -195,9 +199,6 @@ class SpriteManager3D(SpriteManager):
         #     print(f"NEGATIVE DRAW Y: {draw_y} / sc: {scale} / z: {sprite.z} / height: {meta.height} ")
 
         sprite.scale = scale
-
-        # the scalars below are pretty much trial and error "magic" numbers
-        # vp_scale = ((cam.max_vp_scale) * sprite.scale)
 
         """ We have to adjust for the fact that 3D vertical axis and 2D vertical axis run in opposite directions,
         so we add the sprite height to Y in 3D space before translating to 2D"""
@@ -274,46 +275,17 @@ class SpriteManager3D(SpriteManager):
 
     # @timed
     def show_sprite(self, sprite, display: framebuf.FrameBuffer):
-        """Draw a single sprite on the display (or several, if multisprites)"""
-        # sprite_type = sprite.sprite_id
+        """ Use the renderer to draw a single sprite on the display (or several, if multisprites)"""
         sprite_type = str(sprite.sprite_type)
-
-        if not types.get_flag(sprite, FLAG_VISIBLE):
-            if DEBUG:
-                print(">>> SPRITE IS INVISIBLE!!!")
-            return False
+        meta = self.sprite_metadata[sprite_type]
+        images = self.sprite_images[sprite_type]
+        palette: FramebufferPalette = self.sprite_palettes[sprite_type]
 
         if types.get_flag(sprite, FLAG_BLINK):
             blink_flip = types.get_flag(sprite, FLAG_BLINK_FLIP)
             types.set_flag(sprite, FLAG_BLINK_FLIP, blink_flip * -1)
 
-        meta = self.sprite_metadata[sprite_type]
-
-        alpha = meta.alpha_color
-        palette:FramebufferPalette = self.sprite_palettes[sprite_type]
-
-        # if meta.rotate_palette:
-        #     color = meta.rotate_palette[sprite.color_rot_idx]
-        #     # Apply the rotated color to the sprite's palette
-        #     palette.set_int(0, color)
-
-        frame_id = sprite.current_frame # 255 sometimes ???
-
-        image = self.sprite_images[sprite_type][frame_id]
-
-        start_x = sprite.draw_x
-        start_y = sprite.draw_y
-
-        """ Drawing a single image or a row of them? repeats 0 and 1 mean the same thing (one image) """
-
-        if meta.repeats < 2:
-            self.do_blit(x=start_x, y=start_y, display=display, frame=image.pixels,
-                         palette=palette, alpha=alpha)
-        else:
-            """Also draw horizontal clones of this sprite, if needed """
-            for i in range(0, meta.repeats):
-                x = start_x + (meta.repeat_spacing * sprite.scale * i)
-                self.do_blit(x=round(x), y=start_y, display=display, frame=image.pixels,palette=palette, alpha=alpha)
+        self.renderer.render_sprite(sprite, meta, images, palette)
 
         return True
 
@@ -357,22 +329,16 @@ class SpriteManager3D(SpriteManager):
         """ Load image and create scaling frames """
         if sprite_type not in self.sprite_images.keys():
             print(f"First Sprite of Type: {sprite_type} - creating scaled images")
-            new_img = self.load_img_and_scale(meta, sprite_type)
+
+            # Choose one depending on the renderer used
+            # new_img = self.load_img_and_scale(meta, sprite_type, prescale=True)
+            new_img = self.load_img_and_scale(meta, sprite_type, prescale=True)
             self.sprite_images[sprite_type] = new_img
 
         types.set_flag(new_sprite, FLAG_ACTIVE)
         types.set_flag(new_sprite, FLAG_VISIBLE)
         self.add_inst(new_sprite, sprite_type, idx)
         return new_sprite, idx
-
-    # @timed
-    def do_blit(self, x: int, y: int, display: framebuf.FrameBuffer, frame, palette, alpha=None):
-        if alpha is not None:
-            display.blit(frame, x, y, alpha, palette)
-        else:
-            display.blit(frame, x, y, -1, palette)
-
-        return True
 
     # @timed
     def to_2d(self, x, y, z, vp_scale=1):

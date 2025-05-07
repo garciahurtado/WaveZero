@@ -48,9 +48,11 @@ class SpriteManager:
     camera: PerspectiveCamera = None
     phy: SpritePhysics = SpritePhysics()
     draw: SpriteDraw = SpriteDraw()
+    renderer = None
 
-    def __init__(self, display: ssd1331_pio, max_sprites=0, camera=None, grid=None):
+    def __init__(self, display: ssd1331_pio, renderer, max_sprites=0, camera=None, grid=None):
         self.display = display
+        self.renderer = renderer
 
         self.max_sprites = max_sprites
         self.grid = grid
@@ -226,10 +228,10 @@ class SpriteManager:
             sprite = current.sprite
             kind = kinds[str(sprite.sprite_type)]
 
-            self.update_sprite(sprite, kind, elapsed)
-
             if not types.get_flag(sprite, FLAG_ACTIVE):
                 self.pool.release(sprite, kind)
+
+            self.update_sprite(sprite, kind, elapsed)
 
             current = current.next
 

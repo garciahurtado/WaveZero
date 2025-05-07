@@ -138,7 +138,7 @@ class GameScreenTest(Screen):
             print(f"- START OF FRAME n. {self.frames_elapsed} - ")
             print(f"--------------------------")
 
-            self.check_mem()
+            self.check_gc_mem()
 
         self.display.fill(0x0)
 

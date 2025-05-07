@@ -1,11 +1,15 @@
 import random
 
+import micropython
+
+from debug.mem_logging import log_mem, log_new_frame
 from mpdb.mpdb import Mpdb
-from scaler.const import DEBUG_INST, DEBUG, INK_MAGENTA, DEBUG_POOL
+from scaler.const import DEBUG_INST, DEBUG, INK_MAGENTA, DEBUG_POOL, INK_BRIGHT_RED, INK_RED, DEBUG_MEM, INK_CYAN
 from scaler.scaler_debugger import printc
 from scaler.sprite_scaler import SpriteScaler
 from perspective_camera import PerspectiveCamera
 from death_anim import DeathAnim
+from sprites.renderer_scaler import RendererScaler
 from stages.stage_1 import Stage1
 from ui_elements import ui_screen
 
@@ -26,17 +30,17 @@ from sprites_old.sprite import Sprite
 
 from profiler import Profiler as prof
 from micropython import const
-
+from sprites.renderer_prescaled import RendererPrescaled
 class GameScreen(Screen):
     fps_enabled = True
     ground_speed: int = 0
-    max_ground_speed: int = const(-4000)
+    max_ground_speed: int = const(-3000)
     grid: RoadGrid = None
     sun: Sprite = None
     sun_start_x = None
     camera: PerspectiveCamera
     enemies: SpriteManager3D = None
-    max_sprites: int = 50
+    max_sprites: int = 100
     saved_ground_speed = 0
     lane_width: int = const(24)
     num_lives: int = 4
@@ -64,18 +68,16 @@ class GameScreen(Screen):
         display.show()
 
         self.init_camera()
-        self.check_mem()
-
-        self.scaler = SpriteScaler(display)
+        self.check_gc_mem()
 
         print("-- Preloading images...")
         self.preload_images()
-        self.check_mem()
+        self.check_gc_mem()
 
         print("-- Creating UI...")
         self.ui = ui_screen(display, self.num_lives)
 
-        self.check_mem()
+        self.check_gc_mem()
         print("-- Creating player sprite...")
         self.player = PlayerSprite(camera=self.camera)
 
@@ -85,18 +87,22 @@ class GameScreen(Screen):
         print("-- Creating road grid...")
         self.grid = RoadGrid(self.camera, display, lane_width=self.lane_width)
 
-        self.check_mem()
+        self.check_gc_mem()
         print("-- Creating Enemy Sprite Manager...")
+
+        renderer = RendererPrescaled(display)
+        # renderer = RendererScaler(display)
 
         self.enemies = SpriteManager3D(
             display,
+            renderer,
             max_sprites=self.max_sprites,
             camera=self.camera,
             grid=self.grid
         )
 
         # DEBUG
-        mp_dbg = Mpdb()
+        # mp_dbg = Mpdb()
         # mp_dbg.add_break('/lib/stages/stage.py:77', _self=self)
         # mp_dbg.add_break('/lib/sprites/sprite_manager_2d.py:77', _self=self)
         # mp_dbg.add_break('/lib/sprites/sprite_manager_3d.py:258', _self=self)
@@ -105,12 +111,12 @@ class GameScreen(Screen):
         self.death_anim = DeathAnim(display)
         self.death_anim.callback = self.after_death
 
-        self.check_mem()
+        self.check_gc_mem()
         self.display.fps = self.fps
 
         self.stage = Stage1(self.enemies)
 
-        self.check_mem()
+        self.check_gc_mem()
 
         sun = Sprite("/img/sunset.bmp")
         sun.x = self.sun_start_x = 39
@@ -148,8 +154,12 @@ class GameScreen(Screen):
         asyncio.run(self.start_main_loop())
 
     def run(self):
+        log_new_frame()
+
         loop = asyncio.get_event_loop()
         loop.create_task(self.start_display_loop())
+#
+        log_mem(f"game_screen_run_START")
 
         """ Quick flash of white"""
         self.display.fill(0xBBBBBB)
@@ -167,12 +177,15 @@ class GameScreen(Screen):
             self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
 
         self.update_score_task = loop.create_task(self.mock_update_score())
+#        log_mem(f"game_screen_run_END")
 
         # Start the road speed-up task
         self.speed_anim = AnimAttr(self, 'ground_speed', self.max_ground_speed, 3000, easing=AnimAttr.ease_in_out_sine)
         loop.create_task(self.speed_anim.run(fps=60))
-
+#
+        log_mem(f"game_screen_start_START")
         self.start()
+#        log_mem(f"game_screen_start_END")
 
         print("-- Starting update_loop...")
         asyncio.run(self.start_main_loop())
@@ -182,12 +195,15 @@ class GameScreen(Screen):
         self.last_perf_dump_ms = start_time_ms
 
         print(f"--- (game screen) Update loop Start time: {start_time_ms}ms ---")
-        self.check_mem()
+        self.check_gc_mem()
         num_lanes = 5
 
         # update loop - will run until task cancellation
         try:
             while True:
+                if DEBUG_MEM:
+                    print(micropython.mem_info())
+
                 # Optimize: precompute num_lanes * bike_angle when bike_angle is being set
                 self.camera.vp_x = round(self.player.turn_angle * num_lanes)
                 self.camera.cam_x = round(self.player.turn_angle * num_lanes)
@@ -220,18 +236,38 @@ class GameScreen(Screen):
 
     def do_refresh(self):
         """ Overrides parent method """
+        log_new_frame()
+#
+        log_mem(f"game_screen_refresh_START")
+
         self.display.fill(0x0000)
         self.grid.show()
+#
+        log_mem(f"game_screen_refresh_BEFORE_SHOW_ALL")
         self.show_all()
+#
+        log_mem(f"game_screen_refresh_BEFORE_PLAYER_SHOW")
         self.player.show(self.display)
+#
+        log_mem(f"game_screen_refresh_BEFORE_FX")
         self.show_fx()
+#
+        log_mem(f"game_screen_refresh_UI_SHOW")
         self.ui.show()
-
+#
+        log_mem(f"game_screen_refresh_BEFORE_DISPLAY_SHOW")
         self.display.show()
+#
+        log_mem(f"game_screen_refresh_AFTER_DISPLAY_SHOW")
+
         if DEBUG_POOL:
-            count = self.enemies.pool.active_count
-            printc(f"*** POOL ACTIVE COUNT: {count} ***", INK_MAGENTA)
+            num_active = self.enemies.pool.active_count
+            num_avail = len(self.enemies.pool.ready_indices)
+            printc(f"*** POOL ACTIVE COUNT: {num_active} ***", INK_RED)
+            printc(f"*** POOL AVAIL. COUNT: {num_avail} ***", INK_BRIGHT_RED)
         self.fps.tick()
+#
+        log_mem(f"game_screen_refresh_END")
 
     def show_all(self):
         for sprite in self.instances:

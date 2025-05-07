@@ -38,6 +38,8 @@ def main():
     current_freq = machine.freq()
     print(f"CPU clock: {current_freq / 1_000_000:.2f} MHz")
     check_mem()
+
+    micropython.opt_level(3)
     print("Compiler opt level: " + str(micropython.opt_level()))
 
     sleep(2)

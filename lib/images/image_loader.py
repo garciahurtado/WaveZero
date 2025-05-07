@@ -40,8 +40,6 @@ class ImageLoader():
         print(f"Before loading all images: {gc.mem_free():,} bytes")
 
         for image in images:
-            gc.collect()
-
             file = image['name']
             print(f"Loading {file} ({image['width']}x{image['height']})")
 
@@ -91,7 +89,7 @@ class ImageLoader():
         display.show()
 
     @staticmethod
-    def load_image(filename, frame_width=0, frame_height=0, color_depth=GS4_HMSB, progress_callback=None) -> Image:
+    def load_image(filename, frame_width=0, frame_height=0, color_depth=GS4_HMSB, progress_callback=None, prescale=True) -> Image:
         # First of all, check the cache
         if filename in ImageLoader.images.keys():
             image = ImageLoader.images[filename]
@@ -99,7 +97,6 @@ class ImageLoader():
 
         reader = ImageLoader.bmp_reader
         reader.color_depth = color_depth
-        reader._init()
 
         if frame_width and frame_height:
             """ Image is a spritesheet"""

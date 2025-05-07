@@ -1,0 +1,1942 @@
+Loaded 0 frames
+
+[LOG_1_1]
+frame = 1
+seq = 1
+time_us = 871090924
+tag = FRAME_START
+free = 65168
+
+[LOG_1_2]
+frame = 1
+seq = 2
+time_us = 871105401
+tag = game_screen_run_START
+free = 64288
+Sprite speed: -20.0
+
+[LOG_1_3]
+frame = 1
+seq = 3
+time_us = 871132183
+tag = game_screen_run_END
+free = 61648
+
+[LOG_1_4]
+frame = 1
+seq = 4
+time_us = 871146481
+tag = game_screen_start_START
+free = 60576
+-- Starting stage...
+
+[LOG_1_5]
+frame = 1
+seq = 5
+time_us = 871202734
+tag = game_screen_start_END
+free = 47472
+-- Starting update_loop...
+** DISPLAY LOOP START (screen.py) **
+
+[LOG_2_1]
+frame = 2
+seq = 1
+time_us = 871217270
+tag = FRAME_START
+free = 46192
+
+[LOG_2_2]
+frame = 2
+seq = 2
+time_us = 871230653
+tag = game_screen_refresh_START
+free = 45600
+
+[LOG_2_3]
+frame = 2
+seq = 3
+time_us = 871258064
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 35904
+
+[LOG_2_4]
+frame = 2
+seq = 4
+time_us = 871282013
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 30032
+
+[LOG_2_5]
+frame = 2
+seq = 5
+time_us = 871295872
+tag = game_screen_refresh_BEFORE_FX
+free = 29296
+
+[LOG_2_6]
+frame = 2
+seq = 6
+time_us = 871309565
+tag = game_screen_refresh_UI_SHOW
+free = 28528
+
+[LOG_2_7]
+frame = 2
+seq = 7
+time_us = 871333724
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 21056
+
+[LOG_2_8]
+frame = 2
+seq = 8
+time_us = 871347849
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 20208
+
+[LOG_2_9]
+frame = 2
+seq = 9
+time_us = 871361652
+tag = game_screen_refresh_END
+free = 19472
+<< UPDATE LOOP START (screen.py) >>
+
+[LOG_3_1]
+frame = 3
+seq = 1
+time_us = 871383973
+tag = FRAME_START
+free = 14768
+
+[LOG_3_2]
+frame = 3
+seq = 2
+time_us = 871397658
+tag = game_screen_refresh_START
+free = 14176
+
+[LOG_3_3]
+frame = 3
+seq = 3
+time_us = 871424911
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 4480
+
+[LOG_3_4]
+frame = 3
+seq = 4
+time_us = 871501002
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 86032
+
+[LOG_3_5]
+frame = 3
+seq = 5
+time_us = 871515582
+tag = game_screen_refresh_BEFORE_FX
+free = 85168
+
+[LOG_3_6]
+frame = 3
+seq = 6
+time_us = 871529243
+tag = game_screen_refresh_UI_SHOW
+free = 84400
+
+[LOG_3_7]
+frame = 3
+seq = 7
+time_us = 871558555
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 76928
+
+[LOG_3_8]
+frame = 3
+seq = 8
+time_us = 871572654
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 76080
+
+[LOG_3_9]
+frame = 3
+seq = 9
+time_us = 871586303
+tag = game_screen_refresh_END
+free = 75344
+--- (game screen) Update loop Start time: 1945333ms ---
+Free memory: 74,208 bytes
+stack: 2340 out of 12032
+GC: total: 496832, used: 422672, free: 74160
+ No. of 1-blocks: 2956, 2-blocks: 2100, max blk sz: 1121, max free sz: 62       
+None
+
+[LOG_4_1]
+frame = 4
+seq = 1
+time_us = 871664373
+tag = FRAME_START
+free = 56256
+
+[LOG_4_2]
+frame = 4
+seq = 2
+time_us = 871677907
+tag = game_screen_refresh_START
+free = 55664
+
+[LOG_4_3]
+frame = 4
+seq = 3
+time_us = 871704905
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 46384
+
+[LOG_4_4]
+frame = 4
+seq = 4
+time_us = 871728080
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 40512
+
+[LOG_4_5]
+frame = 4
+seq = 5
+time_us = 871741830
+tag = game_screen_refresh_BEFORE_FX
+free = 39776
+
+[LOG_4_6]
+frame = 4
+seq = 6
+time_us = 871755479
+tag = game_screen_refresh_UI_SHOW
+free = 39008
+
+[LOG_4_7]
+frame = 4
+seq = 7
+time_us = 871769650
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 38160
+
+[LOG_4_8]
+frame = 4
+seq = 8
+time_us = 871783516
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 37312
+
+[LOG_4_9]
+frame = 4
+seq = 9
+time_us = 871797287
+tag = game_screen_refresh_END
+free = 36512
+
+[LOG_5_1]
+frame = 5
+seq = 1
+time_us = 871856484
+tag = FRAME_START
+free = 17312
+
+[LOG_5_2]
+frame = 5
+seq = 2
+time_us = 871870112
+tag = game_screen_refresh_START
+free = 16720
+
+[LOG_5_3]
+frame = 5
+seq = 3
+time_us = 871898080
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 7152
+
+[LOG_5_4]
+frame = 5
+seq = 4
+time_us = 871922252
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 1280
+
+[LOG_5_5]
+frame = 5
+seq = 5
+time_us = 871936707
+tag = game_screen_refresh_BEFORE_FX
+free = 416
+
+[LOG_5_6]
+frame = 5
+seq = 6
+time_us = 871997223
+tag = game_screen_refresh_UI_SHOW
+free = 86576
+
+[LOG_5_7]
+frame = 5
+seq = 7
+time_us = 872011787
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 85728
+
+[LOG_5_8]
+frame = 5
+seq = 8
+time_us = 872025568
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 84880
+
+[LOG_5_9]
+frame = 5
+seq = 9
+time_us = 872039220
+tag = game_screen_refresh_END
+free = 84080
+
+[LOG_6_1]
+frame = 6
+seq = 1
+time_us = 872103127
+tag = FRAME_START
+free = 64208
+
+[LOG_6_2]
+frame = 6
+seq = 2
+time_us = 872116623
+tag = game_screen_refresh_START
+free = 63616
+
+[LOG_6_3]
+frame = 6
+seq = 3
+time_us = 872145608
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 53760
+
+[LOG_6_4]
+frame = 6
+seq = 4
+time_us = 872169623
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 47888
+
+[LOG_6_5]
+frame = 6
+seq = 5
+time_us = 872183331
+tag = game_screen_refresh_BEFORE_FX
+free = 47152
+
+[LOG_6_6]
+frame = 6
+seq = 6
+time_us = 872196960
+tag = game_screen_refresh_UI_SHOW
+free = 46384
+
+[LOG_6_7]
+frame = 6
+seq = 7
+time_us = 872211108
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 45536
+
+[LOG_6_8]
+frame = 6
+seq = 8
+time_us = 872224947
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 44688
+
+[LOG_6_9]
+frame = 6
+seq = 9
+time_us = 872238712
+tag = game_screen_refresh_END
+free = 43888
+
+[LOG_7_1]
+frame = 7
+seq = 1
+time_us = 872296265
+tag = FRAME_START
+free = 23952
+
+[LOG_7_2]
+frame = 7
+seq = 2
+time_us = 872309917
+tag = game_screen_refresh_START
+free = 23360
+
+[LOG_7_3]
+frame = 7
+seq = 3
+time_us = 872348144
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 13264
+
+[LOG_7_4]
+frame = 7
+seq = 4
+time_us = 872371538
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 7392
+
+[LOG_7_5]
+frame = 7
+seq = 5
+time_us = 872386039
+tag = game_screen_refresh_BEFORE_FX
+free = 6528
+
+[LOG_7_6]
+frame = 7
+seq = 6
+time_us = 872399802
+tag = game_screen_refresh_UI_SHOW
+free = 5760
+
+[LOG_7_7]
+frame = 7
+seq = 7
+time_us = 872414084
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 4912
+
+[LOG_7_8]
+frame = 7
+seq = 8
+time_us = 872428026
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 4064
+
+[LOG_7_9]
+frame = 7
+seq = 9
+time_us = 872441977
+tag = game_screen_refresh_END
+free = 3264
+
+[LOG_8_1]
+frame = 8
+seq = 1
+time_us = 872618367
+tag = FRAME_START
+free = 42224
+
+[LOG_8_2]
+frame = 8
+seq = 2
+time_us = 872631941
+tag = game_screen_refresh_START
+free = 41632
+
+[LOG_8_3]
+frame = 8
+seq = 3
+time_us = 872659223
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 31712
+
+[LOG_8_4]
+frame = 8
+seq = 4
+time_us = 872691396
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 20976
+
+[LOG_8_5]
+frame = 8
+seq = 5
+time_us = 872705203
+tag = game_screen_refresh_BEFORE_FX
+free = 20240
+
+[LOG_8_6]
+frame = 8
+seq = 6
+time_us = 872718953
+tag = game_screen_refresh_UI_SHOW
+free = 19472
+
+[LOG_8_7]
+frame = 8
+seq = 7
+time_us = 872743607
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 12000
+
+[LOG_8_8]
+frame = 8
+seq = 8
+time_us = 872757734
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 11152
+
+[LOG_8_9]
+frame = 8
+seq = 9
+time_us = 872771576
+tag = game_screen_refresh_END
+free = 10352
+
+[LOG_9_1]
+frame = 9
+seq = 1
+time_us = 872917864
+tag = FRAME_START
+free = 62592
+
+[LOG_9_2]
+frame = 9
+seq = 2
+time_us = 872931392
+tag = game_screen_refresh_START
+free = 62000
+
+[LOG_9_3]
+frame = 9
+seq = 3
+time_us = 872959975
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 52304
+
+[LOG_9_4]
+frame = 9
+seq = 4
+time_us = 872992819
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 41568
+
+[LOG_9_5]
+frame = 9
+seq = 5
+time_us = 873007208
+tag = game_screen_refresh_BEFORE_FX
+free = 40704
+
+[LOG_9_6]
+frame = 9
+seq = 6
+time_us = 873020879
+tag = game_screen_refresh_UI_SHOW
+free = 39936
+
+[LOG_9_7]
+frame = 9
+seq = 7
+time_us = 873035029
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 39088
+
+[LOG_9_8]
+frame = 9
+seq = 8
+time_us = 873048881
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 38240
+
+[LOG_9_9]
+frame = 9
+seq = 9
+time_us = 873062674
+tag = game_screen_refresh_END
+free = 37440
+
+[LOG_10_1]
+frame = 10
+seq = 1
+time_us = 873157015
+tag = FRAME_START
+free = 3008
+
+[LOG_10_2]
+frame = 10
+seq = 2
+time_us = 873170713
+tag = game_screen_refresh_START
+free = 2416
+
+[LOG_10_3]
+frame = 10
+seq = 3
+time_us = 873246377
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 79904
+
+[LOG_10_4]
+frame = 10
+seq = 4
+time_us = 873287568
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 69168
+
+[LOG_10_5]
+frame = 10
+seq = 5
+time_us = 873301310
+tag = game_screen_refresh_BEFORE_FX
+free = 68432
+
+[LOG_10_6]
+frame = 10
+seq = 6
+time_us = 873314856
+tag = game_screen_refresh_UI_SHOW
+free = 67664
+
+[LOG_10_7]
+frame = 10
+seq = 7
+time_us = 873328956
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 66816
+
+[LOG_10_8]
+frame = 10
+seq = 8
+time_us = 873342691
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 65968
+
+[LOG_10_9]
+frame = 10
+seq = 9
+time_us = 873356375
+tag = game_screen_refresh_END
+free = 65168
+
+[LOG_11_1]
+frame = 11
+seq = 1
+time_us = 873451604
+tag = FRAME_START
+free = 30768
+
+[LOG_11_2]
+frame = 11
+seq = 2
+time_us = 873465221
+tag = game_screen_refresh_START
+free = 30176
+
+[LOG_11_3]
+frame = 11
+seq = 3
+time_us = 873491133
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 21568
+
+[LOG_11_4]
+frame = 11
+seq = 4
+time_us = 873523334
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 10832
+
+[LOG_11_5]
+frame = 11
+seq = 5
+time_us = 873537814
+tag = game_screen_refresh_BEFORE_FX
+free = 9968
+
+[LOG_11_6]
+frame = 11
+seq = 6
+time_us = 873551563
+tag = game_screen_refresh_UI_SHOW
+free = 9200
+
+[LOG_11_7]
+frame = 11
+seq = 7
+time_us = 873565831
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 8352
+
+[LOG_11_8]
+frame = 11
+seq = 8
+time_us = 873579789
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 7504
+
+[LOG_11_9]
+frame = 11
+seq = 9
+time_us = 873593713
+tag = game_screen_refresh_END
+free = 6704
+
+[LOG_12_1]
+frame = 12
+seq = 1
+time_us = 873739580
+tag = FRAME_START
+free = 59264
+
+[LOG_12_2]
+frame = 12
+seq = 2
+time_us = 873753097
+tag = game_screen_refresh_START
+free = 58672
+
+[LOG_12_3]
+frame = 12
+seq = 3
+time_us = 873779901
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 50576
+
+[LOG_12_4]
+frame = 12
+seq = 4
+time_us = 873812783
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 39840
+
+[LOG_12_5]
+frame = 12
+seq = 5
+time_us = 873826576
+tag = game_screen_refresh_BEFORE_FX
+free = 39104
+
+[LOG_12_6]
+frame = 12
+seq = 6
+time_us = 873840203
+tag = game_screen_refresh_UI_SHOW
+free = 38336
+
+[LOG_12_7]
+frame = 12
+seq = 7
+time_us = 873854368
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 37488
+
+[LOG_12_8]
+frame = 12
+seq = 8
+time_us = 873868194
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 36640
+
+[LOG_12_9]
+frame = 12
+seq = 9
+time_us = 873881974
+tag = game_screen_refresh_END
+free = 35840
+
+[LOG_13_1]
+frame = 13
+seq = 1
+time_us = 874094440
+tag = FRAME_START
+free = 61904
+
+[LOG_13_2]
+frame = 13
+seq = 2
+time_us = 874107961
+tag = game_screen_refresh_START
+free = 61312
+
+[LOG_13_3]
+frame = 13
+seq = 3
+time_us = 874133938
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 53888
+
+[LOG_13_4]
+frame = 13
+seq = 4
+time_us = 874175684
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 38288
+
+[LOG_13_5]
+frame = 13
+seq = 5
+time_us = 874189967
+tag = game_screen_refresh_BEFORE_FX
+free = 37424
+
+[LOG_13_6]
+frame = 13
+seq = 6
+time_us = 874203606
+tag = game_screen_refresh_UI_SHOW
+free = 36656
+
+[LOG_13_7]
+frame = 13
+seq = 7
+time_us = 874227928
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 29184
+
+[LOG_13_8]
+frame = 13
+seq = 8
+time_us = 874241963
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 28336
+
+[LOG_13_9]
+frame = 13
+seq = 9
+time_us = 874255796
+tag = game_screen_refresh_END
+free = 27536
+
+[LOG_14_1]
+frame = 14
+seq = 1
+time_us = 874438880
+tag = FRAME_START
+free = 66048
+
+[LOG_14_2]
+frame = 14
+seq = 2
+time_us = 874452343
+tag = game_screen_refresh_START
+free = 65456
+
+[LOG_14_3]
+frame = 14
+seq = 3
+time_us = 874474813
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 59344
+
+[LOG_14_4]
+frame = 14
+seq = 4
+time_us = 874517466
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 43744
+
+[LOG_14_5]
+frame = 14
+seq = 5
+time_us = 874531192
+tag = game_screen_refresh_BEFORE_FX
+free = 43008
+
+[LOG_14_6]
+frame = 14
+seq = 6
+time_us = 874544769
+tag = game_screen_refresh_UI_SHOW
+free = 42240
+
+[LOG_14_7]
+frame = 14
+seq = 7
+time_us = 874558925
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 41392
+
+[LOG_14_8]
+frame = 14
+seq = 8
+time_us = 874572799
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 40544
+
+[LOG_14_9]
+frame = 14
+seq = 9
+time_us = 874586578
+tag = game_screen_refresh_END
+free = 39744
+
+[LOG_15_1]
+frame = 15
+seq = 1
+time_us = 874766477
+tag = FRAME_START
+free = 79520
+
+[LOG_15_2]
+frame = 15
+seq = 2
+time_us = 874779960
+tag = game_screen_refresh_START
+free = 78928
+
+[LOG_15_3]
+frame = 15
+seq = 3
+time_us = 874802088
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 73968
+
+[LOG_15_4]
+frame = 15
+seq = 4
+time_us = 874847169
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 58368
+
+[LOG_15_5]
+frame = 15
+seq = 5
+time_us = 874861542
+tag = game_screen_refresh_BEFORE_FX
+free = 57504
+
+[LOG_15_6]
+frame = 15
+seq = 6
+time_us = 874875139
+tag = game_screen_refresh_UI_SHOW
+free = 56736
+
+[LOG_15_7]
+frame = 15
+seq = 7
+time_us = 874889272
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 55888
+
+[LOG_15_8]
+frame = 15
+seq = 8
+time_us = 874903054
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 55040
+
+[LOG_15_9]
+frame = 15
+seq = 9
+time_us = 874916782
+tag = game_screen_refresh_END
+free = 54240
+
+[LOG_16_1]
+frame = 16
+seq = 1
+time_us = 875046768
+tag = FRAME_START
+free = 6112
+
+[LOG_16_2]
+frame = 16
+seq = 2
+time_us = 875060459
+tag = game_screen_refresh_START
+free = 5520
+
+[LOG_16_3]
+frame = 16
+seq = 3
+time_us = 875079460
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 1744
+
+[LOG_16_4]
+frame = 16
+seq = 4
+time_us = 875189614
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 73952
+
+[LOG_16_5]
+frame = 16
+seq = 5
+time_us = 875203367
+tag = game_screen_refresh_BEFORE_FX
+free = 73216
+
+[LOG_16_6]
+frame = 16
+seq = 6
+time_us = 875216846
+tag = game_screen_refresh_UI_SHOW
+free = 72448
+
+[LOG_16_7]
+frame = 16
+seq = 7
+time_us = 875242863
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 64976
+
+[LOG_16_8]
+frame = 16
+seq = 8
+time_us = 875256816
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 64128
+
+[LOG_16_9]
+frame = 16
+seq = 9
+time_us = 875270523
+tag = game_screen_refresh_END
+free = 63328
+
+[LOG_17_1]
+frame = 17
+seq = 1
+time_us = 875498560
+tag = FRAME_START
+free = 77072
+
+[LOG_17_2]
+frame = 17
+seq = 2
+time_us = 875512018
+tag = game_screen_refresh_START
+free = 76480
+
+[LOG_17_3]
+frame = 17
+seq = 3
+time_us = 875531421
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 72704
+
+[LOG_17_4]
+frame = 17
+seq = 4
+time_us = 875584000
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 52240
+
+[LOG_17_5]
+frame = 17
+seq = 5
+time_us = 875598304
+tag = game_screen_refresh_BEFORE_FX
+free = 51376
+
+[LOG_17_6]
+frame = 17
+seq = 6
+time_us = 875611903
+tag = game_screen_refresh_UI_SHOW
+free = 50608
+
+[LOG_17_7]
+frame = 17
+seq = 7
+time_us = 875626099
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 49760
+
+[LOG_17_8]
+frame = 17
+seq = 8
+time_us = 875639883
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 48912
+
+[LOG_17_9]
+frame = 17
+seq = 9
+time_us = 875653638
+tag = game_screen_refresh_END
+free = 48112
+
+[LOG_18_1]
+frame = 18
+seq = 1
+time_us = 875870025
+tag = FRAME_START
+free = 73744
+
+[LOG_18_2]
+frame = 18
+seq = 2
+time_us = 875883483
+tag = game_screen_refresh_START
+free = 73152
+
+[LOG_18_3]
+frame = 18
+seq = 3
+time_us = 875903222
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 69376
+
+[LOG_18_4]
+frame = 18
+seq = 4
+time_us = 875956222
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 48912
+
+[LOG_18_5]
+frame = 18
+seq = 5
+time_us = 875969932
+tag = game_screen_refresh_BEFORE_FX
+free = 48176
+
+[LOG_18_6]
+frame = 18
+seq = 6
+time_us = 875983513
+tag = game_screen_refresh_UI_SHOW
+free = 47408
+
+[LOG_18_7]
+frame = 18
+seq = 7
+time_us = 875997627
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 46560
+
+[LOG_18_8]
+frame = 18
+seq = 8
+time_us = 876011437
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 45712
+
+[LOG_18_9]
+frame = 18
+seq = 9
+time_us = 876025184
+tag = game_screen_refresh_END
+free = 44912
+
+[LOG_19_1]
+frame = 19
+seq = 1
+time_us = 876227219
+tag = FRAME_START
+free = 69712
+
+[LOG_19_2]
+frame = 19
+seq = 2
+time_us = 876240710
+tag = game_screen_refresh_START
+free = 69120
+
+[LOG_19_3]
+frame = 19
+seq = 3
+time_us = 876259700
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 65344
+
+[LOG_19_4]
+frame = 19
+seq = 4
+time_us = 876311180
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 44880
+
+[LOG_19_5]
+frame = 19
+seq = 5
+time_us = 876325460
+tag = game_screen_refresh_BEFORE_FX
+free = 44016
+
+[LOG_19_6]
+frame = 19
+seq = 6
+time_us = 876339082
+tag = game_screen_refresh_UI_SHOW
+free = 43248
+
+[LOG_19_7]
+frame = 19
+seq = 7
+time_us = 876353253
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 42400
+
+[LOG_19_8]
+frame = 19
+seq = 8
+time_us = 876367076
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 41552
+
+[LOG_19_9]
+frame = 19
+seq = 9
+time_us = 876380846
+tag = game_screen_refresh_END
+free = 40752
+FPS:   3.90
+
+[LOG_20_1]
+frame = 20
+seq = 1
+time_us = 876586604
+tag = FRAME_START
+free = 64640
+
+[LOG_20_2]
+frame = 20
+seq = 2
+time_us = 876600025
+tag = game_screen_refresh_START
+free = 64048
+
+[LOG_20_3]
+frame = 20
+seq = 3
+time_us = 876618971
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 60272
+
+[LOG_20_4]
+frame = 20
+seq = 4
+time_us = 876670300
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 39808
+
+[LOG_20_5]
+frame = 20
+seq = 5
+time_us = 876684045
+tag = game_screen_refresh_BEFORE_FX
+free = 39072
+
+[LOG_20_6]
+frame = 20
+seq = 6
+time_us = 876697640
+tag = game_screen_refresh_UI_SHOW
+free = 38304
+
+[LOG_20_7]
+frame = 20
+seq = 7
+time_us = 876721836
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 30832
+
+[LOG_20_8]
+frame = 20
+seq = 8
+time_us = 876735869
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 29984
+
+[LOG_20_9]
+frame = 20
+seq = 9
+time_us = 876749714
+tag = game_screen_refresh_END
+free = 29184
+
+[LOG_21_1]
+frame = 21
+seq = 1
+time_us = 877019732
+tag = FRAME_START
+free = 26960
+
+[LOG_21_2]
+frame = 21
+seq = 2
+time_us = 877033354
+tag = game_screen_refresh_START
+free = 26368
+
+[LOG_21_3]
+frame = 21
+seq = 3
+time_us = 877052433
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 22592
+
+[LOG_21_4]
+frame = 21
+seq = 4
+time_us = 877170467
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 84752
+
+[LOG_21_5]
+frame = 21
+seq = 5
+time_us = 877185504
+tag = game_screen_refresh_BEFORE_FX
+free = 83888
+
+[LOG_21_6]
+frame = 21
+seq = 6
+time_us = 877199127
+tag = game_screen_refresh_UI_SHOW
+free = 83120
+
+[LOG_21_7]
+frame = 21
+seq = 7
+time_us = 877213308
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 82272
+
+[LOG_21_8]
+frame = 21
+seq = 8
+time_us = 877227309
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 81424
+
+[LOG_21_9]
+frame = 21
+seq = 9
+time_us = 877240990
+tag = game_screen_refresh_END
+free = 80624
+
+[LOG_22_1]
+frame = 22
+seq = 1
+time_us = 877451786
+tag = FRAME_START
+free = 2736
+
+[LOG_22_2]
+frame = 22
+seq = 2
+time_us = 877465473
+tag = game_screen_refresh_START
+free = 2144
+
+[LOG_22_3]
+frame = 22
+seq = 3
+time_us = 877534162
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 86048
+
+[LOG_22_4]
+frame = 22
+seq = 4
+time_us = 877612476
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 60720
+
+[LOG_22_5]
+frame = 22
+seq = 5
+time_us = 877626193
+tag = game_screen_refresh_BEFORE_FX
+free = 59984
+
+[LOG_22_6]
+frame = 22
+seq = 6
+time_us = 877639740
+tag = game_screen_refresh_UI_SHOW
+free = 59216
+
+[LOG_22_7]
+frame = 22
+seq = 7
+time_us = 877654275
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 58368
+
+[LOG_22_8]
+frame = 22
+seq = 8
+time_us = 877668088
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 57520
+
+[LOG_22_9]
+frame = 22
+seq = 9
+time_us = 877681788
+tag = game_screen_refresh_END
+free = 56720
+FPS:   3.67
+
+[LOG_23_1]
+frame = 23
+seq = 1
+time_us = 877925101
+tag = FRAME_START
+free = 65152
+
+[LOG_23_2]
+frame = 23
+seq = 2
+time_us = 877938535
+tag = game_screen_refresh_START
+free = 64560
+
+[LOG_23_3]
+frame = 23
+seq = 3
+time_us = 877957637
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 60784
+
+[LOG_23_4]
+frame = 23
+seq = 4
+time_us = 878019180
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 35456
+
+[LOG_23_5]
+frame = 23
+seq = 5
+time_us = 878033501
+tag = game_screen_refresh_BEFORE_FX
+free = 34592
+
+[LOG_23_6]
+frame = 23
+seq = 6
+time_us = 878047167
+tag = game_screen_refresh_UI_SHOW
+free = 33824
+
+[LOG_23_7]
+frame = 23
+seq = 7
+time_us = 878071440
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 26352
+
+[LOG_23_8]
+frame = 23
+seq = 8
+time_us = 878085472
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 25504
+
+[LOG_23_9]
+frame = 23
+seq = 9
+time_us = 878099313
+tag = game_screen_refresh_END
+free = 24704
+
+[LOG_24_1]
+frame = 24
+seq = 1
+time_us = 878356668
+tag = FRAME_START
+free = 34560
+
+[LOG_24_2]
+frame = 24
+seq = 2
+time_us = 878370263
+tag = game_screen_refresh_START
+free = 33968
+
+[LOG_24_3]
+frame = 24
+seq = 3
+time_us = 878389634
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 30192
+
+[LOG_24_4]
+frame = 24
+seq = 4
+time_us = 878449933
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 4864
+
+[LOG_24_5]
+frame = 24
+seq = 5
+time_us = 878463812
+tag = game_screen_refresh_BEFORE_FX
+free = 4128
+
+[LOG_24_6]
+frame = 24
+seq = 6
+time_us = 878477548
+tag = game_screen_refresh_UI_SHOW
+free = 3360
+
+[LOG_24_7]
+frame = 24
+seq = 7
+time_us = 878491842
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 2512
+
+[LOG_24_8]
+frame = 24
+seq = 8
+time_us = 878505855
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 1664
+
+[LOG_24_9]
+frame = 24
+seq = 9
+time_us = 878519786
+tag = game_screen_refresh_END
+free = 864
+
+[LOG_25_1]
+frame = 25
+seq = 1
+time_us = 878904224
+tag = FRAME_START
+free = 72576
+
+[LOG_25_2]
+frame = 25
+seq = 2
+time_us = 878917700
+tag = game_screen_refresh_START
+free = 71984
+
+[LOG_25_3]
+frame = 25
+seq = 3
+time_us = 878938336
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 68208
+
+[LOG_25_4]
+frame = 25
+seq = 4
+time_us = 879008203
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 38016
+
+[LOG_25_5]
+frame = 25
+seq = 5
+time_us = 879022488
+tag = game_screen_refresh_BEFORE_FX
+free = 37152
+
+[LOG_25_6]
+frame = 25
+seq = 6
+time_us = 879036135
+tag = game_screen_refresh_UI_SHOW
+free = 36384
+
+[LOG_25_7]
+frame = 25
+seq = 7
+time_us = 879050320
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 35536
+
+[LOG_25_8]
+frame = 25
+seq = 8
+time_us = 879064152
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 34688
+
+[LOG_25_9]
+frame = 25
+seq = 9
+time_us = 879077953
+tag = game_screen_refresh_END
+free = 33888
+FPS:   3.46
+
+[LOG_26_1]
+frame = 26
+seq = 1
+time_us = 879373430
+tag = FRAME_START
+free = 28640
+
+[LOG_26_2]
+frame = 26
+seq = 2
+time_us = 879386997
+tag = game_screen_refresh_START
+free = 28048
+
+[LOG_26_3]
+frame = 26
+seq = 3
+time_us = 879406031
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 24272
+
+[LOG_26_4]
+frame = 26
+seq = 4
+time_us = 879535196
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 81632
+
+[LOG_26_5]
+frame = 26
+seq = 5
+time_us = 879548947
+tag = game_screen_refresh_BEFORE_FX
+free = 80896
+
+[LOG_26_6]
+frame = 26
+seq = 6
+time_us = 879562600
+tag = game_screen_refresh_UI_SHOW
+free = 80128
+
+[LOG_26_7]
+frame = 26
+seq = 7
+time_us = 879589419
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 72656
+
+[LOG_26_8]
+frame = 26
+seq = 8
+time_us = 879603476
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 71808
+
+[LOG_26_9]
+frame = 26
+seq = 9
+time_us = 879617182
+tag = game_screen_refresh_END
+free = 71008
+
+[LOG_27_1]
+frame = 27
+seq = 1
+time_us = 879884208
+tag = FRAME_START
+free = 70896
+
+[LOG_27_2]
+frame = 27
+seq = 2
+time_us = 879897701
+tag = game_screen_refresh_START
+free = 70304
+
+[LOG_27_3]
+frame = 27
+seq = 3
+time_us = 879916998
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 66528
+
+[LOG_27_4]
+frame = 27
+seq = 4
+time_us = 879983549
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 38256
+
+[LOG_27_5]
+frame = 27
+seq = 5
+time_us = 879997863
+tag = game_screen_refresh_BEFORE_FX
+free = 37392
+
+[LOG_27_6]
+frame = 27
+seq = 6
+time_us = 880011519
+tag = game_screen_refresh_UI_SHOW
+free = 36624
+
+[LOG_27_7]
+frame = 27
+seq = 7
+time_us = 880025743
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 35776
+
+[LOG_27_8]
+frame = 27
+seq = 8
+time_us = 880039553
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 34928
+
+[LOG_27_9]
+frame = 27
+seq = 9
+time_us = 880053323
+tag = game_screen_refresh_END
+free = 34128
+
+[LOG_28_1]
+frame = 28
+seq = 1
+time_us = 880364262
+tag = FRAME_START
+free = 15216
+
+[LOG_28_2]
+frame = 28
+seq = 2
+time_us = 880377935
+tag = game_screen_refresh_START
+free = 14624
+
+[LOG_28_3]
+frame = 28
+seq = 3
+time_us = 880396936
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 10848
+
+[LOG_28_4]
+frame = 28
+seq = 4
+time_us = 880540059
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 67232
+
+[LOG_28_5]
+frame = 28
+seq = 5
+time_us = 880553686
+tag = game_screen_refresh_BEFORE_FX
+free = 66496
+
+[LOG_28_6]
+frame = 28
+seq = 6
+time_us = 880567178
+tag = game_screen_refresh_UI_SHOW
+free = 65728
+
+[LOG_28_7]
+frame = 28
+seq = 7
+time_us = 880581256
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 64880
+
+[LOG_28_8]
+frame = 28
+seq = 8
+time_us = 880594998
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 64032
+
+[LOG_28_9]
+frame = 28
+seq = 9
+time_us = 880608702
+tag = game_screen_refresh_END
+free = 63232
+FPS:   3.24
+
+[LOG_29_1]
+frame = 29
+seq = 1
+time_us = 880889992
+tag = FRAME_START
+free = 58224
+
+[LOG_29_2]
+frame = 29
+seq = 2
+time_us = 880903554
+tag = game_screen_refresh_START
+free = 57632
+
+[LOG_29_3]
+frame = 29
+seq = 3
+time_us = 880922684
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 53856
+
+[LOG_29_4]
+frame = 29
+seq = 4
+time_us = 880992169
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 22640
+
+[LOG_29_5]
+frame = 29
+seq = 5
+time_us = 881006560
+tag = game_screen_refresh_BEFORE_FX
+free = 21776
+
+[LOG_29_6]
+frame = 29
+seq = 6
+time_us = 881020286
+tag = game_screen_refresh_UI_SHOW
+free = 21008
+
+[LOG_29_7]
+frame = 29
+seq = 7
+time_us = 881044899
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 13536
+
+[LOG_29_8]
+frame = 29
+seq = 8
+time_us = 881058976
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 12688
+
+[LOG_29_9]
+frame = 29
+seq = 9
+time_us = 881072816
+tag = game_screen_refresh_END
+free = 11888
+
+[LOG_30_1]
+frame = 30
+seq = 1
+time_us = 881365038
+tag = FRAME_START
+free = 8624
+
+[LOG_30_2]
+frame = 30
+seq = 2
+time_us = 881378710
+tag = game_screen_refresh_START
+free = 8032
+
+[LOG_30_3]
+frame = 30
+seq = 3
+time_us = 881397717
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 4256
+
+[LOG_30_4]
+frame = 30
+seq = 4
+time_us = 881554166
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 60736
+
+[LOG_30_5]
+frame = 30
+seq = 5
+time_us = 881567867
+tag = game_screen_refresh_BEFORE_FX
+free = 60000
+
+[LOG_30_6]
+frame = 30
+seq = 6
+time_us = 881581398
+tag = game_screen_refresh_UI_SHOW
+free = 59232
+
+[LOG_30_7]
+frame = 30
+seq = 7
+time_us = 881595509
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 58384
+
+[LOG_30_8]
+frame = 30
+seq = 8
+time_us = 881609288
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 57536
+
+[LOG_30_9]
+frame = 30
+seq = 9
+time_us = 881622991
+tag = game_screen_refresh_END
+free = 56736
+FPS:   3.12
+
+[LOG_31_1]
+frame = 31
+seq = 1
+time_us = 881891185
+tag = FRAME_START
+free = 56288
+
+[LOG_31_2]
+frame = 31
+seq = 2
+time_us = 881904662
+tag = game_screen_refresh_START
+free = 55696
+
+[LOG_31_3]
+frame = 31
+seq = 3
+time_us = 881923856
+tag = game_screen_refresh_BEFORE_SHOW_ALL
+free = 51920
+
+[LOG_31_4]
+frame = 31
+seq = 4
+time_us = 881988543
+tag = game_screen_refresh_BEFORE_PLAYER_SHOW
+free = 22624
+
+[LOG_31_5]
+frame = 31
+seq = 5
+time_us = 882002911
+tag = game_screen_refresh_BEFORE_FX
+free = 21760
+
+[LOG_31_6]
+frame = 31
+seq = 6
+time_us = 882016590
+tag = game_screen_refresh_UI_SHOW
+free = 20992
+
+[LOG_31_7]
+frame = 31
+seq = 7
+time_us = 882041079
+tag = game_screen_refresh_BEFORE_DISPLAY_SHOW
+free = 13520
+
+[LOG_31_8]
+frame = 31
+seq = 8
+time_us = 882055149
+tag = game_screen_refresh_AFTER_DISPLAY_SHOW
+free = 12672
+
+[LOG_31_9]
+frame = 31
+seq = 9
+time_us = 882069008
+tag = game_screen_refresh_END
+free = 11872
