@@ -75,8 +75,8 @@ class SpriteScaler():
         self.init_interp()
 
     def irq_sm_read_palette(self, sm):
-        if self.sm_finished:
-            raise Exception(f"This should NOT have happened - Double IRQ (ch:{sm})")
+        # if self.sm_finished:
+        #     raise Exception(f"This should NOT have happened - Double IRQ (ch:{sm})")
 
         self.sm_finished = True
 
@@ -144,7 +144,11 @@ class SpriteScaler():
         self.scaled_width = scaled_width
         self.framebuf.select_buffer(scaled_width, scaled_height)
 
-        inst.draw_x, inst.draw_y = SpritePhysics.get_draw_pos(inst, scaled_width, scaled_height)
+        # this only works for 2D sprites
+        # inst.draw_x, inst.draw_y = SpritePhysics.get_draw_pos(inst, scaled_width, scaled_height)
+
+
+
         self.draw_x = int(inst.draw_x)
         self.draw_y = int(inst.draw_y)
 

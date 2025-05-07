@@ -5,6 +5,8 @@ import uasyncio as asyncio
 from ucollections import namedtuple
 
 from fps_counter import FpsCounter
+from scaler.const import INK_BRIGHT_YELLOW
+from scaler.scaler_debugger import printc
 from sprites_old.sprite import Sprite
 import micropython
 from ssd1331_pio import SSD1331PIO
@@ -74,7 +76,7 @@ class Screen:
             self.update_loop(),
         )
 
-    async def start_fps_counter(self):
+    async def start_fps_counter(self, pool):
         await asyncio.sleep(5) # wait for things to stabilize before measuring FPS
 
         while True:
@@ -83,7 +85,8 @@ class Screen:
                 pass
             else:
                 fps_str = "{: >6.2f}".format(fps)
-                print(f"FPS: {fps_str}")
+                extra_text = pool.active_count
+                printc(f"FPS: {fps_str} // {extra_text:03.} SPRITES", INK_BRIGHT_YELLOW)
 
                 # # ColorWriter.set_textpos(self.display.write_framebuf, 0, 0)
                 # self.fps_text.row_clip = True

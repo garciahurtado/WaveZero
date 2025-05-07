@@ -117,22 +117,7 @@ class SpriteManager:
             del default_args['sprite_class']
 
         class_obj = sprite_class(**default_args)
-
-        # This will call the potentially overridden version (e.g., in SpriteManager3D)
-        loaded_frames = self.load_img_and_scale(class_obj, sprite_type)  # Rename variable
-
-        # Store the result (could be a list or single Image)
-        self.sprite_images[sprite_type] = loaded_frames  # Store the whole list/Image
-
-        # Get palette from the appropriate place (e.g., the first frame if it's a list)
-        first_img = loaded_frames[0] if isinstance(loaded_frames, list) else loaded_frames
-        if first_img:  # Check if loading succeeded
-            self.sprite_palettes[sprite_type] = first_img.palette
-            class_obj.palette = first_img.palette  # Also update meta palette
-            self.set_alpha_color(class_obj)
-        else:
-            print(f"Warning: Failed to load image/frames for type {sprite_type}")
-            # Handle error appropriately
+        self.renderer.add_type(sprite_type, class_obj)
 
         self.sprite_metadata[sprite_type] = class_obj
 
@@ -151,15 +136,6 @@ class SpriteManager:
 
     def rotate_sprite_palette(self, sprite, meta):
         sprite.color_rot_idx = (sprite.color_rot_idx + 1) % len(meta.rotate_palette)
-
-    # @timed
-    def do_blit(self, x: int, y: int, display: framebuf.FrameBuffer, frame, palette, alpha=None):
-        if alpha is not None:
-            display.blit(frame, x, y, alpha, palette)
-        else:
-            display.blit(frame, x, y, -1, palette)
-
-        return True
 
     # @timed
     def to_2d(self, x, y, z, vp_scale=1):
@@ -181,16 +157,6 @@ class SpriteManager:
         sprite_type = str(sprite_type)
         pal = self.sprite_palettes[sprite_type]
         return pal
-
-    def set_alpha_color(self, sprite_type: SpriteType):
-        """Get the value of the color to be used as an alpha channel when drawing the sprite
-        into the display framebuffer """
-
-        if sprite_type.alpha_index in(None, -1):
-            return False
-
-        alpha_color = sprite_type.palette.get_bytes(sprite_type.alpha_index)
-        sprite_type.alpha_color = alpha_color
 
     # @micropython.viper
     def get_frame_idx(self, scale:float, num_frames:int):

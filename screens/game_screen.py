@@ -90,8 +90,8 @@ class GameScreen(Screen):
         self.check_gc_mem()
         print("-- Creating Enemy Sprite Manager...")
 
-        renderer = RendererPrescaled(display)
-        # renderer = RendererScaler(display)
+        # renderer = RendererPrescaled(display)
+        renderer = RendererScaler(display)
 
         self.enemies = SpriteManager3D(
             display,
@@ -100,6 +100,10 @@ class GameScreen(Screen):
             camera=self.camera,
             grid=self.grid
         )
+
+        # @refactor
+        renderer.sprite_images = self.enemies.sprite_images
+        renderer.sprite_palettes = self.enemies.sprite_palettes
 
         # DEBUG
         # mp_dbg = Mpdb()
@@ -174,7 +178,7 @@ class GameScreen(Screen):
         self.input = make_input_handler(self.player)
 
         if self.fps_enabled:
-            self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
+            self.fps_counter_task = asyncio.create_task(self.start_fps_counter(self.enemies.pool))
 
         self.update_score_task = loop.create_task(self.mock_update_score())
 #        log_mem(f"game_screen_run_END")
