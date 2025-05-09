@@ -116,6 +116,7 @@ class SpriteScaler():
         """
         Draw a scaled sprite at the specified position.
         This method is synchronous (will not return until the whole sprite has been drawn)
+        Supports 16x16 and 32x32 px images only.
         """
         self.reset()
 
@@ -124,9 +125,9 @@ class SpriteScaler():
 
         """ Configure num of fractional bits for fixed point math """
         if sprite.width == 16:
-            self.frac_bits = 3 # Use x.y fixed point   (16x16)
+            self.frac_bits = 3      # Use x.y fixed point   (16x16)
         elif sprite.width == 32:
-            self.frac_bits = 4  # Use x.y fixed point (32x32)
+            self.frac_bits = 4      # Use x.y fixed point (32x32)
         else:
             print("ERROR: Max 32x32 Sprite allowed")
             sys.exit(1)

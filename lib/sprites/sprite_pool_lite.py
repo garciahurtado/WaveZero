@@ -9,7 +9,7 @@ from sprites.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE
 from uctypes import addressof, struct
 from scaler.const import DEBUG_POOL, INK_RED
 
-POOL_CHUNK_SIZE = 50
+POOL_CHUNK_SIZE = 16
 
 class PoolNode:
     """ Implements a linked list for easy iterating of the sprite pool """
@@ -34,6 +34,8 @@ class SpritePool:
     mgr = None
 
     def __init__(self, pool_size):
+        assert pool_size > 0, f"Unable to create a pool_size of size {pool_size}"
+
         self.pool_size = pool_size
         print(f"About to create sprite pool of {pool_size} (typeless)")
 

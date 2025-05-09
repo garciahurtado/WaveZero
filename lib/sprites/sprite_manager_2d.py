@@ -2,7 +2,8 @@ from framebuf import FrameBuffer
 
 from images.image_loader import ImageLoader
 from profiler import Profiler
-from scaler.const import DEBUG_PHYSICS
+from scaler.const import DEBUG_PHYSICS, DEBUG, INK_CYAN
+from scaler.scaler_debugger import printc
 from sprites.sprite_manager import SpriteManager
 from sprites.sprite_types import SpriteType as types, FLAG_PHYSICS, FLAG_ACTIVE, FLAG_VISIBLE
 
@@ -50,8 +51,12 @@ class SpriteManager2D(SpriteManager):
         return True
 
     def load_sprite_image(self, meta, sprite_type):
+        # DEPRECATED?
         """ Overrides parent to get rid of preloaded scaled sprite frames from v1. Eventually should be refactored back
          into SpriteManagerBase"""
+        if DEBUG:
+            printc(f"Loading image for sprite {sprite_type}", INK_CYAN)
+
         sprite_type = str(sprite_type)
         orig_img = ImageLoader.load_image(meta.image_path, meta.width, meta.height)
         if isinstance(orig_img, list):

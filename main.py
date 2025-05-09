@@ -12,9 +12,9 @@ from utime import sleep
 from screens.screen_app import ScreenApp
 from screens.game_screen import GameScreen
 from screens.game_screen_test import GameScreenTest
-from screens.title_screen import TitleScreen
-from screens.test_screen import TestScreen
-from screens.test_screen_starfield import TestScreenStarfield
+# from screens.title_screen import TitleScreen
+# from screens.test_screen import TestScreen
+# from screens.test_screen_starfield import TestScreenStarfield
 
 import machine
 micropython.alloc_emergency_exception_buf(100)
@@ -47,8 +47,8 @@ def main():
     app = ScreenApp(96, 64)
 
     # app.load_screen(TitleScreen(app.display))
-    app.load_screen(GameScreen(app.display))
-    # app.load_screen(GameScreenTest(app.display))
+    # app.load_screen(GameScreen(app.display))
+    app.load_screen(GameScreenTest(app.display))
     # app.load_screen(TestScreen(app.display))
     # app.load_screen(TestScreenStarfield(app.display))
 

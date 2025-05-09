@@ -13,10 +13,13 @@ class Renderer:
 
     def __init__(self, display):
         self.display = display
-        self.sprite_images = []
-        self.sprite_palettes = []
-        
+        # self.sprite_images = {}
+        # self.sprite_palettes = {}
+
     def load_img_and_scale(self, meta, sprite_type, prescale=True):
+        raise DeprecationWarning
+
+        """ This whole method should probably be in renderer_prescaled.py """
         sprite_type = str(sprite_type)
 
         orig_img = ImageLoader.load_image(
@@ -29,23 +32,25 @@ class Renderer:
         frames = []
         num_frames = meta.num_frames
 
-        if not prescale:
-            num_frames = 1
+        if prescale:
+            """ Prerender the scaled frames, if requested """
+            if DEBUG:
+                print(f"Creating {num_frames} prescaled frames")
 
-        if DEBUG:
-            print(f"Creating {num_frames} prescaled frames")
+            for f in range(1, num_frames):
+                """ Create prescaled frames from small(0.01%) to biggest (100%) """
+                scale = f / num_frames  # Avoid division by zero
 
-        for f in range(1, num_frames):
-            """ Create prescaled frames from small(0.01%) to biggest (100%) """
-            scale = f / num_frames  # Avoid division by zero
+                new_width = math.ceil(meta.width * scale)
+                new_height = math.ceil(meta.height * scale)
 
-            new_width = math.ceil(meta.width * scale)
-            new_height = math.ceil(meta.height * scale)
+                new_frame = self.scale_frame(orig_img, new_width, new_height, meta.color_depth)
+                frames.append(new_frame)
+        else:
+            if DEBUG:
+                print("Loaded single frame image")
 
-            new_frame = self.scale_frame(orig_img, new_width, new_height, meta.color_depth)
-            frames.append(new_frame)
-
-        frames.append(orig_img)  # Add original image as the last frame
+        frames.append(orig_img)  # Add original image as the last frame, idx=0 for single frame images
 
         """Do we need to add upscale frames? (scale > 1)"""
         if ((meta.stretch_width and meta.stretch_width > meta.width) or
@@ -74,11 +79,11 @@ class Renderer:
 
         return frames
 
-    def do_blit(self, x: int, y: int, display: FrameBuffer, frame, palette, alpha=None):
+    def do_blit(self, x: int, y: int, frame, palette, alpha=None):
         if alpha is not None:
-            display.blit(frame, x, y, alpha, palette)
+            self.display.blit(frame, x, y, alpha, palette)
         else:
-            display.blit(frame, x, y, -1, palette)
+            self.display.blit(frame, x, y, -1, palette)
 
         return True
 

@@ -50,7 +50,7 @@ class SpriteManager:
     draw: SpriteDraw = SpriteDraw()
     renderer = None
 
-    def __init__(self, display: ssd1331_pio, renderer, max_sprites=0, camera=None, grid=None):
+    def __init__(self, display: ssd1331_pio, renderer, max_sprites, camera=None, grid=None):
         self.display = display
         self.renderer = renderer
 
@@ -74,6 +74,8 @@ class SpriteManager:
     def add_type(self, **kwargs):
         """ SpriteType registry """
         sprite_type = str(kwargs['sprite_type'])
+
+        assert sprite_type, "Cannot add type without sprite_type"
 
         if DEBUG:
             printc(f"Adding new type {sprite_type}", INK_BLUE)
@@ -117,9 +119,8 @@ class SpriteManager:
             del default_args['sprite_class']
 
         class_obj = sprite_class(**default_args)
-        self.renderer.add_type(sprite_type, class_obj)
-
         self.sprite_metadata[sprite_type] = class_obj
+        # self.renderer.add_type(sprite_type, class_obj)
 
         """ set the default values that will be used when creating new instances (reset) """
         for key in default_args.keys():
