@@ -1,8 +1,10 @@
 import random
 
 from colors import color_util as colors
-from scaler.const import DEBUG
+from scaler.const import DEBUG, INK_GREEN
 from perspective_camera import PerspectiveCamera
+from scaler.scaler_debugger import printc
+from sprites.sprite_physics import SpritePhysics
 from sprites.types.warning_wall import WarningWall
 from sprites_old.sprite import Sprite
 
@@ -118,7 +120,7 @@ class GameScreenTest(Screen):
         start_time_ms = self.last_update_ms = utime.ticks_ms()
         self.last_perf_dump_ms = start_time_ms
 
-        print(f"--- (game screen) Update loop Start time: {start_time_ms}ms ---")
+        printc(f"--- (SCREEN) Update loop start time: {start_time_ms}ms ---", INK_GREEN)
 
         # update loop - will run until task cancellation
         try:
@@ -179,6 +181,7 @@ class GameScreenTest(Screen):
         scale_idx = 0
         for inst in self.inst_group:
             curr_scale = self.scale_list[scale_idx]
+            inst.draw_x, inst.draw_y = SpritePhysics.get_pos(inst)
             self.scaler.draw_sprite(
                 self.sprite_type, inst, self.image,
                 h_scale=curr_scale, v_scale=curr_scale)
@@ -227,7 +230,7 @@ class GameScreenTest(Screen):
         """ Inits the sprite instances, not the sprite types and images
         """
         running_ms = 0
-        print(f"Creating a group of {self.num_sprites}")
+        print(f"Creating a group of {self.num_sprites} sprites")
 
         for i in range(self.num_sprites):
             """ We give each sprite a slightly different 'birthday', so that the animation will place them in different

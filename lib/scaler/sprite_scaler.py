@@ -148,8 +148,6 @@ class SpriteScaler():
         # this only works for 2D sprites
         # inst.draw_x, inst.draw_y = SpritePhysics.get_draw_pos(inst, scaled_width, scaled_height)
 
-
-
         self.draw_x = int(inst.draw_x)
         self.draw_y = int(inst.draw_y)
 
