@@ -2,7 +2,6 @@ from micropython import const
 
 """ Debugging Constants """
 DEBUG =                     const(0)
-DEBUG_BUS_MONITOR =         const(0)
 DEBUG_LED =                 const(0)
 DEBUG_DISPLAY =             const(0)
 DEBUG_DMA =                 const(0)
@@ -18,7 +17,7 @@ DEBUG_PHYSICS =             const(0)
 DEBUG_PIO =                 const(0)
 DEBUG_PIXELS =              const(0)
 DEBUG_POOL =                const(0)
-DEBUG_SCALE_PATTERNS =      const(0)
+DEBUG_SCALES =              const(0)
 DEBUG_TICKS =               const(0)
 
 """

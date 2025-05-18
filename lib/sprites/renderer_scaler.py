@@ -18,7 +18,6 @@ class RendererScaler(Renderer):
     def add_type(self, sprite_type, class_obj):
         raise DeprecationWarning
 
-        sprite_type = str(sprite_type)
         loaded_frames = self.load_img_and_scale(class_obj, sprite_type, prescale=False)
 
         # Store the result (could be a list or single Image)
@@ -69,8 +68,6 @@ class RendererScaler(Renderer):
         # SpriteScaler needs a single FrameBuffer to scale.
         # We need to select the correct animation frame if the sprite is animated.
 
-        source_image_for_scaler = img_asset  # This is an Image object
-
         # SpriteScaler's draw_sprite expects:
         # draw_sprite(self, sprite_meta, instance, image_to_scale, h_scale, v_scale)
         # where image_to_scale is an Image object.
@@ -78,15 +75,18 @@ class RendererScaler(Renderer):
         # Note: inst.scale is the calculated 3D scale.
         # SpriteScaler likely applies this.
         # inst.draw_x, inst.draw_y are screen coordinates.
+        draw_scale = inst.scale
+        if draw_scale < 0.125:
+            draw_scale = 0.125
 
         # Handle sprite repeating (horizontal clones)
         if meta.repeats < 2:
             self.scaler.draw_sprite(
                 meta,
                 inst,
-                source_image_for_scaler,  # Pass the whole Image object
-                h_scale=inst.scale,  # Assuming inst.scale holds the desired final scale
-                v_scale=inst.scale
+                img_asset,
+                h_scale=draw_scale,  # Assuming inst.scale holds the desired final scale
+                v_scale=draw_scale
             )
         else:
             original_draw_x = inst.draw_x  # Save original for repeated sprites
@@ -106,7 +106,7 @@ class RendererScaler(Renderer):
                 # A better SpriteScaler API: draw_sprite(..., x, y, h_scale, v_scale)
 
                 # Assuming inst is a uctypes struct, its fields are writable.
-                current_draw_x = original_draw_x + (meta.repeat_spacing * inst.scale * i)
+                current_draw_x = original_draw_x + (meta.repeat_spacing * draw_scale * i)
 
                 # Temporarily set draw_x for this specific draw call if SpriteScaler uses inst.draw_x
                 # This is a conceptual adjustment. How it's done depends on SpriteScaler.
@@ -121,9 +121,9 @@ class RendererScaler(Renderer):
                 self.scaler.draw_sprite(
                     meta,
                     inst,
-                    source_image_for_scaler,
-                    h_scale=inst.scale,
-                    v_scale=inst.scale
+                    img_asset,
+                    h_scale=draw_scale,
+                    v_scale=draw_scale
                 )
             inst.draw_x = round(original_draw_x)  # Restore original draw_x
 

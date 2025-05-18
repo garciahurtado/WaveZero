@@ -106,7 +106,7 @@ class SpritePool:
             print(f"pool.get() - {len(self.all_indices)} ALL indices / free_count={self.free_count} ")
             print(f"next ready index will be {index} for sprite {sprite}")
 
-        sprite.sprite_type = int(sprite_type) # convert back to int
+        sprite.sprite_type = sprite_type
         sprite.current_frame = 0
 
         sprite.born_ms = int(utime.ticks_ms()) # reset creation timestamp

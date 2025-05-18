@@ -1,6 +1,9 @@
+import bisect
+import math
+
 from uarray import array
 
-from scaler.const import DEBUG_SCALE_PATTERNS, INK_RED
+from scaler.const import DEBUG_SCALES, INK_RED
 from scaler.scaler_debugger import printc
 
 
@@ -10,10 +13,11 @@ class ScalePatterns:
     """
     horiz_patterns = None
     scale_precision = 8
+    valid_scales = []
 
     def __init__(self):
         self.create_horiz_patterns()
-        if DEBUG_SCALE_PATTERNS:
+        if DEBUG_SCALES:
             self.print_patterns(0, len(self.horiz_patterns))
 
     def get_pattern(self, scale):
@@ -49,7 +53,12 @@ class ScalePatterns:
         # patterns_all = self.create_patterns(1, 16, step=0.5)
 
         self.horiz_patterns = patterns_all
+        self.valid_scales = sorted(list(self.horiz_patterns.keys()))
+
+        # self.test_find_closest()
+
         return self.horiz_patterns
+
 
     def create_patterns(self, from_scale, to_scale, step=0.125):
         pattern_list = {}
@@ -111,6 +120,40 @@ class ScalePatterns:
 
         print(str_out)
 
+    def find_closest_scale(self, input_scale: float) -> float:
+        """
+        Finds the closest valid scale to the input scale (assuming a sorted list of scales)
+        using binary search (bisect module).
+
+        The function first truncates the input to three decimal places
+        before finding the closest match.
+        """
+        valid_scales = self.valid_scales
+
+        # Truncate the input float to three decimal places
+        truncated_input = math.trunc(input_scale * 1000) / 1000
+
+        # Find the insertion point using bisect_left from your bisect.py
+        index = bisect.bisect_left(valid_scales, truncated_input)  #
+
+        # Handle edge cases:
+        if index == 0:
+            return valid_scales[0]
+        if index == len(valid_scales):
+            return valid_scales[-1]
+
+        # Compare with the element at valid_scales[index - 1] and valid_scales[index]
+        before = valid_scales[index - 1]
+        after = valid_scales[index]
+
+        diff_before = truncated_input - before
+        diff_after = after - truncated_input
+
+        if diff_before <= diff_after:
+            return before
+        else:
+            return after
+
     @staticmethod
     def pattern_to_array(pattern):
         """
@@ -123,3 +166,49 @@ class ScalePatterns:
             final_array[i] = int(pattern[i])
 
         return final_array
+
+    def test_find_closest(self):
+        # TESTING -----
+
+        test_inputs = [
+            0.05, 0.1, 0.125, 0.187, 0.1875, 0.188, 0.3, 0.9,
+            1, 1.0, 1.1, 1.125, 1.126, 1.9,
+            2, 2.0, 2.2, 2.25, 2.3,
+            4.7, 4.75, 4.8, 5, 5.0
+        ]
+        expected_results = {
+            0.05: 0.125, 0.1: 0.125, 0.125: 0.125, 0.187: 0.125, 0.1875: 0.125,
+            0.188: 0.25, 0.3: 0.25, 0.9: 0.875, 1: 1.0, 1.0: 1.0, 1.1: 1.0,
+            1.125: 1.0, 1.126: 1.25, 1.9: 2.0, 2: 2.0, 2.0: 2.0, 2.2: 2.0,
+            2.25: 2.0, 2.3: 2.5, 4.7: 4.5, 4.75: 4.5, 4.8: 5.0, 5: 5.0, 5.0: 5.0
+        }
+
+        results_table = []
+        results_table.append(
+            "| Input Scale | Truncated Input (in func) | Expected Result | Actual Python Output | Match? | Notes |")
+        results_table.append(
+            "| :---------- | :------------------------ | :-------------- | :------------------- | :----- | :---- |")
+
+        all_match = True
+
+        for test_input in test_inputs:
+            actual_output = self.find_closest_scale(test_input)
+            expected_output = expected_results[test_input]
+            truncated_inside_func = math.trunc(test_input * 1000) / 1000
+            match_status = "Yes" if actual_output == expected_output else "NO"
+            notes = ""
+            if actual_output != expected_output:
+                all_match = False
+                notes = f"Expected {expected_output}, Got {actual_output}"
+            results_table.append(
+                f"| {test_input:<11.4f} | {truncated_inside_func:<25.3f} | {expected_output:<15.3f} | {actual_output:<20.3f} | {match_status:<6} | {notes} |")
+
+        print("\nTest Results for find_closest_scale:\n")
+        for row in results_table:
+            print(row)
+
+        if all_match:
+            print("\nAll test cases match the expected results based on the code's logic.")
+        else:
+            print("\nSome test cases FAILED. Please review the table above.")
+

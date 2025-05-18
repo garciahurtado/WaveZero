@@ -7,5 +7,4 @@ class TestSkull(SpriteType):
     height = 16
     color_depth = 4
     alpha_color = 0x0
-
     dot_color = 0x0000FF

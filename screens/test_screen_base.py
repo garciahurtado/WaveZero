@@ -9,6 +9,7 @@ from font_writer_new import ColorWriter
 from screens.screen import Screen
 import framebuf
 
+from sprites.sprite_registry import registry
 from ssd1331_pio import SSD1331PIO
 
 class TestScreenBase(Screen):
@@ -86,12 +87,15 @@ class TestScreenBase(Screen):
             self.display.hline(0, height//2, width, self.grid_color)
             self.display.line(width//2, 0, width//2, height, self.grid_color)
 
-    def load_sprite(self, sprite_type):
+    def load_sprite(self, sprite_type, sprite_class):
         """ Creates images if not exist, returns meta"""
+        registry.add_type(
+            sprite_type,
+            sprite_class)
+
         self.sprite_type = sprite_type
-        self.sprite_meta = self.sprite = self.mgr.sprite_metadata[sprite_type]
-        self.sprite_palette = self.mgr.get_palette(sprite_type)
-        self.image = self.mgr.sprite_images[self.sprite_type][-1]
+        self.sprite_meta = self.sprite = registry.sprite_metadata[sprite_type]
+        self.image = registry.sprite_images[sprite_type]
         return self.sprite_meta
 
     def init_fps(self):

@@ -87,18 +87,18 @@ def process_data(data_chunk): # No frame_num needed
 
 # Example 2: Logging before and after a loop known to allocate
 def handle_incoming_requests(requests): # No frame_num needed
-#    log_mem("handle_requests_START")
+    log_mem("handle_requests_START")
     results = []
-#    log_mem("handle_requests_LOOP_BEFORE")
+    log_mem("handle_requests_LOOP_BEFORE")
     for i, req in enumerate(requests):
-        # log_mem(f"handle_requests_LOOP_ITER_{i}_START") # Optional
+        log_mem(f"handle_requests_LOOP_ITER_{i}_START") # Optional
         temp_data = {"id": i, "payload": list(req)}
         results.append(temp_data)
-        # log_mem(f"handle_requests_LOOP_ITER_{i}_END") # Optional
-#
+        log_mem(f"handle_requests_LOOP_ITER_{i}_END") # Optional
+
     log_mem("handle_requests_LOOP_AFTER")
     # ... potentially process results ...
-#    log_mem("handle_requests_END")
+    log_mem("handle_requests_END")
     return results
 
 # Example 3: Logging around potentially large allocations or resource use

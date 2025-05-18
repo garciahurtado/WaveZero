@@ -3,6 +3,8 @@ import math
 import framebuf  # Required for buffer_format constants if passed to scaler
 from images.image_loader import ImageLoader  # Ensure this path is correct
 from images.indexed_image import Image, create_image  # Ensure this path is correct
+from scaler.const import INK_YELLOW, DEBUG
+from scaler.scaler_debugger import printc
 from sprites.sprite_types import SpriteType  # Ensure this path is correct
 # Import the new, more efficient scaling function that returns a FrameBuffer
 from images.image_scaler import generate_scaled_framebuffer  # Make sure image_scaler.py has this function
@@ -33,12 +35,12 @@ class SpriteRegistry:
         Registers a sprite type by extracting 'sprite_type' (type_id) and
         'sprite_class' from kwargs. Instantiates 'sprite_class' with remaining
         kwargs and loads assets.
-        'prescale' defaults to False.
         """
+        if DEBUG:
+            printc(f"{sprite_class} sprite registered as ID: {type_id}", INK_YELLOW)
 
         # Remaining kwargs are override_kwargs for the sprite_class constructor
         override_kwargs = kwargs
-
         if not isinstance(sprite_class, type) or not issubclass(sprite_class, SpriteType):
             raise TypeError(f"sprite_class argument must be a class derived from SpriteType. Got: {sprite_class}")
 

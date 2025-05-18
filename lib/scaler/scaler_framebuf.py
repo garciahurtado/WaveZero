@@ -8,7 +8,7 @@ from scaler.const import DEBUG, DEBUG_DISPLAY, DEBUG_DMA_ADDR
 from utils import aligned_buffer
 
 
-class ScalerFramebuf():
+class ScalerFramebuf:
     """
     Manages the various framebuffers used for rendering of scaled sprites.
     """
@@ -97,10 +97,9 @@ class ScalerFramebuf():
         return new_buff
 
     def select_buffer(self, scaled_width, scaled_height):
-
-
         """
-        We implement transparency by first drawing the sprite on a scratch framebuffer.
+        We implement transparency by first drawing the sprite on a scratch framebuffer, and then using the first color
+        index as alpha on the blitting to the final framebuf.
         There are several sizes to optimize this process.
 
         Here we pick the right framebuffer based on the scaled sprite dimensions
@@ -136,26 +135,15 @@ class ScalerFramebuf():
         self.display_stride = self.frame_width * 2
         self.frame_bytes = self.display_stride * self.frame_height
 
-
         dma:DMAChain = self.scaler.dma
         if DEBUG_DMA_ADDR:
             print(f"............................................")
             print(f":  In scaler_framebuf.select_buffer        :")
             print(f"............................................")
-            print(f"    WRITE ADDRs ARRAY @:0x{addressof(dma.write_addrs):08x}")
-            print(f"    WRITE ADDR 1st:     0x{dma.write_addrs[0]:08x}")
-            print(f"    WRITE ADDR last:    0x{dma.write_addrs[-1]:08x}")
-            print(f"    WRITE ADDR COUNT:   {dma.max_write_addrs} ")
-            print()
-            print(f"    READ ADDRs ARRAY @:0x{addressof(dma.read_addrs):08x} ")
-            print(f"    READ ADDR 1st:     0x{dma.read_addrs[0]:08x} ")
-            print(f"    READ ADDR last:    0x{dma.read_addrs[-1]:08x} ")
-            print(f"    READ ADDR COUNT:   {dma.max_read_addrs} ")
-            print()
-            print(f"    FINAL IMG w/h:      {scaled_width} x {scaled_height} ({scaled_width * scaled_height})")
-            print(f"    FRAMEB w/h:         {self.frame_width} x {self.frame_height}  ({self.frame_width * self.frame_height})")
-            print(f"    SELECTED FB STRIDE: {self.display_stride} bytes")
-            print(f"    FRAME TOTAL BYTES:  {self.frame_bytes} bytes")
+            print(f"    FINAL IMG w/h:              {scaled_width} x {scaled_height} ({scaled_width * scaled_height})")
+            print(f"    SELECTED FB w/h:            {self.frame_width} x {self.frame_height}  ({self.frame_width * self.frame_height})")
+            print(f"    SELECTED FB WRITE STRIDE:   {self.display_stride} bytes")
+            print(f"    FRAME TOTAL BYTES:          {self.frame_bytes} bytes")
 
     def blit_with_alpha(self, x, y, alpha):
         """ Copy the sprite from the "scratch" framebuffer to the final one in the display.

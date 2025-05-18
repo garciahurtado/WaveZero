@@ -9,10 +9,14 @@ import math
 import random
 
 from input import game_input
+from scaler.const import DEBUG
 from screens.screen import PixelBounds
 
 from scaler.sprite_scaler import SpriteScaler
 from screens.test_screen_base import TestScreenBase
+from sprites.renderer_scaler import RendererScaler
+from sprites.sprite_manager_3d import SpriteManager3D
+from sprites.sprite_registry import registry
 from sprites.types.cherries_16 import Cherries16
 from sprites.types.gameboy import GameboySprite
 from sprites.types.test_pyramid import TestPyramid
@@ -168,60 +172,67 @@ class TestScreen(TestScreenBase):
             0xFF00FF,  # Magenta
         ]
 
-    def create_sprite_manager(self, num_sprites=0):
-        self.check_gc_mem()
+    def create_sprite_manager(self, num_sprites, renderer):
         print("-- Creating Sprite Manager...")
+
+        self.scaler = renderer.scaler
         self.max_sprites = num_sprites
-        self.mgr = SpriteManager2D(self.display, self.max_sprites)
+        self.mgr = SpriteManager2D(self.display, renderer, self.max_sprites)
+
+        # self.mgr = SpriteManager3D(
+        #     self.display,
+        #     renderer,
+        #     max_sprites=self.max_sprites,
+        #     camera=self.camera,
+        # )
         return self.mgr
 
     def run(self):
         self.running = True
+        # self.load_types()
         self.init_common()
-        self.load_types()
 
         test = 'zoom_heart'
-        self.check_gc_mem()
         method = None
 
         # self.create_line_colors()
 
         if test == 'zoom_heart':
-            self.load_sprite(SPRITE_TEST_HEART)
+            # self.sprite_type =
+            self.load_sprite(SPRITE_TEST_HEART, TestHeart)
             self.init_beating_heart()
             method = self.do_refresh_zoom_in
         elif test == 'zoom_sq':
-            self.load_sprite(SPRITE_TEST_SQUARE)
+            self.load_sprite(SPRITE_TEST_SQUARE, TestSquare)
             self.init_beating_heart()
             method = self.do_refresh_zoom_in
         if test == 'scale_control':
-            self.load_sprite(SPRITE_TEST_HEART)
+            self.load_sprite(SPRITE_TEST_HEART, TestHeart)
             self.init_score()
             self.init_scale_control()
             method = self.do_refresh_scale_control
         elif test == 'grid1':
             self.color_demo = False
-            self.load_sprite(SPRITE_TEST_HEART)
+            self.load_sprite(SPRITE_TEST_HEART, TestHeart)
             self.init_grid()
             method = self.do_refresh_grid
         elif test == 'grid2':
-            self.load_sprite(SPRITE_GAMEBOY)
+            self.load_sprite(SPRITE_GAMEBOY, GameboySprite)
             self.init_grid()
             method = self.do_refresh_grid
         elif test == 'grid3':
-            self.load_sprite(SPRITE_TEST_SKULL)
+            self.load_sprite(SPRITE_TEST_SKULL, TestSkull)
             self.init_grid()
             method = self.do_refresh_grid
         elif test == 'clipping':
-            self.load_sprite(SPRITE_CHERRIES)
+            self.load_sprite(SPRITE_CHERRIES, Cherries16)
             self.init_clipping()
             method = self.do_refresh_clipping
-        else:
-            raise Exception(f"Invalid method: {method}")
+        # else:
+        #     print(f"TEST WAS {test}")
+        #     raise Exception(f"Invalid method: {method}")
 
         self.refresh_method = getattr(self, method.__name__, None)
-
-        self.check_gc_mem()
 
         if self.fps_enabled:
             self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
@@ -230,7 +241,6 @@ class TestScreen(TestScreenBase):
 
     async def start_main_loop(self):
         print(f"-- ... MAIN LOOP STARTING ON THREAD #{_thread.get_ident()} ... --")
-        self.check_gc_mem()
 
         """ All top level tasks / threads go here. Once all of these finish, the program ends"""
         await asyncio.gather(
@@ -265,13 +275,14 @@ class TestScreen(TestScreenBase):
 
     def init_common(self, num_sprites=1):
         self.max_sprites = num_sprites
-        self.mgr = self.create_sprite_manager(num_sprites)
+        renderer = RendererScaler(self.display)
+        self.mgr = self.create_sprite_manager(num_sprites, renderer)
+
         self.phy = self.mgr.phy
         if prof and prof.enabled:
             prof.fps = self.fps
 
     def init_grid(self):
-        self.inst, idx = self.mgr.pool.get(self.sprite_type, self.sprite)
         # self.sprite = self.mgr.get_meta(self.inst)
 
         sprite_width = self.sprite.width
@@ -332,7 +343,7 @@ class TestScreen(TestScreenBase):
 
     def init_beating_heart(self):
         # self.sprite = self.mgr.get_meta(self.sprite)
-        self.image = self.mgr.sprite_images[self.sprite_type][-1]
+        self.inst, idx = self.mgr.pool.get(self.sprite_type)
 
         h_scales1 = list(self.all_scales.keys())
         h_scales1.sort()
@@ -458,6 +469,7 @@ class TestScreen(TestScreenBase):
 
         h_scale = self.h_scales[self.scale_id % len(self.h_scales)]
         v_scale = h_scale
+        h_scale = v_scale = 1 # DEBUG!!
 
         sprite_scaled_width = self.sprite.width * h_scale
         sprite_scaled_height = self.sprite.height * v_scale
@@ -468,7 +480,7 @@ class TestScreen(TestScreenBase):
         draw_x = (display_width / 2) - (sprite_scaled_width / 2)
         draw_y = (display_height / 2) - (sprite_scaled_height / 2)
 
-        if self.scaler.debug:
+        if DEBUG:
             print("IN SCREEN about to draw_sprite:")
             print(f"  v_scale: {v_scale}")
             print(f"  h_scale: {h_scale}")
@@ -668,33 +680,33 @@ class TestScreen(TestScreenBase):
         self.last_tick = utime.ticks_ms()
 
     def load_types(self):
-        self.mgr.add_type(
-            sprite_type=SPRITE_TEST_HEART,
-            sprite_class=TestHeart)
+        registry.add_type(
+            SPRITE_TEST_HEART,
+            TestHeart)
 
-        self.mgr.add_type(
-            sprite_type=SPRITE_TEST_SQUARE,
-            sprite_class=TestSquare)
+        registry.add_type(
+            SPRITE_TEST_SQUARE,
+            TestSquare)
 
-        self.mgr.add_type(
-            sprite_type=SPRITE_TEST_GRID,
-            sprite_class=TestGrid)
+        registry.add_type(
+            SPRITE_TEST_GRID,
+            TestGrid)
 
-        self.mgr.add_type(
-            sprite_type=SPRITE_TEST_PYRAMID,
-            sprite_class=TestPyramid)
+        registry.add_type(
+            SPRITE_TEST_PYRAMID,
+            TestPyramid)
 
-        self.mgr.add_type(
-            sprite_type=SPRITE_GAMEBOY,
-            sprite_class=GameboySprite)
+        registry.add_type(
+            SPRITE_GAMEBOY,
+            GameboySprite)
 
-        self.mgr.add_type(
-            sprite_type=SPRITE_CHERRIES,
-            sprite_class=Cherries16)
+        registry.add_type(
+            SPRITE_CHERRIES,
+            Cherries16)
 
-        self.mgr.add_type(
-            sprite_type=SPRITE_TEST_SKULL,
-            sprite_class=TestSkull)
+        registry.add_type(
+            SPRITE_TEST_SKULL,
+            TestSkull)
 
     def show_lines(self):
         for line in self.lines:

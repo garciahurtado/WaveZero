@@ -12,6 +12,7 @@ from scaler.scaler_debugger import printc
 from sprites.sprite_draw import SpriteDraw
 from sprites.sprite_manager import SpriteManager
 from sprites.sprite_physics import SpritePhysics
+from sprites.sprite_registry import registry
 from sprites.sprite_types import SpriteType, FLAG_PHYSICS
 from sprites.sprite_types import SpriteType as types
 from sprites.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE, FLAG_BLINK, FLAG_BLINK_FLIP
@@ -167,7 +168,7 @@ class SpriteManager3D(SpriteManager):
         if self.sprite_actions:
 
             for sprite_type in self.sprite_actions.keys():
-                inst = self.sprite_inst[str(sprite_type)]
+                inst = self.sprite_inst[sprite_type]
                 actions = self.sprite_actions.for_sprite(sprite_type)
                 for action in actions:
                     func = getattr(self.sprite_actions, __name__)
@@ -182,10 +183,10 @@ class SpriteManager3D(SpriteManager):
     # @timed
     def show_sprite(self, sprite, display: framebuf.FrameBuffer):
         """ Use the renderer to draw a single sprite on the display (or several, if multisprites)"""
-        sprite_type = str(sprite.sprite_type)
-        meta = self.sprite_metadata[sprite_type]
-        images = self.sprite_images[sprite_type]
-        palette: FramebufferPalette = self.sprite_palettes[sprite_type]
+        sprite_type = sprite.sprite_type
+        meta = registry.sprite_metadata[sprite_type]
+        images = registry.sprite_images[sprite_type]
+        palette: FramebufferPalette = registry.sprite_palettes[sprite_type]
 
         if types.get_flag(sprite, FLAG_BLINK):
             blink_flip = types.get_flag(sprite, FLAG_BLINK_FLIP)
@@ -200,19 +201,21 @@ class SpriteManager3D(SpriteManager):
         "Spawn" a new sprite. In reality, we are just grabbing one from the pool of available sprites via get() and
         activating it.
         """
-        sprite_type = str(sprite_type) # Dict keys are strings, not the int that comes from the sprite_type constant
-        if sprite_type not in self.sprite_metadata.keys():
-            print(list(self.sprite_metadata.keys()))
+        if sprite_type not in registry.sprite_metadata.keys():
+            if DEBUG:
+                printc("LIST OF KNOWN SPRITE KEYS:")
+                print(list(registry.sprite_metadata.keys()))
+
             raise IndexError(f"Unknown Sprite Type {sprite_type}")
 
-        meta = self.sprite_metadata[sprite_type]
+        meta = registry.sprite_metadata[sprite_type]
 
         # new_sprite.x = new_sprite.y = new_sprite.z = 0
         new_sprite, idx = self.pool.get(sprite_type)
         self.phy.set_pos(new_sprite, 50, 24)
 
         # Set default dimensions from the metadata *before* applying kwargs
-        meta = self.sprite_metadata[sprite_type]  # Ensure meta is fetched if not already
+        meta = registry.sprite_metadata[sprite_type]  # Ensure meta is fetched if not already
         if hasattr(meta, 'width'):
             new_sprite.frame_width = meta.width
         if hasattr(meta, 'height'):
@@ -233,13 +236,13 @@ class SpriteManager3D(SpriteManager):
         new_sprite.sprite_type = int(sprite_type)
 
         """ Load image and create scaling frames """
-        if sprite_type not in self.sprite_images.keys():
-            print(f"First Sprite of Type: {sprite_type} - creating scaled images")
-
-            # Choose one depending on the renderer used
-            # new_img = self.load_img_and_scale(meta, sprite_type, prescale=True)
-            new_img = self.load_img_and_scale(meta, sprite_type, prescale=True)
-            self.sprite_images[sprite_type] = new_img
+        # if sprite_type not in self.sprite_images.keys():
+        #     print(f"First Sprite of Type: {sprite_type} - creating scaled images")
+        #
+        #     # Choose one depending on the renderer used
+        #     # new_img = self.load_img_and_scale(meta, sprite_type, prescale=True)
+        #     new_img = self.load_img_and_scale(meta, sprite_type, prescale=True)
+        #     self.sprite_images[sprite_type] = new_img
 
         types.set_flag(new_sprite, FLAG_ACTIVE)
         types.set_flag(new_sprite, FLAG_VISIBLE)
@@ -276,8 +279,6 @@ class SpriteManager3D(SpriteManager):
         idx = self.pool.release(inst, sprite)
 
     def add_inst(self, new_sprite, sprite_type, idx):
-        sprite_type = str(sprite_type)
-
         if sprite_type not in self.sprite_inst.keys():
             self.sprite_inst[sprite_type] = []
 

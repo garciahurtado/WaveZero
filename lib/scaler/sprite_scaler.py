@@ -14,7 +14,7 @@ from scaler.const import DEBUG, DEBUG_DMA, DEBUG_INST, INTERP0_POP_FULL, INTERP1
     INTERP1_ACCUM1, INTERP1_BASE1, INTERP1_BASE2, DEBUG_INTERP, INTERP1_CTRL_LANE1, INTERP0_BASE1, INTERP0_ACCUM0, \
     INTERP0_ACCUM1, DEBUG_DISPLAY, DEBUG_TICKS, \
     DEBUG_PIXELS, \
-    INK_GREEN, INK_CYAN
+    INK_GREEN, INK_CYAN, DEBUG_SCALES
 from sprites.sprite_physics import SpritePhysics
 
 from images.indexed_image import Image
@@ -30,13 +30,18 @@ from scaler.scaler_debugger import printc
 class SpriteScaler():
     def __init__(self, display):
 
-        # NULL trigger buffer should be 2 words wide, since the px_read CH will try read 2 words for a 16px sprite
-        self.null_trig_inv_buf = bytearray([255] * 8) # ie: 0xFFFFFFFF x2
+        # NULL trigger buffer should be 2 words wide, for both 16x16 and 32x32 sprites, since it is the width of the
+        # receiving DMA channel
+        self.null_trig_inv_buf = bytearray([255] * 16) # ie: 0xFFFFFFFF x2
         self.null_trig_inv_addr = addressof(self.null_trig_inv_buf)
 
         self.leds = get_status_led_obj()
         self.skip_rows = 0
         self.skip_cols = 0
+
+        self.max_write_addrs = 0
+        self.max_read_addrs = 0
+        self.int_bits = 0
 
         self.display: SSD1331PIO = display
         self.framebuf: ScalerFramebuf = ScalerFramebuf(self, display)
@@ -85,6 +90,8 @@ class SpriteScaler():
 
     # @micropython.viper
     def fill_addrs(self, scaled_height: int, h_scale, v_scale):
+        """ Interpolator must have already been configured for this method to work, with init_interp_sprite()
+        or init_interp_lanes(), since it pulls the addresses from the interp."""
 
         # Get array pointers
         read_addrs: [int] = self.dma.read_addrs     # blank array we are about to fill
@@ -103,14 +110,15 @@ class SpriteScaler():
 
         self.dma.read_addrs[row_id] = self.null_trig_inv_addr  # This "reverse NULL trigger" will make the SM stop. This is the address where the value lives
         self.dma.write_addrs[row_id] = new_write            # this doesnt matter, but just in case, so that px_write doesnt write to the display
+        # self.dma.write_addrs[row_id] = 0x00000000            # this doesnt matter, but just in case, so that px_write doesnt write to the display
 
-        if DEBUG_DMA_ADDR:
-            for row_id in range(max_read_addrs + 2):
-                read_addr = self.dma.read_addrs[row_id]
-                write_addr = self.dma.write_addrs[row_id]
-                print(f">>> [{row_id:02.}] R: 0x{read_addr:08X}")
-                print(f">>> [{row_id:02.}] W: 0x{write_addr:08X}")
-                print("-------------------------")
+        # if DEBUG_DMA_ADDR:
+        #     for row_id in range(max_read_addrs):
+        #         read_addr = self.dma.read_addrs[row_id]
+        #         write_addr = self.dma.write_addrs[row_id]
+        #         print(f">>> [{row_id:02.}] R: 0x{read_addr:08X}")
+        #         print(f">>> [{row_id:02.}] W: 0x{write_addr:08X}")
+        #         print("-------------------------")
 
     def draw_sprite(self, sprite:SpriteType, inst, image:Image, h_scale=1.0, v_scale=1.0):
         """
@@ -118,7 +126,13 @@ class SpriteScaler():
         This method is synchronous (will not return until the whole sprite has been drawn)
         Supports 16x16 and 32x32 px images only.
         """
+        if not h_scale or not v_scale :
+            raise AttributeError("Both v_scale and h_scale must be non-zero")
         self.reset()
+
+        """ Snap the input scale to one of the valid scale patterns """
+        new_scale = self.dma.patterns.find_closest_scale(h_scale)
+        h_scale = v_scale = new_scale # we dont support independent v_scale yet because the sprite struct doesnt have the field
 
         self.alpha = sprite.alpha_color
         self.dma.palette_finished = False
@@ -129,21 +143,17 @@ class SpriteScaler():
         elif sprite.width == 32:
             self.frac_bits = 4      # Use x.y fixed point (32x32)
         else:
-            print("ERROR: Max 32x32 Sprite allowed")
+            print(f"Only 16x16 or 32x32 sprites allowed, not {sprite.width}x{sprite.height}")
             sys.exit(1)
 
-        self.int_bits = 32 - self.frac_bits
+        # self.int_bits = 32 - self.frac_bits
 
         scaled_height = int(sprite.height * v_scale)
         scaled_width = int(sprite.width * h_scale)
 
-        if DEBUG:
-            print( "------** SCALED DIMS **------")
+        if DEBUG_SCALES:
+            print(f"------** SCALED DIMS FOR {type(sprite)} @ x{h_scale}**------")
             print(f"  {scaled_width}px x {scaled_height}px (w/h)")
-
-        self.scaled_height = scaled_height
-        self.scaled_width = scaled_width
-        self.framebuf.select_buffer(scaled_width, scaled_height)
 
         # this only works for 2D sprites
         # inst.draw_x, inst.draw_y = SpritePhysics.get_draw_pos(inst, scaled_width, scaled_height)
@@ -154,6 +164,10 @@ class SpriteScaler():
         if DEBUG_DISPLAY:
             print(f"ABOUT TO DRAW a Sprite on x,y: {self.draw_x},{self.draw_y} @ H: {h_scale}x / V: {v_scale}x")
 
+        self.framebuf.select_buffer(scaled_width, scaled_height)
+        self.scaled_height = scaled_height
+        self.scaled_width = scaled_width
+
         """ Config interpolator """
         self.base_read = addressof(image.pixel_bytes)
         self.init_interp_sprite(sprite.width, h_scale, v_scale)
@@ -162,8 +176,21 @@ class SpriteScaler():
             print(f"PIXEL_BYTES BASE_READ: 0x{self.base_read:08X}")
             print(f"(width: {sprite.width}, hscale: {h_scale} , vscale:{v_scale})")
 
-
         self.fill_addrs(scaled_height, h_scale, v_scale)
+
+        if DEBUG_DMA_ADDR:
+            print(f"............................................")
+            print(f":  In draw_sprite                      :")
+            print(f"............................................")
+            print(f"    WRITE ADDRs ARRAY @:0x{addressof(self.dma.write_addrs):08x}")
+            print(f"    WRITE ADDR 1st:     0x{self.dma.write_addrs[0]:08x}")
+            print(f"    WRITE ADDR last:    0x{self.dma.write_addrs[-1]:08x}")
+            print(f"    WRITE ADDR COUNT:   {self.dma.max_write_addrs} ")
+            print()
+            print(f"    READ ADDRs ARRAY @:0x{addressof(self.dma.read_addrs):08x} ")
+            print(f"    READ ADDR 1st:     0x{self.dma.read_addrs[0]:08x} ")
+            print(f"    READ ADDR last:    0x{self.dma.read_addrs[-1]:08x} ")
+            print(f"    READ ADDR COUNT:   {self.dma.max_read_addrs} ")
 
         if DEBUG_INST:
             coords = SpritePhysics.get_pos(inst)
@@ -179,7 +206,6 @@ class SpriteScaler():
             print(f"\t Sprite Stride (bytes): {sprite.width//2}")
             print(f"\t Display Stride (fb): { self.framebuf.display_stride}")
 
-
         palette_addr = addressof(image.palette.palette)
         self.init_pio(palette_addr)
         self.palette_addr = palette_addr
@@ -187,10 +213,10 @@ class SpriteScaler():
 
         self.start()
 
-        while not (self.sm_finished):
+        while not self.sm_finished:
             utime.sleep_ms(1)
 
-        while not (self.dma.h_scale_finished):
+        while not self.dma.h_scale_finished:
             utime.sleep_ms(1)
 
         self.finish_sprite(image)
@@ -249,10 +275,11 @@ class SpriteScaler():
             print("  ~~~~~~~~~~~~~~~~~~~~~~~~")
 
     def init_interp(self):
-        """ One time INTERPOLATOR configuration """
-        """ (read / write address generation) """
+        """
+        Base rp2 interpolator configuration, used for read and write address generation. Should only be needed once
+        """
 
-        # INTERP0: Sequential Write address generation
+        # INTERP0: WRITE address generation (to framebuf)
         write_ctrl_config = (
                 (0 << 0) |  # No shift needed for write addresses
                 (0 << 5) |  # No mask needed
@@ -263,7 +290,7 @@ class SpriteScaler():
         mem32[INTERP0_CTRL_LANE1] = write_ctrl_config
         mem32[INTERP0_BASE0] = 0  # Base address component
 
-        # INTERP1: Read address generation with scaling
+        # INTERP1: READ address generation (controls vertical scaling)
         read_ctrl_lane0 = (
                 (0 << 0) |  # No shift on accumulator/raw value
                 (0 << 15) |  # No sign extension
@@ -277,9 +304,13 @@ class SpriteScaler():
         mem32[INTERP1_ACCUM1] = 0
 
     def init_interp_sprite(self, sprite_width:int, h_scale = 1.0, v_scale= 1.0):
+        """
+        Interpolator configuration that is specific to this sprite, runs every time draw_sprite is called
+        """
         assert sprite_width > 0 and h_scale != 0 and v_scale != 0, "Invalid params to init_interp_sprite()!"
 
         frac_bits = self.frac_bits
+
         framebuf = self.framebuf
         write_base = self.framebuf.min_write_addr
 
@@ -289,22 +320,25 @@ class SpriteScaler():
         """ HANDLE BOUNDS CHECK / CROPPING ------------------------  """
         self.interp_clip(sprite_width, h_scale, v_scale)
 
-        """ Lane 1 config - handles integer extraction - must be reconfigured because it depends on self.frac_bits """
+        """ LANE 1 config - handles write addresses  """
         self.init_interp_lanes(frac_bits, int(sprite_width), framebuf.display_stride, write_base)
 
         # Configure remaining variables
         fixed_step = self.init_convert_fixed_point(sprite_width, v_scale)
-        mem32[INTERP1_BASE1] = int(fixed_step)
+        fixed_step = int(fixed_step)
+        mem32[INTERP1_BASE1] = fixed_step # step in fixed point notation
         mem32[INTERP1_BASE2] = self.base_read  # Base sprite read address
 
         if DEBUG_INTERP:
-            print(f"INTERP: init_interp_sprite: INTERP1_BASE1: 0x{mem32[INTERP1_BASE1]:08X}")
-            print(f"INTERP: init_interp_sprite: INTERP1_BASE2: 0x{mem32[INTERP1_BASE2]:08X}")
-
-        if DEBUG_INTERP:
-            print(f"INTERP sprite_width: {sprite_width}")
-            print(f"INTERP fixed_step: {int(fixed_step)}")
-            print(f"INTERP base_read: {int(self.base_read):08X}")
+            print("- INTERPOLATOR CONFIG -")
+            print(f"\tinit_interp_sprite: INTERP1_BASE2:  0x{mem32[INTERP1_BASE2]:08X} - (base read)")
+            print(f"\tinit_interp_sprite: INTERP1_BASE1:  0x{mem32[INTERP1_BASE1]:08X} - (read step)")
+            print(f"\tbase_read:            0x{self.base_read:08X} - INTERP1_BASE2")
+            print(f"\tread_fixed_step:      0x{fixed_step:08x} - INTERP1_BASE1")
+            print(f"\tread_fixed_step (b):  {fixed_step:032b}")
+            print(f"\tread_fixed_step (d):  {fixed_step}")
+            print(f"\tsprite_width:         {sprite_width}")
+            print(f"\tv_scale:              {v_scale}")
 
     def interp_clip(self, sprite_width, x_scale, y_scale):
         """ Handles the clipping of very large sprites so that they can be rendered.
@@ -384,20 +418,37 @@ class SpriteScaler():
             print(f" _  max_read_addrs:  {self.max_read_addrs}")
             print(f" _  PIXEL_BYTES BASE_READ: 0x{self.base_read:08X}")
 
-    # @micropython.viper
-    def init_convert_fixed_point(self, sprite_width, scale_of_one):
-        fixed_step = int((sprite_width << self.frac_bits) / (scale_of_one * 2))  # Convert to fixed point directly
 
+    # @micropython.viper
+    def init_convert_fixed_point(self, sprite_width, scale_y):
+        """Calculate step between source rows in fixed-point."""
+        fixed_step = int((sprite_width << self.frac_bits) / (scale_y * 2))
+        fixed_step = fixed_step if (fixed_step % 2 == 0) else fixed_step - 1
         return fixed_step
 
-    @micropython.viper
+    # @micropython.viper
     def init_interp_lanes(self, frac_bits:int, int_bits:int, display_stride:int, write_base:int):
+        """
+        Configures interp to generate write addresses
+        """
         assert display_stride != 0 and write_base != 0, "Invalid params to init_interp_lanes!"
+
+        int_bits = 32 - frac_bits
+        # int_bits is a little temperamental here:
+        # int_bits = 32           # no for 16x16  / stretched 32x32 (all yellow)
+        # int_bits = 31            # no for 16x16  / not 32x32
+        # int_bits = 30         # no for 16x16  / not 32x32
+        # int_bits = 29         # works for 16x16  / 32x32 slight glitch (only on some scales, others render perfect)
+        # int_bits = 28         # NOT for 16x16 / 32x32 works 100%
+        # int_bits = 27         # works for 16x16 / not 32x32
+
+        # results above are for frac bits: 3 (16x) and 4(32x), using 3 or below for 32x produces visual glitches,
+        # using 5 or above, freezes up DMA
 
         read_ctrl_lane1 = (
                 (frac_bits << 0) |  # Shift right to get integer portion
                 (frac_bits << 5) |  # Start mask at bit 0
-                (int_bits << 10) |  # Full 32-bit mask to preserve address
+                (int_bits << 10) |  # Full 32-bit mask to preserve address (???)
                 (0 << 15) |  # No sign extension
                 (1 << 18)  # ADD_RAW - Enable raw accumulator addition
         )
@@ -406,6 +457,11 @@ class SpriteScaler():
         # For write addresses we want: BASE0 + ACCUM0
         mem32[INTERP0_BASE1] = display_stride  # Per Row increment. Increasing beyond stride can be used to skew sprites.
         mem32[INTERP0_ACCUM0] = write_base  # Starting address
+
+        if DEBUG_INTERP:
+            print(f"CONFIGURED LANES WITH:")
+            print(f"    WRITE BASE:     0x{write_base:08x}")
+            print(f"    WRITE STRIDE:   0x{display_stride:08x}")
 
     def reset(self):
         """Clean up resources before a new run"""

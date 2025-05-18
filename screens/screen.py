@@ -76,12 +76,12 @@ class Screen:
             self.update_loop(),
         )
 
-    async def start_fps_counter(self, pool):
-        await asyncio.sleep(5) # wait for things to stabilize before measuring FPS
+    async def start_fps_counter(self, pool=None):
+        await asyncio.sleep(5)  # wait for things to stabilize before measuring FPS
 
         while True:
             fps = self.fps.fps()
-            if fps is False:
+            if not fps or not pool:
                 pass
             else:
                 fps_str = "{: >6.2f}".format(fps)

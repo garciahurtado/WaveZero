@@ -31,13 +31,15 @@ from micropython import const
 
 from utils import pprint, pprint_pure
 
-CURRENT_SPRITE = SPRITE_TEST_SKULL
+SPRITE_FOR_CIRCLE = SPRITE_TEST_SKULL
+# SPRITE_FOR_CIRCLE = SPRITE_BARRIER_LEFT
 
 class GameScreenTest(Screen):
     ground_speed: 0
     max_ground_speed: int = const(-700)
-    max_sprites: int = 32 # for the sprite pool
-    num_sprites: int = 16 # for the circle
+    max_sprites: int = 24               # for the sprite pool
+    num_circle_sprites: int = 12         # for the circle animation
+    max_scale = num_circle_sprites
 
     grid: RoadGrid = None
     sun: Sprite = None
@@ -56,7 +58,7 @@ class GameScreenTest(Screen):
     ui = None
     frames_elapsed = 0
     fps_enabled = True
-    is_first = True # so that we only use the scaler on frame 2+
+    is_first = True     # so that we only use the scaler on frame 2+
     inst_group = []
 
     def __init__(self, display, *args, **kwargs):
@@ -80,21 +82,31 @@ class GameScreenTest(Screen):
 
         self.init_sprite_images()
         self.init_sprites(display)
+        self.inst1, idx = self.mgr.pool.get(SPRITE_FOR_CIRCLE)
+        self.inst2, idx = self.mgr.pool.get(SPRITE_TEST_SKULL)
 
         # self.mgr = SpriteManager2D(self.display, renderer, self.max_sprites) # max sprites
 
         patterns = self.scaler.dma.patterns.horiz_patterns
         pattern_keys = list(patterns.keys())
         pattern_keys.sort()
-        short_keys = pattern_keys[0:16]
-        self.scale_list = short_keys
-        self.scale_list.reverse()
+        short_keys = pattern_keys[0:self.max_scale]
 
-        self.sprite_type = registry.sprite_metadata[CURRENT_SPRITE]
-        self.image = registry.sprite_images[CURRENT_SPRITE]
+        print(" - SCALE PATTERN KEYS:")
+        print(short_keys)
+
+        self.scale_list = short_keys
+        # self.scale_list.reverse()
+
+        self.sprite_type = registry.sprite_metadata[SPRITE_FOR_CIRCLE]
+        self.sprite_type2 = registry.sprite_metadata[SPRITE_TEST_SKULL]
+        self.image = registry.sprite_images[SPRITE_FOR_CIRCLE]
+        self.image2 = registry.sprite_images[SPRITE_TEST_SKULL]
+
         self.display.fps = self.fps
 
     # @DEPRECATED
+    # Here only because it has not been ported, and i want to keep the image loader progress bar
     def _preload_images(self):
         raise DeprecationWarning
 
@@ -162,10 +174,22 @@ class GameScreenTest(Screen):
         # self.draw_corners()
         self.draw_sprite_circle()
         #
-        # inst = self.inst_group[0]
-        # h_scale = 2
-        # v_scale = 2
-        # self.scaler.draw_sprite(self.sprite, inst, self.image, h_scale=h_scale, v_scale=v_scale)
+        inst1 = self.inst1
+        inst1.draw_y = 16
+        inst1.draw_x = 48
+
+        inst2 = self.inst2
+        inst2.draw_x = 32
+        inst2.draw_y = 16
+
+        h_scale = 1
+        v_scale = 1
+
+        # WarningWall
+        # self.scaler.draw_sprite(self.sprite_type, inst1, self.image, h_scale=h_scale, v_scale=v_scale)
+
+        # Skull
+        # self.scaler.draw_sprite(self.sprite_type2, inst2, self.image2, h_scale=h_scale, v_scale=v_scale)
 
         self.display.show()
         self.fps.tick()
@@ -230,12 +254,12 @@ class GameScreenTest(Screen):
         """ Inits the sprite instances, not the sprite types and images
         """
         running_ms = 0
-        print(f"Creating a group of {self.num_sprites} sprites")
+        print(f"Creating a group of {self.num_circle_sprites} sprites")
 
-        for i in range(self.num_sprites):
+        for i in range(self.num_circle_sprites):
             """ We give each sprite a slightly different 'birthday', so that the animation will place them in different
             parts of the circle """
-            new_inst, idx = self.mgr.pool.get(CURRENT_SPRITE)
+            new_inst, idx = self.mgr.pool.get(SPRITE_FOR_CIRCLE)
             new_inst.born_ms += running_ms
             self.phy.set_pos(new_inst, 50, 24)
             self.inst_group.append(new_inst)
@@ -267,7 +291,6 @@ class GameScreenTest(Screen):
         registry.add_type(
             SPRITE_BARRIER_LEFT,
             WarningWall)
-            # num_frames=1)
 
         # Player Sprite
         player_meta = SpriteType(
@@ -340,5 +363,6 @@ class GameScreenTest(Screen):
             # Assuming sun_img_asset is a single Image object
             alpha = sun_meta.alpha_color if sun_meta and hasattr(sun_meta, 'alpha_color') else -1
             display.blit(sun_img_asset.pixels, int(self.sun.x), int(self.sun.y), alpha, sun_palette)
+
 
 

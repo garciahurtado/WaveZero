@@ -1,4 +1,7 @@
 import micropython
+
+from screens.test_screen import TestScreen
+
 micropython.opt_level(0)
 
 import _thread

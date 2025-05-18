@@ -1,7 +1,9 @@
 from anim.palette_rotate_one import PaletteRotateOne
 from colors.color_util import BGR565
 from scaler.const import DEBUG
+from sprites.sprite_registry import registry
 from sprites.types.laser_wall import LaserWall
+from sprites.types.test_skull import TestSkull
 from sprites.types.warning_wall import WarningWall
 from sprites.types.white_line import WhiteLine
 from sprites.types.white_line_vert import WhiteLineVert
@@ -37,18 +39,30 @@ class Stage1(Stage):
         # self.init_palettes()
 
         evt_list = []
-        # for i in range(0):
-            # evt_list.append(evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z))
-            # evt_list.append(evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z))
-            # spawn_z += spawn_z_step
+        for c in range(2):
+            for r in range(2):
+                evt_list.append(evt.spawn(SPRITE_TEST_SKULL, lane=c, y=r*line_height, z=spawn_z, speed=self.base_speed))
 
         self.sequence([
             # evt.multi(evt_list),
             evt.multi([
-                # evt.spawn(SPRITE_BARRIER_LEFT, lane=0, z=spawn_z, speed=self.base_speed),
+                # evt.spawn(SPRITE_TEST_SKULL, lane=0, z=spawn_z, speed=self.base_speed//2),
+                # evt.spawn(SPRITE_TEST_SKULL, lane=1, z=spawn_z, speed=self.base_speed//2),
+                # evt.spawn(SPRITE_TEST_SKULL, lane=2, z=spawn_z, speed=self.base_speed//2),
+                # evt.spawn(SPRITE_TEST_SKULL, lane=3, z=spawn_z, speed=self.base_speed//2),
+                # evt.spawn(SPRITE_TEST_SKULL, lane=4, z=spawn_z, speed=self.base_speed//2),
+                #
+                # evt.spawn(SPRITE_TEST_SKULL, lane=0, y=line_height, z=spawn_z, speed=self.base_speed//2),
+                # evt.spawn(SPRITE_TEST_SKULL, lane=1, y=line_height, z=spawn_z, speed=self.base_speed//2),
+                # evt.spawn(SPRITE_TEST_SKULL, lane=2, y=line_height, z=spawn_z, speed=self.base_speed//2),
+                # evt.spawn(SPRITE_TEST_SKULL, lane=3, y=line_height, z=spawn_z, speed=self.base_speed//2),
+                # evt.spawn(SPRITE_TEST_SKULL, lane=4, y=line_height, z=spawn_z, speed=self.base_speed//2),
+
+                # evt.wait(small_wait),
+                evt.spawn(SPRITE_BARRIER_LEFT, lane=0, z=spawn_z, speed=self.base_speed),
                 # evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z, speed=self.base_speed),
                 # evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z, speed=self.base_speed),
-                #
+
                 # evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, y=line_height-8, z=spawn_z, speed=self.base_speed),
                 # evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, y=line_height-8, z=spawn_z, speed=self.base_speed),
 
@@ -63,9 +77,9 @@ class Stage1(Stage):
                 # # evt.spawn(SPRITE_LASER_WALL_x5, lane=0, z=spawn_z, y=0, speed=self.base_speed),
                 # evt.spawn(SPRITE_LASER_WALL_x5, lane=0, z=spawn_z, y=line_height, speed=self.base_speed),
 
-                evt.wait(small_wait // 4)],
+                evt.wait(small_wait)],
                 # repeat=20),
-                repeat=1),
+                repeat=10),
             evt.wait(big_wait)],
             repeat=2)
 
@@ -100,72 +114,76 @@ class Stage1(Stage):
         return True
 
     def load_types(self):
-        mgr = self.sprite_manager
-        mgr.add_type(
-            sprite_type=SPRITE_BARRIER_LEFT,
-            sprite_class=WarningWall,
+        registry.add_type(
+            SPRITE_TEST_SKULL,
+            TestSkull,
             speed=self.base_speed)
 
-        # mgr.add_type(
-        #     sprite_type=SPRITE_BARRIER_LEFT_x2,
-        #     sprite_class=WarningWall,
-        #     speed=self.base_speed,
-        #     repeats=2,
-        #     repeat_spacing=24)
-        #
-        # mgr.add_type(
-        #     sprite_type=SPRITE_BARRIER_RIGHT,
-        #     sprite_class=WarningWall,
-        #     # image_path="/img/road_barrier_yellow_inv_32.bmp",
-        #     image_path="/img/road_barrier_yellow_inv.bmp",
+        registry.add_type(
+            SPRITE_BARRIER_LEFT,
+            WarningWall,
+            speed=self.base_speed)
+
+        registry.add_type(
+            SPRITE_BARRIER_LEFT_x2,
+            WarningWall,
+            speed=self.base_speed,
+            repeats=2,
+            repeat_spacing=24)
+
+        registry.add_type(
+            SPRITE_BARRIER_RIGHT,
+            WarningWall,
+            # image_path="/img/road_barrier_yellow_inv_32.bmp",
+            image_path="/img/road_barrier_yellow_inv.bmp",
+            speed=self.base_speed)
+
+        registry.add_type(
+            SPRITE_BARRIER_RIGHT_x2,
+            WarningWall,
+            # image_path="/img/road_barrier_yellow_inv_32.bmp",
+            image_path="/img/road_barrier_yellow_inv.bmp",
+            speed=self.base_speed,
+            repeats=2,
+            repeat_spacing=24)
+
+        # registry.add_type(
+        #     SPRITE_LASER_WALL,
+        #     LaserWall,
         #     speed=self.base_speed)
         #
-        # mgr.add_type(
-        #     sprite_type=SPRITE_BARRIER_RIGHT_x2,
-        #     # image_path="/img/road_barrier_yellow_inv_32.bmp",
-        #     image_path="/img/road_barrier_yellow_inv.bmp",
-        #     sprite_class=WarningWall,
-        #     speed=self.base_speed,
+        # registry.add_type(
+        #     SPRITE_LASER_WALL_x2,
+        #     LaserWall,
         #     repeats=2,
         #     repeat_spacing=24)
         #
-        # mgr.add_type(
-        #     sprite_type=SPRITE_LASER_WALL,
-        #     sprite_class=LaserWall,
-        #     speed=self.base_speed)
-        #
-        # mgr.add_type(
-        #     sprite_type=SPRITE_LASER_WALL_x2,
-        #     sprite_class=LaserWall,
-        #     repeats=2,
-        #     repeat_spacing=24)
-        #
-        # mgr.add_type(
-        #     sprite_type=SPRITE_LASER_WALL_x5,
-        #     sprite_class=LaserWall,
+        # registry.add_type(
+        #     SPRITE_LASER_WALL_x5,
+        #     LaserWall,
         #     repeats=5,
         #     repeat_spacing=24)
         #
-        # mgr.add_type(
-        #     sprite_type=SPRITE_WHITE_LINE,
-        #     sprite_class=WhiteLine,
+        # registry.add_type(
+        #     SPRITE_WHITE_LINE,
+        #     WhiteLine,
         #     image_path="/img/test_white_line.bmp",
         #     width=24,
         #     height=2,
         #     speed=self.base_speed)
         #
-        # mgr.add_type(
-        #     sprite_type=SPRITE_WHITE_LINE_x2,
-        #     sprite_class=WhiteLine,
+        # registry.add_type(
+        #     SPRITE_WHITE_LINE_x2,
+        #     WhiteLine,
         #     image_path="/img/test_white_line.bmp",
         #     width=24,
         #     height=2,
         #     repeats=2,
         #     speed=self.base_speed)
         #
-        # mgr.add_type(
-        #     sprite_type=SPRITE_WHITE_LINE_x5,
-        #     sprite_class=WhiteLine,
+        # registry.add_type(
+        #     SPRITE_WHITE_LINE_x5,
+        #     WhiteLine,
         #     image_path="/img/test_white_line.bmp",
         #     width=24,
         #     height=2,
@@ -173,26 +191,26 @@ class Stage1(Stage):
         #     repeat_spacing=24,
         #     speed=self.base_speed)
         #
-        # mgr.add_type(
-        #     sprite_type=SPRITE_WHITE_LINE_VERT,
-        #     sprite_class=WhiteLineVert,
+        # registry.add_type(
+        #     SPRITE_WHITE_LINE_VERT,
+        #     WhiteLineVert,
         #     image_path="/img/test_white_line_vert.bmp",
         #     width=2,
         #     height=24,
         #     speed=self.base_speed)
         #
-        # mgr.add_type(
-        #     sprite_type=SPRITE_WHITE_LINE_VERT_x3,
-        #     sprite_class=WhiteLineVert,
+        # registry.add_type(
+        #     SPRITE_WHITE_LINE_VERT_x3,
+        #     WhiteLineVert,
         #     image_path="/img/test_white_line_vert.bmp",
         #     width=2,
         #     height=24,
         #     repeats=3,
         #     speed=self.base_speed)
         #
-        # mgr.add_type(
-        #     sprite_type=SPRITE_WHITE_LINE_VERT_x6,
-        #     sprite_class=WhiteLineVert,
+        # registry.add_type(
+        #     SPRITE_WHITE_LINE_VERT_x6,
+        #     WhiteLineVert,
         #     image_path="/img/test_white_line_vert.bmp",
         #     width=2,
         #     height=24,
@@ -200,9 +218,9 @@ class Stage1(Stage):
         #     repeat_spacing=24,
         #     speed=self.base_speed)
 
-        # mgr.add_type(
-        #     sprite_type=SPRITE_ALIEN_FIGHTER,
-        #     sprite_class=AlienFighter,
+        # registry.add_type(
+        #     SPRITE_ALIEN_FIGHTER,
+        #     AlienFighter,
         #     image_path="/img/alien_fighter.bmp",
         #     width=24,
         #     height=16,

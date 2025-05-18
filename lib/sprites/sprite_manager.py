@@ -10,6 +10,7 @@ from scaler.const import DEBUG, INK_GREEN, INK_BLUE
 from scaler.scaler_debugger import printc
 from sprites.sprite_draw import SpriteDraw
 from sprites.sprite_physics import SpritePhysics
+from sprites.sprite_registry import registry
 from sprites.sprite_types import SpriteType
 from sprites.sprite_types import SpriteType as types
 from sprites.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE, FLAG_BLINK, FLAG_BLINK_FLIP
@@ -73,7 +74,7 @@ class SpriteManager:
 
     def add_type(self, **kwargs):
         """ SpriteType registry """
-        sprite_type = str(kwargs['sprite_type'])
+        sprite_type = kwargs['sprite_type']
 
         assert sprite_type, "Cannot add type without sprite_type"
 
@@ -119,7 +120,7 @@ class SpriteManager:
             del default_args['sprite_class']
 
         class_obj = sprite_class(**default_args)
-        self.sprite_metadata[sprite_type] = class_obj
+        registry.sprite_metadata[sprite_type] = class_obj
         # self.renderer.add_type(sprite_type, class_obj)
 
         """ set the default values that will be used when creating new instances (reset) """
@@ -151,12 +152,11 @@ class SpriteManager:
         return self.grid.set_lane(sprite, lane_num, meta.repeats, meta.repeat_spacing)
 
     def get_meta(self, inst):
-        meta = self.sprite_metadata[str(inst.sprite_type)]
+        meta = registry.sprite_metadata[inst.sprite_type]
         return meta
 
     def get_palette(self, sprite_type):
-        sprite_type = str(sprite_type)
-        pal = self.sprite_palettes[sprite_type]
+        pal = registry.sprite_palettes[sprite_type]
         return pal
 
     # @micropython.viper
@@ -189,11 +189,11 @@ class SpriteManager:
         if not elapsed:
             return
 
-        kinds = self.sprite_metadata
+        kinds = registry.sprite_metadata
         current = self.pool.head
         while current:
             sprite = current.sprite
-            kind = kinds[str(sprite.sprite_type)]
+            kind = kinds[sprite.sprite_type]
 
             if not types.get_flag(sprite, FLAG_ACTIVE):
                 self.pool.release(sprite, kind)

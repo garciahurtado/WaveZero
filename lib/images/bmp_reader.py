@@ -8,6 +8,7 @@ from struct import unpack
 from colors.framebuffer_palette import FramebufferPalette as BufPalette
 from images.indexed_image import Image, create_image
 from colors import color_util as colors
+from scaler.const import DEBUG
 from utils import aligned_buffer
 
 
@@ -38,6 +39,9 @@ class BMPReader():
         :param color_depth: Color depth of the image (default: GS4_HMSB)
         :return: Loaded Image object
         """
+        if DEBUG:
+            print(f" . BMP LOAD from {filename}")
+            print(f" . Frame W/H : {frame_width}/{frame_height}")
 
         if self.basedir:
             filename = self.basedir + filename

@@ -20,7 +20,6 @@ class Renderer:
         raise DeprecationWarning
 
         """ This whole method should probably be in renderer_prescaled.py """
-        sprite_type = str(sprite_type)
 
         orig_img = ImageLoader.load_image(
             filename=meta.image_path,

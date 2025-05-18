@@ -4,12 +4,15 @@ import micropython
 
 from debug.mem_logging import log_mem, log_new_frame
 from mpdb.mpdb import Mpdb
-from scaler.const import DEBUG_INST, DEBUG, INK_MAGENTA, DEBUG_POOL, INK_BRIGHT_RED, INK_RED, DEBUG_MEM, INK_CYAN
+from scaler.const import DEBUG_INST, DEBUG, INK_MAGENTA, DEBUG_POOL, INK_BRIGHT_RED, INK_RED, DEBUG_MEM, INK_CYAN, \
+    INK_BRIGHT_GREEN, INK_BRIGHT_BLUE
 from scaler.scaler_debugger import printc
 from scaler.sprite_scaler import SpriteScaler
 from perspective_camera import PerspectiveCamera
 from death_anim import DeathAnim
 from sprites.renderer_scaler import RendererScaler
+from sprites.types.test_skull import TestSkull
+from sprites.types.warning_wall import WarningWall
 from stages.stage_1 import Stage1
 from ui_elements import ui_screen
 
@@ -40,7 +43,7 @@ class GameScreen(Screen):
     sun: Sprite = None
     sun_start_x = None
     camera: PerspectiveCamera
-    enemies: SpriteManager3D = None
+    mgr: SpriteManager3D = None
     max_sprites: int = 100
     saved_ground_speed = 0
     lane_width: int = const(24)
@@ -69,56 +72,45 @@ class GameScreen(Screen):
         display.show()
 
         self.init_camera()
-        self.check_gc_mem()  # Keep your memory checks
+        renderer = RendererScaler(display)
+        self.scaler = renderer.scaler
 
-        print("-- Setting up Sprite Assets...")
-        self._setup_sprite_assets()  # New method call
-        self.check_gc_mem()
+        print("-- Preloading images...")
+        # self.preload_images()
+        # self.check_mem()
+
+        self.init_sprite_images()
 
         print("-- Creating UI...")
         self.ui = ui_screen(display, self.num_lives)
         self.check_gc_mem()
 
         print("-- Creating player sprite...")
-        # PlayerSprite might need to be adapted if it directly loaded its own image before
-        # Now it should primarily use its type_id (e.g., SPRITE_PLAYER)
-        self.player = PlayerSprite(
-            camera=self.camera)  # Assuming PlayerSprite can be initialized without direct image path
+        self.player = PlayerSprite(camera=self.camera)
 
-        print("-- Creating Enemy Sprite Manager...")
-        # Choose your renderer
-        # renderer = RendererPrescaled(display)
-        renderer = RendererScaler(display)  # Current choice in your code
-
-        self.enemies = SpriteManager3D(
-            display,
-            renderer,
-            max_sprites=self.max_sprites,
-            camera=self.camera,
-            grid=self.grid
-        )
-
-        # REMOVE THESE LINES:
-        # renderer.sprite_images = self.enemies.sprite_images
-        # renderer.sprite_palettes = self.enemies.sprite_palettes
-        # The renderer will get assets from sprite_registry when it needs them.
-        # SpriteManager3D will also use sprite_registry to get metadata for sprite creation.
-
-        self.collider = Collider(self.player, self.enemies, self.crash_y_start, self.crash_y_end)
+        self.collider = Collider(self.player, self.mgr, self.crash_y_start, self.crash_y_end)
         self.collider.add_callback(self.do_crash)
 
         print("-- Creating road grid...")
         self.grid = RoadGrid(self.camera, display, lane_width=self.lane_width)
         self.check_gc_mem()
 
+        print("-- Creating Enemy Sprite Manager...")
+        self.mgr = SpriteManager3D(
+            self.display,
+            renderer,
+            max_sprites=self.max_sprites,
+            camera=self.camera,
+            grid=self.grid
+        )
+        self.phy = self.mgr.phy
+
         self.death_anim = DeathAnim(display)
         self.death_anim.callback = self.after_death
-        self.check_gc_mem()
 
         self.display.fps = self.fps
 
-        self.stage = Stage1(self.enemies)  # Stage1 might need to know about sprite types
-        # or get them via the enemy manager.
+        self.stage = Stage1(self.mgr)
         self.check_gc_mem()
 
         # Create the Sun Sprite
@@ -151,9 +143,16 @@ class GameScreen(Screen):
                          'show': lambda s, d: self._draw_sun(d)})()
         self.sun_start_x = 39
 
-        self.add_sprite(self.enemies)  # SpriteManager3D handles its own rendering using the registry.
         # If self.sun needs to be drawn by the Screen's show_all, ensure add_sprite can handle it.
         # self.add_sprite(self.sun) # If you want screen to draw it.
+
+        sun = Sprite("/img/sunset.bmp")
+        sun.x = self.sun_start_x = 39
+        sun.y = 11
+        self.sun = sun
+
+        self.add_sprite(sun)
+        self.add_sprite(self.mgr)
 
     async def mock_update_score(self):
         while True:
@@ -185,9 +184,6 @@ class GameScreen(Screen):
     def run(self):
         log_new_frame()
 
-        loop = asyncio.get_event_loop()
-        loop.create_task(self.start_display_loop())
-#
         log_mem(f"game_screen_run_START")
 
         """ Quick flash of white"""
@@ -203,21 +199,29 @@ class GameScreen(Screen):
         self.input = make_input_handler(self.player)
 
         if self.fps_enabled:
-            self.fps_counter_task = asyncio.create_task(self.start_fps_counter(self.enemies.pool))
+            self.fps_counter_task = asyncio.create_task(self.start_fps_counter(self.mgr.pool))
+
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.start_display_loop())
 
         self.update_score_task = loop.create_task(self.mock_update_score())
-#        log_mem(f"game_screen_run_END")
 
         # Start the road speed-up task
         self.speed_anim = AnimAttr(self, 'ground_speed', self.max_ground_speed, 3000, easing=AnimAttr.ease_in_out_sine)
         loop.create_task(self.speed_anim.run(fps=60))
-#
-        log_mem(f"game_screen_start_START")
         self.start()
-#        log_mem(f"game_screen_start_END")
+
+        # Disable updates after a few seconds
+        # loop.create_task(self.stop_stage())
 
         print("-- Starting update_loop...")
         asyncio.run(self.start_main_loop())
+
+    async def stop_stage(self):
+        await asyncio.sleep_ms(10000)
+        printc("** STOPPING STAGE AND SCREEN UPDATES**", INK_MAGENTA)
+        self.pause()
+        # self.stage.stop()
 
     async def update_loop(self):
         start_time_ms = self.last_update_ms = utime.ticks_ms()
@@ -247,16 +251,23 @@ class GameScreen(Screen):
                 self.last_update_ms = now
 
                 if not self.paused:
+                    log_mem(f"game_screen_update_loop_BEFORE_STAGE_UPDATE")
                     self.stage.update(elapsed)
+
+                    log_mem(f"game_screen_update_loop_BEFORE_HORIZ_LINES_UPDATE")
                     self.grid.update_horiz_lines(elapsed)
-                    self.enemies.update(elapsed)
+
+                    log_mem(f"game_screen_update_loop_BEFORE_SPRITE_MGR_UPDATE")
+                    self.mgr.update(elapsed)
+
+                    log_mem(f"game_screen_update_loop_BEFORE_PLAYER_UPDATE")
                     self.player.update(elapsed)
                     self.sun.x = self.sun_start_x - round(self.player.turn_angle * 4)
 
                     for sprite in self.instances:
                         sprite.update(elapsed)
 
-                    self.collider.check_collisions(self.enemies.pool.active_sprites)
+                    self.collider.check_collisions(self.mgr.pool.active_sprites)
 
                 await asyncio.sleep(1/60)   # Tweaking this number can improve FPS
 
@@ -266,41 +277,33 @@ class GameScreen(Screen):
     def do_refresh(self):
         """ Overrides parent method """
         log_new_frame()
-#
         log_mem(f"game_screen_refresh_START")
-
         self.display.fill(0x0000)
         self.grid.show()
-#
         log_mem(f"game_screen_refresh_BEFORE_SHOW_ALL")
         self.show_all()
-#
         log_mem(f"game_screen_refresh_BEFORE_PLAYER_SHOW")
         self.player.show(self.display)
-#
         log_mem(f"game_screen_refresh_BEFORE_FX")
         self.show_fx()
-#
         log_mem(f"game_screen_refresh_UI_SHOW")
         self.ui.show()
-#
         log_mem(f"game_screen_refresh_BEFORE_DISPLAY_SHOW")
         self.display.show()
-#
         log_mem(f"game_screen_refresh_AFTER_DISPLAY_SHOW")
 
         if DEBUG_POOL:
-            num_active = self.enemies.pool.active_count
-            num_avail = len(self.enemies.pool.ready_indices)
-            printc(f"*** POOL ACTIVE COUNT: {num_active} ***", INK_RED)
-            printc(f"*** POOL AVAIL. COUNT: {num_avail} ***", INK_BRIGHT_RED)
+            num_active = self.mgr.pool.active_count
+            num_avail = len(self.mgr.pool.ready_indices)
+            printc(f"*** POOL ACTIVE COUNT: {num_active} ***", INK_BRIGHT_GREEN)
+            printc(f"*** POOL AVAIL. COUNT: {num_avail} ***", INK_BRIGHT_BLUE)
         self.fps.tick()
 #
         log_mem(f"game_screen_refresh_END")
 
     def show_all(self):
-        for sprite in self.instances:
-            sprite.show(self.display)
+        for i in range(len(self.instances)):
+            self.instances[i].show(self.display)
 
     def show_fx(self):
         self.death_anim.update_and_draw()
@@ -377,71 +380,39 @@ class GameScreen(Screen):
         #     min_y=20,
         #     max_y=self.display.height)
 
+    def init_sprite_images(self):  # Or _setup_sprite_assets(self) as previously named
+        """
+        Defines all globally used sprite types by explicitly creating SpriteType objects,
+        registers them with the SpriteRegistry, which also loads their assets.
+        """
+        print("-- Initializing Global Sprite Assets (Explicit Mode)...")
+
+        # --- Using specific sprite classes ---
+        registry.add_type(
+            SPRITE_TEST_SKULL,
+            TestSkull)
+
+        # LOADED IN STAGE CODE #
+        # registry.add_type(
+        #     SPRITE_BARRIER_LEFT,
+        #     WarningWall)
+        #
+        # registry.add_type(
+        #     SPRITE_BARRIER_RIGHT,
+        #     WarningWall,
+        #     image_path="/img/road_barrier_yellow_inv_32.bmp")
+
+    def init_sprites(self, display):
+        raise DeprecationWarning
+
     async def show_perf(self):
         if not prof.enabled:
             return False
 
-        interval = 5000 # Every 5 secs
+        interval = 5000   # Every 5 secs
 
         now = utime.ticks_ms()
         delta = utime.ticks_diff(now, self.last_perf_dump_ms)
         if delta > interval:
             prof.dump_profile()
             self.last_perf_dump_ms = utime.ticks_ms()
-
-    def _setup_sprite_assets(self):
-        """
-        Defines all sprite types, registers them with the SpriteRegistry,
-        and loads their assets.
-        """
-        # Define metadata for each sprite type
-        # Note: 'num_frames' for prescaled sprites means number of scale levels.
-        # For non-prescaled, it usually means animation frames if the image is a spritesheet.
-        # ImageLoader handles spritesheet animation frames within the single Image object.
-        # SpriteRegistry's prescale=True creates a list of differently scaled Image objects.
-
-        sprite_definitions = [
-            {"id": SPRITE_PLAYER, "path": "/img/bike_sprite.bmp", "w": 32, "h": 22, "cd": 4, "nf": 5, "prescale": True},
-            # Example: 5 prescale levels
-            {"id": SPRITE_SUNSET, "path": "/img/sunset.bmp", "w": 20, "h": 10, "cd": 8, "nf": 1, "prescale": False},
-            # nf=1 means no animation/scaling levels needed
-            {"id": SPRITE_LIFE, "path": "/img/life.bmp", "w": 12, "h": 8, "cd": 4, "nf": 1, "prescale": False},
-            # Assuming cd=4 for life.bmp
-            {"id": SPRITE_DEBRIS_BITS, "path": "/img/debris_bits.bmp", "w": 4, "h": 4, "cd": 1, "nf": 1,
-             "prescale": False},
-            {"id": SPRITE_DEBRIS_LARGE, "path": "/img/debris_large.bmp", "w": 8, "h": 6, "cd": 1, "nf": 1,
-             "prescale": False},
-            {"id": SPRITE_WHITE_LINE_VERT, "path": "/img/test_white_line_vert.bmp", "w": 2, "h": 24, "cd": 4, "nf": 1,
-             "prescale": False},  # Assuming cd=4
-
-            # Add all other sprite types used by enemies, UI, effects etc.
-            # Example for an enemy that might be prescaled:
-            # {"id": SPRITE_ALIEN_FIGHTER, "path": "/img/alien_fighter.bmp", "w": 24, "h": 16, "cd": 4, "nf": 4, "prescale": True},
-            # Example for an enemy that is NOT prescaled by the registry (uses SpriteScaler on the fly):
-            # {"id": SPRITE_ROAD_BARRIER, "path": "/img/road_barrier_yellow.bmp", "w": 24, "h": 15, "cd": 4, "nf": 1, "prescale": False},
-        ]
-
-        for s_def in sprite_definitions:
-            meta = SpriteType(
-                image_path=s_def["path"],
-                width=s_def["w"],
-                height=s_def["h"],
-                color_depth=s_def["cd"],  # This is BPP
-                num_frames=s_def["nf"]  # Meaning depends on prescale flag
-                # Add any other common SpriteType defaults here if needed
-            )
-            registry.add_type(s_def["id"], meta)
-            registry.load_images(s_def["id"], prescale=s_def.get("prescale", False))
-
-        print("Sprite assets configured and loaded into registry.")
-
-    # Placeholder for drawing the sun if it's not a standard sprite instance managed elsewhere
-    def _draw_sun(self, display):
-        sun_img_asset = registry.get_img(SPRITE_SUNSET)
-        sun_palette = registry.get_palette(SPRITE_SUNSET)
-        sun_meta = registry.get_metadata(SPRITE_SUNSET)  # For alpha or other info
-
-        if sun_img_asset and sun_palette:
-            # Assuming sun_img_asset is a single Image object
-            alpha = sun_meta.alpha_color if sun_meta and hasattr(sun_meta, 'alpha_color') else -1
-            display.blit(sun_img_asset.pixels, int(self.sun.x), int(self.sun.y), alpha, sun_palette)

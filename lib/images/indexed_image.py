@@ -16,7 +16,6 @@ Image = namedtuple("Image",
            )
         )
 
-
 def create_image(
         width: int,
         height: int,
