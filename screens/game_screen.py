@@ -44,7 +44,7 @@ class GameScreen(Screen):
     sun_start_x = None
     camera: PerspectiveCamera
     mgr: SpriteManager3D = None
-    max_sprites: int = 100
+    max_sprites: int = 500
     saved_ground_speed = 0
     lane_width: int = const(24)
     num_lives: int = 4

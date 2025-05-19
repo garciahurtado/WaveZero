@@ -45,15 +45,10 @@ class PerspectiveCamera():
         self.y_offset = self.half_height - vp_y
         self.vp_factor = self.vp_x / (self.screen_height - self.vp_y)
         self.vp_factor_y = 1 / (self.screen_height - self.vp_y)
-        self.max_vp_scale = 3.7 # Tweak amount of parallax effect (so that )close objects move faster when the VP moves
+        self.max_vp_scale = 3.7 # Tweak amount of horizontal parallax effect, so that close objects move faster when the VP moves
 
         self._y_factor_cache = {}
 
-        self._cache_index = 0
-        self._cache_full = False
-        self._scale_cache_z = []
-        self._scale_cache_y = []
-        self._scale_cache_scale = []
         self.min_scale = 0.0001
 
         """ Use an unbalanced list: more dense towards the camera, less dense away from the camera """
@@ -67,7 +62,6 @@ class PerspectiveCamera():
         self.max_z = self.far
         self.near_plus_epsilon = self.near + 0.000001
 
-        self._precalculate_scale_cache()
         # self.to_2d_test(self.min_z, self.max_z)
 
 
@@ -119,20 +113,13 @@ class PerspectiveCamera():
         cam_y = self.cam_y
         cam_z = self.cam_z
 
-
-
-
         vp_x = self.vp_x
 
-
         # Adjust for camera position
-
         orig_y = y
         orig_z = z
         y = orig_y - cam_y
         z = orig_z - cam_z
-
-
 
         if z == 0:
             z = 0.0001
@@ -141,24 +128,15 @@ class PerspectiveCamera():
         screen_x = (x * focal_length) / z
         screen_y = (y * focal_length) / z
 
-
-
-
         # Apply aspect ratio correction
         screen_x = screen_x * self.aspect_ratio
-
-
 
         # Convert to screen coordinates
         screen_x = screen_x + half_width
         screen_y = int(self.y_offset - screen_y)
 
-
-
         # Apply vanishing point adjustment
         screen_x = int(screen_x - (vp_x * vp_scale))
-
-
 
         return screen_x, screen_y
 
@@ -217,157 +195,55 @@ class PerspectiveCamera():
 
         return screen_y
 
-    def _precalculate_scale_cache(self):
-        """ min_y and max_y are from 2D space """
+    def get_scale(self, z_depth: int):
+        """
+        For a given Z-depth coordinate (world coordinate, aligned with camera's depth axis - self.cam_y),
+        calculates the screen Y coordinate for an object's base and its perspective scale factor in real-time.
+        """
+        if not isinstance(z_depth, (int, float)):
+            raise TypeError("Z-depth must be a number")
 
-        if self.min_y >= self.max_y:
-            raise ArithmeticError("Min Y cannot be higher than Max Y")
+        current_scale = self.calculate_scale(z_depth)
 
-        y_range = self.max_y - self.min_y
+        # if z_depth <= self.min_z:
+        #     current_scale = 1.0
+        if z_depth >= self.max_z or current_scale < self.min_scale:
+            current_scale = self.min_scale
 
-        self._scale_cache = []
-        self._scale_cache_z = []
-        self._scale_cache_y = []
+        current_scale = abs(current_scale)
 
-        for start, end, step in self._cache_steps:
-            for z in range(start, end + step, step):
-                """ Takes a Z value from the 0/max_z range and converts it to a scale, which converts to a Y coord, and gets added as the index
-                of a new entry into the cache array"""
+        # if current_scale > 1.0:
+        #     current_scale = 1.0
 
-                if z <= self.min_z:
-                    scale = 1
-                elif z >= self.max_z:
-                    scale = self.min_scale
-                else:
-                    scale = self.calculate_scale(z)
+        y_range_pixels = self.max_y - self.min_y
 
-                if scale < self.min_scale:
-                    scale = self.min_scale
+        """ ground_y is the screen-y coordinate which marks the ground point for this sprite """
+        ground_y = 0
+        if y_range_pixels > 0:
+            # Use max(0, ...) for range to prevent negative values if max_y < min_y or they are close
+            effective_range = max(0, y_range_pixels - 1 if y_range_pixels > 0 else 0)
+            ground_y = self.calculate_ground_y(current_scale, effective_range)
+            if ground_y > self.screen_height:
+                ground_y = self.screen_height
 
-                # scale = scale * self.aspect_ratio
+        screen_y_base = int(ground_y + self.min_y)
+        return screen_y_base, current_scale
 
-                # Adjust Y for camera height
-                ground_y = self.calculate_ground_y(scale, y_range - 1)
-                screen_y = ground_y
+    def calculate_scale(self, z_depth):
+        """Calculates raw perspective scale. Expects world Z depth of object (aligned with self.cam_y)."""
+        relative_z = z_depth - self.cam_y
 
-                if scale > 1:
-                    scale = 1
-                scale = abs(scale)
-
-                # screen_y = screen_y - self.vp_y
-                screen_y = int(screen_y)
-
-                if screen_y > self.max_y:
-                    scale = 1
-
-                # if screen_y < 0:
-                #     screen_y = 0
-                # elif screen_y > self.screen_height:
-                #     screen_y = self.screen_height
-
-                self._scale_cache.append(scale)
-                self._scale_cache_z.append(int(z))
-                self._scale_cache_y.append(int(screen_y))
-
-        # Add a last entry for the furthest objects
-        # self._scale_cache.append(0.001)
-        # self._scale_cache_z.append(self.far)
-        # self._scale_cache_y.append(0)
-
-    def get_scale(self, z):
-        """ For a given Z coordinate, return the 2D Y coordinate, as well as the scale at which the sprite
-        should be drawn. """
-        if type(z) is not int:
-            raise ArithmeticError("Z must be an integer")
-
-        z = z + abs(self.near) # moves the point of 1-scale further away from the camera
-
-        # Find the closest z value in the cache
-        idx = self._find_closest(self._scale_cache_z, z)
-
-        # Ensure idx is within bounds
-        idx = max(0, min(idx, len(self._scale_cache_z)-1))
-        y = self._scale_cache_y[idx]
-
-        y = y + self.min_y # This is how we end up with the range "vp Y - screen height"
-
-        scale = self._scale_cache[idx]
-
-        return y, scale
-
-
-    def calculate_scale(self, z):
-        if z > self.max_z:
-            return 0.0001
-
-        relative_z = z - self.cam_z
         if relative_z == 0:
-            relative_z = 0.0001
-        scale = self.focal_length_aspect * (1.0 / relative_z)
+            return float('inf')
 
+        if self.focal_length_aspect == 0: return 0
+
+        scale = self.focal_length_aspect * (1.0 / relative_z)
         return scale
 
     def calculate_ground_y(self, scale, y_range):
         y = y_range * scale
         return y
-
-    def _find_closest(self, arr, z):
-        """
-        Find the index of the closest value to z in a sparse array arr.
-        Optimized for a fixed range of 0-1500 in asc order.
-
-        Args:
-        arr (list): A list of numbers in descending order from 1500 to 0, potentially sparse
-        z (float): The target value to find the closest match for
-
-        Returns:
-        int: The index of the closest value to z in arr
-        """
-
-        starts = []
-        stops = []
-        steps = []
-
-        for _start, _stop, _step in self._cache_steps:
-            starts.append(_start)
-            stops.append(_stop)
-            steps.append(_step)
-
-        start1 = starts[1]
-        start2 = starts[2]
-        start3 = ((stops[2] - starts[2] + steps[2]) / steps[2]) + start2
-
-        stop1 = stops[1] + steps[1]
-        stop2 = stops[2] + steps[2]
-
-        step1 = steps[1]
-        step2 = steps[2]
-
-        # print(f"STARTS: {start1} / {start2} / {start3}")
-
-        if z < 0:
-            idx = 0
-        elif z < start1:
-            """ z < 100 : First 100 indices """
-            idx = z
-            # print(f"({idx} IDX) LIKE Z: [{z}] / start: 0")
-        elif z < stop1:
-            """ z < 400 :  100-130 indices """
-            range = z - start1
-            idx = int(range / steps[1]) + start1
-            # print(f"({idx} IDX) [{start1} / {stop1}] : Z: {z} / start1: {start1}")
-        elif z <= stop2 + step2:
-            """ z < 1500 : 130-141 indices """
-            range = z - start2
-            idx = int( (range / steps[2]) + (start1 + ((start2 - start1) / step1)) )
-            # print(f"({idx} IDX) [{stop1} / {stop2}] : Z: {z} / start2: {start2}")
-        else:
-            """ z > 1500 """
-            idx = len(arr) - 1
-            # print(f"({idx} IDX) MAX (len arr:{len(arr)}) : Z: {z} / start: {start3}")
-
-        # print(f"IDX: {idx}")
-        return idx
 
     def to_2d_test(self, start_z, end_z, x=0, y=0, num_frames=20):
         """ Take a range of z values, run them through to2d() and show the results, in order to provide a reference

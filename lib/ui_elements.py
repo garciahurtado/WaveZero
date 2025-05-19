@@ -20,12 +20,12 @@ RED = 0xFF0000
 YELLOW = 0xFFFF00
 WHITE = 0xFFFFFF
 
-# COLOR_SCORE = YELLOW
-# COLOR_LIVES = CYAN
+COLOR_SCORE = YELLOW
+COLOR_LIVES = CYAN
 
 # tmp colors to avoid burn-in
-COLOR_SCORE = CYAN
-COLOR_LIVES = RED
+# COLOR_SCORE = CYAN
+# COLOR_LIVES = RED
 
 class ui_screen():
     display = None

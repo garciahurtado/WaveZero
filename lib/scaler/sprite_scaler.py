@@ -99,6 +99,7 @@ class SpriteScaler():
 
         """ Populate DMA with read addresses """
         row_id = 0
+        new_write = 0
         max_read_addrs = int(self.max_read_addrs)
         while row_id < max_read_addrs:
             new_read = mem32[INTERP1_POP_FULL]

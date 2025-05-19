@@ -1,3 +1,5 @@
+import math
+
 from colors.framebuffer_palette import FramebufferPalette
 from scaler.const import DEBUG, INK_GREEN
 from scaler.scaler_debugger import printc
@@ -91,33 +93,12 @@ class RendererScaler(Renderer):
         else:
             original_draw_x = inst.draw_x  # Save original for repeated sprites
             for i in range(meta.repeats):
-                # Adjust draw_x for repeated sprites. SpriteScaler uses inst.draw_x.
-                # We need to temporarily modify it or pass it as an argument if SpriteScaler allows.
-                # For simplicity, let's assume SpriteScaler uses inst.draw_x directly.
-                # This means we might need to adjust inst.draw_x if possible, or
-                # the SpriteScaler API needs to accept an x,y override.
-                # Let's assume inst.draw_x can be set for the current draw operation.
-                # A cleaner way is if draw_sprite took x, y arguments.
+                # Adjust draw_x for repeated sprites.
 
-                # If SpriteScaler only reads from inst, we have an issue here for repeats.
-                # Let's assume for now the SpriteScaler can take an x_offset or modified inst.
-                # Simplest for this example: temporarily modify draw_x if it's not a read-only property.
-                # THIS IS RISKY IF inst IS SHARED OR IF draw_x IS A COMPLEX PROPERTY.
-                # A better SpriteScaler API: draw_sprite(..., x, y, h_scale, v_scale)
-
-                # Assuming inst is a uctypes struct, its fields are writable.
                 current_draw_x = original_draw_x + (meta.repeat_spacing * draw_scale * i)
 
-                # Temporarily set draw_x for this specific draw call if SpriteScaler uses inst.draw_x
-                # This is a conceptual adjustment. How it's done depends on SpriteScaler.
-                # Option A: SpriteScaler takes x,y args
-                # self.scaler.draw_sprite(meta, inst, source_image_for_scaler,
-                #                         x=round(current_draw_x), y=inst.draw_y,
-                #                         h_scale=inst.scale, v_scale=inst.scale)
-
-                # Option B: Modify inst if draw_sprite uses inst.draw_x (less ideal)
-                # stored_original_x = inst.draw_x # if not already done
-                inst.draw_x = round(current_draw_x)
+                # This is hacky and should be rewritten
+                inst.draw_x = math.ceil(current_draw_x)
                 self.scaler.draw_sprite(
                     meta,
                     inst,
@@ -125,6 +106,6 @@ class RendererScaler(Renderer):
                     h_scale=draw_scale,
                     v_scale=draw_scale
                 )
-            inst.draw_x = round(original_draw_x)  # Restore original draw_x
+            inst.draw_x = original_draw_x  # Restore original draw_x
 
         return True

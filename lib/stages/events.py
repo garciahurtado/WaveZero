@@ -5,6 +5,7 @@ import utime
 
 from mpdb.mpdb import Mpdb
 from profiler import Profiler as prof
+from scaler.scaler_debugger import printc
 from sprites.sprite_manager import SpriteManager
 
 class Event:
@@ -34,7 +35,6 @@ class Event:
         if not self.last_tick:
             self.last_tick = self.started_ms
 
-        # elapsed = utime.ticks_ms() - self.last_tick
         return True
 
     def finish(self):
@@ -45,28 +45,24 @@ class Event:
         self.finished = True
         self.active = False
 
-    """ Event aliases / Static methods """
+    """ Event aliases / Static convenience methods """
 
-    @staticmethod
-    def multi(events, repeat=1):
+    def multi(self, events, repeat=1):
         """MultiEvent Factory"""
         this_event = MultiEvent(events, repeat=repeat)
         return this_event
 
-    @staticmethod
-    def sequence(events, repeat=1):
+    def sequence(self, events, repeat=1):
         """SequenceEvent Factory"""
         this_event = SequenceEvent(events, repeat=repeat)
         return this_event
 
-    @staticmethod
-    def wait(delay_ms):
+    def wait(self, delay_ms):
         """WaitEvent Factory"""
         this_event = WaitEvent(delay_ms)
         return this_event
 
-    @staticmethod
-    def spawn(sprite_type, x=0, y=0, z=0, lane=0, **kwargs):
+    def spawn(self, sprite_type, x=0, y=0, z=0, lane=0, **kwargs):
 
         """SpawnEvent Factory"""
         all_kwargs = {
@@ -79,7 +75,7 @@ class Event:
         all_kwargs = all_kwargs | kwargs
 
         # all_kwargs has all the entity properties that need to be set upon spawn
-        this_event = SpawnEnemyEvent(sprite_type, sprite_mgr=Event.sprite_manager, **all_kwargs)
+        this_event = SpawnEnemyEvent(sprite_type, sprite_mgr=self.sprite_manager, **all_kwargs)
         return this_event
 
 
@@ -139,7 +135,8 @@ class WaitEvent(Event):
     """ Will wait for a certain amount of time and then give way to the next event """
     delay_ms: int = 0
 
-    def __init__(self, delay_ms: int):
+    def __init__(self, delay_ms: int, **kwargs):
+        super().__init__(**kwargs)
         self.delay_ms = int(delay_ms)
 
     def start(self):
@@ -167,7 +164,8 @@ class MultiEvent(Event):
         (once the first set is finished)
     """
 
-    def __init__(self, events, repeat=1):
+    def __init__(self, events, repeat=1, **kwargs):
+        super().__init__(**kwargs)
         self.events = events
         self.repeat_max = repeat
 

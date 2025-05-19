@@ -12,60 +12,60 @@ MIDDLE_BLUE = 0x008097
 BLACK = 0x0000
 
 class RoadGrid():
-    # horiz_palette = [
-    #     0x000000,
-    #     0x520014,
-    #     0x500418,
-    #     0x4C0E22,
-    #     0x49192C,
-    #     0x452337,
-    #     0x422D41,
-    #     0x3E384B,
-    #     0x3B4255,
-    #     0x374D60,
-    #     0x33576A,
-    #     0x306274,
-    #     0x2C6C7E,
-    #     0x297689,
-    #     0x258093,
-    #     0x228B9D,
-    #     0x1E95A7,
-    #     0x17AABC,
-    #     0x13B5C6,
-    #     0x10BFD0,
-    #     0x0CC9DB,
-    #     0x09D3E5,
-    #     0x05DEEF,
-    #     0x01E8F9
-    # ]
-
-    # red_shifted_palette, only to avoid burn-in
     horiz_palette = [
         0x000000,
-        0x520000,
-        0x500404,
-        0x4C0E0E,
-        0x491919,
-        0x452323,
-        0x422D2D,
-        0x4B3838,
-        0x553B3B,
-        0x603737,
-        0x6A3333,
-        0x743030,
-        0x7E2C2C,
-        0x892929,
-        0x932525,
-        0x9D2222,
-        0xA71E1E,
-        0xBC1717,
-        0xC61313,
-        0xD01010,
-        0xDB0C0C,
-        0xE50909,
-        0xEF0505,
-        0xF90101,
+        0x520014,
+        0x500418,
+        0x4C0E22,
+        0x49192C,
+        0x452337,
+        0x422D41,
+        0x3E384B,
+        0x3B4255,
+        0x374D60,
+        0x33576A,
+        0x306274,
+        0x2C6C7E,
+        0x297689,
+        0x258093,
+        0x228B9D,
+        0x1E95A7,
+        0x17AABC,
+        0x13B5C6,
+        0x10BFD0,
+        0x0CC9DB,
+        0x09D3E5,
+        0x05DEEF,
+        0x01E8F9
     ]
+
+    # # red_shifted_palette, only to avoid burn-in
+    # horiz_palette = [
+    #     0x000000,
+    #     0x520000,
+    #     0x500404,
+    #     0x4C0E0E,
+    #     0x491919,
+    #     0x452323,
+    #     0x422D2D,
+    #     0x4B3838,
+    #     0x553B3B,
+    #     0x603737,
+    #     0x6A3333,
+    #     0x743030,
+    #     0x7E2C2C,
+    #     0x892929,
+    #     0x932525,
+    #     0x9D2222,
+    #     0xA71E1E,
+    #     0xBC1717,
+    #     0xC61313,
+    #     0xD01010,
+    #     0xDB0C0C,
+    #     0xE50909,
+    #     0xEF0505,
+    #     0xF90101,
+    # ]
 
     horizon_palette = [0x000000,
                        0x1D0308,
@@ -80,29 +80,29 @@ class RoadGrid():
 
     horiz_palette_len = len(horizon_palette)
 
-    # vert_palette = [
-    #                 # 0x610070,
-    #                 # 0x5f0083,
-    #                 0x570097,
-    #                 0x4a00aa,
-    #                 0x3800be,
-    #                 0x1f00d1,
-    #                 0x0200e5,
-    #                 0x217eff,
-    #                 0x008097,
-    #                 0x008097]
-
-    # Red version
     vert_palette = [
-        0x970000,
-        0xAA0000,
-        0xBE0000,
-        0xD10000,
-        0xE50000,
-        0xFF2121,
-        0x970000,
-        0x970000,
-    ]
+                    # 0x610070,
+                    # 0x5f0083,
+                    0x570097,
+                    0x4a00aa,
+                    0x3800be,
+                    0x1f00d1,
+                    0x0200e5,
+                    0x217eff,
+                    0x008097,
+                    0x008097]
+
+    # # Red version
+    # vert_palette = [
+    #     0x970000,
+    #     0xAA0000,
+    #     0xBE0000,
+    #     0xD10000,
+    #     0xE50000,
+    #     0xFF2121,
+    #     0x970000,
+    #     0x970000,
+    # ]
 
     last_tick = 0
 
@@ -144,7 +144,8 @@ class RoadGrid():
         self.horiz_y = self.horiz_y + horiz_y_offset
 
         self.speed = -100
-        self.speed_ms = self.speed
+        self.speed_ms = self.speed / 1000
+
         self.ground_height = camera.screen_height - self.horiz_y
         self.init_palettes()
 

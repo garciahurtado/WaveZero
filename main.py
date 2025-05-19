@@ -50,8 +50,8 @@ def main():
     app = ScreenApp(96, 64)
 
     # app.load_screen(TitleScreen(app.display))
-    # app.load_screen(GameScreen(app.display))
-    app.load_screen(GameScreenTest(app.display))
+    app.load_screen(GameScreen(app.display))
+    # app.load_screen(GameScreenTest(app.display))
     # app.load_screen(TestScreen(app.display))
     # app.load_screen(TestScreenStarfield(app.display))
 
