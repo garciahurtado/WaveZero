@@ -53,35 +53,33 @@ SPRITE_TEST_FLAT = 253
 """
 SPRITE_DATA_LAYOUT = {
     # 4-byte (32-bit) fields
-    "scale": uctypes.FLOAT32 | 0,        # 4 bytes at offset 0
-    "speed": uctypes.FLOAT32 | 4,        # 4 bytes at offset 4
-    "born_ms": uctypes.UINT32 | 8,       # 4 bytes at offset 8
+    "scale": uctypes.FLOAT32 | 0,           # 4 bytes at offset 0
+    "speed": uctypes.FLOAT32 | 4,           # 4 bytes at offset 4
+    "born_ms": uctypes.UINT32 | 8,          # 4 bytes at offset 8
 
     # 2-byte (16-bit) fields
-    "x": uctypes.INT16 | 12,             # 2 bytes at offset 12
-    "y": uctypes.INT16 | 14,             # 2 bytes at offset 14
-    "z": uctypes.INT16 | 16,             # 2 bytes at offset 16
+    "x": uctypes.INT16 | 12,                # 2 bytes at offset 12
+    "y": uctypes.INT16 | 14,                # 2 bytes at offset 14
+    "z": uctypes.INT16 | 16,                # 2 bytes at offset 16
 
     # 1-byte (8-bit) fields
-    "sprite_type": uctypes.UINT8 | 18,   # 1 byte at offset 18
-    "active": uctypes.UINT8 | 19,        # 1 byte at offset 19
-    "pos_type": uctypes.UINT8 | 20,      # 1 byte at offset 20
-    "frame_width": uctypes.UINT8 | 21,   # 1 byte at offset 21
-    "frame_height": uctypes.UINT8 | 22,  # 1 byte at offset 22
-    "current_frame": uctypes.UINT8 | 23, # 1 byte at offset 23
-    "num_frames": uctypes.UINT8 | 24,    # 1 byte at offset 24
-    "lane_num": uctypes.INT8 | 25,       # 1 byte at offset 25
-    "lane_mask": uctypes.UINT8 | 26,     # 1 byte at offset 26
-    "draw_x": uctypes.INT8 | 27,         # 1 byte at offset 27
-    "draw_y": uctypes.INT8 | 28,         # 1 byte at offset 28
-    "floor_y": uctypes.INT8 | 29,        # 1 byte at offset 29
-    "color_rot_idx": uctypes.UINT8 | 30, # 1 byte at offset 30
-    "flags": uctypes.UINT8 | 31,         # 1 byte at offset 31
+    "sprite_type": uctypes.UINT8 | 18,      # 1 byte at offset 18
+    "active": uctypes.UINT8 | 19,           # 1 byte at offset 19
+    "pos_type": uctypes.UINT8 | 20,         # 1 byte at offset 20
+    "frame_width": uctypes.UINT8 | 21,      # 1 byte at offset 21
+    "frame_height": uctypes.UINT8 | 22,     # 1 byte at offset 22
+    "current_frame": uctypes.UINT8 | 23,    # 1 byte at offset 23
+    "num_frames": uctypes.UINT8 | 24,       # 1 byte at offset 24
+    "lane_num": uctypes.INT8 | 25,          # 1 byte at offset 25
+    "lane_mask": uctypes.UINT8 | 26,        # 1 byte at offset 26
+    "draw_x": uctypes.INT8 | 27,            # 1 byte at offset 27
+    "draw_y": uctypes.INT8 | 28,            # 1 byte at offset 28
+    "floor_y": uctypes.INT8 | 29,           # 1 byte at offset 29
+    "color_rot_idx": uctypes.UINT8 | 30,    # 1 byte at offset 30
+    "flags": uctypes.UINT8 | 31,            # 1 byte at offset 31
 
-    # "x": uctypes.INT32 | 32,           # 2 bytes at offset 12 (half-float)
-    # "y": uctypes.INT32 | 35,           # 2 bytes at offset 14 (half-float)
-    "dir_x": uctypes.INT16 | 32,         # 2 byte at offset 32
-    "dir_y": uctypes.INT16 | 34,         # 2 byte at offset 34
+    "dir_x": uctypes.INT16 | 32,            # 2 byte at offset 32
+    "dir_y": uctypes.INT16 | 34,            # 2 byte at offset 34
 }
 
 SPRITE_DATA_SIZE = 36

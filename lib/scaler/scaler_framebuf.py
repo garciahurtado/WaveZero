@@ -35,6 +35,15 @@ class ScalerFramebuf:
     scratch_buffer = None
     display_stride = 0
 
+    scratch_buffer_4: framebuf
+    scratch_buffer_8: framebuf
+    scratch_buffer_16: framebuf
+    scratch_buffer_24: framebuf
+    scratch_buffer_32: framebuf
+    scratch_buffer_48: framebuf
+    scratch_buffer_64: framebuf
+    scratch_buffer_full: framebuf
+
     def __init__(self, scaler, display: SSD1331PIO, mode=framebuf.RGB565):
         self.scaler = scaler
         self.display = display
@@ -55,6 +64,7 @@ class ScalerFramebuf:
             [4, 4],
             [8, 8],
             [16, 16],
+            [24, 24],
             [32, 32],
             [48, 48],
             [64, 64],
@@ -77,6 +87,9 @@ class ScalerFramebuf:
 
         # 16x16
         self.scratch_buffer_16 = self.make_buffer(16, 16, mode)
+
+        # 24x24
+        self.scratch_buffer_24 = self.make_buffer(24, 24, mode)
 
         # 32x32
         self.scratch_buffer_32 = self.make_buffer(32, 32, mode)
@@ -116,6 +129,9 @@ class ScalerFramebuf:
         elif max_dim <= 16:
             self.scratch_buffer = self.scratch_buffer_16
             self.frame_width = self.frame_height = 16
+        elif max_dim <= 24:
+            self.scratch_buffer = self.scratch_buffer_24
+            self.frame_width = self.frame_height = 24
         elif max_dim <= 32:
             self.scratch_buffer = self.scratch_buffer_32
             self.frame_width = self.frame_height = 32

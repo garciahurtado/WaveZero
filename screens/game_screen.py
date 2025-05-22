@@ -32,7 +32,7 @@ from sprites.sprite_types import *
 from sprites.sprite_registry import registry
 from sprites_old.sprite import Sprite
 
-from profiler import Profiler as prof
+from profiler import Profiler as prof, Profiler
 from micropython import const
 from sprites.renderer_prescaled import RendererPrescaled
 class GameScreen(Screen):
@@ -197,11 +197,14 @@ class GameScreen(Screen):
         print(f"Sprite speed: {barrier_speed}")
 
         self.input = make_input_handler(self.player)
+        loop = asyncio.get_event_loop()
 
         if self.fps_enabled:
-            self.fps_counter_task = asyncio.create_task(self.start_fps_counter(self.mgr.pool))
+            self.fps_counter_task = loop.create_task(self.start_fps_counter(self.mgr.pool))
 
-        loop = asyncio.get_event_loop()
+        if Profiler.enabled:
+            loop.create_task(self.update_profiler())
+
         loop.create_task(self.start_display_loop())
 
         self.update_score_task = loop.create_task(self.mock_update_score())
@@ -273,6 +276,11 @@ class GameScreen(Screen):
 
         except asyncio.CancelledError:
             return False
+    async def update_profiler(self):
+        while True:
+            await asyncio.sleep(3)
+            prof.dump_profile()
+            prof.clear()
 
     def do_refresh(self):
         """ Overrides parent method """
@@ -302,7 +310,8 @@ class GameScreen(Screen):
         log_mem(f"game_screen_refresh_END")
 
     def show_all(self):
-        for i in range(len(self.instances)):
+        size = len(self.instances)
+        for i in range(size):
             self.instances[i].show(self.display)
 
     def show_fx(self):
@@ -320,7 +329,7 @@ class GameScreen(Screen):
         self.grid.start()
 
         print("-- Starting stage...")
-        self.stage.start()
+        # self.stage.start()
 
         loop = asyncio.get_event_loop()
         # loop.create_task(self.player.stop_blink())

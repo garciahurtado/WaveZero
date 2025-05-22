@@ -3,6 +3,8 @@ import math
 
 import utime
 from micropython import const
+from profiler import Profiler, profile as timed
+# Profiler.enabled = True
 
 from colors import color_util as colors
 from colors.framebuffer_palette import FramebufferPalette as fp
@@ -114,6 +116,7 @@ class RoadGrid():
     far_z = 0
     speed = 0
     speed_ms = 0
+    last_update = None # Last time the grid was updated
 
     def __init__(self, camera, display, lane_width=None):
 
@@ -221,14 +224,12 @@ class RoadGrid():
         print("After both palettes combined")
         self.check_mem()
 
-
     def show(self):
         self.show_horiz_lines()
         self.draw_horizon()
         self.show_vert_lines()
 
         self.last_tick = utime.ticks_ms()
-
 
     def create_horiz_lines(self, num_lines):
         start_z = -60
@@ -237,7 +238,6 @@ class RoadGrid():
 
         self.horiz_lines_data.reverse()
         self.far_z_horiz = (num_lines) * self.lane_depth + 400
-
 
     def create_vert_points(self):
         """ Calculates the x,y start and end points for the vertical lines of the road grid """
@@ -275,7 +275,7 @@ class RoadGrid():
         """ Trick the camera during update()"""
         # self.far_z_vert = 10000
 
-    #@timed
+    @timed
     def update_horiz_lines(self, elapsed):
         self.far_z = 0 # Keep track of the furthest line, to see if we need new ones
         delete_lines = []
@@ -293,13 +293,13 @@ class RoadGrid():
                 delete_lines.append(my_line)
                 continue
 
-
         """ Remove out of bounds lines """
         for line in delete_lines:
             self.horiz_lines_data.remove(line)
 
-    #@timed
+    @timed
     def show_horiz_lines(self):
+        last_y: int = 0
         last_y: int = 0
 
         for my_line in self.horiz_lines_data:
@@ -323,7 +323,6 @@ class RoadGrid():
 
             self.display.hline(0, my_line['y'], self.width, rgb565)
 
-
         dist_to_horiz = self.far_z_horiz - self.far_z
 
         if (dist_to_horiz > self.lane_depth) and len(self.horiz_lines_data) < self.num_horiz_lines:
@@ -331,8 +330,7 @@ class RoadGrid():
             new_line = {'z': self.far_z + self.lane_depth}
             self.horiz_lines_data.append(new_line)
 
-
-    #@timed
+    @timed
     def show_vert_lines(self):
         # Calculate the reference points just once
         start_x_far, _ = self.camera.to_2d(0, 0, self.far_z_vert)

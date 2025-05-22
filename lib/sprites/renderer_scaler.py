@@ -98,7 +98,7 @@ class RendererScaler(Renderer):
                 current_draw_x = original_draw_x + (meta.repeat_spacing * draw_scale * i)
 
                 # This is hacky and should be rewritten
-                inst.draw_x = math.ceil(current_draw_x)
+                inst.draw_x = round(current_draw_x)
                 self.scaler.draw_sprite(
                     meta,
                     inst,

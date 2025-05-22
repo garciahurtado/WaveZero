@@ -91,10 +91,15 @@ class SpriteManager3D(SpriteManager):
 
         sprite.floor_y, scale = cam.get_scale(sprite.z)
 
+
         """1. Add the scaled 3D Y (substract) + sprite height from the starting 2D Y. This way we scale both numbers 
         in one single operation"""
 
         if sprite.y or meta.height:
+            # printc(f"scale: {scale}")
+            # printc(f"sprite.y: {sprite.y}")
+            # printc(f"meta.height: {meta.height}")
+
             """ Draw the sprite at Y - (sprite height) """
             scaled_height = int(scale * (sprite.y + meta.height))
             draw_y = sprite.floor_y - scaled_height

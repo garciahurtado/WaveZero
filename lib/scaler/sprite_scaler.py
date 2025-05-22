@@ -14,7 +14,7 @@ from scaler.const import DEBUG, DEBUG_DMA, DEBUG_INST, INTERP0_POP_FULL, INTERP1
     INTERP1_ACCUM1, INTERP1_BASE1, INTERP1_BASE2, DEBUG_INTERP, INTERP1_CTRL_LANE1, INTERP0_BASE1, INTERP0_ACCUM0, \
     INTERP0_ACCUM1, DEBUG_DISPLAY, DEBUG_TICKS, \
     DEBUG_PIXELS, \
-    INK_GREEN, INK_CYAN, DEBUG_SCALES
+    INK_GREEN, INK_CYAN, DEBUG_SCALES, DEBUG_INTERP_LIST
 from sprites.sprite_physics import SpritePhysics
 
 from images.indexed_image import Image
@@ -113,13 +113,13 @@ class SpriteScaler():
         self.dma.write_addrs[row_id] = new_write            # this doesnt matter, but just in case, so that px_write doesnt write to the display
         # self.dma.write_addrs[row_id] = 0x00000000            # this doesnt matter, but just in case, so that px_write doesnt write to the display
 
-        # if DEBUG_DMA_ADDR:
-        #     for row_id in range(max_read_addrs):
-        #         read_addr = self.dma.read_addrs[row_id]
-        #         write_addr = self.dma.write_addrs[row_id]
-        #         print(f">>> [{row_id:02.}] R: 0x{read_addr:08X}")
-        #         print(f">>> [{row_id:02.}] W: 0x{write_addr:08X}")
-        #         print("-------------------------")
+        if DEBUG_INTERP_LIST:
+            for row_id in range(max_read_addrs):
+                read_addr = self.dma.read_addrs[row_id]
+                write_addr = self.dma.write_addrs[row_id]
+                print(f">>> [{row_id:02.}] R: 0x{read_addr:08X}")
+                print(f">>> [{row_id:02.}] W: 0x{write_addr:08X}")
+                print("-------------------------")
 
     def draw_sprite(self, sprite:SpriteType, inst, image:Image, h_scale=1.0, v_scale=1.0):
         """
@@ -138,19 +138,32 @@ class SpriteScaler():
         self.alpha = sprite.alpha_color
         self.dma.palette_finished = False
 
-        """ Configure num of fractional bits for fixed point math """
+        """ Configure num of fractional bits for fixed point math as x.y (int_bits.frac_bits) """
+        """ The numbers below were found by trial and error. I don't know the logic behind them """
         if sprite.width == 16:
-            self.frac_bits = 3      # Use x.y fixed point   (16x16)
+            self.frac_bits = 3      # (16x16)
+            self.int_bits = 27
+
+        elif sprite.width == 24:
+            self.frac_bits = 4      # (24x24)
+            # self.int_bits = 32 - self.frac_bits
+            self.int_bits = 27       # seems like any number between 7-27 works the same
+
+            # 2: works perfect at 1:1, but not other scales (probably not enough "resolution")
+            # 3: almost there (best one so far)
+            # 4: almost there
+            # 5: too coarse
+            # 6: too coarse
         elif sprite.width == 32:
-            self.frac_bits = 4      # Use x.y fixed point (32x32)
+            self.frac_bits = 4      # (32x32)
+            self.int_bits = 32 - self.frac_bits
+
         else:
-            print(f"Only 16x16 or 32x32 sprites allowed, not {sprite.width}x{sprite.height}")
+            print(f"Only 16x16, 24x24 or 32x32 sprites allowed, not {sprite.width}x{sprite.height}")
             sys.exit(1)
 
-        # self.int_bits = 32 - self.frac_bits
-
-        scaled_height = int(sprite.height * v_scale)
-        scaled_width = int(sprite.width * h_scale)
+        scaled_height = math.ceil(sprite.height * v_scale)
+        scaled_width = math.ceil(sprite.width * h_scale)
 
         if DEBUG_SCALES:
             print(f"------** SCALED DIMS FOR {type(sprite)} @ x{h_scale}**------")
@@ -165,9 +178,9 @@ class SpriteScaler():
         if DEBUG_DISPLAY:
             print(f"ABOUT TO DRAW a Sprite on x,y: {self.draw_x},{self.draw_y} @ H: {h_scale}x / V: {v_scale}x")
 
-        self.framebuf.select_buffer(scaled_width, scaled_height)
         self.scaled_height = scaled_height
         self.scaled_width = scaled_width
+        self.framebuf.select_buffer(scaled_width, scaled_height)
 
         """ Config interpolator """
         self.base_read = addressof(image.pixel_bytes)
@@ -424,17 +437,24 @@ class SpriteScaler():
     def init_convert_fixed_point(self, sprite_width, scale_y):
         """Calculate step between source rows in fixed-point."""
         fixed_step = int((sprite_width << self.frac_bits) / (scale_y * 2))
-        fixed_step = fixed_step if (fixed_step % 2 == 0) else fixed_step - 1
+        # fixed_step = fixed_step if (fixed_step % 2 == 0) else fixed_step - 1
         return fixed_step
 
     # @micropython.viper
-    def init_interp_lanes(self, frac_bits:int, int_bits:int, display_stride:int, write_base:int):
+    def init_interp_lanes(self, frac_bits:int, sprite_width:int, display_stride:int, write_base:int):
         """
         Configures interp to generate write addresses
         """
         assert display_stride != 0 and write_base != 0, "Invalid params to init_interp_lanes!"
 
-        int_bits = 32 - frac_bits
+        int_bits = self.int_bits
+        if DEBUG_INTERP:
+            print(f"INIT_INTERP_LANES: \n\tfrac_bits:{frac_bits} \n\tint_bits:{int_bits}")
+        # int_bits = 32 - frac_bits
+
+        # if sprite_width == 24:
+        #     int_bits = 29
+
         # int_bits is a little temperamental here:
         # int_bits = 32           # no for 16x16  / stretched 32x32 (all yellow)
         # int_bits = 31            # no for 16x16  / not 32x32
@@ -447,10 +467,11 @@ class SpriteScaler():
         # using 5 or above, freezes up DMA
 
         read_ctrl_lane1 = (
-                (frac_bits << 0) |  # Shift right to get integer portion
-                (frac_bits << 5) |  # Start mask at bit 0
-                (int_bits << 10) |  # Full 32-bit mask to preserve address (???)
-                (0 << 15) |  # No sign extension
+                (frac_bits << 0) |          # Shift right to get integer portion
+                (frac_bits << 5) |
+                # (3 << 5) |                  # Start mask at bit 0
+                (int_bits << 10) |                # 27 bit mask
+                (0 << 15) |                 # No sign extension
                 (1 << 18)  # ADD_RAW - Enable raw accumulator addition
         )
         mem32[INTERP1_CTRL_LANE1] = read_ctrl_lane1

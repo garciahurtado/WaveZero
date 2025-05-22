@@ -51,10 +51,9 @@ class TestScreenBase(Screen):
     def init_thread_2(self):
         print(f" == CPU CORE THREAD# {_thread.get_ident()} STARTED ==")
 
-        utime.sleep_ms(1000)
+        utime.sleep_ms(500)
         loop = asyncio.get_event_loop()
         loop.create_task(self.start_display_loop())
-        # loop.create_task(self.start_main_loop())
 
     async def endless_wait(self):
         """ Here only so that the screen doesn't suddenly end """
@@ -112,22 +111,5 @@ class TestScreenBase(Screen):
         self.fps_text.visible = True
 
         return self.fps_text
-
-    def init_camera(self):
-        # Camera
-        horiz_y: int = 16
-        pos_y = 50
-        max_sprite_height = -6
-
-        self.camera = PerspectiveCamera(
-            self.display,
-            pos_x=0,
-            pos_y=pos_y,
-            pos_z=-int(pos_y / 2),
-            vp_x=0,
-            vp_y=horiz_y,
-            min_y=horiz_y + 4,
-            max_y=self.display.height + max_sprite_height,
-            fov=90.0)
 
 

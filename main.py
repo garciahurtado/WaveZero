@@ -6,6 +6,7 @@ micropython.opt_level(0)
 
 import _thread
 import gc
+# gc.threshold(5000) # in bytes
 
 import utime
 from utime import sleep
@@ -24,7 +25,7 @@ micropython.alloc_emergency_exception_buf(100)
 
 # from screens.title_screen import TitleScreen
 
-print(f" = EXEC ON CORE {_thread.get_ident()} (main)")
+print(f" = MAIN.PY ON THREAD #{_thread.get_ident()} (main)")
 
 def main():
     utime.sleep_ms(50)
@@ -42,16 +43,14 @@ def main():
     print(f"CPU clock: {current_freq / 1_000_000:.2f} MHz")
     check_mem()
 
-    micropython.opt_level(3)
     print("Compiler opt level: " + str(micropython.opt_level()))
-
     sleep(2)
 
     app = ScreenApp(96, 64)
 
     # app.load_screen(TitleScreen(app.display))
-    app.load_screen(GameScreen(app.display))
-    # app.load_screen(GameScreenTest(app.display))
+    # app.load_screen(GameScreen(app.display))
+    app.load_screen(GameScreenTest(app.display))
     # app.load_screen(TestScreen(app.display))
     # app.load_screen(TestScreenStarfield(app.display))
 
@@ -59,7 +58,7 @@ def main():
 
 
 def check_mem():
-    gc.collect()
+    # gc.collect()
     print(micropython.mem_info())
 
 

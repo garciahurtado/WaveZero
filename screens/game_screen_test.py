@@ -31,14 +31,14 @@ from micropython import const
 
 from utils import pprint, pprint_pure
 
-SPRITE_FOR_CIRCLE = SPRITE_TEST_SKULL
-# SPRITE_FOR_CIRCLE = SPRITE_BARRIER_LEFT
+# SPRITE_FOR_CIRCLE = SPRITE_TEST_SKULL
+SPRITE_FOR_CIRCLE = SPRITE_BARRIER_LEFT
 
 class GameScreenTest(Screen):
     ground_speed: 0
     max_ground_speed: int = const(-700)
     max_sprites: int = 24               # for the sprite pool
-    num_circle_sprites: int = 12         # for the circle animation
+    num_circle_sprites: int = 15        # for the circle animation
     max_scale = num_circle_sprites
 
     grid: RoadGrid = None
@@ -83,7 +83,7 @@ class GameScreenTest(Screen):
         self.init_sprite_images()
         self.init_sprites(display)
         self.inst1, idx = self.mgr.pool.get(SPRITE_FOR_CIRCLE)
-        self.inst2, idx = self.mgr.pool.get(SPRITE_TEST_SKULL)
+        self.inst2, idx = self.mgr.pool.get(SPRITE_BARRIER_LEFT)
 
         # self.mgr = SpriteManager2D(self.display, renderer, self.max_sprites) # max sprites
 
@@ -157,7 +157,10 @@ class GameScreenTest(Screen):
             return False
 
     def do_refresh(self):
-        """ Overrides parent method """
+        """ Overrides parent method.
+        This Test method is intended to test the rendering of sprites at different scales. It renders a "circle of scales"
+        in an animation, as well as individual sprites.
+        """
         if DEBUG:
             print(f"--------------------------")
             print(f"- START OF FRAME n. {self.frames_elapsed} - ")
@@ -173,18 +176,19 @@ class GameScreenTest(Screen):
 
         # self.draw_corners()
         self.draw_sprite_circle()
-        #
+
         inst1 = self.inst1
         inst1.draw_y = 16
         inst1.draw_x = 48
 
         inst2 = self.inst2
         inst2.draw_x = 32
-        inst2.draw_y = 16
+        inst2.draw_y = 12
 
         h_scale = 1
         v_scale = 1
 
+        # Single sprite draw calls
         # WarningWall
         # self.scaler.draw_sprite(self.sprite_type, inst1, self.image, h_scale=h_scale, v_scale=v_scale)
 

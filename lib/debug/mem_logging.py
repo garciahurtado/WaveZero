@@ -65,7 +65,7 @@ def log_mem(tag_description):
     # (e.g., replacing '=' or newlines, though less critical for simple parsing)
     cleaned_tag = str(tag_description).replace('\n', ' ').replace('\r', '')
     print(f"tag = {cleaned_tag}")
-    print(f"free = {free_mem}")
+    print(f"free = {free_mem:,}")
     # --- End of modification ---
 
 

@@ -25,10 +25,13 @@ from sprites.types.test_skull import TestSkull
 from sprites.types.test_square import TestSquare
 from sprites.types.test_heart import TestHeart
 from sprites.types.test_grid import TestGrid
+from sprites.types.warning_wall import WarningWall
+
 gc.collect()
 
 from sprites.sprite_manager_2d import SpriteManager2D
-from sprites.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART, SPRITE_TEST_GRID, SpriteType, SPRITE_TEST_PYRAMID, SPRITE_GAMEBOY, SPRITE_CHERRIES, SPRITE_TEST_SKULL
+from sprites.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART, SPRITE_TEST_GRID, SpriteType, \
+    SPRITE_TEST_PYRAMID, SPRITE_GAMEBOY, SPRITE_CHERRIES, SPRITE_TEST_SKULL, SPRITE_BARRIER_LEFT
 from profiler import Profiler as prof
 
 from colors.color_util import hex_to_565
@@ -117,7 +120,7 @@ class TestScreen(TestScreenBase):
     def __init__(self, display, *args, **kwargs):
         """ Thread #2 """
         # gc.collect()
-        _thread.start_new_thread(self.init_thread_2, [])
+        # _thread.start_new_thread(self.init_thread_2, [])
 
         super().__init__(display, margin_px=16)
         print()
@@ -136,7 +139,8 @@ class TestScreen(TestScreenBase):
 
         # self.create_lines()
 
-        self.scaler = SpriteScaler(self.display)
+        self.renderer = RendererScaler(display)
+        self.scaler = self.renderer.scaler
         self.scaler.prof = prof
 
         # self.actions = actions = self.mgr.sprite_actions
@@ -192,14 +196,16 @@ class TestScreen(TestScreenBase):
         # self.load_types()
         self.init_common()
 
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.start_display_loop())
+
         test = 'zoom_heart'
         method = None
 
         # self.create_line_colors()
 
         if test == 'zoom_heart':
-            # self.sprite_type =
-            self.load_sprite(SPRITE_TEST_HEART, TestHeart)
+            self.load_sprite(SPRITE_BARRIER_LEFT, WarningWall)
             self.init_beating_heart()
             method = self.do_refresh_zoom_in
         elif test == 'zoom_sq':
@@ -238,6 +244,7 @@ class TestScreen(TestScreenBase):
             self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
 
         asyncio.run(self.start_main_loop())
+
 
     async def start_main_loop(self):
         print(f"-- ... MAIN LOOP STARTING ON THREAD #{_thread.get_ident()} ... --")
@@ -337,6 +344,9 @@ class TestScreen(TestScreenBase):
         self.all_coords = all_coords
 
     async def start_display_loop(self):
+        if DEBUG:
+            print("== STARTING DISPLAY LOOP ON TEST_SCREEN.PY ==")
+
         while True:
             self.refresh_method()
             await asyncio.sleep_ms(1)
@@ -484,8 +494,6 @@ class TestScreen(TestScreenBase):
             print("IN SCREEN about to draw_sprite:")
             print(f"  v_scale: {v_scale}")
             print(f"  h_scale: {h_scale}")
-            print(f"  fbuff_width: {self.scaler.framebuf.frame_width}")
-            print(f"  fbuff_height: {self.scaler.framebuf.frame_height}")
             print(f"  draw_x: {draw_x}")
             print(f"  draw_y: {draw_y}")
             print(f"  sprite_scaled_width: {sprite_scaled_width}")
@@ -496,8 +504,10 @@ class TestScreen(TestScreenBase):
             self.sprite,
             self.inst,
             self.image,
-            h_scale=h_scale,
-            v_scale=v_scale)
+            # h_scale=h_scale,
+            # v_scale=v_scale)
+            h_scale=1,
+            v_scale=1)
 
         self.scale_id += 1
         self.show_prof()
@@ -680,6 +690,8 @@ class TestScreen(TestScreenBase):
         self.last_tick = utime.ticks_ms()
 
     def load_types(self):
+        raise DeprecationWarning
+
         registry.add_type(
             SPRITE_TEST_HEART,
             TestHeart)
