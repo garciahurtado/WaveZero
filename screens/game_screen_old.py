@@ -126,7 +126,7 @@ class GameScreen(Screen):
         self.init_sprites()
         self.init_road_grid()
 
-        asyncio.run(self.start_main_loop())
+        asyncio.run(self.start_update_loop())
 
     def init_sprites(self):
         sun = Sprite("/img/sunset.bmp")
@@ -155,7 +155,7 @@ class GameScreen(Screen):
             vp_y=horiz_y+2)
         self.camera.horiz_z = self.sprite_max_z
 
-    async def start_main_loop(self):
+    async def start_update_loop(self):
         self.stage.start()
         self.input_task = make_input_handler(self.bike)
         self.bike.has_physics = False

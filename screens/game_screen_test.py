@@ -126,7 +126,7 @@ class GameScreenTest(Screen):
             self.fps_counter_task = asyncio.create_task(self.start_fps_counter(self.mgr.pool))
 
         print("-- Starting update_loop...")
-        asyncio.run(self.start_main_loop())
+        asyncio.run(self.start_update_loop())
 
     async def update_loop(self):
         start_time_ms = self.last_update_ms = utime.ticks_ms()

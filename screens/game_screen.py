@@ -5,7 +5,7 @@ import micropython
 from debug.mem_logging import log_mem, log_new_frame
 from mpdb.mpdb import Mpdb
 from scaler.const import DEBUG_INST, DEBUG, INK_MAGENTA, DEBUG_POOL, INK_BRIGHT_RED, INK_RED, DEBUG_MEM, INK_CYAN, \
-    INK_BRIGHT_GREEN, INK_BRIGHT_BLUE
+    INK_BRIGHT_GREEN, INK_BRIGHT_BLUE, DEBUG_FRAME_ID
 from scaler.scaler_debugger import printc
 from scaler.sprite_scaler import SpriteScaler
 from perspective_camera import PerspectiveCamera
@@ -44,7 +44,7 @@ class GameScreen(Screen):
     sun_start_x = None
     camera: PerspectiveCamera
     mgr: SpriteManager3D = None
-    max_sprites: int = 500
+    max_sprites: int = 256
     saved_ground_speed = 0
     lane_width: int = const(24)
     num_lives: int = 4
@@ -64,6 +64,7 @@ class GameScreen(Screen):
     collider = None
     score = 0
     stage = None
+    num_lanes = 5
 
     def __init__(self, display, *args, **kwargs):
         super().__init__(display, *args, **kwargs)
@@ -177,15 +178,7 @@ class GameScreen(Screen):
 
         ImageLoader.load_images(images, self.display)
 
-    def _run(self):
-        print("-- Starting update_loop...")
-        asyncio.run(self.start_main_loop())
-
     def run(self):
-        log_new_frame()
-
-        log_mem(f"game_screen_run_START")
-
         """ Quick flash of white"""
         self.display.fill(0xBBBBBB)
         self.display.show()
@@ -205,8 +198,7 @@ class GameScreen(Screen):
         if Profiler.enabled:
             loop.create_task(self.update_profiler())
 
-        loop.create_task(self.start_display_loop())
-
+        self.display_task = loop.create_task(self.start_display_loop())
         self.update_score_task = loop.create_task(self.mock_update_score())
 
         # Start the road speed-up task
@@ -214,17 +206,14 @@ class GameScreen(Screen):
         loop.create_task(self.speed_anim.run(fps=60))
         self.start()
 
-        # Disable updates after a few seconds
-        # loop.create_task(self.stop_stage())
-
         print("-- Starting update_loop...")
-        asyncio.run(self.start_main_loop())
+        asyncio.run(self.start_update_loop())
 
     async def stop_stage(self):
         await asyncio.sleep_ms(10000)
         printc("** STOPPING STAGE AND SCREEN UPDATES**", INK_MAGENTA)
         self.pause()
-        # self.stage.stop()
+        self.stage.stop()
 
     async def update_loop(self):
         start_time_ms = self.last_update_ms = utime.ticks_ms()
@@ -232,50 +221,44 @@ class GameScreen(Screen):
 
         print(f"--- (game screen) Update loop Start time: {start_time_ms}ms ---")
         self.check_gc_mem()
-        num_lanes = 5
 
         # update loop - will run until task cancellation
         try:
             while True:
-                if DEBUG_MEM:
-                    print(micropython.mem_info())
-
-                # Optimize: precompute num_lanes * bike_angle when bike_angle is being set
-                self.camera.vp_x = round(self.player.turn_angle * num_lanes)
-                self.camera.cam_x = round(self.player.turn_angle * num_lanes)
-
-                self.grid.speed = self.ground_speed
-                self.grid.speed_ms = self.ground_speed / 10
-                self.total_frames += 1
-
-                now = utime.ticks_ms()
-                elapsed = utime.ticks_diff(now, self.last_update_ms)
-                elapsed = elapsed / 1000 # @TODO change to MS?
-                self.last_update_ms = now
-
-                if not self.paused:
-                    log_mem(f"game_screen_update_loop_BEFORE_STAGE_UPDATE")
-                    self.stage.update(elapsed)
-
-                    log_mem(f"game_screen_update_loop_BEFORE_HORIZ_LINES_UPDATE")
-                    self.grid.update_horiz_lines(elapsed)
-
-                    log_mem(f"game_screen_update_loop_BEFORE_SPRITE_MGR_UPDATE")
-                    self.mgr.update(elapsed)
-
-                    log_mem(f"game_screen_update_loop_BEFORE_PLAYER_UPDATE")
-                    self.player.update(elapsed)
-                    self.sun.x = self.sun_start_x - round(self.player.turn_angle * 4)
-
-                    for sprite in self.instances:
-                        sprite.update(elapsed)
-
-                    self.collider.check_collisions(self.mgr.pool.active_sprites)
-
+                self.do_update()
                 await asyncio.sleep(1/60)   # Tweaking this number can improve FPS
 
         except asyncio.CancelledError:
             return False
+
+    def do_update(self):
+        if DEBUG_MEM:
+            print(micropython.mem_info())
+
+        # Optimize: precompute num_lanes * bike_angle when bike_angle is being set
+        self.camera.vp_x = round(self.player.turn_angle * self.num_lanes)
+        self.camera.cam_x = round(self.player.turn_angle * self.num_lanes)
+
+        self.grid.speed = self.ground_speed
+        self.grid.speed_ms = self.ground_speed / 10
+        self.total_frames += 1
+
+        now = utime.ticks_ms()
+        elapsed = utime.ticks_diff(now, self.last_update_ms)
+        elapsed = elapsed / 1000  # @TODO change to MS?
+        self.last_update_ms = now
+
+        if not self.paused:
+            self.stage.update(elapsed)
+            self.grid.update_horiz_lines(elapsed)
+            self.mgr.update(elapsed)
+            self.player.update(elapsed)
+            self.sun.x = self.sun_start_x - round(self.player.turn_angle * 4)
+
+            for sprite in self.instances:
+                sprite.update(elapsed)
+
+            self.collider.check_collisions(self.mgr.pool.active_sprites)
     async def update_profiler(self):
         while True:
             await asyncio.sleep(3)
@@ -284,21 +267,20 @@ class GameScreen(Screen):
 
     def do_refresh(self):
         """ Overrides parent method """
-        log_new_frame()
-        log_mem(f"game_screen_refresh_START")
+        if DEBUG_FRAME_ID:
+            printc(f"[[ STARTING FRAME {self.total_frames:04.} ]]", INK_BRIGHT_GREEN)
+
+        # First, do the world updates
+        self.do_update()
+
+        # Now run the rendering code
         self.display.fill(0x0000)
         self.grid.show()
-        log_mem(f"game_screen_refresh_BEFORE_SHOW_ALL")
         self.show_all()
-        log_mem(f"game_screen_refresh_BEFORE_PLAYER_SHOW")
         self.player.show(self.display)
-        log_mem(f"game_screen_refresh_BEFORE_FX")
         self.show_fx()
-        log_mem(f"game_screen_refresh_UI_SHOW")
         self.ui.show()
-        log_mem(f"game_screen_refresh_BEFORE_DISPLAY_SHOW")
         self.display.show()
-        log_mem(f"game_screen_refresh_AFTER_DISPLAY_SHOW")
 
         if DEBUG_POOL:
             num_active = self.mgr.pool.active_count
@@ -306,8 +288,6 @@ class GameScreen(Screen):
             printc(f"*** POOL ACTIVE COUNT: {num_active} ***", INK_BRIGHT_GREEN)
             printc(f"*** POOL AVAIL. COUNT: {num_avail} ***", INK_BRIGHT_BLUE)
         self.fps.tick()
-#
-        log_mem(f"game_screen_refresh_END")
 
     def show_all(self):
         size = len(self.instances)
@@ -329,7 +309,7 @@ class GameScreen(Screen):
         self.grid.start()
 
         print("-- Starting stage...")
-        # self.stage.start()
+        self.stage.start()
 
         loop = asyncio.get_event_loop()
         # loop.create_task(self.player.stop_blink())
@@ -345,7 +325,6 @@ class GameScreen(Screen):
         self.pause()
         self.player.visible = False
         self.death_anim.start_animation(self.player.x, self.player.y)
-
 
     async def death_loop(self):
         while self.death_anim.running:
@@ -378,16 +357,6 @@ class GameScreen(Screen):
             min_y=horiz_y+4,
             max_y=self.display.height + max_sprite_height,
             fov=90.0)
-
-        # self.camera = PerspectiveCamera(
-        #     self.display,
-        #     pos_x=0,
-        #     pos_y=20,
-        #     pos_z=camera_z,
-        #     vp_x=0,
-        #     vp_y=20,
-        #     min_y=20,
-        #     max_y=self.display.height)
 
     def init_sprite_images(self):  # Or _setup_sprite_assets(self) as previously named
         """
