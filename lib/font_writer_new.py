@@ -63,13 +63,15 @@ class FontRenderer():
 
 
 class MonochromeWriter(FontRenderer):
+    char_framebuf = None
+    _tabsize = None
+
     def __init__(self, device: framebuf.FrameBuffer, font, screen_width: int, screen_height: int):
         super().__init__(device, font, screen_width, screen_height)
         self.orig_x = 0
         self.orig_y = 0
         self.text_x = 0
         self.text_y = 0
-
 
     def render_char(self, char: str, invert: bool = False) -> None:
         print(f"CHAR IS '{char}'")

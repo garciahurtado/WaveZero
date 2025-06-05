@@ -70,7 +70,7 @@ class Screen:
             self.do_refresh()
             await asyncio.sleep_ms(1)
 
-    async def start_main_loop(self):
+    async def start_update_loop(self):
         print("<< UPDATE LOOP START (screen.py) >>")
         await asyncio.gather(
             self.update_loop(),

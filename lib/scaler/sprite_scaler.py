@@ -14,7 +14,7 @@ from scaler.const import DEBUG, DEBUG_DMA, DEBUG_INST, INTERP0_POP_FULL, INTERP1
     INTERP1_ACCUM1, INTERP1_BASE1, INTERP1_BASE2, DEBUG_INTERP, INTERP1_CTRL_LANE1, INTERP0_BASE1, INTERP0_ACCUM0, \
     INTERP0_ACCUM1, DEBUG_DISPLAY, DEBUG_TICKS, \
     DEBUG_PIXELS, \
-    INK_GREEN, INK_CYAN, DEBUG_SCALES, DEBUG_INTERP_LIST
+    INK_GREEN, INK_CYAN, DEBUG_SCALES, DEBUG_INTERP_LIST, INK_BRIGHT_RED, INK_YELLOW, INK_MAGENTA
 from sprites.sprite_physics import SpritePhysics
 
 from images.indexed_image import Image
@@ -60,6 +60,8 @@ class SpriteScaler():
         self.draw_x = 0
         self.draw_y = 0
         self.alpha = None
+        self.max_draw_x = 70
+        self.max_draw_y = 96
 
         self.scaled_height = 0
         self.scaled_width = 0
@@ -133,6 +135,7 @@ class SpriteScaler():
 
         """ Snap the input scale to one of the valid scale patterns """
         new_scale = self.dma.patterns.find_closest_scale(h_scale)
+
         h_scale = v_scale = new_scale # we dont support independent v_scale yet because the sprite struct doesnt have the field
 
         self.alpha = sprite.alpha_color
@@ -172,15 +175,17 @@ class SpriteScaler():
         # this only works for 2D sprites
         # inst.draw_x, inst.draw_y = SpritePhysics.get_draw_pos(inst, scaled_width, scaled_height)
 
+
+        self.scaled_height = scaled_height
+        self.scaled_width = scaled_width
+        self.framebuf.select_buffer(scaled_width, scaled_height)
+
+        # Somewhere else, these are updated every frame
         self.draw_x = int(inst.draw_x)
         self.draw_y = int(inst.draw_y)
 
         if DEBUG_DISPLAY:
             print(f"ABOUT TO DRAW a Sprite on x,y: {self.draw_x},{self.draw_y} @ H: {h_scale}x / V: {v_scale}x")
-
-        self.scaled_height = scaled_height
-        self.scaled_width = scaled_width
-        self.framebuf.select_buffer(scaled_width, scaled_height)
 
         """ Config interpolator """
         self.base_read = addressof(image.pixel_bytes)
@@ -209,16 +214,16 @@ class SpriteScaler():
         if DEBUG_INST:
             coords = SpritePhysics.get_pos(inst)
 
-            print(f"Drawing a sprite of {sprite.width}x{sprite.height} ")
-            print(f"\t img_src:    0x{self.base_read:08X}")
-            print(f"\t fb_target:  0x{self.framebuf.min_write_addr:08X}")
+            printc(f"Drawing a {sprite.width}x{sprite.height} Sprite", INK_YELLOW)
+            print(f"\t @ x,y:           {coords[0]},{coords[1]} ")
+            print(f"\t @ draw_x,draw_y: {self.draw_x},{self.draw_y}")
+            print(f"\t img_src:         0x{self.base_read:08X}")
+            print(f"\t fb_target_addr:  0x{self.framebuf.min_write_addr:08X}")
             print()
-            print(f"\t x/y: {coords[0]}/{coords[1]} ")
-            print(f"\t draw_x/draw_y: {self.draw_x}/{self.draw_y} ")
             print(f"\t H scale: x{h_scale} / V scale: x{v_scale}")
-            print(f"\t Sprite Stride (px): {sprite.width}")
-            print(f"\t Sprite Stride (bytes): {sprite.width//2}")
-            print(f"\t Display Stride (fb): { self.framebuf.display_stride}")
+            print(f"\t Sprite Stride (px):      {sprite.width}")
+            print(f"\t Sprite Stride (bytes):   {sprite.width//2}")
+            print(f"\t Display Stride (fb):     { self.framebuf.display_stride}")
 
         palette_addr = addressof(image.palette.palette)
         self.init_pio(palette_addr)
@@ -227,11 +232,11 @@ class SpriteScaler():
 
         self.start()
 
-        while not self.sm_finished:
+        while not (self.dma.h_scale_finished and self.sm_finished):
             utime.sleep_ms(1)
-
-        while not self.dma.h_scale_finished:
-            utime.sleep_ms(1)
+            # elapsed = utime.ticks_diff(utime.ticks_us(), timer_start)
+            # if elapsed > timer_limit:
+            #     break
 
         self.finish_sprite(image)
 
@@ -507,10 +512,15 @@ class SpriteScaler():
 
     def init_pio(self, palette_addr):
         assert palette_addr != 0, "Palette address must be non-zero!"
+
+        self.sm_finished = False
         self.sm_read_palette.restart()
 
+        if self.sm_read_palette.tx_fifo() > 0:
+            self.dma.debug_dma_channels()
+            self.dbg.debug_all()
+
         # Add a new palette address
-        self.sm_finished = False
         self.sm_read_palette.put(palette_addr)
 
     def center_sprite(self, sprite_width, sprite_height):

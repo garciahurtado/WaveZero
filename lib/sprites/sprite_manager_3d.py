@@ -44,8 +44,17 @@ class SpriteManager3D(SpriteManager):
     camera: PerspectiveCamera = None
     phy: SpritePhysics = SpritePhysics()
     draw: SpriteDraw = SpriteDraw()
+    max_scale = 8
+
+    # Limiting negative drawX and drawY prevents random freezes on clipped sprites with high scales
+    min_draw_x = -32
+    min_draw_y = -64 # This is dependent on the sprite (sprite height x2)
 
     # @timed
+    def __init__(self, display: ssd1331_pio, renderer, max_sprites, camera=None, grid=None):
+        super().__init__(display, renderer, max_sprites, camera, grid)
+        self.max_scale = None
+
     def update_sprite(self, sprite, meta, elapsed):
         """ 3D Only. The update function only applies to a single sprite at a time, and it is responsible for
          updating the x and y draw coordinates based on the 3D position and camera view
@@ -90,25 +99,22 @@ class SpriteManager3D(SpriteManager):
         """1. Get the Scale according to Z for a starting 2D Y. This is where the 3D perspective 'magic' happens"""
 
         sprite.floor_y, scale = cam.get_scale(sprite.z)
+        if math.isinf(scale):
+            scale = self.max_scale
 
+        if not scale:
+            self.pool.release(sprite, meta)
+            return False
 
         """1. Add the scaled 3D Y (substract) + sprite height from the starting 2D Y. This way we scale both numbers 
         in one single operation"""
 
         if sprite.y or meta.height:
-            # printc(f"scale: {scale}")
-            # printc(f"sprite.y: {sprite.y}")
-            # printc(f"meta.height: {meta.height}")
-
             """ Draw the sprite at Y - (sprite height) """
             scaled_height = int(scale * (sprite.y + meta.height))
             draw_y = sprite.floor_y - scaled_height
         else:
             draw_y = sprite.floor_y
-
-        # @TODO
-        # if draw_y < 0:
-        #     print(f"NEGATIVE DRAW Y: {draw_y} / sc: {scale} / z: {sprite.z} / height: {meta.height} ")
 
         sprite.scale = scale
 
@@ -132,6 +138,15 @@ class SpriteManager3D(SpriteManager):
 
         sprite.draw_x = int(draw_x)
         sprite.draw_y = int(draw_y)
+
+        # Check for out of bounds x or y
+        if sprite.draw_x > self.display.width - 1:
+            self.pool.release(sprite, meta)
+            return False
+
+        if sprite.draw_y > self.display.height - 1:
+            self.pool.release(sprite, meta)
+            return False
 
         sprite.current_frame = frame_idx
 
@@ -197,8 +212,14 @@ class SpriteManager3D(SpriteManager):
             blink_flip = types.get_flag(sprite, FLAG_BLINK_FLIP)
             types.set_flag(sprite, FLAG_BLINK_FLIP, blink_flip * -1)
 
-        self.renderer.render_sprite(sprite, meta, images, palette)
+        if sprite.draw_y < self.min_draw_y:
+            if DEBUG:
+                printc(f"SPRITE OUT OF BOUNDS (-Y): {sprite.draw_y}")
+            # Consider the sprite OOB
+            self.release(sprite, meta)
+            return False
 
+        self.renderer.render_sprite(sprite, meta, images, palette)
         return True
 
     def spawn(self, sprite_type, *args, **kwargs):

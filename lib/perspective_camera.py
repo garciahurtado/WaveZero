@@ -19,8 +19,7 @@ class PerspectiveCamera():
         self.aspect_ratio = self.screen_width / self.screen_height
 
         # Near / far clipping planes
-        # self.near = -20
-        self.near = 100
+        self.near = -10
         self.far = 1000  # past this point all sprites are considered to be in the horizon line
 
         self.cam_x = pos_x
@@ -211,11 +210,6 @@ class PerspectiveCamera():
         if z_depth >= self.max_z or current_scale < self.min_scale:
             current_scale = self.min_scale
 
-        current_scale = abs(current_scale)
-
-        # if current_scale > 1.0:
-        #     current_scale = 1.0
-
         y_range_pixels = self.max_y - self.min_y
 
         """ ground_y is the screen-y coordinate which marks the ground point for this sprite """
@@ -240,7 +234,7 @@ class PerspectiveCamera():
         if self.focal_length_aspect == 0: return 0
 
         scale = self.focal_length_aspect * (1.0 / relative_z)
-        return scale
+        return abs(scale)
 
     def calculate_ground_y(self, scale, y_range):
         y = y_range * scale

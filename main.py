@@ -2,12 +2,10 @@ import micropython
 
 from screens.test_screen import TestScreen
 
-micropython.opt_level(0)
+micropython.opt_level(1)
 
 import _thread
 import gc
-# gc.threshold(5000) # in bytes
-
 import utime
 from utime import sleep
 
@@ -30,6 +28,7 @@ print(f" = MAIN.PY ON THREAD #{_thread.get_ident()} (main)")
 def main():
     utime.sleep_ms(50)
 
+    # max_freq = 266_000_000 # RP2350
     # max_freq = 280_000_000 # Works for rp2040
     # max_freq = 150_000_000
     # max_freq = 133_000_000
@@ -49,8 +48,8 @@ def main():
     app = ScreenApp(96, 64)
 
     # app.load_screen(TitleScreen(app.display))
-    # app.load_screen(GameScreen(app.display))
-    app.load_screen(GameScreenTest(app.display))
+    app.load_screen(GameScreen(app.display))
+    # app.load_screen(GameScreenTest(app.display))
     # app.load_screen(TestScreen(app.display))
     # app.load_screen(TestScreenStarfield(app.display))
 

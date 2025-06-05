@@ -189,7 +189,8 @@ class DMAChain:
         total_px = read_stride_px * num_rows
 
         self.color_lookup.count = total_px
-        px_read_tx_count = int(read_stride_px / 8) # 2px per byte * 4 bytes per word = 8px per word
+        # 2px per byte * 4 bytes per word = 8px per word, plus 1 for the null trigger
+        px_read_tx_count = round(read_stride_px / 8)
         self.px_read.count = px_read_tx_count
         self.h_scale.count = read_stride_px
         self.h_scale.read = self.patterns.get_pattern(h_scale)
@@ -216,6 +217,9 @@ class DMAChain:
 
     def reset(self):
         self.color_lookup.active(0)
+        self.read_addr.active(0)
+        self.write_addr.active(0)
+        self.h_scale.active(0)
 
         if DEBUG_TICKS:
             self.ticks_px_read = 0

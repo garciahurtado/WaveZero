@@ -39,11 +39,11 @@ class ScalePatterns:
         """
         patterns_all = {}
 
-        patterns1 = self.create_patterns(0, 1, step=0.125) # 8 steps
-        patterns2 = self.create_patterns(1, 2, step=0.250) # 8 steps
-        patterns3 = self.create_patterns(2, 6, step=0.500) # 8 steps
-        patterns4 = self.create_patterns(6, 14, step=1)    # 8 steps
-        patterns5 = self.create_patterns(14, 18, step=1)   # 4 steps
+        patterns1 = self.create_patterns(0, 1, step=0.125)  # 8 steps
+        patterns2 = self.create_patterns(1, 2, step=0.250)  # 4 steps
+        patterns3 = self.create_patterns(2, 6, step=0.250)  #
+        patterns4 = self.create_patterns(6, 14, step=1)     #
+        patterns5 = self.create_patterns(14, 18, step=1)    #
 
         patterns_all |= patterns1
         patterns_all |= patterns2

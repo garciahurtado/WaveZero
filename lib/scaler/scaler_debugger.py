@@ -537,6 +537,11 @@ class ScalerDebugger():
         print(f"TX LEVELS: {strTX0}-{strTX1}-{strTX2}-{strTX3}")
         print(f"RX LEVELS: {strRX0}-{strRX1}-{strRX2}-{strRX3}")
 
+    def debug_all(self):
+        self.debug_pio_fifo()
+        self.debug_pio_regs()
+        self.debug_pio_status()
+
 # Define base types that don't need recursive sizing in MicroPython
 # (str, bytes, range, bytearray are handled by getsizeof directly)
 ZERO_DEPTH_BASES = (str, bytes, int, float, range, bytearray)

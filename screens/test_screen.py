@@ -243,10 +243,10 @@ class TestScreen(TestScreenBase):
         if self.fps_enabled:
             self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
 
-        asyncio.run(self.start_main_loop())
+        asyncio.run(self.start_update_loop())
 
 
-    async def start_main_loop(self):
+    async def start_update_loop(self):
         print(f"-- ... MAIN LOOP STARTING ON THREAD #{_thread.get_ident()} ... --")
 
         """ All top level tasks / threads go here. Once all of these finish, the program ends"""

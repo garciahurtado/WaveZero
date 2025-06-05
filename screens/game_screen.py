@@ -277,7 +277,7 @@ class GameScreen(Screen):
         self.display.fill(0x0000)
         self.grid.show()
         self.show_all()
-        self.player.show(self.display)
+        # self.player.show(self.display)
         self.show_fx()
         self.ui.show()
         self.display.show()
@@ -290,9 +290,11 @@ class GameScreen(Screen):
         self.fps.tick()
 
     def show_all(self):
+        # self.mgr was registered as one of these instances, so it will be rendered from here
         size = len(self.instances)
         for i in range(size):
-            self.instances[i].show(self.display)
+            inst = self.instances[i]
+            inst.show(self.display)
 
     def show_fx(self):
         self.death_anim.update_and_draw()

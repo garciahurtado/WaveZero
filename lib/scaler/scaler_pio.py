@@ -46,56 +46,56 @@ def read_palette():
     These addresses are then sent to DMA to pull the final RGB565 colors from the palette, which are sent to the display
     """
     label("start")
-    set(pin, 0)                 # reset the JMP pin
-    pull()                       # First word in is the palette base address
-    out(isr, 32)                  # Keep it in the ISR for later -
+    set(pin, 0)                     # reset the JMP pin
+    pull()                          # First word in is the palette base address
+    out(isr, 32)                    # Keep it in the ISR for later -
 
     # START WORD LOOP ----------------------------------------------
     label("new_pull")
-    pull()                    #  .side(0b0010)   # line 15
+    pull()                          #  .side(0b0010)   # line 15
 
     # Check whether the OSR contains our NULL trigger for end of sprite (0xFFFFFFFF)
     mov(y, invert(osr))
-    jmp(not_y, "end")    # -> Will jump on 0x00000000; since we used invert(), that's our trigger
+    jmp(not_y, "end")               # -> Will jump on 0x00000000; since we used invert(), that's our trigger
 
     # START PIXEL LOOP ----------------------------------------------
     label("pixel_loop")
 
     """ Index lookup logic (reverse addition) """
-    mov(x, invert(isr))          # Line # 18: ISR has the palette addr, save it in x as the first term in the addition (inverted)
+    mov(x, invert(isr))             # Line # 18: ISR has the palette addr, save it in x as the first term in the addition (inverted)
 
-    out(y, 4)                    # shift in 4 bits from OSR (a color index), take that number and use it as a loop counter
-    jmp("test_inc1")             # Line # 20
+    out(y, 4)                       # shift in 4 bits from OSR (a color index), take that number and use it as a loop counter
+    jmp("test_inc1")                # Line # 20
 
     # START SUBSTRACTION LOOP ---------------------------------------
-    label("x++")                 # this loop is equivalent to the following code:
-                                 # while (y-- > 0):
-                                 #   x++
-                                 # leading eventually to x+y (palette + color idx) -> address of this pixel's color
-    jmp(x_dec, "test_inc1")      # x-- (this works as x++, since we inverted x).
+    label("x++")                    # this loop is equivalent to the following code:
+                                    # while (y-- > 0):
+                                    #   x++
+                                    # leading eventually to x+y (palette + color idx) -> address of this pixel's color
+    jmp(x_dec, "test_inc1")         # x-- (this works as x++, since we inverted x).
 
-    label("test_inc1")           # This has the effect of subtracting y from x, eventually.
-    jmp(x_dec, "test_inc2")      # We double the substraction because each color is 2 bytes, so every loop we are doing x = x+2
+    label("test_inc1")              # This has the effect of subtracting y from x, eventually.
+    jmp(x_dec, "test_inc2")         # We double the substraction because each color is 2 bytes, so every loop we are doing x = x+2
 
-    label("test_inc2")           # test_inc1 and test_inc2 are placeholder labels, the jmp conditions do nothing
-    jmp(y_dec, "x++")            # Keep adding
+    label("test_inc2")              # test_inc1 and test_inc2 are placeholder labels, the jmp conditions do nothing
+    jmp(y_dec, "x++")               # Keep adding
 
     # Before overwriting the ISR (which contains the palette addr), save it in the Y reg,
     # which we are not using right now
     mov(y, isr)
-    mov(isr, invert(x))                     # The final result has to be 1s complement inverted
+    mov(isr, invert(x))             # The final result has to be 1s complement inverted
 
-    push()                       # .side(0)          # 4 bytes pushed from ISR to RX FIFO (1 32bit address = 1px)
+    push()                          # .side(0)          # 4 bytes pushed from ISR to RX FIFO (1 32bit address = 1px)
 
-    mov(isr, y)                             # restore the ISR with the palette addr, Y is free again
-    jmp(not_osre, "pixel_loop")             # Still more nibbles to shift out of the OSR
+    mov(isr, y)                     # restore the ISR with the palette addr, Y is free again
+    jmp(not_osre, "pixel_loop")     # Still more nibbles to shift out of the OSR
 
     # END 1 WORD LOOP ----------------------------------------
 
     jmp("new_pull")
 
     label("end")
-    irq(block, 0)       # Signal that we are done, wait until ack
-    jmp(pin, "start")   # last line is always line number 31, and the rest are counted down from there
+    irq(block, 0)                   # Signal that we are done, wait until ack
+    jmp(pin, "start")               # last line is always number 31, and the rest are counted down from there
 
     # end of program will automatically jump to start, since there is no wrap_target

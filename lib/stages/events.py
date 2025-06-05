@@ -193,12 +193,11 @@ class MultiEvent(Event):
             return True
 
         """All events finished"""
-        self.repeat_count += 1
-
         for reset_event in self.events:
             reset_event.reset()
 
-        if (self.repeat_count >= self.repeat_max):
+        self.repeat_count += 1
+        if (self.repeat_count > self.repeat_max):
             self.finish()
             return False
         else:

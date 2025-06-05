@@ -78,10 +78,9 @@ class RendererScaler(Renderer):
         # SpriteScaler likely applies this.
         # inst.draw_x, inst.draw_y are screen coordinates.
         draw_scale = inst.scale
-        if draw_scale < 0.125:
+        if not draw_scale or draw_scale < 0.125:
             draw_scale = 0.125
 
-        # Handle sprite repeating (horizontal clones)
         if meta.repeats < 2:
             self.scaler.draw_sprite(
                 meta,
@@ -98,7 +97,7 @@ class RendererScaler(Renderer):
                 current_draw_x = original_draw_x + (meta.repeat_spacing * draw_scale * i)
 
                 # This is hacky and should be rewritten
-                inst.draw_x = round(current_draw_x)
+                inst.draw_x = int(current_draw_x)
                 self.scaler.draw_sprite(
                     meta,
                     inst,

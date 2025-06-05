@@ -209,7 +209,7 @@ class TestScreenStarfield(TestScreenBase):
         if self.fps_enabled:
             self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
 
-        asyncio.run(self.start_main_loop())
+        asyncio.run(self.start_update_loop())
 
     def load_types(self):
         self.mgr.add_type(
@@ -273,7 +273,7 @@ class TestScreenStarfield(TestScreenBase):
             self.do_refresh()
             await asyncio.sleep_ms(5)
 
-    async def start_main_loop(self):
+    async def start_update_loop(self):
         print("-- ... MAIN LOOP STARTING ...")
         self.check_gc_mem()
 

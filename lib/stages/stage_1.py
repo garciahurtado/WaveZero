@@ -18,20 +18,19 @@ class Stage1(Stage):
         super().__init__(sprite_manager)
 
         self.base_speed = base_speed = -100
-        wall_speed = base_speed
+        wall_speed = base_speed // 8
         fire_palette = None
         shared_palette = None
 
-        spawn_z = 3000
+        spawn_z = 1000
         # spawn_z = 20
-        spawn_z_step = 40
-        line_height = 14
+        line_height = 13
 
         # Times in ms
         big_wait = 5000
         med_wait = 4000
         small_wait = 2000
-        tiny_wait = 500
+        tiny_wait = 750
 
         evt = self.events
         evt.sprite_manager = sprite_manager
@@ -47,46 +46,23 @@ class Stage1(Stage):
         self.sequence([
             # evt.multi(evt_list),
             evt.multi([
-                evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=3, z=spawn_z, speed=wall_speed),
-                evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=3, y=line_height, z=spawn_z, speed=wall_speed),
-                evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=3, y=line_height * 2, z=spawn_z, speed=wall_speed),
-                evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=3, y=line_height * 3, z=spawn_z, speed=wall_speed),
-
-                evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=0, z=spawn_z, speed=wall_speed),
+                evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=0, y=0, z=spawn_z, speed=wall_speed),
                 evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=0, y=line_height, z=spawn_z, speed=wall_speed),
                 evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=0, y=line_height * 2, z=spawn_z, speed=wall_speed),
                 evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=0, y=line_height * 3, z=spawn_z, speed=wall_speed),
 
-                # evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=0, y=line_height, z=spawn_z, speed=wall_speed),
-                # evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=0, y=line_height*2, z=spawn_z, speed=wall_speed),
-                # evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=3, y=line_height*4, z=spawn_z, speed=wall_speed),
+                # evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=3, z=spawn_z, speed=wall_speed),
+                # evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=3, y=line_height, z=spawn_z, speed=wall_speed),
+                # evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=3, y=line_height * 2, z=spawn_z, speed=wall_speed),
+                # evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=3, y=line_height * 3, z=spawn_z, speed=wall_speed),
 
-                # evt.spawn(SPRITE_TEST_SKULL, lane=2, y=0, z=spawn_z, speed=wall_speed),
+                # evt.spawn(SPRITE_TEST_SKULL, lane=2, z=spawn_z, speed=wall_speed),
                 # evt.spawn(SPRITE_TEST_SKULL, lane=2, y=line_height, z=spawn_z, speed=wall_speed),
                 # evt.spawn(SPRITE_TEST_SKULL, lane=2, y=line_height*2, z=spawn_z, speed=wall_speed),
-                # evt.spawn(SPRITE_TEST_SKULL, lane=3, y=line_height, z=spawn_z, speed=wall_speed),
-                # evt.spawn(SPRITE_TEST_SKULL, lane=4, y=line_height, z=spawn_z, speed=wall_speed),
+                # evt.spawn(SPRITE_TEST_SKULL, lane=2, y=line_height*3, z=spawn_z, speed=wall_speed),
 
-                # evt.wait(small_wait),
-                # evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, z=spawn_z, speed=self.base_speed),
-                # evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, z=spawn_z, speed=self.base_speed),
-
-                # evt.spawn(SPRITE_BARRIER_RIGHT_x2, lane=0, y=line_height-8, z=spawn_z, speed=self.base_speed),
-                # evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, y=line_height-8, z=spawn_z, speed=self.base_speed),
-
-                # evt.spawn(SPRITE_WHITE_LINE_VERT, lane=0, z=spawn_z, speed=self.base_speed),
-                # evt.spawn(SPRITE_WHITE_LINE_VERT, lane=0, z=spawn_z, y=line_height, speed=self.base_speed),
-                # evt.spawn(SPRITE_WHITE_LINE_VERT, lane=5, z=spawn_z, speed=self.base_speed),
-                # evt.spawn(SPRITE_WHITE_LINE_VERT, lane=5, z=spawn_z, y=line_height, speed=self.base_speed),
-                #
-                # evt.spawn(SPRITE_WHITE_LINE_x5, lane=0, z=spawn_z, y=line_height*2, speed=self.base_speed),
-                #
-                # evt.wait(small_wait),
-                # # evt.spawn(SPRITE_LASER_WALL_x5, lane=0, z=spawn_z, y=0, speed=self.base_speed),
-                # evt.spawn(SPRITE_LASER_WALL_x5, lane=0, z=spawn_z, y=line_height, speed=self.base_speed),
-
-                evt.wait(small_wait//2)],
-                repeat=8),
+                evt.wait(2000)],
+                repeat=16),
             evt.wait(big_wait)],
             repeat=1)
 
