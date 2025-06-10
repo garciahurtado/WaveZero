@@ -31,7 +31,7 @@ gc.collect()
 
 from sprites.sprite_manager_2d import SpriteManager2D
 from sprites.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART, SPRITE_TEST_GRID, SpriteType, \
-    SPRITE_TEST_PYRAMID, SPRITE_GAMEBOY, SPRITE_CHERRIES, SPRITE_TEST_SKULL, SPRITE_BARRIER_LEFT
+    SPRITE_TEST_PYRAMID, SPRITE_GAMEBOY, SPRITE_CHERRIES, SPRITE_TEST_SKULL, SPRITE_BARRIER_LEFT, SPRITE_BARRIER_LEFT_x2
 from profiler import Profiler as prof
 
 from colors.color_util import hex_to_565
@@ -205,7 +205,7 @@ class TestScreen(TestScreenBase):
         # self.create_line_colors()
 
         if test == 'zoom_heart':
-            self.load_sprite(SPRITE_BARRIER_LEFT, WarningWall)
+            self.load_sprite(SPRITE_BARRIER_LEFT_x2, WarningWall)
             self.init_beating_heart()
             method = self.do_refresh_zoom_in
         elif test == 'zoom_sq':
@@ -290,7 +290,7 @@ class TestScreen(TestScreenBase):
             prof.fps = self.fps
 
     def init_grid(self):
-        # self.sprite = self.mgr.get_meta(self.inst)
+        self.inst, idx = self.mgr.pool.get(self.sprite_type)
 
         sprite_width = self.sprite.width
         sprite_height = self.sprite.height

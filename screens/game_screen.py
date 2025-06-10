@@ -44,7 +44,7 @@ class GameScreen(Screen):
     sun_start_x = None
     camera: PerspectiveCamera
     mgr: SpriteManager3D = None
-    max_sprites: int = 256
+    max_sprites: int = 512
     saved_ground_speed = 0
     lane_width: int = const(24)
     num_lives: int = 4
@@ -77,10 +77,7 @@ class GameScreen(Screen):
         self.scaler = renderer.scaler
 
         print("-- Preloading images...")
-        # self.preload_images()
-        # self.check_mem()
-
-        self.init_sprite_images()
+        # self.preload_images() # Still haven't gotten this to work
 
         print("-- Creating UI...")
         self.ui = ui_screen(display, self.num_lives)
@@ -277,7 +274,7 @@ class GameScreen(Screen):
         self.display.fill(0x0000)
         self.grid.show()
         self.show_all()
-        # self.player.show(self.display)
+        # self.player.show(self.display) # Explicitly so that we can control the z order
         self.show_fx()
         self.ui.show()
         self.display.show()
@@ -290,7 +287,7 @@ class GameScreen(Screen):
         self.fps.tick()
 
     def show_all(self):
-        # self.mgr was registered as one of these instances, so it will be rendered from here
+        # self.mgr was registered as one of these instances, so it will be rendered as a result of this call
         size = len(self.instances)
         for i in range(size):
             inst = self.instances[i]
@@ -359,28 +356,6 @@ class GameScreen(Screen):
             min_y=horiz_y+4,
             max_y=self.display.height + max_sprite_height,
             fov=90.0)
-
-    def init_sprite_images(self):  # Or _setup_sprite_assets(self) as previously named
-        """
-        Defines all globally used sprite types by explicitly creating SpriteType objects,
-        registers them with the SpriteRegistry, which also loads their assets.
-        """
-        print("-- Initializing Global Sprite Assets (Explicit Mode)...")
-
-        # --- Using specific sprite classes ---
-        registry.add_type(
-            SPRITE_TEST_SKULL,
-            TestSkull)
-
-        # LOADED IN STAGE CODE #
-        # registry.add_type(
-        #     SPRITE_BARRIER_LEFT,
-        #     WarningWall)
-        #
-        # registry.add_type(
-        #     SPRITE_BARRIER_RIGHT,
-        #     WarningWall,
-        #     image_path="/img/road_barrier_yellow_inv_32.bmp")
 
     def init_sprites(self, display):
         raise DeprecationWarning

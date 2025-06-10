@@ -190,7 +190,7 @@ class DMAChain:
 
         self.color_lookup.count = total_px
         # 2px per byte * 4 bytes per word = 8px per word, plus 1 for the null trigger
-        px_read_tx_count = round(read_stride_px / 8)
+        px_read_tx_count = math.ceil(read_stride_px / 8)
         self.px_read.count = px_read_tx_count
         self.h_scale.count = read_stride_px
         self.h_scale.read = self.patterns.get_pattern(h_scale)

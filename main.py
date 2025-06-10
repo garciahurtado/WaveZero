@@ -3,6 +3,9 @@ import micropython
 from screens.test_screen import TestScreen
 
 micropython.opt_level(1)
+import gc
+
+gc.threshold(15000) # in bytes
 
 import _thread
 import gc

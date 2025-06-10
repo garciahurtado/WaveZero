@@ -7,7 +7,7 @@ import micropython
 from images.image_loader import ImageLoader
 from mpdb.mpdb import Mpdb
 from perspective_camera import PerspectiveCamera
-from scaler.const import DEBUG, DEBUG_INST, INK_RED, INK_GREEN
+from scaler.const import DEBUG, DEBUG_INST, INK_RED, INK_GREEN, DEBUG_CLIP
 from scaler.scaler_debugger import printc
 from sprites.sprite_draw import SpriteDraw
 from sprites.sprite_manager import SpriteManager
@@ -46,9 +46,10 @@ class SpriteManager3D(SpriteManager):
     draw: SpriteDraw = SpriteDraw()
     max_scale = 8
 
-    # Limiting negative drawX and drawY prevents random freezes on clipped sprites with high scales
+    # Limiting negative drawX and drawY prevents random scaler FREEZES on clipped sprites far off the screen
     min_draw_x = -32
-    min_draw_y = -64 # This is dependent on the sprite (sprite height x2)
+    # min_draw_y = -47 # This seems dependent on the sprite size (sprite height x2)
+    min_draw_y = -32
 
     # @timed
     def __init__(self, display: ssd1331_pio, renderer, max_sprites, camera=None, grid=None):
@@ -213,7 +214,7 @@ class SpriteManager3D(SpriteManager):
             types.set_flag(sprite, FLAG_BLINK_FLIP, blink_flip * -1)
 
         if sprite.draw_y < self.min_draw_y:
-            if DEBUG:
+            if DEBUG_CLIP:
                 printc(f"SPRITE OUT OF BOUNDS (-Y): {sprite.draw_y}")
             # Consider the sprite OOB
             self.release(sprite, meta)
@@ -291,7 +292,6 @@ class SpriteManager3D(SpriteManager):
             sprite = current.sprite
 
             if types.get_flag(sprite, FLAG_VISIBLE):
-                # sprite.sprite_id = sprite.sprite_type
                 self.show_sprite(sprite, display)
             current = current.next
 

@@ -14,7 +14,7 @@ from scaler.const import DEBUG, DEBUG_DMA, DEBUG_INST, INTERP0_POP_FULL, INTERP1
     INTERP1_ACCUM1, INTERP1_BASE1, INTERP1_BASE2, DEBUG_INTERP, INTERP1_CTRL_LANE1, INTERP0_BASE1, INTERP0_ACCUM0, \
     INTERP0_ACCUM1, DEBUG_DISPLAY, DEBUG_TICKS, \
     DEBUG_PIXELS, \
-    INK_GREEN, INK_CYAN, DEBUG_SCALES, DEBUG_INTERP_LIST, INK_BRIGHT_RED, INK_YELLOW, INK_MAGENTA
+    INK_GREEN, INK_CYAN, DEBUG_SCALES, DEBUG_INTERP_LIST, INK_BRIGHT_RED, INK_YELLOW, INK_MAGENTA, DEBUG_CLIP
 from sprites.sprite_physics import SpritePhysics
 
 from images.indexed_image import Image
@@ -36,8 +36,6 @@ class SpriteScaler():
         self.null_trig_inv_addr = addressof(self.null_trig_inv_buf)
 
         self.leds = get_status_led_obj()
-        self.skip_rows = 0
-        self.skip_cols = 0
 
         self.max_write_addrs = 0
         self.max_read_addrs = 0
@@ -99,7 +97,7 @@ class SpriteScaler():
         read_addrs: [int] = self.dma.read_addrs     # blank array we are about to fill
         write_addrs: [int] = self.dma.write_addrs   # same
 
-        """ Populate DMA with read addresses """
+        """ Populate DMA lists with read and write addresses """
         row_id = 0
         new_write = 0
         max_read_addrs = int(self.max_read_addrs)
@@ -113,7 +111,7 @@ class SpriteScaler():
 
         self.dma.read_addrs[row_id] = self.null_trig_inv_addr  # This "reverse NULL trigger" will make the SM stop. This is the address where the value lives
         self.dma.write_addrs[row_id] = new_write            # this doesnt matter, but just in case, so that px_write doesnt write to the display
-        # self.dma.write_addrs[row_id] = 0x00000000            # this doesnt matter, but just in case, so that px_write doesnt write to the display
+        self.dma.write_addrs[row_id] = 0x00000000            # this doesnt matter, but just in case, so that px_write doesnt write to the display
 
         if DEBUG_INTERP_LIST:
             for row_id in range(max_read_addrs):
@@ -131,6 +129,7 @@ class SpriteScaler():
         """
         if not h_scale or not v_scale :
             raise AttributeError("Both v_scale and h_scale must be non-zero")
+
         self.reset()
 
         """ Snap the input scale to one of the valid scale patterns """
@@ -141,16 +140,17 @@ class SpriteScaler():
         self.alpha = sprite.alpha_color
         self.dma.palette_finished = False
 
+        if DEBUG_CLIP:
+            printc(f"DRAWING SPRITE @ {inst.draw_x},{inst.draw_y} (x{h_scale} scale)", INK_GREEN)
+
         """ Configure num of fractional bits for fixed point math as x.y (int_bits.frac_bits) """
         """ The numbers below were found by trial and error. I don't know the logic behind them """
         if sprite.width == 16:
             self.frac_bits = 3      # (16x16)
-            self.int_bits = 27
 
         elif sprite.width == 24:
             self.frac_bits = 4      # (24x24)
-            # self.int_bits = 32 - self.frac_bits
-            self.int_bits = 27       # seems like any number between 7-27 works the same
+            self.int_bits = 26       # seems like any number between 7-27 works the same
 
             # 2: works perfect at 1:1, but not other scales (probably not enough "resolution")
             # 3: almost there (best one so far)
@@ -165,8 +165,8 @@ class SpriteScaler():
             print(f"Only 16x16, 24x24 or 32x32 sprites allowed, not {sprite.width}x{sprite.height}")
             sys.exit(1)
 
-        scaled_height = math.ceil(sprite.height * v_scale)
-        scaled_width = math.ceil(sprite.width * h_scale)
+        scaled_height = int(sprite.height * v_scale)
+        scaled_width = int(sprite.width * h_scale)
 
         if DEBUG_SCALES:
             print(f"------** SCALED DIMS FOR {type(sprite)} @ x{h_scale}**------")
@@ -174,7 +174,6 @@ class SpriteScaler():
 
         # this only works for 2D sprites
         # inst.draw_x, inst.draw_y = SpritePhysics.get_draw_pos(inst, scaled_width, scaled_height)
-
 
         self.scaled_height = scaled_height
         self.scaled_width = scaled_width
@@ -337,7 +336,7 @@ class SpriteScaler():
         """ (read / write address generation) """
 
         """ HANDLE BOUNDS CHECK / CROPPING ------------------------  """
-        self.interp_clip(sprite_width, h_scale, v_scale)
+        self.clip_sprite(sprite_width, h_scale, v_scale)
 
         """ LANE 1 config - handles write addresses  """
         self.init_interp_lanes(frac_bits, int(sprite_width), framebuf.display_stride, write_base)
@@ -359,7 +358,7 @@ class SpriteScaler():
             print(f"\tsprite_width:         {sprite_width}")
             print(f"\tv_scale:              {v_scale}")
 
-    def interp_clip(self, sprite_width, x_scale, y_scale):
+    def clip_sprite(self, sprite_width, x_scale, y_scale):
         """ Handles the clipping of very large sprites so that they can be rendered.
         Overflow in the Y coordinate will lead to skipping rows, and overflow in the X coordinate will lead to
         increased start addr of each row (1 byte/2px at a time) """
@@ -368,6 +367,8 @@ class SpriteScaler():
         frame_height = framebuf.frame_height
         scaled_width = self.scaled_width
         scaled_height = self.scaled_height
+        skip_rows = 0       # for Y clipping
+        skip_bytes = 0      # for X clipping
         self.read_stride_px = sprite_width
 
         """ Avoid division by zero """
@@ -377,66 +378,67 @@ class SpriteScaler():
         if not y_scale:
             y_scale = 0.0001
 
+        """ Vertical clipping (negative Y-axis) """
         if (self.draw_y < 0):
-            self.skip_rows = skip_rows = int(abs(self.draw_y) / y_scale)
-            self.draw_y += (skip_rows * y_scale)
+            skip_rows = int(abs(self.draw_y) / y_scale) # how many rows to skip when reading the source sprite
+            self.draw_y += int(skip_rows * y_scale)
 
             """ We need to offset base_read in order to clip vertically when generating addresses """
             skip_bytes_y = (skip_rows * sprite_width) // 2  # Integer division
 
-            self.base_read += math.ceil(skip_bytes_y)
+            self.base_read += skip_bytes_y
 
-            if DEBUG_INTERP:
+            if DEBUG_INST:
                 print(f"CLIPPING: (-Y)")
                 print(f"\tnew_draw_y:           {self.draw_y}")
                 print(f"\tskip_rows:            {skip_rows}")
                 print(f"\tskip_bytes_y:         {skip_bytes_y}")
                 print(f"\tbase_read after:      0x{self.base_read:08X}")
 
-        """ Horizontal clipping (X-axis) """
+        """ Horizontal clipping (negative X-axis) """
         if self.draw_x < 0:
             # Calculate needed clipping in screen pixels
             skip_px_total = abs(self.draw_x)
 
             # 1. Convert screen skip to source pixels (original sprite resolution)
-            source_pixels_needed = int(skip_px_total / x_scale)
+            source_pixels_needed = math.ceil(skip_px_total / x_scale)
             source_pixels_skipped = min(source_pixels_needed, sprite_width)
 
             # 2. Align to 2px boundaries (since 2px/byte in source)
-            # source_pixels_skipped = (source_pixels_skipped + 1) // 2 * 2
-            skip_read_bytes = source_pixels_skipped // 2  # Bytes to skip
+            source_pixels_skipped = (source_pixels_skipped + 1) // 2 * 2
+            if source_pixels_skipped % 2 != 0:
+                source_pixels_skipped += 1
+            skip_bytes = source_pixels_skipped // 2  # Bytes to skip
 
             # 3. Calculate actual screen position adjustment
             self.draw_x += source_pixels_skipped
 
             # 4. Update memory pointers (source is 2px/byte)
-            # self.base_read += math.ceil(source_pixels_skipped / 2)
-            # self.read_stride_px = sprite_width - source_pixels_skipped  # In pixels
-            self.read_stride_px = sprite_width
+            self.base_read += source_pixels_skipped // 2
+            self.read_stride_px = sprite_width - source_pixels_skipped  # In pixels
 
-            if DEBUG_INTERP:
+            if DEBUG_INST:
                 print(f"CLIPPING: (-X)")
                 print(f"\tnew_draw_x:               {self.draw_x}")
                 print(f"\tskip_px_total:            {skip_px_total}")
                 print(f"\tsource_pixels_needed:     {source_pixels_needed}")
                 print(f"\tsource_pixels_skipped:    {source_pixels_skipped}")
-                print(f"\tskip_read_bytes:          {skip_read_bytes}")
+                print(f"\tskip_read_bytes:          {skip_bytes}")
                 print(f"\tbase_read after:          0x{self.base_read:08X}")
 
         # Calculate visible rows after vertical clipping
-        visible_rows = scaled_height - int(self.skip_rows * y_scale)
+        visible_rows = scaled_height - int(skip_rows * y_scale)
         self.max_write_addrs = min(self.framebuf.max_height, visible_rows)
         self.max_read_addrs = min(visible_rows, self.max_write_addrs)
 
         self.read_stride_px = sprite_width
 
-        if DEBUG_DMA:
+        if DEBUG_INST:
             print(f" + VISIBLE ROWS:    {visible_rows}")
             print(f" _  scaled_height:   {scaled_height} @{y_scale}x")
             print(f" _  max_write_addrs: {self.max_write_addrs}")
             print(f" _  max_read_addrs:  {self.max_read_addrs}")
             print(f" _  PIXEL_BYTES BASE_READ: 0x{self.base_read:08X}")
-
 
     # @micropython.viper
     def init_convert_fixed_point(self, sprite_width, scale_y):
@@ -457,8 +459,8 @@ class SpriteScaler():
             print(f"INIT_INTERP_LANES: \n\tfrac_bits:{frac_bits} \n\tint_bits:{int_bits}")
         # int_bits = 32 - frac_bits
 
-        # if sprite_width == 24:
-        #     int_bits = 29
+        if sprite_width == 16:
+            int_bits = 27
 
         # int_bits is a little temperamental here:
         # int_bits = 32           # no for 16x16  / stretched 32x32 (all yellow)
@@ -506,9 +508,6 @@ class SpriteScaler():
         mem32[INTERP0_BASE1] = 0
         mem32[INTERP1_BASE0] = 0
         mem32[INTERP1_BASE1] = 0
-
-        self.skip_rows = 0
-        self.skip_cols = 0
 
     def init_pio(self, palette_addr):
         assert palette_addr != 0, "Palette address must be non-zero!"
