@@ -35,15 +35,18 @@ class ScalePatterns:
 
     def create_horiz_patterns(self):
         """
+        By varying the size of the step between integer scales, we can change the number of steps and make
+        the scaling process smoother or more coarse.
+
         steps tested = 0.016, 0.032, 0.064, 0.125, 0.250, 0.500
         """
         patterns_all = {}
 
-        patterns1 = self.create_patterns(0, 1, step=0.125)  # 8 steps
-        patterns2 = self.create_patterns(1, 2, step=0.250)  # 4 steps
+        patterns1 = self.create_patterns(0, 1, step=0.064)  # 8 steps
+        patterns2 = self.create_patterns(1, 2, step=0.125)  # 4 steps
         patterns3 = self.create_patterns(2, 6, step=0.250)  #
-        patterns4 = self.create_patterns(6, 14, step=1)     #
-        patterns5 = self.create_patterns(14, 18, step=1)    #
+        patterns4 = self.create_patterns(6, 14, step=0.5)     #
+        patterns5 = self.create_patterns(14, 18, step=0.5)    #
 
         patterns_all |= patterns1
         patterns_all |= patterns2

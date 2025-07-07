@@ -44,7 +44,7 @@ class GameScreen(Screen):
     sun_start_x = None
     camera: PerspectiveCamera
     mgr: SpriteManager3D = None
-    max_sprites: int = 512
+    max_sprites: int = 256
     saved_ground_speed = 0
     lane_width: int = const(24)
     num_lives: int = 4
@@ -110,35 +110,6 @@ class GameScreen(Screen):
 
         self.stage = Stage1(self.mgr)
         self.check_gc_mem()
-
-        # Create the Sun Sprite
-        # The old Sprite class might need adaptation if it expected direct image loading.
-        # It's better if game objects like the sun are also defined via a SpriteType
-        # and then their instances are created.
-        # For now, let's assume you'll refactor generic Sprites to use the registry too.
-        # If 'sun' is just a simple image, we ensure its type (SPRITE_SUNSET) is loaded.
-        # The actual creation of the sun sprite instance might change depending on
-        # how you manage general game objects vs. pooled enemy sprites.
-        # If Sprite("/img/sunset.bmp") directly loads, that's outside the registry.
-        # Ideal way:
-        # self.sun = create_game_object_sprite(SPRITE_SUNSET, x=39, y=11)
-        # For now, let's assume the old way for sun, but its image must be in registry if drawn by a new renderer.
-        # The `add_sprite` method on Screen would also need to be aware if it's rendering via registry.
-
-        # If you had a generic Sprite class that directly loaded images:
-        # sun = Sprite("/img/sunset.bmp")
-        # You'd want to change this to:
-        # sun_meta = sprite_registry.get_metadata(SPRITE_SUNSET)
-        # sun = YourGameObjectClass(SPRITE_SUNSET, x=39, y=11) # or similar
-        # For now, let's assume you have a way to create this sprite.
-        # The main point is that its assets (image, palette) are in the registry.
-
-        # Let's create a placeholder for the sun using its type ID
-        # This part depends on how you instantiate non-pooled sprites.
-        # For simplicity, let's assume self.sun is an object that has .x, .y, .sprite_type
-        self.sun = type('SunSprite', (object,),
-                        {'x': 39, 'y': 11, 'sprite_type': SPRITE_SUNSET, 'update': lambda s, e: None,
-                         'show': lambda s, d: self._draw_sun(d)})()
         self.sun_start_x = 39
 
         # If self.sun needs to be drawn by the Screen's show_all, ensure add_sprite can handle it.
@@ -190,6 +161,7 @@ class GameScreen(Screen):
         loop = asyncio.get_event_loop()
 
         if self.fps_enabled:
+            printc("... STARTING FPS COUNTER ...")
             self.fps_counter_task = loop.create_task(self.start_fps_counter(self.mgr.pool))
 
         if Profiler.enabled:
@@ -203,7 +175,7 @@ class GameScreen(Screen):
         loop.create_task(self.speed_anim.run(fps=60))
         self.start()
 
-        print("-- Starting update_loop...")
+        printc("-- STARTING UPDATE_LOOP ... ---", INK_BRIGHT_GREEN)
         asyncio.run(self.start_update_loop())
 
     async def stop_stage(self):
@@ -245,10 +217,13 @@ class GameScreen(Screen):
         elapsed = elapsed / 1000  # @TODO change to MS?
         self.last_update_ms = now
 
+        """ Call the update methods of all the subsystems that are updated every frame """
         if not self.paused:
+            if DEBUG_FRAME_ID:
+                printc("-- Updating subsystems --")
+
             self.stage.update(elapsed)
             self.grid.update_horiz_lines(elapsed)
-            self.mgr.update(elapsed)
             self.player.update(elapsed)
             self.sun.x = self.sun_start_x - round(self.player.turn_angle * 4)
 
@@ -266,9 +241,6 @@ class GameScreen(Screen):
         """ Overrides parent method """
         if DEBUG_FRAME_ID:
             printc(f"[[ STARTING FRAME {self.total_frames:04.} ]]", INK_BRIGHT_GREEN)
-
-        # First, do the world updates
-        self.do_update()
 
         # Now run the rendering code
         self.display.fill(0x0000)

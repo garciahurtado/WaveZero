@@ -110,11 +110,11 @@ class SpriteScaler():
             row_id += 1
 
         self.dma.read_addrs[row_id] = self.null_trig_inv_addr  # This "reverse NULL trigger" will make the SM stop. This is the address where the value lives
-        self.dma.write_addrs[row_id] = new_write            # this doesnt matter, but just in case, so that px_write doesnt write to the display
+        # self.dma.write_addrs[row_id] = new_write            # this doesnt matter, but just in case, so that px_write doesnt write to the display
         self.dma.write_addrs[row_id] = 0x00000000            # this doesnt matter, but just in case, so that px_write doesnt write to the display
 
         if DEBUG_INTERP_LIST:
-            for row_id in range(max_read_addrs):
+            for row_id in range(max_read_addrs+1):
                 read_addr = self.dma.read_addrs[row_id]
                 write_addr = self.dma.write_addrs[row_id]
                 print(f">>> [{row_id:02.}] R: 0x{read_addr:08X}")
@@ -134,7 +134,6 @@ class SpriteScaler():
 
         """ Snap the input scale to one of the valid scale patterns """
         new_scale = self.dma.patterns.find_closest_scale(h_scale)
-
         h_scale = v_scale = new_scale # we dont support independent v_scale yet because the sprite struct doesnt have the field
 
         self.alpha = sprite.alpha_color
@@ -145,24 +144,15 @@ class SpriteScaler():
 
         """ Configure num of fractional bits for fixed point math as x.y (int_bits.frac_bits) """
         """ The numbers below were found by trial and error. I don't know the logic behind them """
+        max_dim = max(sprite.width, sprite.height)
         if sprite.width == 16:
             self.frac_bits = 3      # (16x16)
-
-        elif sprite.width == 24:
-            self.frac_bits = 4      # (24x24)
-            self.int_bits = 26       # seems like any number between 7-27 works the same
-
-            # 2: works perfect at 1:1, but not other scales (probably not enough "resolution")
-            # 3: almost there (best one so far)
-            # 4: almost there
-            # 5: too coarse
-            # 6: too coarse
+            self.int_bits = 27
         elif sprite.width == 32:
             self.frac_bits = 4      # (32x32)
-            self.int_bits = 32 - self.frac_bits
-
+            self.int_bits = 28
         else:
-            print(f"Only 16x16, 24x24 or 32x32 sprites allowed, not {sprite.width}x{sprite.height}")
+            print(f"Only 16x16, 32x32, 16x32 or 32x16 sprites allowed, not {sprite.width}x{sprite.height}")
             sys.exit(1)
 
         scaled_height = int(sprite.height * v_scale)
@@ -174,7 +164,7 @@ class SpriteScaler():
 
         # this only works for 2D sprites
         # inst.draw_x, inst.draw_y = SpritePhysics.get_draw_pos(inst, scaled_width, scaled_height)
-
+ 
         self.scaled_height = scaled_height
         self.scaled_width = scaled_width
         self.framebuf.select_buffer(scaled_width, scaled_height)
@@ -214,7 +204,7 @@ class SpriteScaler():
             coords = SpritePhysics.get_pos(inst)
 
             printc(f"Drawing a {sprite.width}x{sprite.height} Sprite", INK_YELLOW)
-            print(f"\t @ x,y:           {coords[0]},{coords[1]} ")
+            print(f"\t @ world x,y:     {coords[0]},{coords[1]} ")
             print(f"\t @ draw_x,draw_y: {self.draw_x},{self.draw_y}")
             print(f"\t img_src:         0x{self.base_read:08X}")
             print(f"\t fb_target_addr:  0x{self.framebuf.min_write_addr:08X}")
@@ -379,7 +369,7 @@ class SpriteScaler():
             y_scale = 0.0001
 
         """ Vertical clipping (negative Y-axis) """
-        if (self.draw_y < 0):
+        if self.draw_y < 0:
             skip_rows = int(abs(self.draw_y) / y_scale) # how many rows to skip when reading the source sprite
             self.draw_y += int(skip_rows * y_scale)
 
@@ -389,40 +379,53 @@ class SpriteScaler():
             self.base_read += skip_bytes_y
 
             if DEBUG_INST:
-                print(f"CLIPPING: (-Y)")
+                printc(f"CLIPPING: (-Y)")
                 print(f"\tnew_draw_y:           {self.draw_y}")
                 print(f"\tskip_rows:            {skip_rows}")
                 print(f"\tskip_bytes_y:         {skip_bytes_y}")
                 print(f"\tbase_read after:      0x{self.base_read:08X}")
 
         """ Horizontal clipping (negative X-axis) """
-        if self.draw_x < 0:
+        snap_px = 8  # Clip in multiples of X pixels
+
+        if self.draw_x < -snap_px:
             # Calculate needed clipping in screen pixels
-            skip_px_total = abs(self.draw_x)
+            # mod_x = abs(self.draw_x) % snap_px
+            # skip_screen_px = abs(self.draw_x) - offset_x
+            skip_screen_px = int(abs(self.draw_x) / snap_px)
+            skip_source_px = self.scaled_width - skip_screen_px
+            self.draw_x += skip_source_px
+
+            skip_source_px = skip_source_px / x_scale
+            skip_bytes = (skip_source_px // 2)
+            self.read_stride_px = sprite_width - skip_source_px  # In pixels
+
+            self.base_read += skip_bytes
+            self.base_read = int(self.base_read)
 
             # 1. Convert screen skip to source pixels (original sprite resolution)
-            source_pixels_needed = math.ceil(skip_px_total / x_scale)
-            source_pixels_skipped = min(source_pixels_needed, sprite_width)
+            # source_pixels_needed = math.ceil(skip_px_total / x_scale)
+            # source_pixels_skipped = min(source_pixels_needed, sprite_width)
 
             # 2. Align to 2px boundaries (since 2px/byte in source)
-            source_pixels_skipped = (source_pixels_skipped + 1) // 2 * 2
-            if source_pixels_skipped % 2 != 0:
-                source_pixels_skipped += 1
-            skip_bytes = source_pixels_skipped // 2  # Bytes to skip
+            # source_pixels_skipped = (source_pixels_skipped + 1) // 2 * 2
+            # if source_pixels_skipped % 2 != 0:
+            #     source_pixels_skipped += 1
+            # skip_bytes = source_pixels_skipped // 2  # Bytes to skip
 
             # 3. Calculate actual screen position adjustment
-            self.draw_x += source_pixels_skipped
+            # self.draw_x += source_pixels_skipped
 
             # 4. Update memory pointers (source is 2px/byte)
             self.base_read += source_pixels_skipped // 2
             self.read_stride_px = sprite_width - source_pixels_skipped  # In pixels
 
             if DEBUG_INST:
-                print(f"CLIPPING: (-X)")
+                printc(f"CLIPPING: (-X)")
                 print(f"\tnew_draw_x:               {self.draw_x}")
-                print(f"\tskip_px_total:            {skip_px_total}")
-                print(f"\tsource_pixels_needed:     {source_pixels_needed}")
-                print(f"\tsource_pixels_skipped:    {source_pixels_skipped}")
+                print(f"\tskip_screen_px:           {skip_screen_px}")
+                print(f"\tskip_source_px:           {skip_source_px}")
+                print(f"\tread_stride_px:           {self.read_stride_px}")
                 print(f"\tskip_read_bytes:          {skip_bytes}")
                 print(f"\tbase_read after:          0x{self.base_read:08X}")
 
@@ -455,31 +458,18 @@ class SpriteScaler():
         assert display_stride != 0 and write_base != 0, "Invalid params to init_interp_lanes!"
 
         int_bits = self.int_bits
+
         if DEBUG_INTERP:
-            print(f"INIT_INTERP_LANES: \n\tfrac_bits:{frac_bits} \n\tint_bits:{int_bits}")
-        # int_bits = 32 - frac_bits
+            print(f"INIT_INTERP_LANES (sprite_width={sprite_width}): frac_bits={frac_bits}, original int_bits for MASK_MSB={int_bits}")
 
-        if sprite_width == 16:
-            int_bits = 27
-
-        # int_bits is a little temperamental here:
-        # int_bits = 32           # no for 16x16  / stretched 32x32 (all yellow)
-        # int_bits = 31            # no for 16x16  / not 32x32
-        # int_bits = 30         # no for 16x16  / not 32x32
-        # int_bits = 29         # works for 16x16  / 32x32 slight glitch (only on some scales, others render perfect)
-        # int_bits = 28         # NOT for 16x16 / 32x32 works 100%
-        # int_bits = 27         # works for 16x16 / not 32x32
-
-        # results above are for frac bits: 3 (16x) and 4(32x), using 3 or below for 32x produces visual glitches,
-        # using 5 or above, freezes up DMA
-
+        # Corrected MASK_LSB to 0. MASK_MSB to 31 for full range after shift.
         read_ctrl_lane1 = (
                 (frac_bits << 0) |          # Shift right to get integer portion
                 (frac_bits << 5) |
                 # (3 << 5) |                  # Start mask at bit 0
                 (int_bits << 10) |                # 27 bit mask
                 (0 << 15) |                 # No sign extension
-                (1 << 18)  # ADD_RAW - Enable raw accumulator addition
+                (1 << 18)                   # ADD_RAW - Enable raw accumulator addition
         )
         mem32[INTERP1_CTRL_LANE1] = read_ctrl_lane1
 

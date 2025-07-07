@@ -74,7 +74,7 @@ class SpriteManager3D(SpriteManager):
             new_z = sprite.z
 
         if sprite.z == 0:
-            sprite.z = 1
+            sprite.z = 1    # Smallest possible unit, since our coords are INT16
 
         cam = self.camera
 
@@ -153,7 +153,7 @@ class SpriteManager3D(SpriteManager):
 
         return True
 
-    def _update(self, elapsed):
+    def update(self, elapsed):
         """
         ellapsed should be in milliseconds
         """

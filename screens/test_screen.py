@@ -1,4 +1,4 @@
-import _thread
+from sprites.sprite_registry import registry
 
 import utime
 import uasyncio as asyncio
@@ -118,9 +118,7 @@ class TestScreen(TestScreenBase):
     all_coords = [] # list of x/y tuples
 
     def __init__(self, display, *args, **kwargs):
-        """ Thread #2 """
-        # gc.collect()
-        # _thread.start_new_thread(self.init_thread_2, [])
+        self.last_update_ms = None
 
         super().__init__(display, margin_px=16)
         print()
@@ -131,13 +129,7 @@ class TestScreen(TestScreenBase):
 
         print(f"Free memory __init__: {gc.mem_free():,} bytes")
 
-        # self.x_vals = [(0*i) for i in range(num_sprites)]
-        # self.y_vals = [(0*i) for i in range(num_sprites)]
-        # self.y_vals = [(random.randrange(-30, 30)) for _ in range(num_sprites)]
-
         self.sprite_scales = [random.choice(range(0, 9)) for _ in range(self.num_sprites)]
-
-        # self.create_lines()
 
         self.renderer = RendererScaler(display)
         self.scaler = self.renderer.scaler
@@ -182,13 +174,6 @@ class TestScreen(TestScreenBase):
         self.scaler = renderer.scaler
         self.max_sprites = num_sprites
         self.mgr = SpriteManager2D(self.display, renderer, self.max_sprites)
-
-        # self.mgr = SpriteManager3D(
-        #     self.display,
-        #     renderer,
-        #     max_sprites=self.max_sprites,
-        #     camera=self.camera,
-        # )
         return self.mgr
 
     def run(self):
@@ -199,7 +184,7 @@ class TestScreen(TestScreenBase):
         loop = asyncio.get_event_loop()
         loop.create_task(self.start_display_loop())
 
-        test = 'zoom_heart'
+        test = 'grid1'
         method = None
 
         # self.create_line_colors()
@@ -219,7 +204,7 @@ class TestScreen(TestScreenBase):
             method = self.do_refresh_scale_control
         elif test == 'grid1':
             self.color_demo = False
-            self.load_sprite(SPRITE_TEST_HEART, TestHeart)
+            self.load_sprite(SPRITE_TEST_SKULL, TestSkull)
             self.init_grid()
             method = self.do_refresh_grid
         elif test == 'grid2':
@@ -264,18 +249,22 @@ class TestScreen(TestScreenBase):
         # update loop - will run until task cancellation
         try:
             while True:
-                last_update_ms = now = utime.ticks_ms()
-                elapsed = utime.ticks_diff(now, self.last_update_ms)
-                if elapsed:
-                    self.mgr.update(elapsed)
-                    self.last_update_ms = last_update_ms
-
+                self.do_update()
                 # Tweaking this number can give FPS gains / give more frames to `elapsed`, avoiding near zero
                 # errors
-                await asyncio.sleep(1 / 160)
+                await asyncio.sleep(1/60)
 
         except asyncio.CancelledError:
             return False
+
+    def do_update(self):
+        now = utime.ticks_ms()
+        elapsed = utime.ticks_diff(now, self.last_update_ms)
+        elapsed = elapsed / 1000  # @TODO change to MS?
+        self.last_update_ms = now
+
+        if elapsed:
+            self.mgr.update(elapsed)
 
     def get_elapsed(self):
         return utime.ticks_ms() - self.last_tick
