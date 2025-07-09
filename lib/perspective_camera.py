@@ -19,7 +19,7 @@ class PerspectiveCamera():
         self.aspect_ratio = self.screen_width / self.screen_height
 
         # Near / far clipping planes
-        self.near = -10
+        self.near = -1
         self.far = 1000  # past this point all sprites are considered to be in the horizon line
 
         self.cam_x = pos_x
@@ -61,9 +61,9 @@ class PerspectiveCamera():
         self.min_z = self.near
         self.max_z = self.far
         self.near_plus_epsilon = self.near + 0.000001
+        self.y_range_in_pixels = self.max_y - self.min_y
 
         # self.to_2d_test(self.min_z, self.max_z)
-
 
     def calculate_fov(self, focal_length: float) -> float:
         # Calculate the vertical FOV
@@ -210,16 +210,8 @@ class PerspectiveCamera():
         if z_depth >= self.max_z or current_scale < self.min_scale:
             current_scale = self.min_scale
 
-        y_range_pixels = self.max_y - self.min_y
-
-        """ ground_y is the screen-y coordinate which marks the ground point for this sprite """
-        ground_y = 0
-        if y_range_pixels > 0:
-            # Use max(0, ...) for range to prevent negative values if max_y < min_y or they are close
-            effective_range = max(0, y_range_pixels - 1 if y_range_pixels > 0 else 0)
-            ground_y = self.calculate_ground_y(current_scale, effective_range)
-            if ground_y > self.screen_height:
-                ground_y = self.screen_height
+        """ ground_y is the screen-y coordinate which marks the ground point for this sprite, so draw_y + sprite_height """
+        ground_y = self.calculate_ground_y(current_scale, self.y_range_in_pixels)
 
         screen_y_base = int(ground_y + self.min_y)
         return screen_y_base, current_scale

@@ -162,14 +162,11 @@ class SpriteScaler():
             print(f"------** SCALED DIMS FOR {type(sprite)} @ x{h_scale}**------")
             print(f"  {scaled_width}px x {scaled_height}px (w/h)")
 
-        # this only works for 2D sprites
-        # inst.draw_x, inst.draw_y = SpritePhysics.get_draw_pos(inst, scaled_width, scaled_height)
- 
         self.scaled_height = scaled_height
         self.scaled_width = scaled_width
         self.framebuf.select_buffer(scaled_width, scaled_height)
 
-        # Somewhere else, these are updated every frame
+        # Somewhere in the update_loop, these coords are updated every frame for every sprite
         self.draw_x = int(inst.draw_x)
         self.draw_y = int(inst.draw_y)
 
@@ -386,35 +383,36 @@ class SpriteScaler():
                 print(f"\tbase_read after:      0x{self.base_read:08X}")
 
         """ Horizontal clipping (negative X-axis) """
-        snap_px = 8  # Clip in multiples of X pixels
+        snap_px = 8  # Clip snapped to every X pixels, should also be max scale
 
-        if self.draw_x < -snap_px:
+        if self.draw_x <= -snap_px:
             # Calculate needed clipping in screen pixels
-            # mod_x = abs(self.draw_x) % snap_px
-            # skip_screen_px = abs(self.draw_x) - offset_x
-            skip_screen_px = int(abs(self.draw_x) / snap_px)
-            skip_source_px = self.scaled_width - skip_screen_px
-            self.draw_x += skip_source_px
+            mod_x = abs(self.draw_x) % snap_px
+            skip_screen_px = mod_x
+            # skip_source_px = skip_screen_px // x_scale
+            #
+            #
+            # self.draw_x += skip_source_px
+            #
+            # skip_bytes = (skip_source_px // 2)
+            # self.read_stride_px = sprite_width - skip_source_px  # In pixels
 
-            skip_source_px = skip_source_px / x_scale
-            skip_bytes = (skip_source_px // 2)
-            self.read_stride_px = sprite_width - skip_source_px  # In pixels
-
-            self.base_read += skip_bytes
-            self.base_read = int(self.base_read)
+            # self.base_read += skip_bytes
+            # self.base_read = int(self.base_read)
 
             # 1. Convert screen skip to source pixels (original sprite resolution)
-            # source_pixels_needed = math.ceil(skip_px_total / x_scale)
-            # source_pixels_skipped = min(source_pixels_needed, sprite_width)
+            source_pixels_needed = math.ceil(skip_screen_px / x_scale)
+            source_pixels_skipped = min(source_pixels_needed, sprite_width)
 
             # 2. Align to 2px boundaries (since 2px/byte in source)
-            # source_pixels_skipped = (source_pixels_skipped + 1) // 2 * 2
-            # if source_pixels_skipped % 2 != 0:
-            #     source_pixels_skipped += 1
-            # skip_bytes = source_pixels_skipped // 2  # Bytes to skip
+            source_pixels_skipped = (source_pixels_skipped + 1) // 2 * 2
+            if source_pixels_skipped % 2 != 0:
+                source_pixels_skipped += 1
+            skip_bytes = source_pixels_skipped // 2  # Bytes to skip
+            actual_screen_px_skipped = source_pixels_skipped * x_scale
 
             # 3. Calculate actual screen position adjustment
-            # self.draw_x += source_pixels_skipped
+            self.draw_x -= actual_screen_px_skipped
 
             # 4. Update memory pointers (source is 2px/byte)
             self.base_read += source_pixels_skipped // 2
@@ -422,12 +420,12 @@ class SpriteScaler():
 
             if DEBUG_INST:
                 printc(f"CLIPPING: (-X)")
-                print(f"\tnew_draw_x:               {self.draw_x}")
-                print(f"\tskip_screen_px:           {skip_screen_px}")
-                print(f"\tskip_source_px:           {skip_source_px}")
-                print(f"\tread_stride_px:           {self.read_stride_px}")
-                print(f"\tskip_read_bytes:          {skip_bytes}")
-                print(f"\tbase_read after:          0x{self.base_read:08X}")
+                print(f"\tnew_draw_x:                   {self.draw_x}")
+                print(f"\tskip_screen_px:               {skip_screen_px}")
+                print(f"\tactual_screen_px_skipped:     {actual_screen_px_skipped}")
+                print(f"\tread_stride_px:               {self.read_stride_px}")
+                print(f"\tskip_read_bytes:              {skip_bytes}")
+                print(f"\tbase_read after:              0x{self.base_read:08X}")
 
         # Calculate visible rows after vertical clipping
         visible_rows = scaled_height - int(skip_rows * y_scale)

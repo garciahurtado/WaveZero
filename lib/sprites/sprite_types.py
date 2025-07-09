@@ -83,11 +83,7 @@ SPRITE_DATA_LAYOUT = {
 }
 
 SPRITE_DATA_SIZE = 36
-"""
-self. = 0   # Normalized (-1 to 1) - INT
-self. = 0
-self. = 0   # Single scalar for magnitude - INT
-"""
+
 # Get all field names for outside use
 sprite_fields = SPRITE_DATA_LAYOUT.keys()
 

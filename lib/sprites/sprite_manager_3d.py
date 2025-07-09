@@ -62,6 +62,7 @@ class SpriteManager3D(SpriteManager):
         """
         visible = types.get_flag(sprite, FLAG_VISIBLE)
         active = types.get_flag(sprite, FLAG_ACTIVE)
+        cam = self.camera
 
         if not active:
             self.pool.release(sprite, meta)
@@ -73,10 +74,13 @@ class SpriteManager3D(SpriteManager):
         else:
             new_z = sprite.z
 
+        if sprite.z < cam.near:
+            """Past the near clipping plane"""
+            self.pool.release(sprite, meta)
+            return False
+
         if sprite.z == 0:
             sprite.z = 1    # Smallest possible unit, since our coords are INT16
-
-        cam = self.camera
 
         if sprite.z < cam.far and not visible:
             types.set_flag(sprite, FLAG_VISIBLE)
@@ -92,10 +96,6 @@ class SpriteManager3D(SpriteManager):
         if not visible:
             return True
 
-        if sprite.z < cam.near:
-            """Past the near clipping plane"""
-            self.pool.release(sprite, meta)
-            return False
 
         """1. Get the Scale according to Z for a starting 2D Y. This is where the 3D perspective 'magic' happens"""
 

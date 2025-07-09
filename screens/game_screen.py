@@ -227,6 +227,7 @@ class GameScreen(Screen):
             self.player.update(elapsed)
             self.sun.x = self.sun_start_x - round(self.player.turn_angle * 4)
 
+            # The sprite manager is one of these instances, this is how it receives world updates
             for sprite in self.instances:
                 sprite.update(elapsed)
 
@@ -316,7 +317,6 @@ class GameScreen(Screen):
         # Camera
         horiz_y: int = 16
         pos_y = 50
-        max_sprite_height = -6
 
         self.camera = PerspectiveCamera(
             self.display,
@@ -326,7 +326,8 @@ class GameScreen(Screen):
             vp_x=0,
             vp_y=horiz_y,
             min_y=horiz_y+4,
-            max_y=self.display.height + max_sprite_height,
+            # max_y=self.display.height + max_sprite_height,
+            max_y=self.display.height,
             fov=90.0)
 
     def init_sprites(self, display):
