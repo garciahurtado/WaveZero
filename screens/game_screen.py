@@ -222,7 +222,6 @@ class GameScreen(Screen):
             if DEBUG_FRAME_ID:
                 printc("-- Updating subsystems --")
 
-            self.stage.update(elapsed)
             self.grid.update_horiz_lines(elapsed)
             self.player.update(elapsed)
             self.sun.x = self.sun_start_x - round(self.player.turn_angle * 4)
@@ -232,6 +231,7 @@ class GameScreen(Screen):
                 sprite.update(elapsed)
 
             self.collider.check_collisions(self.mgr.pool.active_sprites)
+            self.stage.update(elapsed)
     async def update_profiler(self):
         while True:
             await asyncio.sleep(3)
@@ -249,7 +249,7 @@ class GameScreen(Screen):
         self.show_all()
         # self.player.show(self.display) # Explicitly so that we can control the z order
         self.show_fx()
-        self.ui.show()
+        # self.ui.show()
         self.display.show()
 
         if DEBUG_POOL:

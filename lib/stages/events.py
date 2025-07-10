@@ -1,12 +1,12 @@
-import uasyncio as asyncio
 import math
-
 import utime
+import uasyncio as asyncio
 
-from mpdb.mpdb import Mpdb
 from profiler import Profiler as prof
 from scaler.scaler_debugger import printc
 from sprites.sprite_manager import SpriteManager
+from sprites.sprite_registry import SpriteRegistry
+
 
 class Event:
     started_ms: int
@@ -299,21 +299,27 @@ class SpawnEnemyEvent(OneShotEvent):
         self.lane = lane
 
     def do_thing(self):
-        # sprite_type = str(self.sprite_type) # When it's a Dict key, sprite_type is a string
         sprite_type = self.sprite_type
+        meta = registry.sprite_metadata[sprite_type]
+        mgr = self.sprite_mgr
 
         base_args = {
             'x': self.x, 'y': self.y, 'z': self.z
         }
         if self.extra_kwargs:
             all_args = base_args | self.extra_kwargs
-            sprite, _ = self.sprite_mgr.spawn(sprite_type, **all_args)
+            sprite, _ = mgr.spawn(sprite_type, **all_args)
         else:
-            sprite, _ = self.sprite_mgr.spawn(sprite_type, base_args)
+            sprite, _ = mgr.spawn(sprite_type, base_args)
 
-        self.sprite_mgr.set_lane(sprite,
-                                 self.lane)  # ??? really?? the SpriteManager should do this within its own lifecycle,
+        mgr.set_lane(sprite, self.lane)  # ??? really?? the SpriteManager should do this within its own lifecycle,
         # or lane should be passed as another extra kwarg from parent spawn()
+
+        sprite.floor_y, scale = mgr.camera.get_scale(sprite.z)
+        # if math.isinf(scale):
+        #     scale = self.max_scale
+        mgr.set_draw_xy(sprite, meta.height, scale)
+
         self.finish()
         return sprite
 
@@ -354,3 +360,6 @@ class MoveCircle(Event):
 
         if self.curr_count >= self.total_count:
             return False
+
+# Global instance
+registry = SpriteRegistry()

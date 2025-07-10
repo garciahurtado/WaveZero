@@ -143,8 +143,7 @@ class SpriteScaler():
             printc(f"DRAWING SPRITE @ {inst.draw_x},{inst.draw_y} (x{h_scale} scale)", INK_GREEN)
 
         """ Configure num of fractional bits for fixed point math as x.y (int_bits.frac_bits) """
-        """ The numbers below were found by trial and error. I don't know the logic behind them """
-        max_dim = max(sprite.width, sprite.height)
+        """ The numbers below were found by trial and error. I don't fully understand the logic behind them """
         if sprite.width == 16:
             self.frac_bits = 3      # (16x16)
             self.int_bits = 27
@@ -175,7 +174,9 @@ class SpriteScaler():
 
         """ Config interpolator """
         self.base_read = addressof(image.pixel_bytes)
-        self.init_interp_sprite(sprite.width, h_scale, v_scale)
+        ret = self.init_interp_sprite(sprite.width, h_scale, v_scale)
+        if not ret: # horrible hack
+            return False
 
         if DEBUG_DMA:
             print(f"PIXEL_BYTES BASE_READ: 0x{self.base_read:08X}")
@@ -215,16 +216,13 @@ class SpriteScaler():
         self.init_pio(palette_addr)
         self.palette_addr = palette_addr
         self.dma.init_dma_counts(self.read_stride_px, scaled_height, h_scale)
-
         self.start()
 
+        """ We should be able to do something else while this loop runs, since the CPU is idle """
         while not (self.dma.h_scale_finished and self.sm_finished):
             utime.sleep_ms(1)
-            # elapsed = utime.ticks_diff(utime.ticks_us(), timer_start)
-            # if elapsed > timer_limit:
-            #     break
 
-        self.finish_sprite(image)
+        self.finish_sprite()
 
     def dma_pio_status(self):
         print()
@@ -250,7 +248,7 @@ class SpriteScaler():
 
         self.dma.start()
 
-    def finish_sprite(self, image):
+    def finish_sprite(self):
         if DEBUG_DISPLAY:
             print(f"==> BLITTING to {self.draw_x}, {self.draw_y} / alpha: {self.alpha}")
 
@@ -323,7 +321,9 @@ class SpriteScaler():
         """ (read / write address generation) """
 
         """ HANDLE BOUNDS CHECK / CROPPING ------------------------  """
-        self.clip_sprite(sprite_width, h_scale, v_scale)
+        ret = self.clip_sprite(sprite_width, h_scale, v_scale)
+        if not ret: # horrible hack
+            return False
 
         """ LANE 1 config - handles write addresses  """
         self.init_interp_lanes(frac_bits, int(sprite_width), framebuf.display_stride, write_base)
@@ -344,6 +344,8 @@ class SpriteScaler():
             print(f"\tread_fixed_step (d):  {fixed_step}")
             print(f"\tsprite_width:         {sprite_width}")
             print(f"\tv_scale:              {v_scale}")
+
+        return True
 
     def clip_sprite(self, sprite_width, x_scale, y_scale):
         """ Handles the clipping of very large sprites so that they can be rendered.
@@ -368,7 +370,7 @@ class SpriteScaler():
         """ Vertical clipping (negative Y-axis) """
         if self.draw_y < 0:
             skip_rows = int(abs(self.draw_y) / y_scale) # how many rows to skip when reading the source sprite
-            self.draw_y += int(skip_rows * y_scale)
+            self.draw_y += math.ceil(skip_rows * y_scale)
 
             """ We need to offset base_read in order to clip vertically when generating addresses """
             skip_bytes_y = (skip_rows * sprite_width) // 2  # Integer division
@@ -429,6 +431,9 @@ class SpriteScaler():
 
         # Calculate visible rows after vertical clipping
         visible_rows = scaled_height - int(skip_rows * y_scale)
+        if visible_rows < 1:
+            return False
+
         self.max_write_addrs = min(self.framebuf.max_height, visible_rows)
         self.max_read_addrs = min(visible_rows, self.max_write_addrs)
 
@@ -440,6 +445,8 @@ class SpriteScaler():
             print(f" _  max_write_addrs: {self.max_write_addrs}")
             print(f" _  max_read_addrs:  {self.max_read_addrs}")
             print(f" _  PIXEL_BYTES BASE_READ: 0x{self.base_read:08X}")
+
+        return True
 
     # @micropython.viper
     def init_convert_fixed_point(self, sprite_width, scale_y):

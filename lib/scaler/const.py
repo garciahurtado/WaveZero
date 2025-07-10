@@ -1,8 +1,8 @@
 from micropython import const
 
 """ Debugging Constants """
-DEBUG =                     const(0)
-DEBUG_CLIP =                const(0)
+DEBUG =                     const(1)
+DEBUG_CLIP =                const(1)
 DEBUG_FRAME_ID =            const(0)
 DEBUG_LED =                 const(0)
 DEBUG_DISPLAY =             const(0)
@@ -10,7 +10,7 @@ DEBUG_DMA =                 const(0)
 DEBUG_DMA_CH =              const(0)
 DEBUG_DMA_ADDR =            const(0)
 DEBUG_IRQ =                 const(0)
-DEBUG_INST =                const(0)
+DEBUG_INST =                const(1)
 DEBUG_INTERP =              const(0)
 DEBUG_INTERP_LIST =         const(0)
 DEBUG_MEM =                 const(0)

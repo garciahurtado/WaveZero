@@ -96,7 +96,6 @@ class SpriteManager3D(SpriteManager):
         if not visible:
             return True
 
-
         """1. Get the Scale according to Z for a starting 2D Y. This is where the 3D perspective 'magic' happens"""
 
         sprite.floor_y, scale = cam.get_scale(sprite.z)
@@ -107,51 +106,55 @@ class SpriteManager3D(SpriteManager):
             self.pool.release(sprite, meta)
             return False
 
-        """1. Add the scaled 3D Y (substract) + sprite height from the starting 2D Y. This way we scale both numbers 
-        in one single operation"""
+        self.set_draw_xy(sprite, meta.height, scale)
 
-        if sprite.y or meta.height:
+        # Check for out of bounds x or y. This should probably be integrated with the clipping logic in sprite_scaler
+
+        if sprite.draw_x > self.display.width - 1:
+            self.pool.release(sprite, meta)
+            return False
+
+        """ Check that draw_y is within bounds """
+        if sprite.draw_y < self.min_draw_y:
+            self.pool.release(sprite, meta)
+            return False
+        elif sprite.draw_y > self.display.height - 1:
+            self.pool.release(sprite, meta)
+            return False
+
+        return True
+
+    def set_draw_xy(self, sprite, sprite_height, scale: float = 1):
+        cam = self.camera
+
+        """1. Add the scaled 3D Y (substract) + sprite height from the starting 2D Y. This way we scale both numbers 
+            in one single operation"""
+        if sprite.y or sprite_height:
             """ Draw the sprite at Y - (sprite height) """
-            scaled_height = int(scale * (sprite.y + meta.height))
+            scaled_height = int(scale * (sprite.y + sprite_height))
             draw_y = sprite.floor_y - scaled_height
         else:
             draw_y = sprite.floor_y
-
         sprite.scale = scale
 
         """ We have to adjust for the fact that 3D vertical axis and 2D vertical axis run in opposite directions,
-        so we add the sprite height to Y in 3D space before translating to 2D"""
-
+            so we add the sprite height to Y in 3D space before translating to 2D"""
         draw_x = sprite.x * scale
-        draw_x -= cam.vp_x * cam.max_vp_scale * scale * 1.2 # magic number
+        draw_x -= cam.vp_x * cam.max_vp_scale * scale * 1.2  # magic number
         draw_x += self.half_width
-
         num_frames = sprite.num_frames
         name = to_name(sprite)
 
         if sprite.frame_width < 1 or sprite.frame_height < 1:
             raise ValueError(f"Either width or height are not set *(w:{sprite.frame_width},h:{sprite.frame_height})")
-
         if num_frames < 1:
-            raise ArithmeticError(f"Invalid number of frames: {num_frames} for sprite '{name}'. Are width and height set?")
+            raise ArithmeticError(
+                f"Invalid number of frames: {num_frames} for sprite '{name}'. Are width and height set?")
 
         frame_idx = self.get_frame_idx(scale, sprite.num_frames)
-
+        sprite.current_frame = frame_idx
         sprite.draw_x = int(draw_x)
         sprite.draw_y = int(draw_y)
-
-        # Check for out of bounds x or y
-        if sprite.draw_x > self.display.width - 1:
-            self.pool.release(sprite, meta)
-            return False
-
-        if sprite.draw_y > self.display.height - 1:
-            self.pool.release(sprite, meta)
-            return False
-
-        sprite.current_frame = frame_idx
-
-        return True
 
     def update(self, elapsed):
         """
@@ -273,6 +276,7 @@ class SpriteManager3D(SpriteManager):
 
         types.set_flag(new_sprite, FLAG_ACTIVE)
         types.set_flag(new_sprite, FLAG_VISIBLE)
+        # self.set_draw_xy(new_sprite, meta.height)
         self.add_inst(new_sprite, sprite_type, idx)
         return new_sprite, idx
 
