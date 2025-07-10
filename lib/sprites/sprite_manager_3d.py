@@ -110,6 +110,9 @@ class SpriteManager3D(SpriteManager):
 
         # Check for out of bounds x or y. This should probably be integrated with the clipping logic in sprite_scaler
 
+        if sprite.draw_x < self.min_draw_x:
+            self.pool.release(sprite, meta)
+            return False
         if sprite.draw_x > self.display.width - 1:
             self.pool.release(sprite, meta)
             return False
