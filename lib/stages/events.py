@@ -46,7 +46,7 @@ class Event:
         self.active = False
 
     """ Event aliases / Static convenience methods """
-
+    """ Should this be refactored so that the default is repeat=0? (ie: a singe iteration of the event) """
     def multi(self, events, repeat=1):
         """MultiEvent Factory"""
         this_event = MultiEvent(events, repeat=repeat)

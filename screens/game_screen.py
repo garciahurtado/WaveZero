@@ -5,7 +5,7 @@ import micropython
 from debug.mem_logging import log_mem, log_new_frame
 from mpdb.mpdb import Mpdb
 from scaler.const import DEBUG_INST, DEBUG, INK_MAGENTA, DEBUG_POOL, INK_BRIGHT_RED, INK_RED, DEBUG_MEM, INK_CYAN, \
-    INK_BRIGHT_GREEN, INK_BRIGHT_BLUE, DEBUG_FRAME_ID
+    INK_BRIGHT_GREEN, INK_BRIGHT_BLUE, DEBUG_FRAME_ID, INK_YELLOW, DEBUG_PROFILER
 from scaler.scaler_debugger import printc
 from scaler.sprite_scaler import SpriteScaler
 from perspective_camera import PerspectiveCamera
@@ -32,7 +32,7 @@ from sprites.sprite_types import *
 from sprites.sprite_registry import registry
 from sprites_old.sprite import Sprite
 
-from profiler import Profiler as prof, Profiler
+from profiler import Profiler as Profiler
 from micropython import const
 from sprites.renderer_prescaled import RendererPrescaled
 class GameScreen(Screen):
@@ -220,7 +220,7 @@ class GameScreen(Screen):
         """ Call the update methods of all the subsystems that are updated every frame """
         if not self.paused:
             if DEBUG_FRAME_ID:
-                printc("-- Updating subsystems --")
+                printc("-- Updating subsystems --", INK_YELLOW)
 
             self.grid.update_horiz_lines(elapsed)
             self.player.update(elapsed)
@@ -232,11 +232,6 @@ class GameScreen(Screen):
 
             self.collider.check_collisions(self.mgr.pool.active_sprites)
             self.stage.update(elapsed)
-    async def update_profiler(self):
-        while True:
-            await asyncio.sleep(3)
-            prof.dump_profile()
-            prof.clear()
 
     def do_refresh(self):
         """ Overrides parent method """
@@ -334,7 +329,7 @@ class GameScreen(Screen):
         raise DeprecationWarning
 
     async def show_perf(self):
-        if not prof.enabled:
+        if not DEBUG_PROFILER:
             return False
 
         interval = 5000   # Every 5 secs
@@ -342,5 +337,5 @@ class GameScreen(Screen):
         now = utime.ticks_ms()
         delta = utime.ticks_diff(now, self.last_perf_dump_ms)
         if delta > interval:
-            prof.dump_profile()
+            Profiler.dump_profile()
             self.last_perf_dump_ms = utime.ticks_ms()

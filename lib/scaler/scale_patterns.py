@@ -13,6 +13,7 @@ class ScalePatterns:
     """
     horiz_patterns = None
     scale_precision = 8
+    decimal_precision = 3
     valid_scales = []
 
     def __init__(self):
@@ -42,11 +43,11 @@ class ScalePatterns:
         """
         patterns_all = {}
 
-        patterns1 = self.create_patterns(0, 1, step=0.064)  # 8 steps
-        patterns2 = self.create_patterns(1, 2, step=0.125)  # 4 steps
+        patterns1 = self.create_patterns(0, 1, step=0.125)  # 8 steps
+        patterns2 = self.create_patterns(1, 2, step=0.250)  # 4 steps
         patterns3 = self.create_patterns(2, 6, step=0.250)  #
-        patterns4 = self.create_patterns(6, 14, step=0.5)     #
-        patterns5 = self.create_patterns(14, 18, step=0.5)    #
+        patterns4 = self.create_patterns(6, 14, step=1)     #
+        patterns5 = self.create_patterns(14, 18, step=1)    #
 
         patterns_all |= patterns1
         patterns_all |= patterns2
@@ -66,11 +67,15 @@ class ScalePatterns:
     def create_patterns(self, from_scale, to_scale, step=0.125):
         pattern_list = {}
         num_scales = int((to_scale - from_scale) / step)
+        to_scale = int(to_scale)
 
         for i in range(num_scales):
             from_scale += step
-            pattern = self.create_one_pattern(from_scale)
-            pattern_list[from_scale] = pattern
+            # from_scale = round(from_scale, self.decimal_precision)
+            pattern_list[from_scale] = self.create_one_pattern(from_scale)
+
+        # The last pattern should be a whole number
+        pattern_list[to_scale] = self.create_one_pattern(to_scale)
 
         return pattern_list
 
@@ -80,7 +85,7 @@ class ScalePatterns:
         SCALE 0.125: [0, 0, 0, 0, 1, 0, 0, 0],  # 12.5% scaling
         SCALE 2.500: [3, 2, 3, 2, 3, 2, 3, 2],  # 2.5x scaling
         """
-        size = self.scale_precision
+        size = self.scale_precision # Number of elements in one pattern (ie: 8)
 
         if scale == int(scale):
             """ integer scales are the easiest, every element equals the current scale """
@@ -136,7 +141,7 @@ class ScalePatterns:
         # Truncate the input float to three decimal places
         truncated_input = math.trunc(input_scale * 1000) / 1000
 
-        # Find the insertion point using bisect_left from your bisect.py
+        # Find the insertion point using bisect_left from bisect.py
         index = bisect.bisect_left(valid_scales, truncated_input)  #
 
         # Handle edge cases:

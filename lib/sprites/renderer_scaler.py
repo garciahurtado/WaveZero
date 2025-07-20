@@ -15,8 +15,9 @@ class RendererScaler(Renderer):
     def __init__(self, display):
         super().__init__(display)
         self.scaler = SpriteScaler(display)
+        self.min_scale = 0.064
 
-    #@DEPRECATED
+    # @DEPRECATED
     def add_type(self, sprite_type, class_obj):
         raise DeprecationWarning
 
@@ -59,21 +60,15 @@ class RendererScaler(Renderer):
                 if DEBUG: printc(f"RendererScaler: Sprite {type_id} blinked off.", INK_GREEN)
                 return False
 
-        if not inst.scale or inst.scale < 0.064:
-            inst.scale = 0.064
+        if not inst.scale or inst.scale < self.min_scale:
+            inst.scale = self.min_scale
 
         draw_scale = inst.scale
         if DEBUG_INST:
             printc(f"Rendering sprite at scale {draw_scale}x", INK_YELLOW)
 
         if meta.repeats < 2:
-            self.scaler.draw_sprite(
-                meta,
-                inst,
-                img_asset,
-                h_scale=draw_scale,  # Assuming inst.scale holds the desired final scale
-                v_scale=draw_scale
-            )
+            self.scaler.draw_sprite(meta, img_asset, inst.draw_x, inst.draw_y, h_scale=draw_scale, v_scale=draw_scale)
         else:
             original_draw_x = inst.draw_x  # Save original for repeated sprites
             for i in range(meta.repeats):
@@ -83,13 +78,7 @@ class RendererScaler(Renderer):
 
                 # This is hacky and should be rewritten
                 inst.draw_x = int(current_draw_x)
-                self.scaler.draw_sprite(
-                    meta,
-                    inst,
-                    img_asset,
-                    h_scale=draw_scale,
-                    v_scale=draw_scale
-                )
+                self.scaler.draw_sprite(meta, img_asset, inst.draw_x, inst.draw_y, h_scale=draw_scale, v_scale=draw_scale)
             inst.draw_x = original_draw_x  # Restore original draw_x
 
         return True

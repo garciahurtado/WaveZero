@@ -5,6 +5,8 @@ from ucollections import OrderedDict, namedtuple
 import asyncio
 
 from fps_counter import FpsCounter
+from scaler.const import DEBUG_PROFILER, INK_YELLOW
+from scaler.scaler_debugger import printc
 
 ProfileLabel = namedtuple(
     "ProfileLabel",
@@ -25,7 +27,7 @@ class ProfileLabel:
 
 class Profiler:
     __slots__ = ()  # No instance attributes needed
-    enabled = False
+    enabled = True if DEBUG_PROFILER else False
     fps: FpsCounter = None
     profile_labels = OrderedDict()
 
@@ -72,15 +74,15 @@ class Profiler:
         if not Profiler.enabled:
             return
 
-        max_col = 74
+        max_col = 76
         print()
         print("\nProfile Results:")
         print()
-        print(f"{'func': <30}{'Calls': >7} {'Per frame': >4}{'Avg ms': >8} {'Frame ms': >2} {'Tot ms': >8}")
-        print("-" * max_col)
+        print(f"{'function': <29} {'No. Calls': >9} {'Per frame': >9} {'Avg ms': >8} {'Frame ms': >8} {'Tot ms': >8}")
+        printc("-" * max_col, INK_YELLOW)
 
         if not Profiler.profile_labels:
-            print("No profiling data available.\n")
+            printc("No profiling data available.\n")
             return
 
         # Define filter function without lambda
@@ -113,15 +115,15 @@ class Profiler:
             total_time_ms = record.total_time / 1000 # us -> ms
 
             if total_calls == 0:
-                print(f"{label: <31} {'N/A': <5} {'N/A': <8} {'N/A': <9} {'N/A': >10} {'N/A': >10}")
+                print(f"{label: <29} {'N/A': <9} {'N/A': <9} {'N/A': <8} {'N/A': >8} {'N/A': >8}")
                 continue
 
             avg_time_ms = total_time_ms / total_calls
-            print(f"{label: <31} {total_calls: >5} {frame_calls: >8} {avg_time_ms: >7.2f} {frame_time: >8.2f} {total_time_ms: >8.2f} ")
+            print(f"{label: <29} {total_calls: >9} {frame_calls: >9} {avg_time_ms: >8.2f} {frame_time: >8.2f} {total_time_ms: >8.2f} ")
 
-        print('-' * max_col)
-        print(f"TOTALS: {total_frame_time:>56.2f}")
-        print('-' * max_col)
+        printc('-' * max_col, INK_YELLOW)
+        printc(f"TOTALS: {total_frame_time:>68.2f}", INK_YELLOW)
+        printc('-' * max_col, INK_YELLOW)
 
         if Profiler.fps:
             frame_time = Profiler.fps.frame_ms()
@@ -133,7 +135,6 @@ class Profiler:
     def clear():
         """Clear all profiling data."""
         Profiler.profile_labels.clear()
-
 
 def profile(func):
     """Decorator for profiling functions."""

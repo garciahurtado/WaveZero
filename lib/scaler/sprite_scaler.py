@@ -14,7 +14,7 @@ from scaler.const import DEBUG, DEBUG_DMA, DEBUG_INST, INTERP0_POP_FULL, INTERP1
     INTERP1_ACCUM1, INTERP1_BASE1, INTERP1_BASE2, DEBUG_INTERP, INTERP1_CTRL_LANE1, INTERP0_BASE1, INTERP0_ACCUM0, \
     INTERP0_ACCUM1, DEBUG_DISPLAY, DEBUG_TICKS, \
     DEBUG_PIXELS, \
-    INK_GREEN, INK_CYAN, DEBUG_SCALES, DEBUG_INTERP_LIST, INK_BRIGHT_RED, INK_YELLOW, INK_MAGENTA, DEBUG_CLIP
+    INK_GREEN, INK_CYAN, DEBUG_SCALES, DEBUG_INTERP_LIST, INK_BRIGHT_RED, INK_YELLOW, INK_MAGENTA, DEBUG_CLIP, DEBUG_PIO
 from sprites.sprite_physics import SpritePhysics
 
 from images.indexed_image import Image
@@ -27,11 +27,16 @@ from ssd1331_pio import SSD1331PIO
 
 from scaler.scaler_debugger import printc
 
+# GLOBAL
+self_sm_finished = False
+
+
 class SpriteScaler():
     def __init__(self, display):
 
         # NULL trigger buffer should be 2 words wide, for both 16x16 and 32x32 sprites, since it is the width of the
         # receiving DMA channel
+        self.sm_read_palette_debug_msg = "(SM Read Palette IRQ handler) sm_finished = TRUE"
         self.null_trig_inv_buf = bytearray([255] * 16) # ie: 0xFFFFFFFF x2
         self.null_trig_inv_addr = addressof(self.null_trig_inv_buf)
 
@@ -68,22 +73,25 @@ class SpriteScaler():
         self.read_stride_px = 0
         self.frac_bits = 0
         self.sm_ticks_new_addr = 0
-        self.sm_finished = False
         self.palette_addr = None
 
         self.sm_read_palette = read_palette_init(self.pin_jmp)
         self.sm_irq = self.sm_read_palette.irq(handler=self.irq_sm_read_palette, hard=True)
 
-        self.sm_finished = False
         self.sm_read_palette.active(1)
 
         self.init_interp()
 
     def irq_sm_read_palette(self, sm):
-        # if self.sm_finished:
-        #     raise Exception(f"This should NOT have happened - Double IRQ (ch:{sm})")
+        # if self_sm_finished:
+        #     raise Exception(f"This SHOULD NOT have happened - Double IRQ (ch:{sm})")
+        #     return False
 
-        self.sm_finished = True
+        global self_sm_finished
+        self_sm_finished = True
+        if DEBUG_PIO and self_sm_finished:
+            """ We have to use a class member here to avoid allocating memory in an IRQ handler"""
+            print(self.sm_read_palette_debug_msg)
 
         # Allow the state machine to exit the wait loop and continue back to the start
         self.pin_jmp.value(1)
@@ -110,7 +118,6 @@ class SpriteScaler():
             row_id += 1
 
         self.dma.read_addrs[row_id] = self.null_trig_inv_addr  # This "reverse NULL trigger" will make the SM stop. This is the address where the value lives
-        # self.dma.write_addrs[row_id] = new_write            # this doesnt matter, but just in case, so that px_write doesnt write to the display
         self.dma.write_addrs[row_id] = 0x00000000            # this doesnt matter, but just in case, so that px_write doesnt write to the display
 
         if DEBUG_INTERP_LIST:
@@ -121,12 +128,14 @@ class SpriteScaler():
                 print(f">>> [{row_id:02.}] W: 0x{write_addr:08X}")
                 print("-------------------------")
 
-    def draw_sprite(self, sprite:SpriteType, inst, image:Image, h_scale=1.0, v_scale=1.0):
+    def draw_sprite(self, sprite: SpriteType, image: Image, x=0, y=0, h_scale=1.0, v_scale=1.0):
         """
         Draw a scaled sprite at the specified position.
         This method is synchronous (will not return until the whole sprite has been drawn)
         Supports 16x16 and 32x32 px images only.
         """
+        global self_sm_finished
+
         if not h_scale or not v_scale :
             raise AttributeError("Both v_scale and h_scale must be non-zero")
 
@@ -134,13 +143,13 @@ class SpriteScaler():
 
         """ Snap the input scale to one of the valid scale patterns """
         new_scale = self.dma.patterns.find_closest_scale(h_scale)
-        h_scale = v_scale = new_scale # we dont support independent v_scale yet because the sprite struct doesnt have the field
+        h_scale = v_scale = new_scale  # we dont support independent v_scale yet because the sprite struct doesnt have the field
 
         self.alpha = sprite.alpha_color
         self.dma.palette_finished = False
 
         if DEBUG_CLIP:
-            printc(f"DRAWING SPRITE @ {inst.draw_x},{inst.draw_y} (x{h_scale} scale)", INK_GREEN)
+            printc(f"DRAWING SPRITE @ {x},{y} (x{h_scale} scale)", INK_GREEN)
 
         """ Configure num of fractional bits for fixed point math as x.y (int_bits.frac_bits) """
         """ The numbers below were found by trial and error. I don't fully understand the logic behind them """
@@ -154,8 +163,8 @@ class SpriteScaler():
             print(f"Only 16x16, 32x32, 16x32 or 32x16 sprites allowed, not {sprite.width}x{sprite.height}")
             sys.exit(1)
 
-        scaled_height = int(sprite.height * v_scale)
-        scaled_width = int(sprite.width * h_scale)
+        scaled_height = math.ceil(sprite.height * v_scale)
+        scaled_width = math.ceil(sprite.width * h_scale)
 
         if DEBUG_SCALES:
             print(f"------** SCALED DIMS FOR {type(sprite)} @ x{h_scale}**------")
@@ -166,8 +175,8 @@ class SpriteScaler():
         self.framebuf.select_buffer(scaled_width, scaled_height)
 
         # Somewhere in the update_loop, these coords are updated every frame for every sprite
-        self.draw_x = int(inst.draw_x)
-        self.draw_y = int(inst.draw_y)
+        self.draw_x = int(x)
+        self.draw_y = int(y)
 
         if DEBUG_DISPLAY:
             print(f"ABOUT TO DRAW a Sprite on x,y: {self.draw_x},{self.draw_y} @ H: {h_scale}x / V: {v_scale}x")
@@ -199,10 +208,7 @@ class SpriteScaler():
             print(f"    READ ADDR COUNT:   {self.dma.max_read_addrs} ")
 
         if DEBUG_INST:
-            coords = SpritePhysics.get_pos(inst)
-
             printc(f"Drawing a {sprite.width}x{sprite.height} Sprite", INK_YELLOW)
-            print(f"\t @ world x,y:     {coords[0]},{coords[1]} ")
             print(f"\t @ draw_x,draw_y: {self.draw_x},{self.draw_y}")
             print(f"\t img_src:         0x{self.base_read:08X}")
             print(f"\t fb_target_addr:  0x{self.framebuf.min_write_addr:08X}")
@@ -219,14 +225,14 @@ class SpriteScaler():
         self.start()
 
         """ We should be able to do something else while this loop runs, since the CPU is idle """
-        while not (self.dma.h_scale_finished and self.sm_finished):
+        while not (self_sm_finished and self.dma.h_scale_finished):
             utime.sleep_ms(1)
 
         self.finish_sprite()
 
     def dma_pio_status(self):
         print()
-        print(f"SM FINISHED:        {self.sm_finished}")
+        print(f"SM FINISHED:        {self_sm_finished}")
         print(f"COLOR FINISHED:     {self.dma.color_lookup_finished}")
         print(f"COLOR ACTIVE:       {self.dma.color_lookup.active()}")
         print(f"COLOR ROW COUNT:    {self.dma.color_lookup.count}")
@@ -244,7 +250,7 @@ class SpriteScaler():
     def start(self):
         """ Start DMA chains and State Machines (every frame) """
         if DEBUG_DMA:
-            printc("** STARTING DMA... **", INK_GREEN)
+            printc("** ... STARTING DMA ... **", INK_GREEN)
 
         self.dma.start()
 
@@ -274,7 +280,7 @@ class SpriteScaler():
             print(f" .px_count (sniff)  {px_count}")
             print(f" .h_scale:          {self.dma.ticks_h_scale}")
             print(f" ---")
-            print(f" sm_finished        {self.sm_finished}")
+            print(f" sm_finished        {self_sm_finished}")
             print("  ~~~~~~~~~~~~~~~~~~~~~~~~")
 
     def init_interp(self):
@@ -471,7 +477,6 @@ class SpriteScaler():
         read_ctrl_lane1 = (
                 (frac_bits << 0) |          # Shift right to get integer portion
                 (frac_bits << 5) |
-                # (3 << 5) |                  # Start mask at bit 0
                 (int_bits << 10) |                # 27 bit mask
                 (0 << 15) |                 # No sign extension
                 (1 << 18)                   # ADD_RAW - Enable raw accumulator addition
@@ -507,7 +512,7 @@ class SpriteScaler():
     def init_pio(self, palette_addr):
         assert palette_addr != 0, "Palette address must be non-zero!"
 
-        self.sm_finished = False
+        self_sm_finished = False
         self.sm_read_palette.restart()
 
         if self.sm_read_palette.tx_fifo() > 0:
@@ -529,7 +534,7 @@ class SpriteScaler():
     def debug_irq(self):
         print("IRQ FLAGS:")
         print("------------------------------")
-        print(f"   sm_finished:     {self.sm_finished:.0}")
+        print(f"   sm_finished:     {self_sm_finished:.0}")
         print(f"   jmp_pin:         {self.pin_jmp.value()}")
         print(f"   px_read:         {self.dma.px_read_finished:.0}")
         print(f"   color_row:       {self.dma.color_lookup_finished:.0}")

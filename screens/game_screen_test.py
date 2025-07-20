@@ -210,9 +210,7 @@ class GameScreenTest(Screen):
         for inst in self.inst_group:
             curr_scale = self.scale_list[scale_idx]
             inst.draw_x, inst.draw_y = SpritePhysics.get_pos(inst)
-            self.scaler.draw_sprite(
-                self.sprite_type, inst, self.image,
-                h_scale=curr_scale, v_scale=curr_scale)
+            self.scaler.draw_sprite(self.sprite_type, self.image, inst.draw_x, inst.draw_y, h_scale=curr_scale, v_scale=curr_scale)
             scale_idx += 1
 
     def draw_corners(self):

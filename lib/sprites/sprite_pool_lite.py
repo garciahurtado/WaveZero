@@ -92,8 +92,9 @@ class SpritePool:
         """
 
         if self.free_count < 1:
-            printc("!!! WARNING !!! SPRITE POOL EMPTY !!! INCREASE POOL SIZE !!!", INK_RED)
-            raise RuntimeError("!!! WARNING !!! SPRITE POOL EMPTY !!! INCREASE POOL SIZE !!!")
+            msg = "!!! WARNING !!! SPRITE POOL EMPTY !!! INCREASE POOL SIZE !!!"
+            printc(msg, INK_RED)
+            raise RuntimeError(msg)
 
         """ We do this at the start to prevent possible race conditions """
         self.free_count = self.free_count - 1

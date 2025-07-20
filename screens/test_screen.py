@@ -1,4 +1,5 @@
-from sprites.sprite_registry import registry
+from scaler.scaler_debugger import printc
+from profiler import Profiler, profile as timed
 
 import utime
 import uasyncio as asyncio
@@ -9,13 +10,11 @@ import math
 import random
 
 from input import game_input
-from scaler.const import DEBUG
+from scaler.const import DEBUG, DEBUG_MEM, INK_GREEN, INK_BRIGHT_GREEN, DEBUG_INST
 from screens.screen import PixelBounds
 
-from scaler.sprite_scaler import SpriteScaler
 from screens.test_screen_base import TestScreenBase
 from sprites.renderer_scaler import RendererScaler
-from sprites.sprite_manager_3d import SpriteManager3D
 from sprites.sprite_registry import registry
 from sprites.types.cherries_16 import Cherries16
 from sprites.types.gameboy import GameboySprite
@@ -32,12 +31,13 @@ gc.collect()
 from sprites.sprite_manager_2d import SpriteManager2D
 from sprites.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART, SPRITE_TEST_GRID, SpriteType, \
     SPRITE_TEST_PYRAMID, SPRITE_GAMEBOY, SPRITE_CHERRIES, SPRITE_TEST_SKULL, SPRITE_BARRIER_LEFT, SPRITE_BARRIER_LEFT_x2
-from profiler import Profiler as prof
+from profiler import Profiler as prof, Profiler
 
 from colors.color_util import hex_to_565
 from colors.color_util import GREY
 from colors.color_util import WHITE
 from micropython import const
+import micropython
 
 class TestScreen(TestScreenBase):
     debug = True
@@ -76,9 +76,9 @@ class TestScreen(TestScreenBase):
     h_scale = 1
     v_scale = 1
     refresh_method = None
-    num_sprites = 40
-    max_sprites = 0
-    scaler_num_sprites = 1
+    max_sprites = 24
+    max_cols = 6
+    max_rows = 4
     sprite_max_z = 1000
     display_task = None
     phy = None # Physics Object
@@ -115,28 +115,27 @@ class TestScreen(TestScreenBase):
     y_offset = 0
     center_x = 0
     center_y = 0
-    all_coords = [] # list of x/y tuples
+    all_sprites = []
 
     def __init__(self, display, *args, **kwargs):
         self.last_update_ms = None
+        super().__init__(display, *args, **kwargs)
 
-        super().__init__(display, margin_px=16)
-        print()
-        print(f"=== Testing performance of {self.num_sprites} sprites ===")
+        printc(f"=== SPRITE SCALER TESTING SCREEN ===", INK_GREEN)
         print()
 
         self.idx = 0
 
         print(f"Free memory __init__: {gc.mem_free():,} bytes")
 
-        self.sprite_scales = [random.choice(range(0, 9)) for _ in range(self.num_sprites)]
+        self.sprite_scales = [random.choice(range(0, 9)) for _ in range(self.max_sprites)]
 
         self.renderer = RendererScaler(display)
         self.scaler = self.renderer.scaler
-        self.scaler.prof = prof
+        self.scaler.prof = Profiler
 
-        # self.actions = actions = self.mgr.sprite_actions
-        # self.actions.add_action(SPRITE_TEST_HEART, actions.check_bounds_and_remove)
+        self.mgr = self.create_sprite_manager(self.max_sprites, self.renderer)
+        self.all_sprites.append(self.mgr)
 
         self.all_scales = self.scaler.dma.patterns.get_horiz_patterns()
         self.all_keys = self.all_scales.keys()
@@ -177,46 +176,54 @@ class TestScreen(TestScreenBase):
         return self.mgr
 
     def run(self):
-        self.running = True
-        # self.load_types()
-        self.init_common()
-
         loop = asyncio.get_event_loop()
-        loop.create_task(self.start_display_loop())
+        if Profiler.enabled:
+            loop.create_task(self.update_profiler())
+
+        self.running = True
+        self.display_task = loop.create_task(self.start_display_loop())
 
         test = 'grid1'
         method = None
 
-        # self.create_line_colors()
-
         if test == 'zoom_heart':
             self.load_sprite(SPRITE_BARRIER_LEFT_x2, WarningWall)
+            self.init_common()
             self.init_beating_heart()
             method = self.do_refresh_zoom_in
         elif test == 'zoom_sq':
             self.load_sprite(SPRITE_TEST_SQUARE, TestSquare)
+            self.init_common()
             self.init_beating_heart()
             method = self.do_refresh_zoom_in
         if test == 'scale_control':
             self.load_sprite(SPRITE_TEST_HEART, TestHeart)
+            self.init_common()
             self.init_score()
             self.init_scale_control()
             method = self.do_refresh_scale_control
         elif test == 'grid1':
             self.color_demo = False
-            self.load_sprite(SPRITE_TEST_SKULL, TestSkull)
+            self.load_sprite(SPRITE_GAMEBOY, GameboySprite)
+            self.num_cols = min(self.screen_width // 16, self.max_cols)
+            self.num_rows = min(self.screen_height // 16, self.max_rows)
+            self.init_common(num_sprites=self.num_cols * self.num_rows)
+            self.init_score()
             self.init_grid()
             method = self.do_refresh_grid
         elif test == 'grid2':
             self.load_sprite(SPRITE_GAMEBOY, GameboySprite)
+            self.init_common()
             self.init_grid()
             method = self.do_refresh_grid
         elif test == 'grid3':
             self.load_sprite(SPRITE_TEST_SKULL, TestSkull)
+            self.init_common()
             self.init_grid()
             method = self.do_refresh_grid
         elif test == 'clipping':
             self.load_sprite(SPRITE_CHERRIES, Cherries16)
+            self.init_common()
             self.init_clipping()
             method = self.do_refresh_clipping
         # else:
@@ -224,47 +231,27 @@ class TestScreen(TestScreenBase):
         #     raise Exception(f"Invalid method: {method}")
 
         self.refresh_method = getattr(self, method.__name__, None)
-
         if self.fps_enabled:
-            self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
+            printc("... STARTING FPS COUNTER ...", INK_GREEN)
+            self.fps_counter_task = asyncio.create_task(self.start_fps_counter(self.mgr.pool))
 
+        printc("-- ... STARTING UPDATE_LOOP ... ---", INK_BRIGHT_GREEN)
         asyncio.run(self.start_update_loop())
 
-
-    async def start_update_loop(self):
-        print(f"-- ... MAIN LOOP STARTING ON THREAD #{_thread.get_ident()} ... --")
-
-        """ All top level tasks / threads go here. Once all of these finish, the program ends"""
-        await asyncio.gather(
-            self.update_loop(),
-        )
-
-    async def update_loop(self):
-        """ Counterpart to do_refresh and intended for world updates (speed, position, scale, lifetime mgmt...)"""
-        start_time_ms = self.last_update_ms = utime.ticks_ms()
-        self.last_perf_dump_ms = start_time_ms
-
-        print(f" == STARTING UPDATE LOOP - ON THREAD #{_thread.get_ident()} ==")
-
-        # update loop - will run until task cancellation
-        try:
-            while True:
-                self.do_update()
-                # Tweaking this number can give FPS gains / give more frames to `elapsed`, avoiding near zero
-                # errors
-                await asyncio.sleep(1/60)
-
-        except asyncio.CancelledError:
-            return False
-
+    @timed
     def do_update(self):
+        if DEBUG_MEM:
+            print(micropython.mem_info())
+
         now = utime.ticks_ms()
         elapsed = utime.ticks_diff(now, self.last_update_ms)
         elapsed = elapsed / 1000  # @TODO change to MS?
         self.last_update_ms = now
 
-        if elapsed:
-            self.mgr.update(elapsed)
+        """ Call the update methods of all the subsystems that are updated every frame """
+        # The sprite manager is one of these instances, this is how it receives world updates
+        for sprite in self.all_sprites:
+            sprite.update(elapsed)
 
     def get_elapsed(self):
         return utime.ticks_ms() - self.last_tick
@@ -272,15 +259,12 @@ class TestScreen(TestScreenBase):
     def init_common(self, num_sprites=1):
         self.max_sprites = num_sprites
         renderer = RendererScaler(self.display)
-        self.mgr = self.create_sprite_manager(num_sprites, renderer)
 
         self.phy = self.mgr.phy
         if prof and prof.enabled:
             prof.fps = self.fps
 
     def init_grid(self):
-        self.inst, idx = self.mgr.pool.get(self.sprite_type)
-
         sprite_width = self.sprite.width
         sprite_height = self.sprite.height
 
@@ -294,13 +278,6 @@ class TestScreen(TestScreenBase):
         times = 2
         self.one_two_scale_keys = [1] * times + list(self.two_scales.keys()) + [1] * times
         self.one_scale_keys = [1] * times + one_scales1_rev + [1] * times
-
-        max_cols = 12
-        max_rows = 10
-        # max_cols = max_rows = 1
-
-        self.num_cols = min(self.screen_width // 16, max_cols)
-        self.num_rows = min(self.screen_height // 16, max_rows)
 
         h_scale = v_scale = 1
         self.scaled_width = int(sprite_width * h_scale)
@@ -322,26 +299,21 @@ class TestScreen(TestScreenBase):
         row_sep = sprite_width - 1
         col_sep = sprite_width
 
-        all_coords = []
-
         for c in range(self.num_cols):
             for r in range(self.num_rows):
-                draw_x = int(c * col_sep)
-                draw_y = int(r * row_sep)
-                all_coords.append([draw_x+8, draw_y+8])
+                new_inst, idx = self.mgr.spawn(self.sprite_type)
 
-        self.all_coords = all_coords
+                inst_x = int(c * col_sep)
+                inst_y = int(r * row_sep)
+                self.mgr.phy.set_pos(new_inst, inst_x, inst_y)
 
-    async def start_display_loop(self):
-        if DEBUG:
-            print("== STARTING DISPLAY LOOP ON TEST_SCREEN.PY ==")
+                if DEBUG_INST:
+                    print(f"SPAWNED ID: [{idx}] {new_inst} @ {inst_x}, {inst_y}")
 
-        while True:
-            self.refresh_method()
-            await asyncio.sleep_ms(1)
+                self.instances.append(new_inst)
+                self.mgr.update_sprite(new_inst, self.sprite, 0)  # Will set draw_x and draw_y for the first time
 
     def init_beating_heart(self):
-        # self.sprite = self.mgr.get_meta(self.sprite)
         self.inst, idx = self.mgr.pool.get(self.sprite_type)
 
         h_scales1 = list(self.all_scales.keys())
@@ -416,50 +388,21 @@ class TestScreen(TestScreenBase):
         """
         Show a grid of heart Sprites
         """
-        prof.start_frame()
 
-        self.idx = 0
         inst = self.inst
         row_sep = self.sprite.width
         col_sep = self.sprite.width
 
-        self.display.fill(0x000000)
+        self.display.fill(0xFF0000)
 
-        for c in range(self.num_cols):
-            for r in range(self.num_rows):
-
-                self.phy.set_pos(inst,
-                                 c * col_sep + 8,
-                                 r * row_sep + 8)
-
-                if self.grid_beat or self.fallout:
-                    scale_factor = (self.scale_id + self.idx) % self.scale_source_len
-                    self.scale_id = self.scale_id + 1
-                    self.h_scale = self.scale_source[scale_factor]
-                    self.v_scale = self.h_scale
-
-                    self.scaled_width = self.sprite.height * self.h_scale
-                    self.scaled_height = self.sprite.height * self.v_scale
-
-                self.scaler.draw_sprite(
-                    self.sprite,
-                    inst,
-                    self.image,
-                    h_scale=self.h_scale,
-                    v_scale=self.v_scale)
-
-                self.idx = self.idx + 1
+        self.show_all()
+        self.display.show()
+        self.fps.tick()
 
         if self.color_demo:
             new_color = self.rainbow_colors[self.color_idx % self.color_len]
             self.sprite_palette.set_hex(3, new_color)
             self.color_idx += 1
-
-
-        self.display.show()
-
-        self.show_prof()
-        self.fps.tick()
 
     def do_refresh_zoom_in(self):
         """
@@ -489,14 +432,7 @@ class TestScreen(TestScreenBase):
             print(f"  sprite_scaled_height: {sprite_scaled_height}")
 
         self.display.fill(0x000000)
-        self.scaler.draw_sprite(
-            self.sprite,
-            self.inst,
-            self.image,
-            # h_scale=h_scale,
-            # v_scale=v_scale)
-            h_scale=1,
-            v_scale=1)
+        self.scaler.draw_sprite(self.sprite, self.image, self.inst.draw_x, self.inst.draw_y, h_scale=1, v_scale=1)
 
         self.scale_id += 1
         self.show_prof()
@@ -519,12 +455,7 @@ class TestScreen(TestScreenBase):
         coords = self.mgr.phy.get_pos(self.inst)
 
         self.common_bg()
-        self.scaler.draw_sprite(
-            self.sprite,
-            self.inst,
-            self.image,
-            h_scale=h_scale,
-            v_scale=v_scale)
+        self.scaler.draw_sprite(self.sprite, self.image, self.inst.draw_x, self.inst.draw_y, h_scale=h_scale, v_scale=v_scale)
 
         # self.score_text.render_text(f"{self.score:09}")
         # print(f"PRINTING SCALE: {h_scale}")
@@ -578,10 +509,10 @@ class TestScreen(TestScreenBase):
                 phy.set_dir(inst, -1, 0)
             elif state == self.STATE_DIR_UP:
                 self.set_state(self.STATE_DIR_DOWN)
-                phy.set_dir(inst, 0, 1)
+                phy.set_dir(inst.draw_x, inst.draw_y, 1)
             elif state == self.STATE_DIR_DOWN:
                 self.set_state(self.STATE_DIR_UP)
-                phy.set_dir(inst, 0, -1)
+                phy.set_dir(inst.draw_x, inst.draw_y, -1)
 
             return
 
@@ -597,21 +528,16 @@ class TestScreen(TestScreenBase):
                 """ We crossed over the middle point, so change direction """
                 self.set_state(self.STATE_DIR_UP)
                 self.center_sprite(inst)
-                phy.set_dir(inst, 0, -1)
+                phy.set_dir(inst.draw_x, inst.draw_y, -1)
         elif state == self.STATE_DIR_DOWN and pos_y < self.half_height:
             if self.was_state(self.STATE_DIR_UP):
                 """ We crossed over the middle point, so restart """
                 self.set_state(self.STATE_START)
                 self.center_sprite(inst)
-                phy.set_dir(inst, 0, 0)
+                phy.set_dir(inst.draw_x, inst.draw_y, 0)
 
         self.display.fill(0x000000)
-        self.scaler.draw_sprite(
-            self.sprite,
-            self.inst,
-            self.image,
-            h_scale=self.h_scale,
-            v_scale=self.v_scale)
+        self.scaler.draw_sprite(self.sprite, self.image, self.inst.draw_x, inst.draw_y, h_scale=self.h_scale, v_scale=self.v_scale)
 
         # self.scale_id += 1
         self.show_prof()
@@ -634,6 +560,13 @@ class TestScreen(TestScreenBase):
             else:
                 self.slide_sel = 'horiz'
             await asyncio.sleep_ms(2000)
+
+    def show_all(self):
+        # self.mgr was registered as one of these instances, so it will be rendered as a result of this call
+        size = len(self.all_sprites)
+        for i in range(size):
+            inst = self.all_sprites[i]
+            inst.show(self.display)
 
     def do_refresh(self):
         return self.refresh_method()

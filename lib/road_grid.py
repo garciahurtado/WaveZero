@@ -4,7 +4,6 @@ import math
 import utime
 from micropython import const
 from profiler import Profiler, profile as timed
-# Profiler.enabled = True
 
 from colors import color_util as colors
 from colors.framebuffer_palette import FramebufferPalette as fp

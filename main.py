@@ -12,7 +12,6 @@ import gc
 import utime
 from utime import sleep
 
-# from mpdb.mpdb import Mpdb
 # import frozen_img # Created with freezefs: https://github.com/bixb922/freezeFS
 from screens.screen_app import ScreenApp
 from screens.game_screen import GameScreen
@@ -31,8 +30,9 @@ print(f" = MAIN.PY ON THREAD #{_thread.get_ident()} (main)")
 def main():
     utime.sleep_ms(50)
 
-    # max_freq = 266_000_000 # RP2350
-    # max_freq = 280_000_000 # Works for rp2040
+    """ Overclocking frequencies """
+    # max_freq = 266_000_000    # RP2350
+    # max_freq = 280_000_000    # Works for rp2040
     # max_freq = 150_000_000
     # max_freq = 133_000_000
     # max_freq = 125_000_000
@@ -51,8 +51,8 @@ def main():
     app = ScreenApp(96, 64)
 
     # app.load_screen(TitleScreen(app.display))
-    app.load_screen(GameScreen(app.display))
-    # app.load_screen(TestScreen(app.display))
+    # app.load_screen(GameScreen(app.display))
+    app.load_screen(TestScreen(app.display))
     # app.load_screen(GameScreenTest(app.display))
     # app.load_screen(TestScreenStarfield(app.display))
 

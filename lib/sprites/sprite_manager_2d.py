@@ -1,8 +1,5 @@
-from framebuf import FrameBuffer
-
-from images.image_loader import ImageLoader
-from profiler import Profiler
-from scaler.const import DEBUG_PHYSICS, DEBUG, INK_CYAN
+from profiler import Profiler, profile as timed
+from scaler.const import DEBUG_PHYSICS, DEBUG, INK_CYAN, DEBUG_INST, DEBUG_UPDATE
 from scaler.scaler_debugger import printc
 from sprites.sprite_manager import SpriteManager
 from sprites.sprite_types import SpriteType as types, FLAG_PHYSICS, FLAG_ACTIVE, FLAG_VISIBLE
@@ -15,74 +12,60 @@ class SpriteManager2D(SpriteManager):
     """
     last_update_ms = 0
 
+    @timed
     def update_sprite(self, sprite, meta, elapsed):
         """ Updates a single sprite over an 'elapsed' time, by updating the x and y draw coordinates of the sprite based
         on its speed (or any other physics or time based effects). Returns True if it updated a sprite, False otherwise.
         It only works with thin / 2D sprites (ie: structs)
         """
+        visible = types.get_flag(sprite, FLAG_VISIBLE)
+        active = types.get_flag(sprite, FLAG_ACTIVE)
 
-        active = types.get_flag(sprite, types.FLAG_ACTIVE)
         if not active:
-            print(f"Returning due to active:{active}")
+            self.pool.release(sprite, meta)
             return False
 
-        old_speed = sprite.speed
+        if not visible:
+            return True
 
-        if types.get_flag(sprite, FLAG_PHYSICS) == True:
-            self.phy.apply_speed(sprite, elapsed)
+        draw_x, draw_y = self.phy.get_draw_pos(sprite)
+        sprite.draw_x = draw_x
+        sprite.draw_y = draw_y
+        # self.set_draw_xy(sprite, meta.height)
 
-        sprite.speed = old_speed
+        # Check for out of bounds x or y. This should probably be integrated with the clipping logic in sprite_scaler
+        if sprite.draw_x < self.min_draw_x:
+            self.pool.release(sprite, meta)
+            return False
+        if sprite.draw_x > self.display.width - 1:
+            self.pool.release(sprite, meta)
+            return False
 
-        scaled_width = meta.width * sprite.scale
-        scaled_height = meta.height * sprite.scale
+        """ Check that draw_y is within bounds """
+        if sprite.draw_y < self.min_draw_y:
+            self.pool.release(sprite, meta)
+            return False
+        elif sprite.draw_y > self.display.height - 1:
+            self.pool.release(sprite, meta)
+            return False
 
-        draw_x, draw_y = self.phy.get_draw_pos(sprite, scaled_width, scaled_height)
-        x, y = self.phy.get_pos(sprite)
-
-        if DEBUG_PHYSICS:
-            dir_x, dir_y = self.phy.get_dir(sprite)
-            print(f"SPRITE 2D UPDATE :")
-            print(f"  Pos:      {x},{y}")
-            print(f"  Draw:     {draw_x},{draw_y}")
-            print(f"  Dir:      {dir_x},{dir_y}")
-            print(f"  Speed:    {sprite.speed}")
-            print(f"  Elaps.    {elapsed}")
+        """ Add some useful debugging statements """
+        if DEBUG_UPDATE:
+            printc(f"SPRITE 2D UPDATE :", INK_CYAN)
+            print(f"draw_x: {sprite.draw_x}, draw_y: {sprite.draw_y}")
+            print(f"scale: {sprite.scale}")
+            print(f"speed: {sprite.speed}")
+            print(f"elapsed: {elapsed}")
+            print(f"active: {active}")
+            print(f"visible: {visible}")
 
         return True
 
-    def load_sprite_image(self, meta, sprite_type):
-        # DEPRECATED?
-        """ Overrides parent to get rid of preloaded scaled sprite frames from v1. Eventually should be refactored back
-         into SpriteManagerBase"""
-        if DEBUG:
-            printc(f"Loading image for sprite {sprite_type}", INK_CYAN)
+    def set_draw_xy(self, sprite, sprite_height=16, scale: float = 1):
+        """ For now, the 2D sprite manager only copies coordinates of the sprite to the draw coordinates."""
+        sprite.draw_x = sprite.x
+        sprite.draw_y = sprite.y
 
-        orig_img = ImageLoader.load_image(meta.image_path, meta.width, meta.height)
-        if isinstance(orig_img, list):
-            orig_img = orig_img[0]
-
-        self.sprite_palettes[sprite_type] = orig_img.palette
-        meta.palette = orig_img.palette
-        self.set_alpha_color(meta)
-        img_list = [orig_img] # Legacy
-        return img_list
-
-    def show(self, display: FrameBuffer):
-        sprite_type = self.sprite_metadata['none']
-        for sprite in self.pool.sprites:
-            visible = types.get_flag(sprite, FLAG_VISIBLE)
-
-            if visible:
-                h_scale = v_scale = sprite.scale
-                self.scaler.draw_sprite(
-                    sprite_type, sprite, self.image,
-                    h_scale=h_scale, v_scale=v_scale)
-
-    def spawn(self, sprite_type):
-        new_inst, idx = self.pool.get(sprite_type)
-        self.phy.set_pos(new_inst, 50, 24)
-
-        return new_inst, idx
 
 
 

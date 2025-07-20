@@ -1,4 +1,5 @@
 import gc
+from profiler import Profiler, profile as timed
 
 import uctypes
 from micropython import const
@@ -6,7 +7,7 @@ import micropython
 
 from images.image_loader import ImageLoader
 from perspective_camera import PerspectiveCamera
-from scaler.const import DEBUG, INK_GREEN, INK_BLUE
+from scaler.const import DEBUG, INK_GREEN, INK_BLUE, DEBUG_CLIP, DEBUG_INST, INK_RED
 from scaler.scaler_debugger import printc
 from sprites.sprite_draw import SpriteDraw
 from sprites.sprite_physics import SpritePhysics
@@ -50,6 +51,12 @@ class SpriteManager:
     phy: SpritePhysics = SpritePhysics()
     draw: SpriteDraw = SpriteDraw()
     renderer = None
+
+    # Limiting negative drawX and drawY prevents random scaler FREEZES on when clipped sprites fall far off the screen
+    min_draw_x = -64
+    # min_draw_y = -47 # This seems dependent on the sprite size (sprite height x2)
+    min_draw_y = -32
+    max_scale = 8
 
     def __init__(self, display: ssd1331_pio, renderer, max_sprites, camera=None, grid=None):
         self.display = display
@@ -179,44 +186,152 @@ class SpriteManager:
 
     def release(self, inst, sprite):
         idx = self.pool.release(inst, sprite)
-
     def check_mem(self):
         gc.collect()
         print(micropython.mem_info())
 
+    @timed
     def update(self, elapsed):
-        """ Update ALL the sprites that this manager is responsible for """
-        if not elapsed:
-            return
+        """
+        ellapsed should be in milliseconds
+        """
+        # DEPRECATE (but not deprecated yet): this method should be deprecated and useful functionality replicated
 
-        kinds = registry.sprite_metadata
+        kinds = self.sprite_metadata
         current = self.pool.head
+
         while current:
             sprite = current.sprite
-            kind = kinds[sprite.sprite_type]
-
-            if not types.get_flag(sprite, FLAG_ACTIVE):
-                self.pool.release(sprite, kind)
-
+            sprite_id = sprite.sprite_type
+            kind = self.get_meta(sprite)
             self.update_sprite(sprite, kind, elapsed)
 
-            current = current.next
+            if not current.next:
+                break
+            else:
+                next_node = current.next
+
+            if not types.get_flag(sprite, FLAG_ACTIVE):
+                if DEBUG_INST:
+                    printc("!!!SPRITE NOT ACTIVE, RELEASING!!!", INK_RED)
+                self.pool.release(sprite, kind)
+
+            current = next_node
+
+        """ Check for and update actions for all sprite types"""
+
+        if self.sprite_actions:
+
+            for sprite_type in self.sprite_actions.keys():
+                inst = self.sprite_inst[sprite_type]
+                actions = self.sprite_actions.for_sprite(sprite_type)
+                for action in actions:
+                    func = getattr(self.sprite_actions, __name__)
+                    # func.__self__ =
+                    func(inst, elapsed)
+
+                    # action(self.camera, sprite.draw_x, sprite.draw_y, sprite.x, sprite.y, sprite.z, sprite.frame_width)
 
     def update_sprite(self, sprite, meta, elapsed):
         raise NotImplementedError("update_sprite() method must be overridden in child class.")
 
     def show(self, display: framebuf.FrameBuffer):
-        """ Displays all the sprites in this manager on the screen """
-        raise NotImplementedError("show() method must be overridden in child class.")
+        """ Display all the active sprites """
+        current = self.pool.head
+
+        while current:
+            sprite = current.sprite
+
+            if types.get_flag(sprite, FLAG_VISIBLE):
+                self.show_sprite(sprite, display)
+            current = current.next
 
     def show_sprite(self, sprite, display: framebuf.FrameBuffer):
-        raise NotImplementedError("show_sprite() method must be overridden in child class.")
+        """ Use the renderer to draw a single sprite on the display (or several, if multisprites)"""
+        sprite_type = sprite.sprite_type
+        meta = registry.sprite_metadata[sprite_type]
+        images = registry.sprite_images[sprite_type]
+        palette: FramebufferPalette = registry.sprite_palettes[sprite_type]
+
+        if types.get_flag(sprite, FLAG_BLINK):
+            blink_flip = types.get_flag(sprite, FLAG_BLINK_FLIP)
+            types.set_flag(sprite, FLAG_BLINK_FLIP, blink_flip * -1)
+
+        if sprite.draw_y < self.min_draw_y:
+            if DEBUG_CLIP:
+                printc(f"SPRITE OUT OF BOUNDS (-Y): {sprite.draw_y}")
+            # Consider the sprite OOB
+            self.release(sprite, meta)
+            return False
+
+        self.renderer.render_sprite(sprite, meta, images, palette)
+        return True
 
     def add_pool(self, sprite_type, size):
         raise NotImplementedError("add_pool() method must be overridden in child class.")
 
     def spawn(self, sprite_type, *args, **kwargs):
-        raise NotImplementedError("spawn() method must be overridden in child class.")
+        """
+        "Spawn" a new sprite. In reality, we are just grabbing one from the pool of available sprites via get() and
+        activating it.
+        """
+        if sprite_type not in registry.sprite_metadata.keys():
+            if DEBUG:
+                printc("LIST OF KNOWN SPRITE KEYS:")
+                print(list(registry.sprite_metadata.keys()))
+
+            raise IndexError(f"Unknown Sprite Type {sprite_type}")
+
+        meta = registry.sprite_metadata[sprite_type]
+
+        # new_sprite.x = new_sprite.y = new_sprite.z = 0
+        new_sprite, idx = self.pool.get(sprite_type)
+        new_sprite.scale = 1
+        self.phy.set_pos(new_sprite, 50, 24)
+
+        # Set default dimensions from the metadata *before* applying kwargs
+        meta = registry.sprite_metadata[sprite_type]  # Ensure meta is fetched if not already
+        if hasattr(meta, 'width'):
+            new_sprite.frame_width = meta.width
+        if hasattr(meta, 'height'):
+            new_sprite.frame_height = meta.height
+        if hasattr(meta, 'num_frames'):
+            new_sprite.num_frames = meta.num_frames
+
+        # Some properties belong to the "meta" class, so they must be set separately
+        if 'width' in kwargs and 'height' in kwargs:
+            meta.num_frames = max(kwargs['width'], kwargs['height'])
+
+        # Set user values passed to the create method
+        for key in kwargs:
+            value = kwargs[key]
+            if value is not None:
+                setattr(new_sprite, key, value)
+
+        new_sprite.sprite_type = int(sprite_type)
+
+        """ Load image and create scaling frames """
+        # if sprite_type not in self.sprite_images.keys():
+        #     print(f"First Sprite of Type: {sprite_type} - creating scaled images")
+        #
+        #     # Choose one depending on the renderer used
+        #     # new_img = self.load_img_and_scale(meta, sprite_type, prescale=True)
+        #     new_img = self.load_img_and_scale(meta, sprite_type, prescale=True)
+        #     self.sprite_images[sprite_type] = new_img
+
+        types.set_flag(new_sprite, FLAG_ACTIVE)
+        types.set_flag(new_sprite, FLAG_VISIBLE)
+        # self.set_draw_xy(new_sprite, meta.height)
+        self.add_inst(new_sprite, sprite_type, idx)
+        return new_sprite, idx
+
+    def add_inst(self, new_sprite, sprite_type, idx):
+        if sprite_type not in self.sprite_inst.keys():
+            self.sprite_inst[sprite_type] = []
+
+        self.sprite_inst[sprite_type].append(idx)  # insert in the beginning, so we have correct Z values
+
+        pass
 
 # Usage example
 def main():

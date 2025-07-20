@@ -60,12 +60,12 @@ class DMAChain:
     def init_channels(self):
         """Initialize the complete DMA chain for sprite scaling."""
         """ Acquire hardware DMA channels """
-        self.read_addr = DMA()      #2. Vertical / row control (read and write)
-        self.write_addr = DMA()     #3. Uses ring buffer to tell read_addr where to write its address to
+        self.read_addr = DMA()      #2. Vertical / source row control
+        self.write_addr = DMA()     #3. Address of the output pixel in the framebuffer / display
         self.px_read = DMA()        #4. Sprite data
         self.color_lookup = DMA()   #5. Palette color lookup / transfer
         self.px_write = DMA()       #6. Display output
-        self.h_scale = DMA()        #7. Horizontal scale pattern
+        self.h_scale = DMA()        #7. Horizontal scale pattern. Uses ring buffer to loop through the pattern. 
 
         self.init_read_addr()
         self.init_write_addr()

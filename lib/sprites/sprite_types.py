@@ -273,8 +273,6 @@ _SPRITE_ID_TO_NAME_MAP = {
     if name.startswith("SPRITE_") and isinstance(value, int)
 }
 
-# --- The lookup function ---
-
 # Make sure you have a type hint for your sprite structure if possible
 from uctypes import struct # Or your specific type
 

@@ -45,7 +45,7 @@ class PerspectiveCamera():
         self.y_offset = self.half_height - vp_y
         self.vp_factor = self.vp_x / (self.screen_height - self.vp_y)
         self.vp_factor_y = 1 / (self.screen_height - self.vp_y)
-        self.max_vp_scale = 3.7 # Tweak amount of horizontal parallax effect, so that close objects move faster when the VP moves
+        self.max_vp_scale = 3.7  # Tweaks amount of horizontal parallax effect, so that close objects move faster when the VP moves horizontally
 
         self._y_factor_cache = {}
 
@@ -108,8 +108,6 @@ class PerspectiveCamera():
         half_width = self.half_width
         focal_length = self.focal_length
 
-
-        cam_x = self.cam_x
         cam_y = self.cam_y
         cam_z = self.cam_z
 

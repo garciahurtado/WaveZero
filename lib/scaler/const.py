@@ -2,15 +2,15 @@ from micropython import const
 
 """ Debugging Constants """
 DEBUG =                     const(1)
-DEBUG_CLIP =                const(1)
-DEBUG_FRAME_ID =            const(0)
+DEBUG_CLIP =                const(0)
+DEBUG_FRAME_ID =            const(1)
 DEBUG_LED =                 const(0)
 DEBUG_DISPLAY =             const(0)
 DEBUG_DMA =                 const(0)
 DEBUG_DMA_CH =              const(0)
 DEBUG_DMA_ADDR =            const(0)
 DEBUG_IRQ =                 const(0)
-DEBUG_INST =                const(1)
+DEBUG_INST =                const(0)
 DEBUG_INTERP =              const(0)
 DEBUG_INTERP_LIST =         const(0)
 DEBUG_MEM =                 const(0)
@@ -19,8 +19,10 @@ DEBUG_PHYSICS =             const(0)
 DEBUG_PIO =                 const(0)
 DEBUG_PIXELS =              const(0)
 DEBUG_POOL =                const(0)
+DEBUG_PROFILER =            const(1)
 DEBUG_SCALES =              const(0)
 DEBUG_TICKS =               const(0)
+DEBUG_UPDATE =              const(0)
 
 """
 Part of the scaler.sprite_scaler package.

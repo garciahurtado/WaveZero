@@ -98,7 +98,7 @@ class Screen:
 
         self.ticks_new_addr += 1
         if self.ticks_new_addr > 15:
-            self.sm_finished = True
+            self_sm_finished = True
 
     def reset(self):
         # self.dma_px_read.active(0)

@@ -170,12 +170,7 @@ class TestScreenStarfield(TestScreenBase):
             if self.debug_inst:
                 print(f"<< inst.scale / actual w/h:{inst.scale} / {actual_width} / {actual_height} >>")
 
-            self.scaler.draw_sprite(
-                self.sprite,
-                inst,
-                self.image,
-                h_scale=inst.scale,
-                v_scale=inst.scale)
+            self.scaler.draw_sprite(self.sprite, self.image, inst.draw_x, inst.draw_y, h_scale=inst.scale, v_scale=inst.scale)
 
         """ SPAWN more (might return nothing) """
         self.spawn()

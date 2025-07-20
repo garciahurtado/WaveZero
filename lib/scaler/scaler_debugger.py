@@ -19,10 +19,9 @@ def printb(message):
 
 def printc(message, color=INK_RED, newline=True):
     if newline:
-        print(color, message, INK_END)
+        print(f"{color}{message}", INK_END)
     else:
-        print(color, message, INK_END, end="")
-
+        print(f"{color}{message}", INK_END, end="")
 
 class ScalerDebugger():
     sm_indices = None
