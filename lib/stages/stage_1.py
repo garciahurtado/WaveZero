@@ -60,9 +60,9 @@ class Stage1(Stage):
                 # evt.spawn(SPRITE_TEST_SKULL, lane=0, y=line_height*3, z=spawn_z, speed=wall_speed),
                 #
                 evt.spawn(SPRITE_TEST_SKULL, lane=1, z=spawn_z, speed=wall_speed),
-                # evt.spawn(SPRITE_TEST_SKULL, lane=1, y=line_height, z=spawn_z, speed=wall_speed),
-                # evt.spawn(SPRITE_TEST_SKULL, lane=1, y=line_height * 2, z=spawn_z, speed=wall_speed),
-                # evt.spawn(SPRITE_TEST_SKULL, lane=1, y=line_height * 3, z=spawn_z, speed=wall_speed),
+                evt.spawn(SPRITE_TEST_SKULL, lane=1, y=line_height, z=spawn_z, speed=wall_speed),
+                evt.spawn(SPRITE_TEST_SKULL, lane=1, y=line_height * 2, z=spawn_z, speed=wall_speed),
+                evt.spawn(SPRITE_TEST_SKULL, lane=1, y=line_height * 3, z=spawn_z, speed=wall_speed),
                 #
                 # evt.spawn(SPRITE_TEST_SKULL, lane=2, z=spawn_z, speed=wall_speed),
                 # evt.spawn(SPRITE_TEST_SKULL, lane=2, y=line_height, z=spawn_z, speed=wall_speed),
@@ -82,8 +82,8 @@ class Stage1(Stage):
                 # evt.spawn(SPRITE_TEST_SKULL, lane=4, y=line_height * 2, z=spawn_z, speed=wall_speed),
                 # evt.spawn(SPRITE_TEST_SKULL, lane=4, y=line_height * 3, z=spawn_z, speed=wall_speed),
 
-                evt.wait(med_wait)],
-                repeat=0),
+                evt.wait(big_wait)],
+                repeat=2),
             evt.wait(big_wait)],
             repeat=1)
 

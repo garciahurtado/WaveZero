@@ -3,6 +3,7 @@ import math
 
 from uarray import array
 
+from profiler import timed
 from scaler.const import DEBUG_SCALES, INK_RED
 from scaler.scaler_debugger import printc
 
@@ -21,6 +22,7 @@ class ScalePatterns:
         if DEBUG_SCALES:
             self.print_patterns(0, len(self.horiz_patterns))
 
+    @timed
     def get_pattern(self, scale):
         patterns = self.get_horiz_patterns()
         the_pattern = patterns[scale]

@@ -1,42 +1,58 @@
 from typing import NamedTuple
-
-import utime
-from ucollections import OrderedDict, namedtuple
-import asyncio
+from ucollections import OrderedDict
+import time
 
 from fps_counter import FpsCounter
-from scaler.const import DEBUG_PROFILER, INK_YELLOW
+from scaler.const import DEBUG_PROFILER, INK_YELLOW, DEBUG_FRAME_ID
 from scaler.scaler_debugger import printc
 
-ProfileLabel = namedtuple(
-    "ProfileLabel",
-    (
-        "start_usecs",
-        "frame_calls",
-        "frame_time"
-        "total_calls",
-        "total_time"
-    ))
 
-class ProfileLabel:
-    start_usecs = 0
-    frame_calls = 0
-    frame_time = 0
-    total_calls = 0
-    total_time = 0
+class ProfileRecord:
+    """Holds all profiling data for a single labeled function."""
+    __slots__ = ('call_stack', 'frame_calls', 'frame_time', 'total_calls', 'total_time', 'ema_frame_us')
+
+    def __init__(self):
+        self.call_stack = []
+        self.frame_calls = 0
+        self.frame_time = 0
+        self.total_calls = 0
+        self.total_time = 0
+        self.ema_frame_us = 0.0
+
 
 class Profiler:
-    __slots__ = ()  # No instance attributes needed
+    """A static class (Singleton) for lightweight, real-time function profiling."""
+    __slots__ = ()      # Optimize for memory and performance by preventing instance attributes.
     enabled = True if DEBUG_PROFILER else False
     fps: FpsCounter = None
     profile_labels = OrderedDict()
+    frame_started = False
+    ema_alpha = 0.03
+    frame_id = 0
 
     @staticmethod
     def start_frame():
-        """ Starts a new frame: reset frame level stats while keeping the totals """
-        for key, record in Profiler.profile_labels.items():
-            record.frame_calls = 0
-            record.frame_time = 0
+        """Starts a new frame. Must be called once per frame before any profiling.
+
+        Calculates the EMA for the previous frame's data then resets per-frame stats.
+        """
+        if Profiler.frame_started:
+            for key, record in Profiler.profile_labels.items():
+                # Update the EMA with the total time this function took in the completed frame.
+                if record.ema_frame_us == 0:
+                    record.ema_frame_us = float(record.frame_time)
+                else:
+                    alpha = Profiler.ema_alpha
+                    record.ema_frame_us = (alpha * record.frame_time) + ((1 - alpha) * record.ema_frame_us)
+
+                # Reset per-frame stats for the new frame.
+                record.frame_calls = 0
+                record.frame_time = 0
+        else:
+            # First frame has no prior data to process.
+            Profiler.frame_started = True
+
+        Profiler.frame_id += 1
 
     @staticmethod
     def start_profile(label):
@@ -46,10 +62,10 @@ class Profiler:
 
         record = Profiler.profile_labels.get(label)
         if record is None:
-            record = ProfileLabel()
+            record = ProfileRecord()
             Profiler.profile_labels[label] = record
 
-        record.start_usecs = utime.ticks_us()
+        record.call_stack.append(time.ticks_us())
 
     @staticmethod
     def end_profile(label):
@@ -57,16 +73,17 @@ class Profiler:
         if not Profiler.enabled:
             return
 
+        now = time.ticks_us()
         record = Profiler.profile_labels.get(label)
-        if not record or not record.start_usecs:
+        if not record or not record.call_stack:
             return
 
-        elapsed = utime.ticks_diff(utime.ticks_us(), record.start_usecs)
-        record.frame_time += elapsed  # Add to frame time
-        record.total_time += elapsed  # Add to total time
-        record.total_calls += 1  # Increment call count
-        record.frame_calls += 1  # Increment call count
-        record.start_usecs = 0  # Reset start time
+        start_time = record.call_stack.pop()
+        elapsed = time.ticks_diff(now, start_time)
+        record.frame_time += elapsed
+        record.total_time += elapsed
+        record.total_calls += 1
+        record.frame_calls += 1
 
     @staticmethod
     def dump_profile(filter_str=None):
@@ -76,53 +93,42 @@ class Profiler:
 
         max_col = 76
         print()
-        print("\nProfile Results:")
+        print(f"\nProfile Results")
+        print(f"FRAME #{Profiler.frame_id:,}")
+
         print()
-        print(f"{'function': <29} {'No. Calls': >9} {'Per frame': >9} {'Avg ms': >8} {'Frame ms': >8} {'Tot ms': >8}")
+        printc(f"{'function': <28} {'Calls/Frame': >11} {'EMA Avg ms': >11} {'Avg Call ms': >13} {'Total ms': >9}", INK_YELLOW)
         printc("-" * max_col, INK_YELLOW)
 
         if not Profiler.profile_labels:
             printc("No profiling data available.\n")
             return
 
-        # Define filter function without lambda
-        if filter_str:
-            def show_label(label):
-                return filter_str in label
-        else:
-            def show_label(label):
-                return True
-
-        # Sort using attribute access instead of list index
-        def sort_key(item):
-            return item[1].total_time
-
-        total_frame_time = 0 # keep running tally
-
-        for label, record in sorted(
-                Profiler.profile_labels.items(),
-                key=sort_key,
-                reverse=True
-        ):
-            if not show_label(label):
+        # Create a list of records to sort by the calculated EMA Frame ms
+        profile_data = []
+        for label, record in Profiler.profile_labels.items():
+            if filter_str and filter_str not in label:
                 continue
 
-            frame_calls = record.frame_calls
-            frame_time = record.frame_time / 1000 # us -> ms
-            total_frame_time += frame_time
+            if record.total_calls > 0:
+                # Use the stable EMA of the function's total time per frame.
+                ema_frame_ms = record.ema_frame_us / 1000
+                profile_data.append((label, record, ema_frame_ms))
 
-            total_calls = record.total_calls
-            total_time_ms = record.total_time / 1000 # us -> ms
+        # Sort by the smoothed frame time to show the most impactful functions first.
+        profile_data.sort(key=lambda item: item[2], reverse=True)
 
-            if total_calls == 0:
-                print(f"{label: <29} {'N/A': <9} {'N/A': <9} {'N/A': <8} {'N/A': >8} {'N/A': >8}")
-                continue
-
-            avg_time_ms = total_time_ms / total_calls
-            print(f"{label: <29} {total_calls: >9} {frame_calls: >9} {avg_time_ms: >8.2f} {frame_time: >8.2f} {total_time_ms: >8.2f} ")
+        for label, record, ema_frame_ms in profile_data:
+            total_time_ms = record.total_time / 1000
+            # Calculate the average per-call EMA for display.
+            ema_avg_ms = (record.ema_frame_us / record.frame_calls) / 1000 if record.frame_calls > 0 else 0
+            # Calculate the lifetime average call time.
+            avg_call_ms = (record.total_time / record.total_calls) / 1000
+            print(f"{label: <28} {record.frame_calls: >11} {ema_avg_ms: >11,.3f} {avg_call_ms: >13,.3f} {int(total_time_ms): >9,}")
 
         printc('-' * max_col, INK_YELLOW)
-        printc(f"TOTALS: {total_frame_time:>68.2f}", INK_YELLOW)
+        total_frame_time = sum(r.frame_time for r in Profiler.profile_labels.values()) / 1000
+        printc(f"PROFILED FRAME TIME: {total_frame_time:53,.2f}ms", INK_YELLOW)
         printc('-' * max_col, INK_YELLOW)
 
         if Profiler.fps:
@@ -130,23 +136,51 @@ class Profiler:
 
         print()
 
-
     @staticmethod
     def clear():
-        """Clear all profiling data."""
+        """Clear all profiling data and reset the frame counter."""
         Profiler.profile_labels.clear()
+        Profiler.frame_id = 0
+        Profiler.frame_started = False
 
-def profile(func):
-    """Decorator for profiling functions."""
+_profiler = Profiler()
+
+def timed(func):
+    """A decorator for profiling a single function call."""
 
     def wrapper(*args, **kwargs):
-        if not Profiler.enabled:
+        if not _profiler.enabled:
             return func(*args, **kwargs)
 
-        Profiler.start_profile(func.__name__)
+        func_name = func.__name__
+        _profiler.start_profile(func_name)
         try:
-            return func(*args, **kwargs)
+            result = func(*args, **kwargs)
         finally:
-            Profiler.end_profile(func.__name__)
+            _profiler.end_profile(func_name)
+        return result
 
     return wrapper
+
+def start_frame():
+    """Starts a new frame. Must be called once per frame before any profiling.
+
+    Calculates the EMA for the previous frame's data then resets per-frame stats.
+    """
+    if Profiler.frame_started:
+        for key, record in Profiler.profile_labels.items():
+            # Update the EMA with the total time this function took in the completed frame.
+            if record.ema_frame_us == 0:
+                record.ema_frame_us = float(record.frame_time)
+            else:
+                alpha = Profiler.ema_alpha
+                record.ema_frame_us = (alpha * record.frame_time) + ((1 - alpha) * record.ema_frame_us)
+
+            # Reset per-frame stats for the new frame.
+            record.frame_calls = 0
+            record.frame_time = 0
+    else:
+        # First frame has no prior data to process.
+        Profiler.frame_started = True
+
+    Profiler.frame_id += 1

@@ -7,7 +7,7 @@ from scaler.sprite_scaler import SpriteScaler
 from sprites.renderer_base import Renderer
 from sprites.sprite_registry import registry
 from sprites.sprite_types import SpriteType as types, FLAG_VISIBLE, FLAG_BLINK_FLIP, FLAG_BLINK
-from framebuf import FrameBuffer
+from profiler import timed
 
 class RendererScaler(Renderer):
     """ A composable sprite renderer that can be used by a sprite manager (or standalone)
@@ -36,6 +36,7 @@ class RendererScaler(Renderer):
             print(f"Warning: Failed to load image/frames for type {sprite_type}")
             # Handle error appropriately
 
+    @timed
     def render_sprite(self, inst, meta, images, palette):
         """
         Renders a sprite instance using on-the-fly scaling.

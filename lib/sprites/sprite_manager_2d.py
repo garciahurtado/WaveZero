@@ -1,4 +1,4 @@
-from profiler import Profiler, profile as timed
+from profiler import Profiler, timed
 from scaler.const import DEBUG_PHYSICS, DEBUG, INK_CYAN, DEBUG_INST, DEBUG_UPDATE
 from scaler.scaler_debugger import printc
 from sprites.sprite_manager import SpriteManager
@@ -65,8 +65,3 @@ class SpriteManager2D(SpriteManager):
         """ For now, the 2D sprite manager only copies coordinates of the sprite to the draw coordinates."""
         sprite.draw_x = sprite.x
         sprite.draw_y = sprite.y
-
-
-
-
-

@@ -6,7 +6,7 @@ from ssd1331_pio import SSD1331PIO
 from uctypes import addressof
 from scaler.const import DEBUG, DEBUG_DISPLAY, DEBUG_DMA_ADDR
 from utils import aligned_buffer
-
+from profiler import timed
 
 class ScalerFramebuf:
     """
@@ -109,6 +109,7 @@ class ScalerFramebuf:
 
         return new_buff
 
+    @timed
     def select_buffer(self, scaled_width, scaled_height):
         """
         We implement transparency by first drawing the sprite on a scratch framebuffer, and then using the first color

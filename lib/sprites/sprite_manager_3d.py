@@ -93,7 +93,6 @@ class SpriteManager3D(SpriteManager):
         """1. Get the Scale according to Z for a starting 2D Y. This is where the 3D perspective 'magic' happens"""
 
         sprite.floor_y, scale = cam.get_scale(sprite.z)
-        scale = 1 # DEBUG
         if math.isinf(scale):
             scale = self.max_scale
 

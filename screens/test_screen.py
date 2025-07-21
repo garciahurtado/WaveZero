@@ -1,5 +1,5 @@
 from scaler.scaler_debugger import printc
-from profiler import Profiler, profile as timed
+from profiler import Profiler, timed
 
 import utime
 import uasyncio as asyncio
@@ -10,7 +10,7 @@ import math
 import random
 
 from input import game_input
-from scaler.const import DEBUG, DEBUG_MEM, INK_GREEN, INK_BRIGHT_GREEN, DEBUG_INST
+from scaler.const import DEBUG, DEBUG_MEM, INK_GREEN, INK_BRIGHT_GREEN, DEBUG_INST, DEBUG_FPS
 from screens.screen import PixelBounds
 
 from screens.test_screen_base import TestScreenBase
@@ -41,8 +41,6 @@ import micropython
 
 class TestScreen(TestScreenBase):
     debug = True
-    debug_inst = False
-    fps_enabled = True
     fps_counter_task = None
     color_idx = 0
     color_len = 0
@@ -231,14 +229,13 @@ class TestScreen(TestScreenBase):
         #     raise Exception(f"Invalid method: {method}")
 
         self.refresh_method = getattr(self, method.__name__, None)
-        if self.fps_enabled:
+        if DEBUG_FPS:
             printc("... STARTING FPS COUNTER ...", INK_GREEN)
             self.fps_counter_task = asyncio.create_task(self.start_fps_counter(self.mgr.pool))
 
         printc("-- ... STARTING UPDATE_LOOP ... ---", INK_BRIGHT_GREEN)
         asyncio.run(self.start_update_loop())
 
-    @timed
     def do_update(self):
         if DEBUG_MEM:
             print(micropython.mem_info())
@@ -358,14 +355,14 @@ class TestScreen(TestScreenBase):
     def scale_control_right(self):
         if self.scale_id < len(self.h_scales)-1:
             self.scale_id += 1
-            if self.debug:
+            if DEBUG:
                 scale = self.h_scales[self.scale_id]
                 self.sprite.scale = scale
 
     def scale_control_left(self):
         if self.scale_id > 0:
             self.scale_id -= 1
-            if self.debug:
+            if DEBUG:
                 scale = self.h_scales[self.scale_id]
                 self.sprite.scale = scale
 
@@ -544,7 +541,7 @@ class TestScreen(TestScreenBase):
         self.display.show()
         self.fps.tick()
 
-        if self.debug:
+        if DEBUG:
             names = self.state_names
             print(f" * LAST STATE:  {names[self.last_state]}")
             print(f" * STATE:       {names[self.state]}")
@@ -569,6 +566,7 @@ class TestScreen(TestScreenBase):
             inst.show(self.display)
 
     def do_refresh(self):
+        prof.start_frame()
         return self.refresh_method()
 
     def set_state(self, state):

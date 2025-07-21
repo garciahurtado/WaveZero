@@ -5,7 +5,7 @@ import uasyncio as asyncio
 from ucollections import namedtuple
 
 from fps_counter import FpsCounter
-from profiler import Profiler, profile as timed
+from profiler import Profiler, timed
 from scaler.const import INK_BRIGHT_YELLOW
 from scaler.scaler_debugger import printc
 from sprites_old.sprite import Sprite
@@ -82,19 +82,19 @@ class Screen:
         self.last_perf_dump_ms = start_time_ms
 
         print(f"--- (game screen) Update loop Start time: {start_time_ms}ms ---")
-        self.check_gc_mem()
+        # self.check_gc_mem()
 
         # update loop - will run until task cancellation
         try:
             while True:
-                self.do_update()
+                # self.do_update()
                 await asyncio.sleep(1/60)   # Tweaking this number can improve FPS
 
         except asyncio.CancelledError:
             return False
 
     async def start_fps_counter(self, pool=None):
-        await asyncio.sleep(5)  # wait for things to stabilize before measuring FPS
+        await asyncio.sleep(5)          # wait for a few seconds before starting to measure FPS
 
         while True:
             fps = self.fps.fps()
@@ -109,7 +109,7 @@ class Screen:
                 # self.fps_text.row_clip = True
                 # self.fps_text.render_text(fps_str)
 
-            await asyncio.sleep(1)
+            await asyncio.sleep(1)      # Update every second
 
     def do_refresh(self):
         """ Meant to be overridden in child classes """
@@ -160,9 +160,9 @@ class Screen:
 
     async def update_profiler(self):
         while True:
-            await asyncio.sleep(3)
+            await asyncio.sleep(5)
             Profiler.dump_profile()
-            Profiler.clear()
+            # Profiler.clear()
 
     @staticmethod
     def check_gc_mem(collect=False):

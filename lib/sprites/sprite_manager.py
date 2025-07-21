@@ -1,5 +1,5 @@
 import gc
-from profiler import Profiler, profile as timed
+from profiler import Profiler, timed
 
 import uctypes
 from micropython import const

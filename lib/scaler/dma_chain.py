@@ -13,6 +13,7 @@ from scaler.scale_patterns import ScalePatterns
 from ssd1331_pio import SSD1331PIO
 from scaler.scaler_debugger import ScalerDebugger
 from typing import Optional
+from profiler import timed
 
 class DMAChain:
     px_read_finished = False
@@ -184,6 +185,7 @@ class DMAChain:
         )
         self.h_scale.irq(handler=self.irq_h_scale, hard=True)
 
+    @timed
     def init_dma_counts(self, read_stride_px, num_rows, h_scale):
         """Configure Sprite specific DMA parameters."""
         total_px = read_stride_px * num_rows
