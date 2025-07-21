@@ -5,7 +5,7 @@ import uasyncio as asyncio
 from ucollections import namedtuple
 
 from fps_counter import FpsCounter
-from profiler import Profiler, timed
+from profiler import prof, timed
 from scaler.const import INK_BRIGHT_YELLOW
 from scaler.scaler_debugger import printc
 from sprites_old.sprite import Sprite
@@ -161,8 +161,7 @@ class Screen:
     async def update_profiler(self):
         while True:
             await asyncio.sleep(5)
-            Profiler.dump_profile()
-            # Profiler.clear()
+            prof.dump_profile()
 
     @staticmethod
     def check_gc_mem(collect=False):

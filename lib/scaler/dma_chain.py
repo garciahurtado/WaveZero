@@ -11,7 +11,7 @@ from uctypes import addressof
 from scaler.const import *
 from scaler.scale_patterns import ScalePatterns
 from ssd1331_pio import SSD1331PIO
-from scaler.scaler_debugger import ScalerDebugger
+from scaler.scaler_debugger import ScalerDebugger, printc
 from typing import Optional
 from profiler import timed
 
@@ -66,7 +66,7 @@ class DMAChain:
         self.px_read = DMA()        #4. Sprite data
         self.color_lookup = DMA()   #5. Palette color lookup / transfer
         self.px_write = DMA()       #6. Display output
-        self.h_scale = DMA()        #7. Horizontal scale pattern. Uses ring buffer to loop through the pattern. 
+        self.h_scale = DMA()        #7. Horizontal scale pattern. Uses ring buffer to loop through the pattern.
 
         self.init_read_addr()
         self.init_write_addr()
@@ -269,6 +269,7 @@ class DMAChain:
         self.dbg.debug_dma(self.color_lookup, "color_lookup", full=full)
         self.dbg.debug_dma(self.px_write, "pixel_write", full=full)
         self.dbg.debug_dma(self.h_scale, "horiz_scale", full=full)
+
     def get_sniff_data(self):
         addr = DMA_BASE + DMA_SNIFF_DATA
         value = mem32[addr] & 0xffffffff

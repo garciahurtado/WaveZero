@@ -1,5 +1,5 @@
 from scaler.scaler_debugger import printc
-from profiler import Profiler, timed
+from profiler import prof, timed
 
 import utime
 import uasyncio as asyncio
@@ -31,7 +31,7 @@ gc.collect()
 from sprites.sprite_manager_2d import SpriteManager2D
 from sprites.sprite_types import SPRITE_TEST_SQUARE, SPRITE_TEST_HEART, SPRITE_TEST_GRID, SpriteType, \
     SPRITE_TEST_PYRAMID, SPRITE_GAMEBOY, SPRITE_CHERRIES, SPRITE_TEST_SKULL, SPRITE_BARRIER_LEFT, SPRITE_BARRIER_LEFT_x2
-from profiler import Profiler as prof, Profiler
+from profiler import prof
 
 from colors.color_util import hex_to_565
 from colors.color_util import GREY
@@ -130,7 +130,7 @@ class TestScreen(TestScreenBase):
 
         self.renderer = RendererScaler(display)
         self.scaler = self.renderer.scaler
-        self.scaler.prof = Profiler
+        self.scaler.prof = prof
 
         self.mgr = self.create_sprite_manager(self.max_sprites, self.renderer)
         self.all_sprites.append(self.mgr)
@@ -175,7 +175,7 @@ class TestScreen(TestScreenBase):
 
     def run(self):
         loop = asyncio.get_event_loop()
-        if Profiler.enabled:
+        if prof.enabled:
             loop.create_task(self.update_profiler())
 
         self.running = True

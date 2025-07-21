@@ -1,10 +1,8 @@
-from profiler import Profiler, timed
+from profiler import prof, timed
 from scaler.const import DEBUG_PHYSICS, DEBUG, INK_CYAN, DEBUG_INST, DEBUG_UPDATE
 from scaler.scaler_debugger import printc
 from sprites.sprite_manager import SpriteManager
 from sprites.sprite_types import SpriteType as types, FLAG_PHYSICS, FLAG_ACTIVE, FLAG_VISIBLE
-
-prof = Profiler()
 
 class SpriteManager2D(SpriteManager):
     """ Specialized version of SpriteManager that doesnt need to do any 3D projections (although the parent-child
@@ -12,7 +10,7 @@ class SpriteManager2D(SpriteManager):
     """
     last_update_ms = 0
 
-    @timed
+    #@timed
     def update_sprite(self, sprite, meta, elapsed):
         """ Updates a single sprite over an 'elapsed' time, by updating the x and y draw coordinates of the sprite based
         on its speed (or any other physics or time based effects). Returns True if it updated a sprite, False otherwise.

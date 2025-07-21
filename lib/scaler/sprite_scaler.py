@@ -26,7 +26,7 @@ from sprites.sprite_types import SpriteType
 from ssd1331_pio import SSD1331PIO
 
 from scaler.scaler_debugger import printc
-from profiler import timed, _profiler
+from profiler import timed, prof
 
 # GLOBAL
 self_sm_finished = False
@@ -176,7 +176,6 @@ class SpriteScaler():
         self.scaled_width = scaled_width
         self.framebuf.select_buffer(scaled_width, scaled_height)
 
-        # Somewhere in the update_loop, these coords are updated every frame for every sprite
         self.draw_x = int(x)
         self.draw_y = int(y)
 
@@ -191,38 +190,19 @@ class SpriteScaler():
 
         if DEBUG_DMA:
             print(f"PIXEL_BYTES BASE_READ: 0x{self.base_read:08X}")
-            print(f"(width: {sprite.width}, hscale: {h_scale} , vscale:{v_scale})")
 
-        _profiler.start_profile('fill_addrs')
+        prof.start_profile('fill_addrs')
         try:
             self.fill_addrs(scaled_height, h_scale, v_scale)
         finally:
-            _profiler.end_profile('fill_addrs')
+            prof.end_profile('fill_addrs')
 
         if DEBUG_DMA_ADDR:
-            print(f"............................................")
-            print(f":  In draw_sprite                      :")
-            print(f"............................................")
-            print(f"    WRITE ADDRs ARRAY @:0x{addressof(self.dma.write_addrs):08x}")
-            print(f"    WRITE ADDR 1st:     0x{self.dma.write_addrs[0]:08x}")
-            print(f"    WRITE ADDR last:    0x{self.dma.write_addrs[-1]:08x}")
-            print(f"    WRITE ADDR COUNT:   {self.dma.max_write_addrs} ")
-            print()
-            print(f"    READ ADDRs ARRAY @:0x{addressof(self.dma.read_addrs):08x} ")
-            print(f"    READ ADDR 1st:     0x{self.dma.read_addrs[0]:08x} ")
-            print(f"    READ ADDR last:    0x{self.dma.read_addrs[-1]:08x} ")
-            print(f"    READ ADDR COUNT:   {self.dma.max_read_addrs} ")
+            self.dbg.debug_dma_addrs(self.dma)
 
         if DEBUG_INST:
-            printc(f"Drawing a {sprite.width}x{sprite.height} Sprite", INK_YELLOW)
-            print(f"\t @ draw_x,draw_y: {self.draw_x},{self.draw_y}")
-            print(f"\t img_src:         0x{self.base_read:08X}")
-            print(f"\t fb_target_addr:  0x{self.framebuf.min_write_addr:08X}")
-            print()
-            print(f"\t H scale: x{h_scale} / V scale: x{v_scale}")
-            print(f"\t Sprite Stride (px):      {sprite.width}")
-            print(f"\t Sprite Stride (bytes):   {sprite.width//2}")
-            print(f"\t Display Stride (fb):     { self.framebuf.display_stride}")
+            self.dbg.debug_draw_instance(sprite, self.draw_x, self.draw_y, self.base_read, self.framebuf.min_write_addr,
+                                       h_scale, v_scale, self.framebuf.display_stride)
 
         palette_addr = addressof(image.palette.palette)
         self.init_pio(palette_addr)
@@ -339,11 +319,11 @@ class SpriteScaler():
             return False
 
         """ LANE 1 config - handles write addresses  """
-        _profiler.start_profile('init_interp_lanes')
+        prof.start_profile('init_interp_lanes')
         try:
             self.init_interp_lanes(frac_bits, self.int_bits, int(sprite_width), framebuf.display_stride, write_base)
         finally:
-            _profiler.end_profile('init_interp_lanes')
+            prof.end_profile('init_interp_lanes')
 
         # Configure remaining variables
         fixed_step = self.init_convert_fixed_point(sprite_width, v_scale)

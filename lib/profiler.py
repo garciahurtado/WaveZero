@@ -143,21 +143,21 @@ class Profiler:
         Profiler.frame_id = 0
         Profiler.frame_started = False
 
-_profiler = Profiler()
+prof = Profiler()
 
 def timed(func):
     """A decorator for profiling a single function call."""
 
     def wrapper(*args, **kwargs):
-        if not _profiler.enabled:
+        if not prof.enabled:
             return func(*args, **kwargs)
 
         func_name = func.__name__
-        _profiler.start_profile(func_name)
+        prof.start_profile(func_name)
         try:
             result = func(*args, **kwargs)
         finally:
-            _profiler.end_profile(func_name)
+            prof.end_profile(func_name)
         return result
 
     return wrapper

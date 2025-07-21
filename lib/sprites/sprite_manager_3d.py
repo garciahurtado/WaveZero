@@ -22,13 +22,11 @@ import math
 from images.indexed_image import Image, create_image
 from sprites.sprite_pool_lite import SpritePool
 from typing import Dict, List
-from profiler import Profiler
+from profiler import prof
 import ssd1331_pio
 from framebuf import FrameBuffer
 from sprites.sprite_types import to_name
 from utils import pprint, pprint_pure
-
-prof = Profiler()
 
 class SpriteManager3D(SpriteManager):
     """

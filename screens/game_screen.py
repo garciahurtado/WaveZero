@@ -32,7 +32,7 @@ from sprites.sprite_types import *
 from sprites.sprite_registry import registry
 from sprites_old.sprite import Sprite
 
-from profiler import Profiler as Profiler
+from profiler import prof
 from micropython import const
 from sprites.renderer_prescaled import RendererPrescaled
 class GameScreen(Screen):
@@ -164,8 +164,8 @@ class GameScreen(Screen):
             printc("... STARTING FPS COUNTER ...")
             self.fps_counter_task = loop.create_task(self.start_fps_counter(self.mgr.pool))
 
-        if Profiler.enabled:
-            loop.create_task(self.update_profiler())
+        if prof.enabled:
+            loop.create_task(self.update_prof())
 
         self.display_task = loop.create_task(self.start_display_loop())
         self.update_score_task = loop.create_task(self.mock_update_score())
@@ -337,5 +337,5 @@ class GameScreen(Screen):
         now = utime.ticks_ms()
         delta = utime.ticks_diff(now, self.last_perf_dump_ms)
         if delta > interval:
-            Profiler.dump_profile()
+            prof.dump_profile()
             self.last_perf_dump_ms = utime.ticks_ms()

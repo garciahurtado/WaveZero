@@ -2,7 +2,7 @@ import asyncio
 
 import time
 
-from profiler import Profiler as prof
+from profiler import prof
 from anim.animation import Animation
 
 class PaletteRotateOne(Animation):

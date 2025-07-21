@@ -513,7 +513,7 @@ class ScalerDebugger():
         if pio == 0:
             base_addr = PIO0_BASE
         elif pio == 1:
-            base_addr = PIO1_BASE
+            pio_base = PIO1_BASE
         else:
             base_addr = PIO2_BASE
 
@@ -540,6 +540,35 @@ class ScalerDebugger():
         self.debug_pio_fifo()
         self.debug_pio_regs()
         self.debug_pio_status()
+
+    def debug_draw_instance(self, sprite, draw_x, draw_y, base_read, fb_target_addr, h_scale, v_scale, display_stride):
+        """Prints detailed information about a sprite drawing operation."""
+        printc(f"Drawing a {sprite.width}x{sprite.height} Sprite", INK_YELLOW)
+        print(f"\t @ draw_x,draw_y: {draw_x},{draw_y}")
+        print(f"\t img_src:         0x{base_read:08X}")
+        print(f"\t fb_target_addr:  0x{fb_target_addr:08X}")
+        print()
+        print(f"\t H scale: x{h_scale} / V scale: x{v_scale}")
+        print(f"\t Sprite Stride (px):      {sprite.width}")
+        print(f"\t Sprite Stride (bytes):   {sprite.width//2}")
+        print(f"\t Display Stride (fb):     {display_stride}")
+
+    def debug_dma_addrs(self, dma):
+        """Prints the base addresses and contents of DMA read/write address buffers."""
+        print(f"............................................")
+        print(f":  DMA Address Buffers                     :")
+        print(f"............................................")
+        print(f"    WRITE ADDRs ARRAY @:0x{addressof(dma.write_addrs):08x}")
+        if len(dma.write_addrs) > 1:
+            print(f"    WRITE ADDR 1st:     0x{dma.write_addrs[0]:08x}")
+            print(f"    WRITE ADDR last:    0x{dma.write_addrs[-2]:08x}")  # -2 because last is the NULL trigger
+        print(f"    WRITE ADDR COUNT:   {dma.scaler.max_write_addrs} ")
+        print()
+        print(f"    READ ADDRs ARRAY @:0x{addressof(dma.read_addrs):08x} ")
+        if len(dma.read_addrs) > 1:
+            print(f"    READ ADDR 1st:     0x{dma.read_addrs[0]:08x} ")
+            print(f"    READ ADDR last:    0x{dma.read_addrs[-2]:08x} ")  # -2 because last is the NULL trigger
+        print(f"    READ ADDR COUNT:   {dma.scaler.max_read_addrs} ")
 
 # Define base types that don't need recursive sizing in MicroPython
 # (str, bytes, range, bytearray are handled by getsizeof directly)

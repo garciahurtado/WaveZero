@@ -3,7 +3,7 @@ import math
 
 import utime
 from micropython import const
-from profiler import Profiler, timed
+from profiler import prof, timed
 
 from colors import color_util as colors
 from colors.framebuffer_palette import FramebufferPalette as fp
@@ -274,7 +274,7 @@ class RoadGrid():
         """ Trick the camera during update()"""
         # self.far_z_vert = 10000
 
-    @timed
+    #@timed
     def update_horiz_lines(self, elapsed):
         self.far_z = 0 # Keep track of the furthest line, to see if we need new ones
         delete_lines = []

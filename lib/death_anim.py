@@ -9,7 +9,7 @@ from colors.framebuffer_palette import FramebufferPalette
 from colors.framebuffer_palette import FramebufferPalette as fp
 from sprites_old.spritesheet import Spritesheet
 from colors import color_util as colors
-from profiler import Profiler as prof
+from profiler import prof
 
 class DeathAnim(Animation):
     def __init__(self, display):

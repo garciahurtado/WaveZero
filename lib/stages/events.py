@@ -2,7 +2,7 @@ import math
 import utime
 import uasyncio as asyncio
 
-from profiler import Profiler as prof
+from profiler import prof
 from scaler.scaler_debugger import printc
 from sprites.sprite_manager import SpriteManager
 from sprites.sprite_registry import SpriteRegistry

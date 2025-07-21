@@ -31,7 +31,7 @@ from title_screen import TitleScreen
 from colors import color_util as colors
 # from primitives.encoder import Encoder
 
-from profiler import Profiler as prof
+from profiler import prof
 
 start_time_ms = 0
 

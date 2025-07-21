@@ -1,6 +1,6 @@
 import framebuf
 from sprites.spritesheet import Spritesheet
-from profiler import Profiler as prof, timed
+from profiler import prof, timed
 
 
 class Sprite3D(Spritesheet):

@@ -1,5 +1,5 @@
 import framebuf
-from profiler import Profiler as prof
+from profiler import prof
 from scaler.dma_chain import DMAChain
 from screens.screen import PixelBounds
 from ssd1331_pio import SSD1331PIO

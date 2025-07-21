@@ -15,7 +15,7 @@ from sprites.types.cherries_16 import Cherries16
 from sprites.sprite_types import SpriteType, SPRITE_TEST_HEART, SPRITE_GAMEBOY, SPRITE_CHERRIES, \
     SPRITE_TEST_SKULL
 from utils import dist_between
-from profiler import Profiler as prof
+from profiler import prof
 import utime
 class TestScreenStarfield(TestScreenBase):
     max_sprites = num_sprites = 16

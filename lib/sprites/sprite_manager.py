@@ -1,5 +1,5 @@
 import gc
-from profiler import Profiler, timed
+from profiler import prof, timed
 
 import uctypes
 from micropython import const
@@ -21,11 +21,9 @@ import math
 from images.indexed_image import Image, create_image
 from sprites.sprite_pool_lite import SpritePool
 from typing import Dict, List
-from profiler import Profiler
+from profiler import prof
 import ssd1331_pio
 from utils import pprint
-
-prof = Profiler()
 
 class SpriteManager:
     """
