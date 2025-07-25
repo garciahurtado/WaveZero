@@ -14,7 +14,8 @@ from scaler.const import DEBUG, DEBUG_DMA, DEBUG_INST, INTERP0_POP_FULL, INTERP1
     INTERP1_ACCUM1, INTERP1_BASE1, INTERP1_BASE2, DEBUG_INTERP, INTERP1_CTRL_LANE1, INTERP0_BASE1, INTERP0_ACCUM0, \
     INTERP0_ACCUM1, DEBUG_DISPLAY, DEBUG_TICKS, \
     DEBUG_PIXELS, \
-    INK_GREEN, INK_CYAN, DEBUG_SCALES, DEBUG_INTERP_LIST, INK_BRIGHT_RED, INK_YELLOW, INK_MAGENTA, DEBUG_CLIP, DEBUG_PIO
+    INK_GREEN, INK_CYAN, DEBUG_SCALES, DEBUG_INTERP_LIST, INK_BRIGHT_RED, INK_YELLOW, INK_MAGENTA, DEBUG_CLIP, \
+    DEBUG_PIO, DEBUG_DMA_CH
 from sprites.sprite_physics import SpritePhysics
 
 from images.indexed_image import Image
@@ -129,6 +130,41 @@ class SpriteScaler():
                 print(f">>> [{row_id:02.}] W: 0x{write_addr:08X}")
                 print("-------------------------")
 
+    def fill_addrs_software(self, sprite_width, v_scale):
+        """ Software-only implementation of address generation, bypassing the interpolator. """
+        read_addrs = self.dma.read_addrs
+        write_addrs = self.dma.write_addrs
+
+        # Get fixed-point step for read addresses (vertical scaling)
+        read_fixed_step = self.init_convert_fixed_point(sprite_width, v_scale)
+        printc(f"read_fixed_step: {read_fixed_step}")
+        read_addr_accum_fixed = 0
+
+        # Create the integer mask to replicate the hardware interpolator's masking
+        mask = (1 << self.int_bits) - 1
+
+        # Get linear step for write addresses
+        write_addr = self.framebuf.min_write_addr
+        write_stride = self.framebuf.display_stride
+
+        row_id = 0
+        max_read_addrs = int(self.max_read_addrs)
+        while row_id < max_read_addrs:
+            # Calculate read address using fixed-point accumulator, mimicking the hardware interpolator
+            # 1. Shift to get integer part, 2. Apply mask, 3. Ensure word alignment (& ~1)
+            read_row_offset_bytes = ((read_addr_accum_fixed >> self.frac_bits) & mask) & ~1
+            read_addrs[row_id] = self.base_read + read_row_offset_bytes
+            read_addr_accum_fixed += read_fixed_step
+
+            # Calculate write address
+            write_addrs[row_id] = write_addr
+            write_addr += write_stride
+
+            row_id += 1
+
+        read_addrs[row_id] = self.null_trig_inv_addr  # This "reverse NULL trigger" will make the SM stop. This is the address where the value lives
+        write_addrs[row_id] = 0x00000000
+
     @timed
     def draw_sprite(self, sprite: SpriteType, image: Image, x=0, y=0, h_scale=1.0, v_scale=1.0):
         """
@@ -136,17 +172,27 @@ class SpriteScaler():
         This method is synchronous and will not return until the whole sprite has been drawn
         Supports 16x16 and 32x32 px images only.
         """
-        global self_sm_finished     # must be global because the IRQ handler loses the 'self' context
-
         if not h_scale or not v_scale :
             raise AttributeError("Both v_scale and h_scale must be non-zero")
 
+        h_scale, v_scale, scaled_width, scaled_height = self.init_scaling(sprite, h_scale, v_scale, x, y)
+
+        if not self.clip_sprite(sprite.width, h_scale, v_scale):
+            return False
+
+        self.init_hardware(sprite, image, h_scale, v_scale, scaled_height)
+        self.start()
+        self.wait_for_render()
+        self.finish_sprite()
+
+    def init_scaling(self, sprite, h_scale, v_scale, x, y):
         self.reset()
 
         """ Snap the input scale to one of the valid scale patterns """
         new_scale = self.dma.patterns.find_closest_scale(h_scale)
         h_scale = v_scale = new_scale  # we dont support independent v_scale yet because the sprite struct doesnt have the field
 
+        assert sprite.width > 0 and h_scale != 0 and v_scale != 0, "Zero Scale Config in init_scaling()!"
         self.alpha = sprite.alpha_color
         self.dma.palette_finished = False
 
@@ -182,7 +228,13 @@ class SpriteScaler():
         if DEBUG_DISPLAY:
             print(f"ABOUT TO DRAW a Sprite on x,y: {self.draw_x},{self.draw_y} @ H: {h_scale}x / V: {v_scale}x")
 
-        """ Config interpolator """
+        return h_scale, v_scale, scaled_width, scaled_height
+
+    def init_hardware(self, sprite, image, h_scale, v_scale, scaled_height):
+        """
+        Set up the sprite scaler, clipping and parameters for address generation for the interpolator
+        """
+
         self.base_read = addressof(image.pixel_bytes)
         ret = self.init_interp_sprite(sprite.width, h_scale, v_scale)
         if not ret: # horrible hack
@@ -202,19 +254,12 @@ class SpriteScaler():
 
         if DEBUG_INST:
             self.dbg.debug_draw_instance(sprite, self.draw_x, self.draw_y, self.base_read, self.framebuf.min_write_addr,
-                                       h_scale, v_scale, self.framebuf.display_stride)
+                                         h_scale, v_scale, self.framebuf.display_stride)
 
         palette_addr = addressof(image.palette.palette)
         self.init_pio(palette_addr)
         self.palette_addr = palette_addr
         self.dma.init_dma_counts(self.read_stride_px, scaled_height, h_scale)
-        self.start()
-
-        """ We should be able to do something else while this loop runs, since the CPU is idle """
-        while not (self_sm_finished and self.dma.h_scale_finished):
-            utime.sleep_ms(1)
-
-        self.finish_sprite()
 
     def dma_pio_status(self):
         print()
@@ -244,6 +289,7 @@ class SpriteScaler():
         if DEBUG_DISPLAY:
             print(f"==> BLITTING to {self.draw_x}, {self.draw_y} / alpha: {self.alpha}")
 
+        """ Maybe we can find a way to call this externally, to render sprite clones? """
         self.framebuf.blit_with_alpha(int(self.draw_x), int(self.draw_y), self.alpha)
 
         if DEBUG_PIXELS:
@@ -497,9 +543,11 @@ class SpriteScaler():
 
     @timed
     def init_pio(self, palette_addr):
+        global self_sm_finished
+        self_sm_finished = False
+
         assert palette_addr != 0, "Palette address must be non-zero!"
 
-        self_sm_finished = False
         self.sm_read_palette.restart()
 
         if self.sm_read_palette.tx_fifo() > 0:
@@ -530,3 +578,10 @@ class SpriteScaler():
 
         print("------------------------------")
         print()
+
+    def wait_for_render(self):
+        global self_sm_finished
+
+        """ We should be able to do something else while this loop runs, since the CPU is idle """
+        while not (self_sm_finished and self.dma.h_scale_finished):
+            utime.sleep_ms(1)

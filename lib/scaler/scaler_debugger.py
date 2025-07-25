@@ -1,3 +1,5 @@
+import gc
+import micropython
 from rp2 import PIO
 from machine import mem32
 import sys
@@ -8,6 +10,18 @@ import sys
 
 from scaler.const import *
 from utils import aligned_buffer
+
+def check_gc_mem(collect=False):
+    """
+    Prints memory allocation information.
+
+    Args:
+        collect (bool): Whether to run garbage collection before printing.
+    """
+    if collect:
+        gc.collect()
+    print(f"Free memory: {gc.mem_free():,} bytes")
+    print(micropython.mem_info())
 
 def printb(message):
     """ Print a string and then print a series of backspaces equal to its length, to implement statically positioned

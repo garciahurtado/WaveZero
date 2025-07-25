@@ -32,6 +32,7 @@ from colors import color_util as colors
 # from primitives.encoder import Encoder
 
 from profiler import prof
+from lib.scaler.scaler_debugger import check_gc_mem
 
 start_time_ms = 0
 
@@ -91,7 +92,7 @@ class GameScreen(Screen):
         """ Display Thread """
         # self.start_display_loop()
         # _thread.start_new_thread(self.create_input_handler, [])
-        _thread.start_new_thread(self.start_display_loop, [])
+        _thread.start_new_thread(self.start_render_loop, [])
 
         self.mem_marker('--- Before preload images ---')
         self.preload_images()
@@ -171,7 +172,7 @@ class GameScreen(Screen):
 
         start_time_ms = round(time.ticks_ms())
         print(f"Update loop Start time: {start_time_ms}")
-        self.check_gc_mem()
+        check_gc_mem()
 
         self.add_sprite(self.bike) # Add after the obstacles, to it appears on top
 
@@ -269,7 +270,7 @@ class GameScreen(Screen):
 
         return group
 
-    def do_refresh(self):
+    def do_render(self):
         """ Overrides parent method """
         self.display.fill(0)
 
@@ -294,7 +295,7 @@ class GameScreen(Screen):
         for i in range(2):
             self.display.fill(white)
             self.display.show()
-            self.do_refresh()
+            self.do_render()
 
         self.crash_fx.create_particles()
         self.crash_fx.anim_particles()
@@ -326,7 +327,7 @@ class GameScreen(Screen):
         # loop.create_task(self.bike.stop_blink())  # Will run after a few seconds
         self.unpause()
 
-    def start_display_loop(self):
+    def start_render_loop(self):
         """
         Starts / restarts the input loop and display loop. Should be ran on Core #2
         """

@@ -53,7 +53,7 @@ class TitleScreen(Screen):
         while self.running:
             self.display.fill(0)
             self.draw_sprites()
-            self.do_refresh()
+            self.do_render()
             await asyncio.sleep(1 / 60)
 
     async def start_update_loop(self):
@@ -119,10 +119,10 @@ class TitleScreen(Screen):
         # just a quick flash
         for i in range(0, 3):
             self.display.fill(colors.rgb_to_565(WHITE))
-            self.do_refresh()
+            self.do_render()
             await asyncio.sleep(10 / ms)
             self.display.fill(colors.rgb_to_565(BLACK))
-            self.do_refresh()
+            self.do_render()
             await asyncio.sleep(10 / ms)
 
         # Do some crazy palette tricks
@@ -140,7 +140,7 @@ class TitleScreen(Screen):
                 wave_new_palette.pixel(color_idx, int(new_color))
 
             title_wave.set_alpha(0)
-            self.do_refresh()
+            self.do_render()
             await asyncio.sleep(10/ms)
 
         title_wave.palette = wave_old_palette

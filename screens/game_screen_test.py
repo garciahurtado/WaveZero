@@ -3,7 +3,7 @@ import random
 from colors import color_util as colors
 from scaler.const import DEBUG, INK_GREEN
 from perspective_camera import PerspectiveCamera
-from scaler.scaler_debugger import printc
+from scaler.scaler_debugger import printc, check_gc_mem
 from sprites.sprite_physics import SpritePhysics
 from sprites.types.warning_wall import WarningWall
 from sprites_old.sprite import Sprite
@@ -118,7 +118,7 @@ class GameScreenTest(Screen):
 
     def run(self):
         loop = asyncio.get_event_loop()
-        loop.create_task(self.start_display_loop())
+        loop.create_task(self.start_render_loop())
 
         self.display.fill(0x0)
 
@@ -156,7 +156,7 @@ class GameScreenTest(Screen):
         except asyncio.CancelledError:
             return False
 
-    def do_refresh(self):
+    def do_render(self):
         """ Overrides parent method.
         This Test method is intended to test the rendering of sprites at different scales. It renders a "circle of scales"
         in an animation, as well as individual sprites.
@@ -166,7 +166,7 @@ class GameScreenTest(Screen):
             print(f"- START OF FRAME n. {self.frames_elapsed} - ")
             print(f"--------------------------")
 
-            self.check_gc_mem()
+            check_gc_mem()
 
         self.display.fill(0x0)
 
@@ -365,6 +365,3 @@ class GameScreenTest(Screen):
             # Assuming sun_img_asset is a single Image object
             alpha = sun_meta.alpha_color if sun_meta and hasattr(sun_meta, 'alpha_color') else -1
             display.blit(sun_img_asset.pixels, int(self.sun.x), int(self.sun.y), alpha, sun_palette)
-
-
-

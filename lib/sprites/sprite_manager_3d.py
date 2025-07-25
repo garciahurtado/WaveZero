@@ -43,7 +43,6 @@ class SpriteManager3D(SpriteManager):
     phy: SpritePhysics = SpritePhysics()
     draw: SpriteDraw = SpriteDraw()
 
-    # @timed
     def __init__(self, display: ssd1331_pio, renderer, max_sprites, camera=None, grid=None):
         super().__init__(display, renderer, max_sprites, camera, grid)
         self.max_scale = None
@@ -67,7 +66,7 @@ class SpriteManager3D(SpriteManager):
             new_z = sprite.z
 
         if sprite.z < cam.near:
-            """Past the near clipping plane"""
+            """Early out if past the near clipping plane"""
             self.pool.release(sprite, meta)
             return False
 
@@ -79,12 +78,12 @@ class SpriteManager3D(SpriteManager):
         elif new_z == sprite.z and sprite.scale:
             """ We check for sprite.scale to give static sprites that just spawned a change to calculate its render 
             attributes once. """
-            """ Nothing more needs to change, since it hasn't moved"""
+            """ No need to calculate draw coords, since the sprite hasn't moved during this update frame """
             return False
         else:
             sprite.z = new_z
 
-        """ The rest of the calculations are only relevant for visible sprites within the frustrum"""
+        """ The rest of the calculations are only relevant for visible sprites within the frustum"""
         if not visible:
             return True
 
@@ -105,7 +104,7 @@ class SpriteManager3D(SpriteManager):
         if sprite.draw_x < self.min_draw_x:
             self.pool.release(sprite, meta)
             return False
-        if sprite.draw_x > self.display.width - 1:
+        if sprite.draw_x > self.max_draw_x:
             self.pool.release(sprite, meta)
             return False
 
@@ -113,7 +112,7 @@ class SpriteManager3D(SpriteManager):
         if sprite.draw_y < self.min_draw_y:
             self.pool.release(sprite, meta)
             return False
-        elif sprite.draw_y > self.display.height - 1:
+        elif sprite.draw_y > self.max_draw_y:
             self.pool.release(sprite, meta)
             return False
 
@@ -166,7 +165,6 @@ class SpriteManager3D(SpriteManager):
     def rotate_sprite_palette(self, sprite, meta):
         sprite.color_rot_idx = (sprite.color_rot_idx + 1) % len(meta.rotate_palette)
 
-    # @timed
     def to_2d(self, x, y, z, vp_scale=1):
         camera = self.camera
         if camera:

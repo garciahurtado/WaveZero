@@ -59,14 +59,16 @@ class SpritePool:
 
         # Create sprite structures
         self.sprites = []
+        sprite_idx_counter = 0
         for i, chunk in enumerate(self.sprite_memory):
             for j in range(len(chunk) // SPRITE_DATA_SIZE):
                 addr = addressof(chunk) + j * SPRITE_DATA_SIZE
                 new_sprite = struct(addr, SPRITE_DATA_LAYOUT)
                 self.sprites.append(new_sprite)
 
-                new_node = PoolNode(sprite=new_sprite, index=i)
+                new_node = PoolNode(sprite=new_sprite, index=sprite_idx_counter)
                 self.pool_nodes.append(new_node)
+                sprite_idx_counter += 1
 
         #
         # for s in range(self.pool_size):
@@ -138,8 +140,12 @@ class SpritePool:
 
         # Find and remove the node from the linked list
         current = self.head
+        sprite_idx = None
         while current:
             if current.sprite is sprite:
+                # Store the sprite index while we have the node
+                sprite_idx = current.index
+                
                 if current.prev:
                     current.prev.next = current.next
                 else:
@@ -153,17 +159,19 @@ class SpritePool:
                 break
             current = current.next
 
-        if self.active_count != 0:
+        if self.active_count > 0:
             self.active_count -= 1
         else:
             return False # We should never get here, but we do
 
-        # Add the index back to free_indices
-        idx = self.sprites.index(sprite)
-        self.ready_indices[self.free_count] = idx
-        self.free_count += 1
-
-        return idx
+        # Use the stored index instead of expensive search
+        if sprite_idx is not None:
+            self.ready_indices[self.free_count] = sprite_idx
+            self.free_count += 1
+            return sprite_idx
+        else:
+            # Sprite not found in active list - this shouldn't happen
+            return False
 
     def insert(self, sprite, position):
         """ DEPRECATED """
@@ -216,4 +224,3 @@ class SpritePool:
     def __len__(self):
         """Return the number of active sprites"""
         return int(self.active_count)
-

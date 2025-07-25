@@ -6,7 +6,7 @@ from ucollections import namedtuple
 
 from fps_counter import FpsCounter
 from profiler import prof, timed
-from scaler.const import INK_BRIGHT_YELLOW
+from scaler.const import INK_BRIGHT_YELLOW, DEBUG_FPS, DEBUG_FRAME_ID
 from scaler.scaler_debugger import printc
 from sprites_old.sprite import Sprite
 import micropython
@@ -37,9 +37,16 @@ class Screen:
     total_height = 0
     half_height = 0
     half_width = 0
+    last_perf_dump_ms = 0
+    total_frames = 0
 
-    def __init__(self, display:SSD1331PIO=None, margin_px=0):
+    # This will be set to True by the render loop when it finishes (then the game world is ready to be updated)
+    is_render_finished = False
 
+    # this will be set to True by the update loop when it finishes (then the display is ready to be rendered)
+    is_update_finished = False
+
+    def __init__(self, display:SSD1331PIO=None, margin_px=16):
         self.instances = []
         if display:
             self.display = display
@@ -64,11 +71,25 @@ class Screen:
     def run(self):
         raise RuntimeError("* screen.run() not implemented! *")
 
-    async def start_display_loop(self):
-        print("** DISPLAY LOOP START (screen.py) **")
+    async def start_render_loop(self):
+        """ The main display loop. """
 
         while True:
-            self.do_refresh()
+            if self.is_update_finished:
+                self.do_render()
+                self.is_render_finished = True
+            else:
+                # wait for the update loop to catch up
+                await asyncio.sleep(1/30)
+
+            if DEBUG_FPS:
+                self.fps.tick()
+
+            if DEBUG_FRAME_ID:
+                self.total_frames += 1
+
+            # Pause to ensure we don't try to render faster than the display can handle
+            # but also to free up the event loop for other tasks
             await asyncio.sleep_ms(1)
 
     async def start_update_loop(self):
@@ -81,13 +102,18 @@ class Screen:
         start_time_ms = self.last_update_ms = utime.ticks_ms()
         self.last_perf_dump_ms = start_time_ms
 
-        print(f"--- (game screen) Update loop Start time: {start_time_ms}ms ---")
-        # self.check_gc_mem()
+        print(f"--- ({self.__class__.__name__}) Update loop Start time: {start_time_ms}ms ---")
 
         # update loop - will run until task cancellation
         try:
             while True:
-                # self.do_update()
+                if self.is_render_finished:
+                    self.do_update()
+                    self.is_update_finished = True
+                else:
+                    # give the display some time to catch up
+                    await asyncio.sleep(1/30)
+
                 await asyncio.sleep(1/60)   # Tweaking this number can improve FPS
 
         except asyncio.CancelledError:
@@ -111,12 +137,12 @@ class Screen:
 
             await asyncio.sleep(1)      # Update every second
 
-    def do_refresh(self):
+    def do_render(self):
         """ Meant to be overridden in child classes """
-        self.display.show()
         # self.maybe_gc()
 
     def draw_sprites(self):
+        """ Meant to be overridden in child classes """
         for my_sprite in self.instances:
             my_sprite.show(self.display)
 
@@ -163,12 +189,15 @@ class Screen:
             await asyncio.sleep(5)
             prof.dump_profile()
 
-    @staticmethod
-    def check_gc_mem(collect=False):
-        if collect:
-            gc.collect()
-        print(f"Free memory: {gc.mem_free():,} bytes")
-        print(micropython.mem_info())
+    def update_profiler_sync(self):
+        """Synchronous version of the profiler update method."""
+        interval = 5000  # Every 5 secs
+
+        now = utime.ticks_ms()
+        delta = utime.ticks_diff(now, self.last_perf_dump_ms)
+        if delta > interval:
+            prof.dump_profile()
+            self.last_perf_dump_ms = utime.ticks_ms()
 
     @staticmethod
     def mem_marker(msg=None):

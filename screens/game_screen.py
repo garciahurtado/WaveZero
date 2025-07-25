@@ -1,18 +1,13 @@
 import random
-
+import gc
 import micropython
 
-from debug.mem_logging import log_mem, log_new_frame
-from mpdb.mpdb import Mpdb
 from scaler.const import DEBUG_INST, DEBUG, INK_MAGENTA, DEBUG_POOL, INK_BRIGHT_RED, INK_RED, DEBUG_MEM, INK_CYAN, \
-    INK_BRIGHT_GREEN, INK_BRIGHT_BLUE, DEBUG_FRAME_ID, INK_YELLOW, DEBUG_PROFILER
-from scaler.scaler_debugger import printc
-from scaler.sprite_scaler import SpriteScaler
+    INK_BRIGHT_GREEN, INK_BRIGHT_BLUE, DEBUG_FRAME_ID, INK_YELLOW, DEBUG_PROFILER, DEBUG_FPS
+from lib.scaler.scaler_debugger import printc, check_gc_mem
 from perspective_camera import PerspectiveCamera
 from death_anim import DeathAnim
 from sprites.renderer_scaler import RendererScaler
-from sprites.types.test_skull import TestSkull
-from sprites.types.warning_wall import WarningWall
 from stages.stage_1 import Stage1
 from ui_elements import ui_screen
 
@@ -29,14 +24,12 @@ import utime
 from sprites.sprite_manager_3d import SpriteManager3D
 from collider import Collider
 from sprites.sprite_types import *
-from sprites.sprite_registry import registry
 from sprites_old.sprite import Sprite
 
 from profiler import prof
 from micropython import const
-from sprites.renderer_prescaled import RendererPrescaled
 class GameScreen(Screen):
-    fps_enabled = True
+    fps_enabled = DEBUG_FPS
     ground_speed: int = 0
     max_ground_speed: int = const(-3000)
     grid: RoadGrid = None
@@ -44,11 +37,10 @@ class GameScreen(Screen):
     sun_start_x = None
     camera: PerspectiveCamera
     mgr: SpriteManager3D = None
-    max_sprites: int = 256
+    max_sprites: int = 128
     saved_ground_speed = 0
     lane_width: int = const(24)
     num_lives: int = 4
-    total_frames = 0
     last_update_ms = 0
     fps_every_n_frames = 30
     player = None
@@ -81,7 +73,7 @@ class GameScreen(Screen):
 
         print("-- Creating UI...")
         self.ui = ui_screen(display, self.num_lives)
-        self.check_gc_mem()
+        check_gc_mem()
 
         print("-- Creating player sprite...")
         self.player = PlayerSprite(camera=self.camera)
@@ -91,7 +83,6 @@ class GameScreen(Screen):
 
         print("-- Creating road grid...")
         self.grid = RoadGrid(self.camera, display, lane_width=self.lane_width)
-        self.check_gc_mem()
 
         print("-- Creating Enemy Sprite Manager...")
         self.mgr = SpriteManager3D(
@@ -109,7 +100,7 @@ class GameScreen(Screen):
         self.display.fps = self.fps
 
         self.stage = Stage1(self.mgr)
-        self.check_gc_mem()
+        check_gc_mem()
         self.sun_start_x = 39
 
         # If self.sun needs to be drawn by the Screen's show_all, ensure add_sprite can handle it.
@@ -154,20 +145,22 @@ class GameScreen(Screen):
         self.display.fill(0x0)
         self.display.show()
 
+        self.is_render_finished = True  # this will trigger the first update loop
+
         barrier_speed = self.max_ground_speed / 200
         print(f"Sprite speed: {barrier_speed}")
 
         self.input = make_input_handler(self.player)
         loop = asyncio.get_event_loop()
 
+        if prof.enabled:
+            loop.create_task(self.update_profiler())
+
         if self.fps_enabled:
             printc("... STARTING FPS COUNTER ...")
             self.fps_counter_task = loop.create_task(self.start_fps_counter(self.mgr.pool))
 
-        if prof.enabled:
-            loop.create_task(self.update_prof())
-
-        self.display_task = loop.create_task(self.start_display_loop())
+        self.display_task = loop.create_task(self.start_render_loop())
         self.update_score_task = loop.create_task(self.mock_update_score())
 
         # Start the road speed-up task
@@ -184,23 +177,9 @@ class GameScreen(Screen):
         self.pause()
         self.stage.stop()
 
-    async def update_loop(self):
-        start_time_ms = self.last_update_ms = utime.ticks_ms()
-        self.last_perf_dump_ms = start_time_ms
-
-        print(f"--- (game screen) Update loop Start time: {start_time_ms}ms ---")
-        self.check_gc_mem()
-
-        # update loop - will run until task cancellation
-        try:
-            while True:
-                self.do_update()
-                await asyncio.sleep(1/60)   # Tweaking this number can improve FPS
-
-        except asyncio.CancelledError:
-            return False
-
     def do_update(self):
+        self.is_update_finished = False
+
         if DEBUG_MEM:
             print(micropython.mem_info())
 
@@ -210,7 +189,6 @@ class GameScreen(Screen):
 
         self.grid.speed = self.ground_speed
         self.grid.speed_ms = self.ground_speed / 10
-        self.total_frames += 1
 
         now = utime.ticks_ms()
         elapsed = utime.ticks_diff(now, self.last_update_ms)
@@ -222,6 +200,7 @@ class GameScreen(Screen):
             if DEBUG_FRAME_ID:
                 printc("-- Updating subsystems --", INK_YELLOW)
 
+            self.update_profiler_sync()
             self.grid.update_horiz_lines(elapsed)
             self.player.update(elapsed)
             self.sun.x = self.sun_start_x - round(self.player.turn_angle * 4)
@@ -233,26 +212,36 @@ class GameScreen(Screen):
             self.collider.check_collisions(self.mgr.pool.active_sprites)
             self.stage.update(elapsed)
 
-    def do_refresh(self):
+
+    def do_render(self):
         """ Overrides parent method """
+        if DEBUG_PROFILER:
+            prof.start_frame()
+
         if DEBUG_FRAME_ID:
             printc(f"[[ STARTING FRAME {self.total_frames:04.} ]]", INK_BRIGHT_GREEN)
 
         # Now run the rendering code
         self.display.fill(0x0000)
         self.grid.show()
+
+        # disable garbage collection in the inner display loop
+        gc.disable()
+
         self.show_all()
         # self.player.show(self.display) # Explicitly so that we can control the z order
         self.show_fx()
         # self.ui.show()
         self.display.show()
 
+        gc.enable()
+        gc.collect()
+
         if DEBUG_POOL:
             num_active = self.mgr.pool.active_count
             num_avail = len(self.mgr.pool.ready_indices)
             printc(f"*** POOL ACTIVE COUNT: {num_active} ***", INK_BRIGHT_GREEN)
             printc(f"*** POOL AVAIL. COUNT: {num_avail} ***", INK_BRIGHT_BLUE)
-        self.fps.tick()
 
     def show_all(self):
         # self.mgr was registered as one of these instances, so it will be rendered as a result of this call
@@ -287,7 +276,7 @@ class GameScreen(Screen):
         for i in range(2):
             self.display.fill(0xFFFF)
             self.display.show()
-            self.do_refresh()
+            self.do_render()
 
         self.pause()
         self.player.visible = False
@@ -327,15 +316,3 @@ class GameScreen(Screen):
 
     def init_sprites(self, display):
         raise DeprecationWarning
-
-    async def show_perf(self):
-        if not DEBUG_PROFILER:
-            return False
-
-        interval = 5000   # Every 5 secs
-
-        now = utime.ticks_ms()
-        delta = utime.ticks_diff(now, self.last_perf_dump_ms)
-        if delta > interval:
-            prof.dump_profile()
-            self.last_perf_dump_ms = utime.ticks_ms()

@@ -109,7 +109,7 @@ class TestScreenStarfield(TestScreenBase):
         self.max_scale_dot = 1/self.meta.width # scales lower than this will draw a dot in lieu of render
         self.max_dist = abs(int(dist_between(spawn_x, spawn_y, self.total_width, self.total_height)))
 
-    def do_refresh(self):
+    def do_render(self):
         self.common_bg()
         center = self.screen_center
 
@@ -194,12 +194,12 @@ class TestScreenStarfield(TestScreenBase):
 
     def run(self):
         self.running = True
-        self.check_gc_mem()
+        check_gc_mem()
 
         """ The display loop goes to the background (as do any input loops, other animations, etc..) """
 
         loop = asyncio.get_event_loop()
-        loop.create_task(self.start_display_loop())
+        loop.create_task(self.start_render_loop())
 
         if self.fps_enabled:
             self.fps_counter_task = asyncio.create_task(self.start_fps_counter())
@@ -263,14 +263,14 @@ class TestScreenStarfield(TestScreenBase):
         except asyncio.CancelledError:
             return False
 
-    async def start_display_loop(self):
+    async def start_render_loop(self):
         while True:
-            self.do_refresh()
+            self.do_render()
             await asyncio.sleep_ms(5)
 
     async def start_update_loop(self):
         print("-- ... MAIN LOOP STARTING ...")
-        self.check_gc_mem()
+        check_gc_mem()
 
         """ All top level tasks / threads go here. Once all of these finish, the program ends"""
         await asyncio.gather(

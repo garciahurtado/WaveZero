@@ -1,3 +1,4 @@
+import gc
 import math
 
 import framebuf
@@ -8,9 +9,9 @@ from struct import unpack
 from colors.framebuffer_palette import FramebufferPalette as BufPalette
 from images.indexed_image import Image, create_image
 from colors import color_util as colors
-from scaler.const import DEBUG
+from scaler.const import DEBUG, INK_GREEN
+from scaler.scaler_debugger import printc, check_gc_mem
 from utils import aligned_buffer
-
 
 class BMPReader():
     color_mode_map = {
@@ -193,27 +194,32 @@ class BMPReader():
         """
 
         width, height, color_depth, is_top_down = header.width, header.height, header.color_depth, header.is_top_down
-
         ppb, pmask = header.ppb, header.pmask
+
+        row_size = (width * color_depth + 7) // 8
+        padded_row_size = (row_size + 3) // 4 * 4
+        row_buffer = bytearray(padded_row_size)
 
         for row in range(frame_height):
             y = row if is_top_down else frame_height - row - 1
-
-            size = (width * color_depth + 7) // 8
-            padded_row_size = (size + 3) // 4 * 4
-
-            data = file.read(padded_row_size)
+            file.readinto(row_buffer)
 
             for x in range(width):
                 if color_depth <= 8:
-                    color_index = self._extract_from_bytes(data, x, color_depth, ppb, pmask)
+                    color_index = self._extract_from_bytes(row_buffer, x, color_depth, ppb, pmask)
                     frame_buffer.pixel(x, y, color_index)
                 else:
                     # For 24-bit color depth
                     offset = x * 3
-                    b, g, r = data[offset:offset + 3]
+                    b, g, r = row_buffer[offset:offset + 3]
                     color = (r << 16) | (g << 8) | b
                     frame_buffer.pixel(x, y, color)
+
+        """ After reading the frame, clear the memory to free up space, otherwise several repeated calls (such as for 
+        the player spritesheet) will cause a memory leak. There should be a way to manage this better, but for now, this
+        will do."""
+        gc.collect()
+
     def _create_frame_buffer(self, width:int, height:int, color_format: int) -> tuple[FrameBuffer, bytearray]:
         """Create a frame buffer for storing pixel data of the image (or frame of a spritesheet)."""
         frame_size = width * height

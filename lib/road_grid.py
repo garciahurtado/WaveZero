@@ -233,7 +233,7 @@ class RoadGrid():
     def create_horiz_lines(self, num_lines):
         start_z = -60
         for i in range(0, num_lines):
-            self.horiz_lines_data.append({'z': (i * self.lane_depth) + start_z})
+            self.horiz_lines_data.append({'z': (i * self.lane_depth) + start_z, 'y': 0})
 
         self.horiz_lines_data.reverse()
         self.far_z_horiz = (num_lines) * self.lane_depth + 400
@@ -274,17 +274,17 @@ class RoadGrid():
         """ Trick the camera during update()"""
         # self.far_z_vert = 10000
 
-    #@timed
     def update_horiz_lines(self, elapsed):
         self.far_z = 0 # Keep track of the furthest line, to see if we need new ones
         delete_lines = []
 
         for my_line in self.horiz_lines_data:
-            if not my_line['z']:
-                my_line['z'] = 0
-
             if not self.paused:
                 my_line['z'] = my_line['z'] + (self.speed_ms * elapsed)
+
+            # Pre-calculate the 2D projection for the line
+            _, y = self.camera.to_2d(0, 0, my_line['z'])
+            my_line['y'] = int(y)
 
             if my_line['z'] > self.far_z:
                 self.far_z = my_line['z']
@@ -299,12 +299,8 @@ class RoadGrid():
     @timed
     def show_horiz_lines(self):
         last_y: int = 0
-        last_y: int = 0
 
         for my_line in self.horiz_lines_data:
-            _, y = self.camera.to_2d(0, 0, my_line['z'])
-            my_line['y'] = int(y)
-
             # Avoid writing a line on the same Y coordinate as the last one we drew
             if my_line['y'] == last_y:
                 continue
@@ -326,7 +322,7 @@ class RoadGrid():
 
         if (dist_to_horiz > self.lane_depth) and len(self.horiz_lines_data) < self.num_horiz_lines:
             """ Time to spawn a new line in the horizon"""
-            new_line = {'z': self.far_z + self.lane_depth}
+            new_line = {'z': self.far_z + self.lane_depth, 'y': 0}
             self.horiz_lines_data.append(new_line)
 
     @timed
@@ -362,7 +358,6 @@ class RoadGrid():
 
             index += 1
 
-    #@timed
     def draw_horizon(self):
         """Draw some static horizontal lines to cover up the seam between vertical and horiz road lines"""
         horizon_offset = -10

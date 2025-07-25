@@ -53,7 +53,7 @@ class TestScreenBase(Screen):
 
         utime.sleep_ms(500)
         loop = asyncio.get_event_loop()
-        loop.create_task(self.start_display_loop())
+        loop.create_task(self.start_render_loop())
 
     async def endless_wait(self):
         """ Here only so that the screen doesn't suddenly end """

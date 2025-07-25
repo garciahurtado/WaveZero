@@ -10,7 +10,6 @@ class SpriteManager2D(SpriteManager):
     """
     last_update_ms = 0
 
-    #@timed
     def update_sprite(self, sprite, meta, elapsed):
         """ Updates a single sprite over an 'elapsed' time, by updating the x and y draw coordinates of the sprite based
         on its speed (or any other physics or time based effects). Returns True if it updated a sprite, False otherwise.

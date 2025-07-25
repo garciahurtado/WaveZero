@@ -10,7 +10,7 @@ import math
 import random
 
 from input import game_input
-from scaler.const import DEBUG, DEBUG_MEM, INK_GREEN, INK_BRIGHT_GREEN, DEBUG_INST, DEBUG_FPS
+from scaler.const import DEBUG, DEBUG_MEM, INK_GREEN, INK_BRIGHT_GREEN, DEBUG_INST, DEBUG_FPS, DEBUG_FRAME_ID
 from screens.screen import PixelBounds
 
 from screens.test_screen_base import TestScreenBase
@@ -73,7 +73,7 @@ class TestScreen(TestScreenBase):
     slide_sel = 'vert'
     h_scale = 1
     v_scale = 1
-    refresh_method = None
+    render_method = None
     max_sprites = 24
     max_cols = 6
     max_rows = 4
@@ -179,7 +179,7 @@ class TestScreen(TestScreenBase):
             loop.create_task(self.update_profiler())
 
         self.running = True
-        self.display_task = loop.create_task(self.start_display_loop())
+        self.display_task = loop.create_task(self.start_render_loop())
 
         test = 'grid1'
         method = None
@@ -188,18 +188,18 @@ class TestScreen(TestScreenBase):
             self.load_sprite(SPRITE_BARRIER_LEFT_x2, WarningWall)
             self.init_common()
             self.init_beating_heart()
-            method = self.do_refresh_zoom_in
+            method = self.do_render_zoom_in
         elif test == 'zoom_sq':
             self.load_sprite(SPRITE_TEST_SQUARE, TestSquare)
             self.init_common()
             self.init_beating_heart()
-            method = self.do_refresh_zoom_in
+            method = self.do_render_zoom_in
         if test == 'scale_control':
             self.load_sprite(SPRITE_TEST_HEART, TestHeart)
             self.init_common()
             self.init_score()
             self.init_scale_control()
-            method = self.do_refresh_scale_control
+            method = self.do_render_scale_control
         elif test == 'grid1':
             self.color_demo = False
             self.load_sprite(SPRITE_GAMEBOY, GameboySprite)
@@ -208,27 +208,27 @@ class TestScreen(TestScreenBase):
             self.init_common(num_sprites=self.num_cols * self.num_rows)
             self.init_score()
             self.init_grid()
-            method = self.do_refresh_grid
+            method = self.do_render_grid
         elif test == 'grid2':
             self.load_sprite(SPRITE_GAMEBOY, GameboySprite)
             self.init_common()
             self.init_grid()
-            method = self.do_refresh_grid
+            method = self.do_render_grid
         elif test == 'grid3':
             self.load_sprite(SPRITE_TEST_SKULL, TestSkull)
             self.init_common()
             self.init_grid()
-            method = self.do_refresh_grid
+            method = self.do_render_grid
         elif test == 'clipping':
             self.load_sprite(SPRITE_CHERRIES, Cherries16)
             self.init_common()
             self.init_clipping()
-            method = self.do_refresh_clipping
+            method = self.do_render_clipping
         # else:
         #     print(f"TEST WAS {test}")
         #     raise Exception(f"Invalid method: {method}")
 
-        self.refresh_method = getattr(self, method.__name__, None)
+        self.render_method = getattr(self, method.__name__, None)
         if DEBUG_FPS:
             printc("... STARTING FPS COUNTER ...", INK_GREEN)
             self.fps_counter_task = asyncio.create_task(self.start_fps_counter(self.mgr.pool))
@@ -381,11 +381,11 @@ class TestScreen(TestScreenBase):
         self.scaled_height = math.ceil(self.sprite.height * self.v_scale)
         self.set_state(self.STATE_START)
 
-    def do_refresh_grid(self):
+    def do_render_grid(self):
         """
         Show a grid of heart Sprites
         """
-
+        gc.disable()
         inst = self.inst
         row_sep = self.sprite.width
         col_sep = self.sprite.width
@@ -394,14 +394,15 @@ class TestScreen(TestScreenBase):
 
         self.show_all()
         self.display.show()
-        self.fps.tick()
+        gc.enable()
+        gc.collect()
 
         if self.color_demo:
             new_color = self.rainbow_colors[self.color_idx % self.color_len]
             self.sprite_palette.set_hex(3, new_color)
             self.color_idx += 1
 
-    def do_refresh_zoom_in(self):
+    def do_render_zoom_in(self):
         """
         Do a zoom in demo of increasingly higher scale ratios
         """
@@ -437,7 +438,7 @@ class TestScreen(TestScreenBase):
 
         self.fps.tick()
 
-    def do_refresh_scale_control(self):
+    def do_render_scale_control(self):
         """
         Do a zoom in demo of scales controlled by rotary input
         """
@@ -465,7 +466,7 @@ class TestScreen(TestScreenBase):
         utime.sleep_ms(1)
         self.fps.tick()
 
-    def do_refresh_clipping(self):
+    def do_render_clipping(self):
         """
         Do a demo of several diverse horizontal scale ratios
         """
@@ -565,9 +566,12 @@ class TestScreen(TestScreenBase):
             inst = self.all_sprites[i]
             inst.show(self.display)
 
-    def do_refresh(self):
+    def do_render(self):
         prof.start_frame()
-        return self.refresh_method()
+        if DEBUG_FRAME_ID:
+            printc(f"[[ STARTING FRAME {self.total_frames:04.} ]]", INK_BRIGHT_GREEN)
+
+        return self.render_method()
 
     def set_state(self, state):
         """ Manage the various valid states of this screen (State machine, not PIO)"""

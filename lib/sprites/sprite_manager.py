@@ -7,7 +7,7 @@ import micropython
 
 from images.image_loader import ImageLoader
 from perspective_camera import PerspectiveCamera
-from scaler.const import DEBUG, INK_GREEN, INK_BLUE, DEBUG_CLIP, DEBUG_INST, INK_RED
+from scaler.const import DEBUG, INK_GREEN, INK_BLUE, DEBUG_CLIP, DEBUG_INST, INK_RED, INK_YELLOW
 from scaler.scaler_debugger import printc
 from sprites.sprite_draw import SpriteDraw
 from sprites.sprite_physics import SpritePhysics
@@ -51,9 +51,10 @@ class SpriteManager:
     renderer = None
 
     # Limiting negative drawX and drawY prevents random scaler FREEZES on when clipped sprites fall far off the screen
-    min_draw_x = -64
-    # min_draw_y = -47 # This seems dependent on the sprite size (sprite height x2)
+    min_draw_x = -32    # This seems dependent on the sprite size (sprite height x2)
+    max_draw_x = None   # will be calculated once the display is initialized
     min_draw_y = -32
+    max_draw_y = None
     max_scale = 8
 
     def __init__(self, display: ssd1331_pio, renderer, max_sprites, camera=None, grid=None):
@@ -61,6 +62,10 @@ class SpriteManager:
         self.renderer = renderer
 
         self.max_sprites = max_sprites
+
+        self.max_draw_x = display.width
+        self.max_draw_y = display.height
+
         self.grid = grid
 
         self.check_mem()
@@ -144,7 +149,6 @@ class SpriteManager:
     def rotate_sprite_palette(self, sprite, meta):
         sprite.color_rot_idx = (sprite.color_rot_idx + 1) % len(meta.rotate_palette)
 
-    # @timed
     def to_2d(self, x, y, z, vp_scale=1):
         camera = self.camera
         if camera:
@@ -182,39 +186,36 @@ class SpriteManager:
             if type.animations:
                 type.start_anim()
 
-    def release(self, inst, sprite):
-        idx = self.pool.release(inst, sprite)
+    def release(self, sprite, meta):
+        idx = self.pool.release(sprite, meta)
     def check_mem(self):
         gc.collect()
         print(micropython.mem_info())
 
-    @timed
     def update(self, elapsed):
         """
-        ellapsed should be in milliseconds
+        elapsed should be in milliseconds
         """
-        # DEPRECATE (but not deprecated yet): this method should be deprecated and useful functionality replicated
-
-        kinds = self.sprite_metadata
         current = self.pool.head
 
+        # Step 1: Update sprites and collect any that become inactive.
+        inactive_sprites_to_release = []
         while current:
             sprite = current.sprite
-            sprite_id = sprite.sprite_type
             kind = self.get_meta(sprite)
             self.update_sprite(sprite, kind, elapsed)
 
-            if not current.next:
-                break
-            else:
-                next_node = current.next
-
             if not types.get_flag(sprite, FLAG_ACTIVE):
-                if DEBUG_INST:
-                    printc("!!!SPRITE NOT ACTIVE, RELEASING!!!", INK_RED)
-                self.pool.release(sprite, kind)
+                inactive_sprites_to_release.append((sprite, kind))
 
-            current = next_node
+            current = current.next
+
+        # Step 2: Now, safely release all the collected inactive sprites.
+        if inactive_sprites_to_release:
+            if DEBUG_INST:
+                printc(f"... releasing {len(inactive_sprites_to_release)} sprites ...", INK_YELLOW)
+            for sprite, kind in inactive_sprites_to_release:
+                self.pool.release(sprite, kind)
 
         """ Check for and update actions for all sprite types"""
 
@@ -258,8 +259,6 @@ class SpriteManager:
         if sprite.draw_y < self.min_draw_y:
             if DEBUG_CLIP:
                 printc(f"SPRITE OUT OF BOUNDS (-Y): {sprite.draw_y}")
-            # Consider the sprite OOB
-            self.release(sprite, meta)
             return False
 
         self.renderer.render_sprite(sprite, meta, images, palette)
