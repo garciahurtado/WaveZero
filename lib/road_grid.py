@@ -115,15 +115,18 @@ class RoadGrid():
     far_z = 0
     speed = 0
     speed_ms = 0
-    last_update = None # Last time the grid was updated
+    last_update = None      # Last time the grid was updated
 
     def __init__(self, camera, display, lane_width=None):
 
+        self.last_y = 0
         self.width = camera.screen_width
         self.height = camera.screen_height
         self.num_horiz_lines = 24
         self.num_vert_lines = 16
         self.vert_points = []
+        self.delete_lines = []
+
         self.display = display
         self.paused = False
 
@@ -276,7 +279,7 @@ class RoadGrid():
 
     def update_horiz_lines(self, elapsed):
         self.far_z = 0 # Keep track of the furthest line, to see if we need new ones
-        delete_lines = []
+        self.delete_lines = []
 
         for my_line in self.horiz_lines_data:
             if not self.paused:
@@ -289,23 +292,23 @@ class RoadGrid():
             if my_line['z'] > self.far_z:
                 self.far_z = my_line['z']
             elif my_line['z'] < self.min_z:
-                delete_lines.append(my_line)
+                self.delete_lines.append(my_line)
                 continue
 
         """ Remove out of bounds lines """
-        for line in delete_lines:
+        for line in self.delete_lines:
             self.horiz_lines_data.remove(line)
 
-    @timed
+    #@timed
     def show_horiz_lines(self):
-        last_y: int = 0
+        self.last_y = 0
 
         for my_line in self.horiz_lines_data:
             # Avoid writing a line on the same Y coordinate as the last one we drew
-            if my_line['y'] == last_y:
+            if my_line['y'] == self.last_y:
                 continue
 
-            last_y = my_line['y']
+            self.last_y = my_line['y']
 
             """ Pick the color from the palette according to the distance"""
             rel_y = my_line['y'] - self.horiz_y + 1
@@ -325,7 +328,7 @@ class RoadGrid():
             new_line = {'z': self.far_z + self.lane_depth, 'y': 0}
             self.horiz_lines_data.append(new_line)
 
-    @timed
+    #@timed
     def show_vert_lines(self):
         # Calculate the reference points just once
         start_x_far, _ = self.camera.to_2d(0, 0, self.far_z_vert)

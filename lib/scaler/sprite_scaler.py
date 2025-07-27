@@ -26,7 +26,7 @@ from scaler.scaler_debugger import ScalerDebugger
 from sprites.sprite_types import SpriteType
 from ssd1331_pio import SSD1331PIO
 
-from scaler.scaler_debugger import printc
+from print_utils import printc
 from profiler import timed, prof
 
 # GLOBAL
@@ -36,7 +36,7 @@ class SpriteScaler():
     def __init__(self, display):
 
         # NULL trigger buffer should be 2 words wide, for both 16x16 and 32x32 sprites, since it is the width of the
-        # receiving DMA channel
+        # receiving DMA channel that determines the size of the transfer
         self.sm_read_palette_debug_msg = "(SM Read Palette IRQ handler) sm_finished = TRUE"
         self.null_trig_inv_buf = bytearray([255] * 16) # ie: 0xFFFFFFFF x2
         self.null_trig_inv_addr = addressof(self.null_trig_inv_buf)
@@ -165,7 +165,7 @@ class SpriteScaler():
         read_addrs[row_id] = self.null_trig_inv_addr  # This "reverse NULL trigger" will make the SM stop. This is the address where the value lives
         write_addrs[row_id] = 0x00000000
 
-    @timed
+    #@timed
     def draw_sprite(self, sprite: SpriteType, image: Image, x=0, y=0, h_scale=1.0, v_scale=1.0):
         """
         Draw a scaled sprite at the specified position.
@@ -243,11 +243,7 @@ class SpriteScaler():
         if DEBUG_DMA:
             print(f"PIXEL_BYTES BASE_READ: 0x{self.base_read:08X}")
 
-        prof.start_profile('fill_addrs')
-        try:
-            self.fill_addrs(scaled_height, h_scale, v_scale)
-        finally:
-            prof.end_profile('fill_addrs')
+        self.fill_addrs(scaled_height, h_scale, v_scale)
 
         if DEBUG_DMA_ADDR:
             self.dbg.debug_dma_addrs(self.dma)
@@ -344,7 +340,7 @@ class SpriteScaler():
         mem32[INTERP1_ACCUM0] = 0
         mem32[INTERP1_ACCUM1] = 0
 
-    @timed
+    #@timed
     def init_interp_sprite(self, sprite_width:int, h_scale = 1.0, v_scale= 1.0):
         """
         Interpolator configuration that is specific to this sprite, runs every time draw_sprite is called
@@ -365,11 +361,7 @@ class SpriteScaler():
             return False
 
         """ LANE 1 config - handles write addresses  """
-        prof.start_profile('init_interp_lanes')
-        try:
-            self.init_interp_lanes(frac_bits, self.int_bits, int(sprite_width), framebuf.display_stride, write_base)
-        finally:
-            prof.end_profile('init_interp_lanes')
+        self.init_interp_lanes(frac_bits, self.int_bits, int(sprite_width), framebuf.display_stride, write_base)
 
         # Configure remaining variables
         fixed_step = self.init_convert_fixed_point(sprite_width, v_scale)
@@ -416,7 +408,7 @@ class SpriteScaler():
             print(f"    WRITE BASE:     0x{write_base:08x}")
             print(f"    WRITE STRIDE:   0x{display_stride:08x}")
 
-    @timed
+    #@timed
     def clip_sprite(self, sprite_width, x_scale, y_scale):
         """ Handles the clipping of very large sprites so that they can be rendered.
         Overflow in the Y coordinate will lead to skipping rows, and overflow in the X coordinate will lead to
@@ -516,14 +508,14 @@ class SpriteScaler():
         return True
 
     # @micropython.viper
-    @timed
+    #@timed
     def init_convert_fixed_point(self, sprite_width, scale_y):
         """Calculate step between source rows in fixed-point."""
         fixed_step = int((sprite_width << self.frac_bits) / (scale_y * 2))
         # fixed_step = fixed_step if (fixed_step % 2 == 0) else fixed_step - 1
         return fixed_step
 
-    @timed
+    #@timed
     def reset(self):
         """Clean up resources before a new run"""
         self.dma.reset()
@@ -541,7 +533,7 @@ class SpriteScaler():
         mem32[INTERP1_BASE0] = 0
         mem32[INTERP1_BASE1] = 0
 
-    @timed
+    #@timed
     def init_pio(self, palette_addr):
         global self_sm_finished
         self_sm_finished = False

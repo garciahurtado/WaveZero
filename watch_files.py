@@ -1,7 +1,14 @@
 import os
 import time
 import subprocess
+import sys
+
+# Add /lib to the system path to import the print_utils module
+sys.path.append(os.path.join(os.getcwd(), 'lib'))
+
 from windows_toasts import Toast, ToastDuration, WindowsToaster
+from scaler.const import INK_GREEN
+from print_utils import printc
 
 # Set the directory to monitor
 project_root = os.getcwd()
@@ -16,7 +23,7 @@ file_timestamps = {}
 # ANSI escape codes for color formatting
 RED = "\033[91m"
 RESET = "\033[0m"
-COM = "COM4"
+COM = "COM4"        # this might change over time
 
 def upload_file(file_path):
     try:
@@ -27,7 +34,23 @@ def upload_file(file_path):
         relative_path = os.path.relpath(file_path, project_root)
 
         # Use MicroPython tools to upload the file
-        subprocess.run(["python", os.path.join(micropython_tools_path, "pyboard.py"), "--device", COM, "-f", "cp", file_path, ":/" + relative_path], check=True)
+        pyboard_bin = os.path.join(micropython_tools_path, 'pyboard.py')
+        subprocess.run(
+            [
+                "python",
+                pyboard_bin,
+                "--device", COM, "-f", "cp",
+                file_path,
+                ":/" + relative_path
+            ],
+            check=True,
+            capture_output=True
+        )
+
+        # Print success message
+        msg = f"/{relative_path} uploaded to :/{relative_path}"
+        msg = msg.replace('\\', '/')
+        printc(msg, INK_GREEN)
 
         # Success! - show Windows toast
         toaster = WindowsToaster('File Watcher')
@@ -36,9 +59,9 @@ def upload_file(file_path):
         toaster.show_toast(newToast)
 
     except subprocess.CalledProcessError as e:
-        print(f"{RED}Error uploading file: {file_path}\nError message: {str(e)}{RESET}")
+        printc(f"Error uploading file: {file_path}\nError message: {str(e)}")
     except Exception as e:
-        print(f"{RED}Unexpected error uploading file: {file_path}\nError message: {str(e)}{RESET}")
+        printc(f"Unexpected error uploading file: {file_path}\nError message: {str(e)}")
 
 def monitor_directory():
     print(f"Monitoring directory {directory_to_monitor}")

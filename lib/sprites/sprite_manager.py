@@ -1,14 +1,14 @@
 import gc
+
+from debug.mem_logging import log_mem
 from profiler import prof, timed
 
-import uctypes
 from micropython import const
 import micropython
 
-from images.image_loader import ImageLoader
 from perspective_camera import PerspectiveCamera
 from scaler.const import DEBUG, INK_GREEN, INK_BLUE, DEBUG_CLIP, DEBUG_INST, INK_RED, INK_YELLOW
-from scaler.scaler_debugger import printc
+from print_utils import printc
 from sprites.sprite_draw import SpriteDraw
 from sprites.sprite_physics import SpritePhysics
 from sprites.sprite_registry import registry
@@ -17,13 +17,10 @@ from sprites.sprite_types import SpriteType as types
 from sprites.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE, FLAG_BLINK, FLAG_BLINK_FLIP
 import framebuf
 from colors.framebuffer_palette import FramebufferPalette
-import math
-from images.indexed_image import Image, create_image
+from images.indexed_image import Image
 from sprites.sprite_pool_lite import SpritePool
 from typing import Dict, List
-from profiler import prof
 import ssd1331_pio
-from utils import pprint
 
 class SpriteManager:
     """
@@ -44,6 +41,7 @@ class SpriteManager:
     sprite_inst: Dict[str, list] = {}
     half_scale_one_dist = int(0)  # This should be set based on your camera setup
     pools = []
+    inactive_sprites = []
     grid = None
     camera: PerspectiveCamera = None
     phy: SpritePhysics = SpritePhysics()
@@ -199,22 +197,23 @@ class SpriteManager:
         current = self.pool.head
 
         # Step 1: Update sprites and collect any that become inactive.
-        inactive_sprites_to_release = []
+        self.inactive_sprites.clear()
+        inactive_sprites = self.inactive_sprites
         while current:
             sprite = current.sprite
             kind = self.get_meta(sprite)
             self.update_sprite(sprite, kind, elapsed)
 
             if not types.get_flag(sprite, FLAG_ACTIVE):
-                inactive_sprites_to_release.append((sprite, kind))
+                inactive_sprites.append((sprite, kind))
 
             current = current.next
 
         # Step 2: Now, safely release all the collected inactive sprites.
-        if inactive_sprites_to_release:
+        if inactive_sprites:
             if DEBUG_INST:
-                printc(f"... releasing {len(inactive_sprites_to_release)} sprites ...", INK_YELLOW)
-            for sprite, kind in inactive_sprites_to_release:
+                printc(f"... releasing {len(inactive_sprites)} sprites ...", INK_YELLOW)
+            for sprite, kind in inactive_sprites:
                 self.pool.release(sprite, kind)
 
         """ Check for and update actions for all sprite types"""

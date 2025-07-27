@@ -1,9 +1,10 @@
 import micropython
+micropython.opt_level(3)
+micropython.alloc_emergency_exception_buf(100)
 
+import gc
+gc.threshold(16 * 1024) # Set garbage collection to run if free memory drops below 16KB
 from screens.test_screen import TestScreen
-
-micropython.opt_level(1)
-# micropython.alloc_emergency_exception_buf(100)
 
 import _thread
 import utime
@@ -24,7 +25,8 @@ import machine
 print(f" = MAIN.PY ON THREAD #{_thread.get_ident()} (main)")
 
 def main():
-    utime.sleep_ms(50)
+    """ Give ourselves some time to abort a misbehaving program """
+    utime.sleep_ms(200)
 
     """ Overclocking frequencies """
     # max_freq = 266_000_000    # RP2350

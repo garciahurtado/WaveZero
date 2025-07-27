@@ -1,6 +1,6 @@
 from profiler import prof, timed
 from scaler.const import DEBUG_PHYSICS, DEBUG, INK_CYAN, DEBUG_INST, DEBUG_UPDATE
-from scaler.scaler_debugger import printc
+from print_utils import printc
 from sprites.sprite_manager import SpriteManager
 from sprites.sprite_types import SpriteType as types, FLAG_PHYSICS, FLAG_ACTIVE, FLAG_VISIBLE
 

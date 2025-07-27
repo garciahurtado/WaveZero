@@ -2,7 +2,7 @@ import math
 
 from colors.framebuffer_palette import FramebufferPalette
 from scaler.const import DEBUG, INK_GREEN, INK_YELLOW, DEBUG_INST
-from scaler.scaler_debugger import printc
+from print_utils import printc
 from scaler.sprite_scaler import SpriteScaler
 from sprites.renderer_base import Renderer
 from sprites.sprite_registry import registry
@@ -36,7 +36,7 @@ class RendererScaler(Renderer):
             print(f"Warning: Failed to load image/frames for type {sprite_type}")
             # Handle error appropriately
 
-    @timed
+    #@timed
     def render_sprite(self, inst, meta, images, palette):
         """
         Renders a sprite instance using on-the-fly scaling.

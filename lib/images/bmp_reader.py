@@ -10,7 +10,6 @@ from colors.framebuffer_palette import FramebufferPalette as BufPalette
 from images.indexed_image import Image, create_image
 from colors import color_util as colors
 from scaler.const import DEBUG, INK_GREEN
-from scaler.scaler_debugger import printc, check_gc_mem
 from utils import aligned_buffer
 
 class BMPReader():

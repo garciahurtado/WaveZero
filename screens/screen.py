@@ -6,8 +6,8 @@ from ucollections import namedtuple
 
 from fps_counter import FpsCounter
 from profiler import prof, timed
-from scaler.const import INK_BRIGHT_YELLOW, DEBUG_FPS, DEBUG_FRAME_ID
-from scaler.scaler_debugger import printc
+from scaler.const import INK_BRIGHT_YELLOW, DEBUG_FPS, DEBUG_FRAME_ID, INK_CYAN, INK_GREEN
+from print_utils import printc
 from sprites_old.sprite import Sprite
 import micropython
 from ssd1331_pio import SSD1331PIO
@@ -41,9 +41,7 @@ class Screen:
     total_frames = 0
 
     # This will be set to True by the render loop when it finishes (then the game world is ready to be updated)
-    is_render_finished = False
-
-    # this will be set to True by the update loop when it finishes (then the display is ready to be rendered)
+    is_render_finished = True
     is_update_finished = False
 
     def __init__(self, display:SSD1331PIO=None, margin_px=16):
@@ -73,14 +71,15 @@ class Screen:
 
     async def start_render_loop(self):
         """ The main display loop. """
+        printc("<< RENDER LOOP START (screen.py) >>", INK_CYAN)
 
         while True:
             if self.is_update_finished:
+                self.is_update_finished = False     # So that we don't immediately start the render loop again
+
+                self.is_render_finished = False
                 self.do_render()
-                self.is_render_finished = True
-            else:
-                # wait for the update loop to catch up
-                await asyncio.sleep(1/30)
+                self.is_render_finished = True      # allows the update loop to start
 
             if DEBUG_FPS:
                 self.fps.tick()
@@ -90,34 +89,31 @@ class Screen:
 
             # Pause to ensure we don't try to render faster than the display can handle
             # but also to free up the event loop for other tasks
-            await asyncio.sleep_ms(1)
+            await asyncio.sleep_ms(30)
 
-    async def start_update_loop(self):
-        print("<< UPDATE LOOP START (screen.py) >>")
+    async def _start_update_loop(self):
         await asyncio.gather(
             self.update_loop(),
         )
 
-    async def update_loop(self):
+    async def start_update_loop(self):
+        print("<< UPDATE LOOP START (screen.py) >>")
+
         start_time_ms = self.last_update_ms = utime.ticks_ms()
         self.last_perf_dump_ms = start_time_ms
 
         print(f"--- ({self.__class__.__name__}) Update loop Start time: {start_time_ms}ms ---")
 
         # update loop - will run until task cancellation
-        try:
-            while True:
-                if self.is_render_finished:
-                    self.do_update()
-                    self.is_update_finished = True
-                else:
-                    # give the display some time to catch up
-                    await asyncio.sleep(1/30)
+        while True:
+            if self.is_render_finished:
+                self.is_render_finished = False     # So that we don't immediately start the update loop again#
 
-                await asyncio.sleep(1/60)   # Tweaking this number can improve FPS
+                self.is_update_finished = False
+                self.do_update()
+                self.is_update_finished = True      # allows the render loop to start
 
-        except asyncio.CancelledError:
-            return False
+            await asyncio.sleep_ms(30)  # Tweaking this number can improve FPS
 
     async def start_fps_counter(self, pool=None):
         await asyncio.sleep(5)          # wait for a few seconds before starting to measure FPS
@@ -135,11 +131,15 @@ class Screen:
                 # self.fps_text.row_clip = True
                 # self.fps_text.render_text(fps_str)
 
-            await asyncio.sleep(1)      # Update every second
+            await asyncio.sleep(1)      # Update every second at most
 
     def do_render(self):
         """ Meant to be overridden in child classes """
-        # self.maybe_gc()
+        raise NotImplementedError
+
+    def do_update(self):
+        """ Meant to be overridden in child classes """
+        raise NotImplementedError
 
     def draw_sprites(self):
         """ Meant to be overridden in child classes """

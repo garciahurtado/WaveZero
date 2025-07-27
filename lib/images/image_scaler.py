@@ -4,7 +4,7 @@ import uctypes  # For addressof
 import framebuf  # For FrameBuffer, GS4_HMSB, GS8
 from images.indexed_image import create_image, Image  # Ensure path is correct
 from scaler.const import INK_CYAN, INK_RED # Assuming INK_RED is defined for debugging
-from scaler.scaler_debugger import printc
+from print_utils import printc
 
 
 def generate_scaled_framebuffer(orig_img_pixels: framebuf.FrameBuffer,

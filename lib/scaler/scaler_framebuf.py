@@ -109,7 +109,7 @@ class ScalerFramebuf:
 
         return new_buff
 
-    @timed
+    #@timed
     def select_buffer(self, scaled_width, scaled_height):
         """
         We implement transparency by first drawing the sprite on a scratch framebuffer, and then using the first color

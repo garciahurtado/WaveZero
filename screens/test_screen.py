@@ -1,4 +1,4 @@
-from scaler.scaler_debugger import printc
+from print_utils import printc
 from profiler import prof, timed
 
 import utime

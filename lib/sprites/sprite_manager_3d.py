@@ -4,11 +4,12 @@ import uctypes
 from micropython import const
 import micropython
 
+from debug.mem_logging import log_mem
 from images.image_loader import ImageLoader
 from mpdb.mpdb import Mpdb
 from perspective_camera import PerspectiveCamera
 from scaler.const import DEBUG, DEBUG_INST, INK_RED, INK_GREEN, DEBUG_CLIP, INK_CYAN, DEBUG_UPDATE
-from scaler.scaler_debugger import printc
+from print_utils import printc
 from sprites.sprite_draw import SpriteDraw
 from sprites.sprite_manager import SpriteManager
 from sprites.sprite_physics import SpritePhysics
@@ -55,9 +56,11 @@ class SpriteManager3D(SpriteManager):
         active = types.get_flag(sprite, FLAG_ACTIVE)
         cam = self.camera
 
+
         if not active:
             self.pool.release(sprite, meta)
             return False
+
 
         """ Apply motion (FIX) """
         if sprite.speed:
@@ -65,10 +68,12 @@ class SpriteManager3D(SpriteManager):
         else:
             new_z = sprite.z
 
+
         if sprite.z < cam.near:
             """Early out if past the near clipping plane"""
             self.pool.release(sprite, meta)
             return False
+
 
         if sprite.z == 0:
             sprite.z = 1    # Smallest possible unit, since our coords are INT16
@@ -83,6 +88,7 @@ class SpriteManager3D(SpriteManager):
         else:
             sprite.z = new_z
 
+
         """ The rest of the calculations are only relevant for visible sprites within the frustum"""
         if not visible:
             return True
@@ -92,6 +98,7 @@ class SpriteManager3D(SpriteManager):
         sprite.floor_y, scale = cam.get_scale(sprite.z)
         if math.isinf(scale):
             scale = self.max_scale
+
 
         if not scale:
             self.pool.release(sprite, meta)
@@ -116,15 +123,16 @@ class SpriteManager3D(SpriteManager):
             self.pool.release(sprite, meta)
             return False
 
+
         """ Add some useful debugging statements """
         if DEBUG_UPDATE:
-            printc(f"SPRITE 3D UPDATE :", INK_CYAN)
-            print(f"draw_x: {sprite.draw_x}, draw_y: {sprite.draw_y}")
-            print(f"scale: {sprite.scale}")
-            print(f"speed: {sprite.speed}")
-            print(f"elapsed: {elapsed}")
-            print(f"active: {active}")
-            print(f"visible: {visible}")
+            printc(f"~ SPRITE 3D UPDATE ~", INK_CYAN)
+            print(f" draw_x: {sprite.draw_x}, draw_y: {sprite.draw_y}")
+            print(f" scale: {sprite.scale}")
+            print(f" speed: {sprite.speed}")
+            print(f" elapsed: {elapsed}")
+            print(f" active: {active}")
+            print(f" visible: {visible}")
 
         return True
 

@@ -1,4 +1,9 @@
-from micropython import const
+""" Enables reuse of the same code on both micropython and python """
+try:
+    from micropython import const
+except ImportError:
+    def const(x):
+        return x
 
 """ Debugging Constants """
 DEBUG =                     const(0)

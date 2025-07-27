@@ -4,7 +4,7 @@ import time
 
 from fps_counter import FpsCounter
 from scaler.const import DEBUG_PROFILER, INK_YELLOW, DEBUG_FRAME_ID
-from scaler.scaler_debugger import printc
+from print_utils import printc
 
 
 class ProfileRecord:

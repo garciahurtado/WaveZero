@@ -3,7 +3,8 @@ import random
 from colors import color_util as colors
 from scaler.const import DEBUG, INK_GREEN
 from perspective_camera import PerspectiveCamera
-from scaler.scaler_debugger import printc, check_gc_mem
+from print_utils import printc
+from scaler.scaler_debugger import check_gc_mem
 from sprites.sprite_physics import SpritePhysics
 from sprites.types.warning_wall import WarningWall
 from sprites_old.sprite import Sprite

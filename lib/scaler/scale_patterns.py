@@ -11,7 +11,7 @@ except ImportError:
 
 from profiler import timed
 from scaler.const import DEBUG_SCALES, INK_RED
-from scaler.scaler_debugger import printc
+from print_utils import printc
 
 class ScalePatterns:
     """
@@ -52,22 +52,19 @@ class ScalePatterns:
         patterns_all = {}
 
         patterns1 = self.create_patterns(0, 1, step=0.125)  # 8 steps
-        patterns2 = self.create_patterns(1, 2, step=0.250)  # 4 steps
-        patterns3 = self.create_patterns(2, 6, step=0.500)  # 2 steps
-        patterns4 = self.create_patterns(6, 14, step=1)     #
-        patterns5 = self.create_patterns(14, 18, step=1)    #
+        patterns2 = self.create_patterns(1, 4, step=0.250)  # 4 steps
+        patterns3 = self.create_patterns(4, 8, step=0.500)  # 2 steps
+        patterns4 = self.create_patterns(8, 16, step=1)     #
 
         patterns_all |= patterns1
         patterns_all |= patterns2
         patterns_all |= patterns3
         patterns_all |= patterns4
-        patterns_all |= patterns5
 
         self.horiz_patterns = patterns_all
         self.valid_scales = sorted(list(self.horiz_patterns.keys()))
 
         return self.horiz_patterns
-
 
     def create_patterns(self, from_scale, to_scale, step=0.125):
         pattern_list = {}

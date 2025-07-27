@@ -1,7 +1,7 @@
 import math
 
 from scaler.const import *
-from scaler.scaler_debugger import printc
+from print_utils import printc
 
 """
 In order to store floating point as fixed point 16bit ints:

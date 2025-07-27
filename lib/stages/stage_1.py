@@ -50,7 +50,7 @@ class Stage1(Stage):
             evt.multi([
                 # evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=0, z=spawn_z, speed=wall_speed),
                 # evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=0, y=line_height, z=spawn_z, speed=wall_speed),
-
+                #
                 # evt.spawn(SPRITE_BARRIER_LEFT, lane=3, z=spawn_z, speed=wall_speed),
                 # evt.spawn(SPRITE_BARRIER_LEFT_x2, lane=3, y=line_height, z=spawn_z, speed=wall_speed),
 

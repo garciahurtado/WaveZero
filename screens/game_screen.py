@@ -1,10 +1,12 @@
 import random
 import gc
 import micropython
+from debug.mem_logging import log_mem, log_new_frame
 
 from scaler.const import DEBUG_INST, DEBUG, INK_MAGENTA, DEBUG_POOL, INK_BRIGHT_RED, INK_RED, DEBUG_MEM, INK_CYAN, \
-    INK_BRIGHT_GREEN, INK_BRIGHT_BLUE, DEBUG_FRAME_ID, INK_YELLOW, DEBUG_PROFILER, DEBUG_FPS
-from lib.scaler.scaler_debugger import printc, check_gc_mem
+    INK_BRIGHT_GREEN, INK_BRIGHT_BLUE, DEBUG_FRAME_ID, INK_YELLOW, DEBUG_PROFILER, DEBUG_FPS, DEBUG_LOG_MEM
+from scaler.scaler_debugger import check_gc_mem
+from print_utils import printc
 from perspective_camera import PerspectiveCamera
 from death_anim import DeathAnim
 from sprites.renderer_scaler import RendererScaler
@@ -160,7 +162,6 @@ class GameScreen(Screen):
             printc("... STARTING FPS COUNTER ...")
             self.fps_counter_task = loop.create_task(self.start_fps_counter(self.mgr.pool))
 
-        self.display_task = loop.create_task(self.start_render_loop())
         self.update_score_task = loop.create_task(self.mock_update_score())
 
         # Start the road speed-up task
@@ -168,18 +169,18 @@ class GameScreen(Screen):
         loop.create_task(self.speed_anim.run(fps=60))
         self.start()
 
-        printc("-- STARTING UPDATE_LOOP ... ---", INK_BRIGHT_GREEN)
-        asyncio.run(self.start_update_loop())
+        printc("-- STARTING UPDATE_LOOP and RENDER_LOOP ... ---", INK_BRIGHT_GREEN)
+        loop.create_task(self.start_update_loop())
+        loop.create_task(self.start_render_loop())
+        loop.run_forever()
 
     async def stop_stage(self):
         await asyncio.sleep_ms(10000)
-        printc("** STOPPING STAGE AND SCREEN UPDATES**", INK_MAGENTA)
+        printc("** STOPPING STAGE AND SCREEN UPDATES **", INK_MAGENTA)
         self.pause()
         self.stage.stop()
 
     def do_update(self):
-        self.is_update_finished = False
-
         if DEBUG_MEM:
             print(micropython.mem_info())
 
@@ -211,7 +212,6 @@ class GameScreen(Screen):
 
             self.collider.check_collisions(self.mgr.pool.active_sprites)
             self.stage.update(elapsed)
-
 
     def do_render(self):
         """ Overrides parent method """

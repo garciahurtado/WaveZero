@@ -4,7 +4,7 @@ import framebuf  # Required for buffer_format constants if passed to scaler
 from images.image_loader import ImageLoader  # Ensure this path is correct
 from images.indexed_image import Image, create_image  # Ensure this path is correct
 from scaler.const import INK_YELLOW, DEBUG
-from scaler.scaler_debugger import printc
+from print_utils import printc
 from sprites.sprite_types import SpriteType  # Ensure this path is correct
 # Import the new, more efficient scaling function that returns a FrameBuffer
 from images.image_scaler import generate_scaled_framebuffer  # Make sure image_scaler.py has this function

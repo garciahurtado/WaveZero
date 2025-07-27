@@ -4,7 +4,7 @@ import gc
 from machine import mem32
 from scaler.const import DMA_BASE, PIO1_CTRL, PIO0_CTRL, INK_BLUE, INK_CYAN, INK_MAGENTA, INK_GREEN, INK_RED, INK_END, \
     INK_WHITE
-from scaler.scaler_debugger import printc
+from print_utils import printc
 
 """
 from: https://github.com/bobveringa/mpdb

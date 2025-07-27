@@ -3,7 +3,7 @@ from typing import List, Tuple
 import utime
 from uarray import array
 
-from scaler.scaler_debugger import printc
+from print_utils import printc
 from sprites.sprite_types import SPRITE_DATA_LAYOUT, SPRITE_DATA_SIZE, SpriteType, FLAG_PHYSICS
 from sprites.sprite_types import FLAG_VISIBLE, FLAG_ACTIVE
 from uctypes import addressof, struct
@@ -49,13 +49,14 @@ class SpritePool:
         """ Initialize sprite memory """
         self.sprite_memory = []
 
-        """ "chunk" is an integer number of sprites in a single, contiguous, byte array"""
+        """ A 'chunk' is a number of sprites in a single, contiguous, byte array. Doing it this way means we don't
+        have to worry about not being able to allocate a large block of memory. """
         chunk_size = min(pool_size, POOL_CHUNK_SIZE)
         for i in range(0, pool_size, chunk_size):
             chunk = bytearray(SPRITE_DATA_SIZE * min(chunk_size, pool_size - i))
             self.sprite_memory.append(chunk)
 
-        print(f"ABOUT to ALLOCATE POOL SPRITES for a size of {self.pool_size}")
+        print(f"- ABOUT to ALLOCATE POOL SPRITES for a size of {self.pool_size} - ({len(self.sprite_memory)} chunks)")
 
         # Create sprite structures
         self.sprites = []
@@ -145,7 +146,7 @@ class SpritePool:
             if current.sprite is sprite:
                 # Store the sprite index while we have the node
                 sprite_idx = current.index
-                
+
                 if current.prev:
                     current.prev.next = current.next
                 else:

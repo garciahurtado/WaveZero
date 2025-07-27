@@ -185,7 +185,7 @@ class DMAChain:
         )
         self.h_scale.irq(handler=self.irq_h_scale, hard=True)
 
-    @timed
+    #@timed
     def init_dma_counts(self, read_stride_px, num_rows, h_scale):
         """Configure Sprite specific DMA parameters."""
         total_px = read_stride_px * num_rows
