@@ -177,8 +177,6 @@ class SpriteScaler():
         if not h_scale or not v_scale :
             raise AttributeError("Both v_scale and h_scale must be non-zero")
 
-        # h_scale, v_scale = 2.0, 2.0         # TODO: remove
-
         self.base_read = addressof(image.pixel_bytes)
         h_scale, v_scale, scaled_width, scaled_height = self.init_scaling(sprite, h_scale, v_scale, x, y)
 
@@ -435,13 +433,13 @@ class SpriteScaler():
 
         """ Vertical clipping (negative Y-axis) """
         if self.draw_y < 0:
-            # skip_rows_read = math.ceil(abs(self.draw_y) / y_scale) # how many rows to skip when reading the source sprite
-            skip_rows_read = abs(self.draw_y) # how many rows to skip when reading the source sprite
-            visible_rows = scaled_height - int(skip_rows_read * y_scale)
+            skip_rows_read = abs(self.draw_y)                               # how many rows to skip when reading the source sprite
+            scaled_skip_rows = int(skip_rows_read * y_scale)
+            visible_rows = scaled_height - scaled_skip_rows    # I don't understand why we need to multiply by y_scale
             self.max_read_addrs = self.max_read_addrs - skip_rows_read
 
             old_draw_y = self.draw_y
-            self.draw_y += skip_rows_read
+            self.draw_y = 0
 
             """ We need to offset base_read in order to clip vertically when generating addresses """
             skip_bytes_y = (skip_rows_read * sprite_width) // 2  # Integer division
@@ -507,9 +505,6 @@ class SpriteScaler():
                 print(f"\tread_stride_px:               {self.read_stride_px}")
                 print(f"\tskip_bytes_x:                 {skip_bytes_x}")
                 print(f"\tbase_read after:              0x{self.base_read:08X}")
-
-        # Recalculate visible rows after vertical clipping
-        # visible_rows = scaled_height - int(skip_rows_read * y_scale)
 
         if visible_rows < 1:
             return False
