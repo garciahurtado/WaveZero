@@ -120,12 +120,15 @@ class Screen:
 
         while True:
             fps = self.fps.fps()
-            if not fps or not pool:
+            if not fps:     # if FPS is not available yet (not enough measurements)
                 pass
             else:
                 fps_str = "{: >6.2f}".format(fps)
-                extra_text = pool.active_count
-                printc(f"FPS: {fps_str} // {extra_text:03.} SPRITES", INK_BRIGHT_YELLOW)
+                if pool:
+                    extra_text = pool.active_count
+                    printc(f"FPS: {fps_str} // {extra_text:03.} SPRITES", INK_BRIGHT_YELLOW)
+                else:
+                    printc(f"FPS: {fps_str}", INK_BRIGHT_YELLOW)
 
                 # # ColorWriter.set_textpos(self.display.write_framebuf, 0, 0)
                 # self.fps_text.row_clip = True

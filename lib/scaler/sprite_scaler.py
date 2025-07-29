@@ -97,7 +97,7 @@ class SpriteScaler():
         # Allow the state machine to exit the wait loop and continue back to the start
         self.pin_jmp.value(1)
 
-    @micropython.viper
+    # @micropython.viper
     def fill_addrs(self, scaled_height: int, h_scale, v_scale):
         """ Interpolator must have already been configured for this method to work, with init_interp_sprite()
         or init_interp_lanes(), since it pulls the addresses from the interp."""
@@ -111,6 +111,8 @@ class SpriteScaler():
         new_read: int = 0
         new_write: int = 0
         max_read_addrs: int = int(self.max_read_addrs)
+        if DEBUG_DMA:
+            printc(f"MAX READ ADDRS: {max_read_addrs}", INK_BRIGHT_RED)
         while row_id < max_read_addrs:
             new_read = int(mem32[INTERP1_POP_FULL])
             new_write = int(mem32[INTERP0_POP_FULL])
@@ -130,7 +132,7 @@ class SpriteScaler():
                 print(f">>> [{row_id:02.}] W: 0x{write_addr:08X}")
                 print("-------------------------")
 
-    def fill_addrs_software(self, sprite_width, v_scale):
+    def _fill_addrs_software(self, sprite_width, v_scale):
         """ Software-only implementation of address generation, bypassing the interpolator. """
         read_addrs = self.dma.read_addrs
         write_addrs = self.dma.write_addrs
@@ -175,9 +177,12 @@ class SpriteScaler():
         if not h_scale or not v_scale :
             raise AttributeError("Both v_scale and h_scale must be non-zero")
 
+        # h_scale, v_scale = 2.0, 2.0         # TODO: remove
+
+        self.base_read = addressof(image.pixel_bytes)
         h_scale, v_scale, scaled_width, scaled_height = self.init_scaling(sprite, h_scale, v_scale, x, y)
 
-        if not self.clip_sprite(sprite.width, h_scale, v_scale):
+        if not self.clip_sprite(sprite.width, sprite.height, h_scale, v_scale):
             return False
 
         self.init_hardware(sprite, image, h_scale, v_scale, scaled_height)
@@ -235,7 +240,6 @@ class SpriteScaler():
         Set up the sprite scaler, clipping and parameters for address generation for the interpolator
         """
 
-        self.base_read = addressof(image.pixel_bytes)
         ret = self.init_interp_sprite(sprite.width, h_scale, v_scale)
         if not ret: # horrible hack
             return False
@@ -343,7 +347,9 @@ class SpriteScaler():
     #@timed
     def init_interp_sprite(self, sprite_width:int, h_scale = 1.0, v_scale= 1.0):
         """
-        Interpolator configuration that is specific to this sprite, runs every time draw_sprite is called
+        Interpolator configuration that is specific to this sprite, runs every time draw_sprite is called.
+        You will have to limit the total number of reads from the interp. lanes somewhere else, because the configuration
+        will simply keep going otherwise.
         """
         assert sprite_width > 0 and h_scale != 0 and v_scale != 0, "Invalid params to init_interp_sprite()!"
 
@@ -354,11 +360,6 @@ class SpriteScaler():
 
         """ INTERPOLATOR CONFIGURATION --------- """
         """ (read / write address generation) """
-
-        """ HANDLE BOUNDS CHECK / CROPPING ------------------------  """
-        ret = self.clip_sprite(sprite_width, h_scale, v_scale)
-        if not ret: # horrible hack
-            return False
 
         """ LANE 1 config - handles write addresses  """
         self.init_interp_lanes(frac_bits, self.int_bits, int(sprite_width), framebuf.display_stride, write_base)
@@ -409,15 +410,18 @@ class SpriteScaler():
             print(f"    WRITE STRIDE:   0x{display_stride:08x}")
 
     #@timed
-    def clip_sprite(self, sprite_width, x_scale, y_scale):
+    def clip_sprite(self, sprite_width, sprite_height, x_scale, y_scale):
         """ Handles the clipping of very large sprites so that they can be rendered.
         Overflow in the Y coordinate will lead to skipping rows, and overflow in the X coordinate will lead to
-        increased start addr of each row (1 byte/2px at a time) """
+        increased start addr of each row (1 byte/2px at a time, the X coordinate will be adjusted to cover the difference) """
+
         framebuf = self.framebuf
-        scaled_height = self.scaled_height
-        skip_rows = 0       # for Y clipping
-        skip_bytes = 0      # for X clipping
         self.read_stride_px = sprite_width
+        scaled_height = self.scaled_height
+
+        skip_rows_read = 0           # for Y clipping (vert)
+        skip_bytes_y = 0        # for Y clipping (vert)
+        skip_bytes_x = 0        # for X clipping (horiz)
 
         """ Avoid division by zero """
         if not x_scale:
@@ -426,30 +430,45 @@ class SpriteScaler():
         if not y_scale:
             y_scale = 0.0001
 
+        visible_rows = scaled_height  # Default to no clipping (all rows are visible)
+        self.max_read_addrs = visible_rows
+
         """ Vertical clipping (negative Y-axis) """
         if self.draw_y < 0:
-            skip_rows = int(abs(self.draw_y) / y_scale) # how many rows to skip when reading the source sprite
-            self.draw_y += math.ceil(skip_rows * y_scale)
+            # skip_rows_read = math.ceil(abs(self.draw_y) / y_scale) # how many rows to skip when reading the source sprite
+            skip_rows_read = abs(self.draw_y) # how many rows to skip when reading the source sprite
+            visible_rows = scaled_height - int(skip_rows_read * y_scale)
+            self.max_read_addrs = self.max_read_addrs - skip_rows_read
+
+            old_draw_y = self.draw_y
+            self.draw_y += skip_rows_read
 
             """ We need to offset base_read in order to clip vertically when generating addresses """
-            skip_bytes_y = (skip_rows * sprite_width) // 2  # Integer division
+            skip_bytes_y = (skip_rows_read * sprite_width) // 2  # Integer division
 
+            base_read_before = self.base_read
             self.base_read += skip_bytes_y
 
-            if DEBUG_INST:
+            if DEBUG_CLIP:
                 printc(f"CLIPPING: (-Y)")
+                print(f"\told_draw_y:           {old_draw_y}")
                 print(f"\tnew_draw_y:           {self.draw_y}")
-                print(f"\tskip_rows:            {skip_rows}")
+                print(f"\tskip_rows:            {skip_rows_read}")
                 print(f"\tskip_bytes_y:         {skip_bytes_y}")
+                print(f"\tbase_read before:     0x{base_read_before:08X}")
                 print(f"\tbase_read after:      0x{self.base_read:08X}")
 
         """ Horizontal clipping (negative X-axis) """
         snap_px = 8  # Clip snapped to every X pixels, should also be max scale
 
-        if self.draw_x < 0 and self.draw_x <= -snap_px:
-            # Calculate needed clipping in screen pixels
+        if self.draw_x <= -snap_px:
+            old_draw_x = self.draw_x
+
+            # Calculate needed clipping in screen pixels (if draw_x is negative and not a multiple of snap_px,
+            # we need to skip some additional pixels to align the sprite to the snap_px boundary)
             mod_x = abs(self.draw_x) % snap_px
             skip_screen_px = mod_x
+
             # skip_source_px = skip_screen_px // x_scale
             #
             #
@@ -469,7 +488,7 @@ class SpriteScaler():
             source_pixels_skipped = (source_pixels_skipped + 1) // 2 * 2
             if source_pixels_skipped % 2 != 0:
                 source_pixels_skipped += 1
-            skip_bytes = source_pixels_skipped // 2  # Bytes to skip
+            skip_bytes_x = source_pixels_skipped // 2  # Bytes to skip
             actual_screen_px_skipped = source_pixels_skipped * x_scale
 
             # 3. Calculate actual screen position adjustment
@@ -479,17 +498,19 @@ class SpriteScaler():
             self.base_read += source_pixels_skipped // 2
             self.read_stride_px = sprite_width - source_pixels_skipped  # In pixels
 
-            if DEBUG_INST:
+            if DEBUG_CLIP:
                 printc(f"CLIPPING: (-X)")
+                print(f"\told_draw_x:                   {old_draw_x}")
                 print(f"\tnew_draw_x:                   {self.draw_x}")
                 print(f"\tskip_screen_px:               {skip_screen_px}")
                 print(f"\tactual_screen_px_skipped:     {actual_screen_px_skipped}")
                 print(f"\tread_stride_px:               {self.read_stride_px}")
-                print(f"\tskip_read_bytes:              {skip_bytes}")
+                print(f"\tskip_bytes_x:                 {skip_bytes_x}")
                 print(f"\tbase_read after:              0x{self.base_read:08X}")
 
-        # Calculate visible rows after vertical clipping
-        visible_rows = scaled_height - int(skip_rows * y_scale)
+        # Recalculate visible rows after vertical clipping
+        # visible_rows = scaled_height - int(skip_rows_read * y_scale)
+
         if visible_rows < 1:
             return False
 
@@ -498,7 +519,7 @@ class SpriteScaler():
 
         self.read_stride_px = sprite_width
 
-        if DEBUG_INST:
+        if DEBUG_CLIP:
             print(f" + VISIBLE ROWS:    {visible_rows}")
             print(f" _  scaled_height:   {scaled_height} @{y_scale}x")
             print(f" _  max_write_addrs: {self.max_write_addrs}")

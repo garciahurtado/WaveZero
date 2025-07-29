@@ -45,8 +45,6 @@ class DMAChain:
 
     def __init__(self, display:SSD1331PIO, extra_write_addrs=0, jmp_pin:int=0):
         """ extra_read_addrs: additional rows in the margin of the full screen buffer"""
-
-        self.max_sprite_height = 72
         self.max_write_addrs = self.max_read_addrs = display.HEIGHT + extra_write_addrs
 
         """ Create array with maximum possible number of read and write addresses """
@@ -123,7 +121,7 @@ class DMAChain:
 
         self.px_read.config(
             count=1,
-            read=0,  # To be Set per row
+            read=0,             # read address will be set per row
             write=PIO1_TX0,
             ctrl=px_read_ctrl
         )

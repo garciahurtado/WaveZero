@@ -1,5 +1,5 @@
 import micropython
-micropython.opt_level(3)
+micropython.opt_level(0)
 micropython.alloc_emergency_exception_buf(100)
 
 import gc

@@ -20,7 +20,7 @@ class ScalerFramebuf:
     """ Because we can only read source pixels in whole rows, even when upscaling, if the upscaled pixel falls in the 
     middle of the bounds, we have to have an additional buffer to render the out of bounds portion. This margin should
     never need to be more than (max_scale / 2) """
-    extra_subpx_top = extra_subpx_left = 16
+    extra_subpx_top = extra_subpx_left = 32
 
     display:SSD1331PIO
     max_width = int(SSD1331PIO.WIDTH) + extra_subpx_left
